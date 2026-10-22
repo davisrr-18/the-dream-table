@@ -46,11 +46,13 @@ final class ObstacleRules {
 	}
 
 	/**
-	 * Takes the old block out without a neighbor update, so nothing around it falls, pops off, or fires.
-	 * Both halves of a door or tall plant go together and drop once, from the lower half.
-	 * Liquids, fire and other replaceable blocks are simply overwritten and drop nothing.
+	 * Finishes removing the block that was replaced, once the new block is confirmed in place:
+	 * its drops, its break effect, and the other half of a door or tall plant. Nothing is updated around it,
+	 * so nothing nearby falls, pops off, or fires. Both halves drop once, from the lower half.
+	 * Liquids, fire and other replaceable blocks were simply overwritten and drop nothing.
+	 * Running only after a successful placement means a failed attempt can never drop an obstacle twice.
 	 */
-	static void clear(ServerWorld world, BlockPos pos, BlockState state, boolean drop) {
+	static void afterReplace(ServerWorld world, BlockPos pos, BlockState state, boolean drop) {
 		if (state.isAir()) {
 			return;
 		}

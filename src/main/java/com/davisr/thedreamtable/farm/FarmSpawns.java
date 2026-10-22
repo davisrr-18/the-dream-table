@@ -16,10 +16,11 @@ final class FarmSpawns {
 	private FarmSpawns() {
 	}
 
-	static void spawn(ServerWorld world, BlockPos pos, FarmStep step) {
+	/** Returns false when nothing was spawned, so the build keeps the item and tries again. */
+	static boolean spawn(ServerWorld world, BlockPos pos, FarmStep step) {
 		Entity entity = step.entity().create(world);
 		if (entity == null) {
-			return;
+			return false;
 		}
 		double y = pos.getY() + (step.entity() == EntityType.HOPPER_MINECART || step.minecart() ? 0.0625 : 0.0);
 		entity.setPosition(pos.getX() + 0.5, y, pos.getZ() + 0.5);
@@ -29,13 +30,18 @@ final class FarmSpawns {
 		}
 		Entity cart = step.minecart() ? EntityType.MINECART.create(world) : null;
 		if (cart == null) {
-			world.spawnEntity(entity);
-			return;
+			return world.spawnEntity(entity);
 		}
 		cart.setPosition(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-		world.spawnEntity(cart);
-		world.spawnEntity(entity);
+		if (!world.spawnEntity(cart)) {
+			return false;
+		}
+		if (!world.spawnEntity(entity)) {
+			cart.discard();
+			return false;
+		}
 		entity.startRiding(cart, true);
+		return true;
 	}
 
 	static void returnBucket(ServerWorld world, DreamTableBlockEntity table) {

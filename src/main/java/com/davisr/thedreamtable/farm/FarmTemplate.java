@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.farm;
 
 import net.minecraft.item.Item;
+import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -10,7 +11,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> materials) {
+/**
+ * A farm as an ordered list of steps plus the materials they add up to.
+ * {@code center} is the footprint middle on x and z and the lowest y; the farm is anchored by it when aimed.
+ */
+public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> materials, BlockPos center) {
 	public static final int MAX_SLOTS = 54;
 
 	public static FarmTemplate of(String id, List<FarmStep> steps) {
@@ -41,6 +46,40 @@ public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> m
 		if (!overlaps.isEmpty()) {
 			throw new IllegalStateException(id + " places two blocks at " + String.join("; ", overlaps));
 		}
-		return new FarmTemplate(id, List.copyOf(steps), List.copyOf(materials));
+		return new FarmTemplate(id, List.copyOf(steps), List.copyOf(materials), centerOf(steps));
+	}
+
+	/**
+	 * A fingerprint of every step: position, block state, item and entity. A build remembers it, so a farm
+	 * whose file changed since the build started is noticed before its saved progress is used on the wrong steps.
+	 */
+	public long signature() {
+		long hash = 1125899906842597L;
+		for (FarmStep step : steps) {
+			hash = 31 * hash + BlockPos.asLong(step.x(), step.y(), step.z());
+			hash = 31 * hash + (step.state() == null ? 0 : step.state().toString().hashCode());
+			hash = 31 * hash + (step.item() == null ? 0 : Registries.ITEM.getId(step.item()).hashCode());
+			hash = 31 * hash + (step.entity() == null ? 0 : Registries.ENTITY_TYPE.getId(step.entity()).hashCode());
+		}
+		return hash == 0 ? 1 : hash;
+	}
+
+	private static BlockPos centerOf(List<FarmStep> steps) {
+		int minX = Integer.MAX_VALUE;
+		int maxX = Integer.MIN_VALUE;
+		int minY = Integer.MAX_VALUE;
+		int minZ = Integer.MAX_VALUE;
+		int maxZ = Integer.MIN_VALUE;
+		for (FarmStep step : steps) {
+			minX = Math.min(minX, step.x());
+			maxX = Math.max(maxX, step.x());
+			minY = Math.min(minY, step.y());
+			minZ = Math.min(minZ, step.z());
+			maxZ = Math.max(maxZ, step.z());
+		}
+		if (steps.isEmpty()) {
+			return BlockPos.ORIGIN;
+		}
+		return new BlockPos(Math.floorDiv(minX + maxX, 2), minY, Math.floorDiv(minZ + maxZ, 2));
 	}
 }

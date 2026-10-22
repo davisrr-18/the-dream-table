@@ -20,6 +20,12 @@ final class BuildProgress {
 	private int ticks;
 	private UUID owner;
 	private int blocksPerSecond = 1;
+	private long signature;
+
+	/** False when the farm file no longer matches the one this build started with. An unknown signature, from an older save, matches. */
+	boolean matches(long current) {
+		return signature == 0 || signature == current;
+	}
 
 	void recordPlaced(boolean usedItem) {
 		placed.set(index);
@@ -67,12 +73,15 @@ final class BuildProgress {
 		return is(PHASE_BLOCKED) || is(PHASE_NEED) || is(PHASE_PAUSED);
 	}
 
-	void start(UUID player, boolean fromScratch) {
+	void start(UUID player, boolean fromScratch, long currentSignature) {
 		owner = player;
 		if (fromScratch) {
 			index = 0;
 			placed.clear();
 			paid.clear();
+		}
+		if (fromScratch || signature == 0) {
+			signature = currentSignature;
 		}
 		phase = PHASE_BUILDING;
 		ticks = 0;
@@ -103,6 +112,7 @@ final class BuildProgress {
 		ticks = 0;
 		placed.clear();
 		paid.clear();
+		signature = 0;
 		if (forgetOwner) {
 			owner = null;
 		}
@@ -116,6 +126,7 @@ final class BuildProgress {
 		if (owner != null) {
 			nbt.putUuid("Owner", owner);
 		}
+		nbt.putLong("FarmSignature", signature);
 		nbt.putLongArray("PlacedSteps", placed.toLongArray());
 		nbt.putLongArray("PaidSteps", paid.toLongArray());
 	}
@@ -127,6 +138,7 @@ final class BuildProgress {
 		ticks = Math.max(0, nbt.getInt("Ticks"));
 		blocksPerSecond = validSpeed(nbt.getInt("BlocksPerSecond"));
 		owner = nbt.containsUuid("Owner") ? nbt.getUuid("Owner") : null;
+		signature = nbt.getLong("FarmSignature");
 		placed.clear();
 		placed.or(BitSet.valueOf(nbt.getLongArray("PlacedSteps")));
 		paid.clear();

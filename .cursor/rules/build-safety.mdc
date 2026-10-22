@@ -6,11 +6,14 @@ alwaysApply: false
 
 # Build safety
 
-- In `FarmBuilder`, run every check (already built, protected obstacle, material available) before changing anything. A step that stops must leave the world and the counts untouched, so retrying never duplicates drops or steps.
+- In `FarmBuilder`, a step runs in this order: check everything (chunk loaded, already built, protected obstacle, material available), place, confirm the block is there, and only then spend the material, record the step and advance. Obstacle drops run after a confirmed placement (`ObstacleRules.afterReplace`). A step that stops at any point leaves the counts untouched, so retrying never spends twice or drops twice.
+- "Already built" and "still the table's block" use `BlockMatch` (direction, half, axis, bed part, door hinge, rotation, mounting face, slab type, liquid level). Don't compare block types only, and don't compare state that changes on its own, such as open doors, power, shape, or connections.
+- A new build is refused unless every step fits the world height and border (`FarmBuilder.fits`). Unexpected errors in a step pause the build, never the server.
+- Each build stores `FarmTemplate.signature()`. A build whose farm file changed can't be resumed, and Discard leaves its blocks in place, because its saved step numbers would point at other steps.
 - Place, clear and dismantle with `Block.NOTIFY_LISTENERS | Block.FORCE_STATE`, never with neighbor updates. `settle()` runs one update pass when the farm is finished.
 - Never clear protected blocks: block entities, unbreakable blocks, redstone parts, pistons, rails, TNT, infested blocks, and anything in `ObstacleRules.KEEP`. Add new exceptions there.
 - Record every step the table places with `recordPlaced(usedItem)`.
-- Discard only takes apart unfinished builds, and only steps the table placed that still hold the same block. Refunds go only to paid steps. Water refunds nothing, because the bucket came back when it was poured. Empty containers into the player's hands before removing them.
+- Discard only takes apart unfinished builds, and only steps the table placed that still match with `BlockMatch.sameShape`, so a block the player turned or replaced stays. Refunds go only to paid steps. Water refunds nothing, because the bucket came back when it was poured. Empty containers into the player's hands before removing them.
 - Material counts are always keyed by the template's original item. `resolve()` gives the swapped item.
 - A material can be swapped only before any of it is delivered and before the build starts.
 - Keep NBT key names stable so existing worlds keep loading. New data gets new keys with safe defaults.

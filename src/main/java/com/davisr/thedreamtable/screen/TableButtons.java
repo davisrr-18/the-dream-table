@@ -60,12 +60,10 @@ final class TableButtons {
 
 	private static boolean build(DreamTableBlockEntity table, ServerPlayerEntity player) {
 		if (table.canResume()) {
-			table.begin(player, false);
-			return true;
+			return table.begin(player, false);
 		}
 		if (DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) && !table.getSelectedFarm().isEmpty()) {
-			table.begin(player, true);
-			return true;
+			return table.begin(player, true);
 		}
 		return false;
 	}

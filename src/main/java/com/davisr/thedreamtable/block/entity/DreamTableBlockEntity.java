@@ -226,10 +226,37 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		sync();
 	}
 
-	public void begin(ServerPlayerEntity player, boolean fromScratch) {
-		progress.start(player.getUuid(), fromScratch);
+	/**
+	 * Starts or resumes the build. It refuses, and tells the player why, when a new build would reach outside the world,
+	 * or when a resumed build belongs to a farm file that has changed since it started.
+	 */
+	public boolean begin(ServerPlayerEntity player, boolean fromScratch) {
+		FarmTemplate template = template();
+		if (template == null) {
+			return false;
+		}
+		if (fromScratch && world instanceof ServerWorld serverWorld && !FarmBuilder.fits(serverWorld, this, template)) {
+			placement.clear();
+			sync();
+			player.sendMessage(Text.translatable("gui.the_dream_table.out_of_world"), true);
+			return false;
+		}
+		if (!fromScratch && !progress.matches(template.signature())) {
+			player.sendMessage(Text.translatable("gui.the_dream_table.farm_changed"), true);
+			return false;
+		}
+		progress.start(player.getUuid(), fromScratch, template.signature());
 		sync();
 		tell(Text.translatable("gui.the_dream_table.building", progress.index(), totalSteps()));
+		return true;
+	}
+
+	/** A block could not be placed, or the step failed unexpectedly. Nothing was spent; Try Again repeats the step. */
+	public void placementFailed(BlockPos where) {
+		progress.stop(PHASE_BLOCKED);
+		sync();
+		tell(Text.translatable("gui.the_dream_table.place_failed", where.getX(), where.getY(), where.getZ()));
+		sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), where, 0.8F, 0.5F);
 	}
 
 	public void obstruct(BlockPos where, BlockState obstacle) {
@@ -339,10 +366,15 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 
 	/** An unfinished build is taken apart first; a finished farm stays standing. */
 	public void discard(PlayerEntity player) {
-		if (world instanceof ServerWorld serverWorld && !progress.is(PHASE_DONE) && progress.index() > 0) {
-			int removed = FarmDismantler.dismantle(serverWorld, this, player);
-			if (removed > 0) {
-				player.sendMessage(Text.translatable("gui.the_dream_table.dismantled", removed), true);
+		FarmTemplate template = template();
+		if (world instanceof ServerWorld serverWorld && template != null && !progress.is(PHASE_DONE) && progress.index() > 0) {
+			if (!progress.matches(template.signature())) {
+				player.sendMessage(Text.translatable("gui.the_dream_table.discard_changed"), true);
+			} else {
+				int removed = FarmDismantler.dismantle(serverWorld, this, player);
+				if (removed > 0) {
+					player.sendMessage(Text.translatable("gui.the_dream_table.dismantled", removed), true);
+				}
 			}
 		}
 		returnDeposited(player.getWorld(), player);

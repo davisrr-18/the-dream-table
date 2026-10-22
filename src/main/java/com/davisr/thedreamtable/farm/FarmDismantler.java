@@ -23,8 +23,10 @@ import java.util.Map;
 
 /**
  * Takes apart an unfinished build when it is discarded and hands the player back what it used.
- * Only steps the table placed itself are removed, and only while the same block is still there;
- * blocks the player changed, and everything that was already in place, stay untouched.
+ * Only steps the table placed itself are removed, and only while the same block is still there with the
+ * direction, half and axis it was placed with ({@link BlockMatch#sameShape}). A block the player turned, replaced,
+ * or built on, and everything that was already in place before the build, stays untouched.
+ * Opening a door or powering a part doesn't count as a change, so those are still taken apart.
  */
 public final class FarmDismantler {
 	private FarmDismantler() {
@@ -50,7 +52,7 @@ public final class FarmDismantler {
 			BlockPos pos = FarmBuilder.target(table, template, step, facing);
 			BlockState expected = table.swapState(step.state()).rotate(FarmGeometry.rotation(facing));
 			BlockState current = world.getBlockState(pos);
-			if (!current.isOf(expected.getBlock())) {
+			if (!BlockMatch.sameShape(current, expected)) {
 				continue;
 			}
 			if (!current.getFluidState().isEmpty()) {
