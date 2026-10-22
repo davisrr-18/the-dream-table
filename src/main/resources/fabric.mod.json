@@ -1,0 +1,26 @@
+{
+	"schemaVersion": 1,
+	"id": "redstone_dreams",
+	"version": "${version}",
+	"name": "Redstone Dreams",
+	"description": "Blueprint table that builds classic redstone farms, one block at a time.",
+	"authors": [
+		"Davi"
+	],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.davisr.redstonedreams.RedstoneDreamsMod"
+		],
+		"client": [
+			"com.davisr.redstonedreams.RedstoneDreamsClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
