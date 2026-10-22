@@ -1,8 +1,8 @@
 # The Dream Table
 
-Alpha `1.0.4-alpha` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
+Alpha `1.0.5-alpha` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
 
-The Dream Table picks a classic farm, shows the hologram in the world, and places one block per second after the materials are delivered.
+The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets the pace at 1, 2, 4, or 8 blocks per second.
 
 ## How to play
 
@@ -21,7 +21,7 @@ Lapis lazuli on the top row and in the center, paper on the sides, and oak plank
 3. Right-click the ground to anchor the hologram. Right-click again to move it.
 4. **R** rotates the farm. The key can be changed in Controls, under The Dream Table.
 5. Hold the material and right-click the clipboard to deliver it. The line is struck through when the count is met.
-6. Return to the table and click Build. The position locks, and the build places one block per second.
+6. Return to the table and click Build. The position locks. Options, on the farm list, sets the pace at 1, 2, 4, or 8 blocks per second.
 
 Farms in this alpha: sugar cane, bamboo, crops, mob farm, and iron farm. The ground needs to be clear. A block that gets in the way shows up red on the hologram.
 
@@ -50,4 +50,4 @@ From the project root, with Java 21:
 ./gradlew build
 ```
 
-The mod jar is `build/libs/the_dream_table-1.0.4-alpha.jar`. Jars suffixed with `sources` or `dev` are for development only.
+The mod jar is `build/libs/the_dream_table-1.0.5-alpha.jar`. Jars suffixed with `sources` or `dev` are for development only.

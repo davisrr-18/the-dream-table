@@ -377,6 +377,9 @@ public final class ImportedStructures {
 		if (state.isAir() || state.isOf(Blocks.STRUCTURE_VOID) || state.isOf(Blocks.JIGSAW) || state.isOf(Blocks.STRUCTURE_BLOCK)) {
 			return;
 		}
+		if ((state.isOf(Blocks.WATER) || state.isOf(Blocks.LAVA)) && state.contains(net.minecraft.state.property.Properties.LEVEL_15) && state.get(net.minecraft.state.property.Properties.LEVEL_15) != 0) {
+			return;
+		}
 		steps.add(FarmStep.block(x, y, z, state, itemFor(state), blockNbt == null ? null : blockNbt.copy()));
 	}
 

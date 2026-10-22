@@ -42,6 +42,9 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	public static final int TICKS_PER_BLOCK = 20;
 
 	private final SimpleInventory materials = new SimpleInventory(FarmTemplate.MAX_SLOTS);
+	private final int[] deposited = new int[FarmTemplate.MAX_SLOTS];
+	private final int[] consumed = new int[FarmTemplate.MAX_SLOTS];
+	private boolean adjusting;
 	private String selectedFarm = "";
 	private String phase = PHASE_IDLE;
 	private int page;
@@ -51,10 +54,17 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	private UUID owner;
 	private BlockPos farmAnchor;
 	private Direction farmFacing = Direction.SOUTH;
+	private int blocksPerSecond = 1;
 
 	public DreamTableBlockEntity(BlockPos pos, BlockState state) {
 		super(ModBlockEntities.DREAM_TABLE, pos, state);
-		materials.addListener(inventory -> markDirty());
+		materials.addListener(inventory -> {
+			if (adjusting) {
+				return;
+			}
+			absorbInsertedStacks();
+			markDirty();
+		});
 	}
 
 	public static void tick(World world, BlockPos pos, BlockState state, DreamTableBlockEntity table) {
@@ -66,7 +76,20 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 			return;
 		}
 		table.ticks = 0;
-		com.davisr.thedreamtable.farm.FarmBuilder.placeNext(table, serverWorld);
+		for (int placed = 0; placed < table.blocksPerSecond && PHASE_BUILDING.equals(table.phase); placed++) {
+			if (!com.davisr.thedreamtable.farm.FarmBuilder.placeNext(table, serverWorld)) {
+				break;
+			}
+		}
+	}
+
+	public int getBlocksPerSecond() {
+		return blocksPerSecond;
+	}
+
+	public void setBlocksPerSecond(int speed) {
+		blocksPerSecond = speed == 2 || speed == 4 || speed == 8 ? speed : 1;
+		sync();
 	}
 
 	public SimpleInventory getMaterials() {
@@ -80,6 +103,8 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	public void setSelectedFarm(String selectedFarm) {
 		this.selectedFarm = selectedFarm == null ? "" : selectedFarm;
 		this.requirementsBoard = false;
+		java.util.Arrays.fill(deposited, 0);
+		java.util.Arrays.fill(consumed, 0);
 		clearPlacement();
 		sync();
 	}
@@ -143,9 +168,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 			return false;
 		}
 		for (int index = 0; index < template.materials().size(); index++) {
-			MaterialSpec spec = template.materials().get(index);
-			ItemStack stack = materials.getStack(index);
-			if (!stack.isOf(spec.item()) || stack.getCount() < spec.count()) {
+			if (deposited[index] < template.materials().get(index).count()) {
 				return false;
 			}
 		}
@@ -217,24 +240,20 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		if (take <= 0) {
 			return false;
 		}
-		int before = have;
-		for (int index = 0; index < template.materials().size() && stored(stack.getItem()) - before < take; index++) {
+		int accepted = 0;
+		for (int index = 0; index < template.materials().size() && accepted < take; index++) {
 			MaterialSpec spec = template.materials().get(index);
 			if (!stack.isOf(spec.item())) {
 				continue;
 			}
-			ItemStack slot = materials.getStack(index);
-			int slotHave = slot.isOf(spec.item()) ? slot.getCount() : 0;
-			int room = spec.count() - slotHave;
+			int room = spec.count() - deposited[index];
 			if (room <= 0) {
 				continue;
 			}
-			int moved = Math.min(room, take - (stored(stack.getItem()) - before));
-			ItemStack filled = new ItemStack(spec.item());
-			filled.setCount(slotHave + moved);
-			materials.setStack(index, filled);
+			int moved = Math.min(room, take - accepted);
+			deposited[index] += moved;
+			accepted += moved;
 		}
-		int accepted = stored(stack.getItem()) - before;
 		if (accepted <= 0) {
 			return false;
 		}
@@ -249,25 +268,38 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		return true;
 	}
 
+	public int deposited(int index) {
+		return index >= 0 && index < deposited.length ? deposited[index] : 0;
+	}
+
+	public int supplied(int index) {
+		int used = index >= 0 && index < consumed.length ? consumed[index] : 0;
+		return deposited(index) + used;
+	}
+
 	public int stored(Item item) {
+		FarmTemplate template = FarmTemplates.get(selectedFarm);
+		if (template == null) {
+			return 0;
+		}
 		int count = 0;
-		for (int index = 0; index < materials.size(); index++) {
-			ItemStack stack = materials.getStack(index);
-			if (stack.isOf(item)) {
-				count += stack.getCount();
+		for (int index = 0; index < template.materials().size(); index++) {
+			if (template.materials().get(index).item() == item) {
+				count += deposited[index] + consumed[index];
 			}
 		}
 		return count;
 	}
 
 	public boolean consumeMaterial(Item item) {
-		for (int index = 0; index < materials.size(); index++) {
-			ItemStack stack = materials.getStack(index);
-			if (stack.isOf(item) && !stack.isEmpty()) {
-				stack.decrement(1);
-				if (stack.isEmpty()) {
-					materials.setStack(index, ItemStack.EMPTY);
-				}
+		FarmTemplate template = FarmTemplates.get(selectedFarm);
+		if (template == null) {
+			return false;
+		}
+		for (int index = 0; index < template.materials().size(); index++) {
+			if (template.materials().get(index).item() == item && deposited[index] > 0) {
+				deposited[index]--;
+				consumed[index]++;
 				markDirty();
 				return true;
 			}
@@ -276,6 +308,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	}
 
 	public void discard(PlayerEntity player) {
+		returnDeposited(player.getWorld(), player, true);
 		phase = PHASE_IDLE;
 		page = 0;
 		buildIndex = 0;
@@ -284,21 +317,11 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		requirementsBoard = false;
 		owner = null;
 		clearPlacement();
-		for (int index = 0; index < materials.size(); index++) {
-			ItemStack stack = materials.removeStack(index);
-			if (stack.isEmpty()) {
-				continue;
-			}
-			if (!player.getInventory().insertStack(stack) || !stack.isEmpty()) {
-				player.dropItem(stack, false);
-			}
-		}
 		sync();
 	}
 
 	public void dropMaterials(World world) {
-		net.minecraft.util.ItemScatterer.spawn(world, pos, materials);
-		materials.clear();
+		returnDeposited(world, null, false);
 	}
 
 	@Override
@@ -334,6 +357,9 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		nbt.putInt("Page", page);
 		nbt.putInt("BuildIndex", buildIndex);
 		nbt.putInt("Ticks", ticks);
+		nbt.putInt("BlocksPerSecond", blocksPerSecond);
+		nbt.putIntArray("Deposited", deposited);
+		nbt.putIntArray("Consumed", consumed);
 		nbt.putBoolean("RequirementsBoard", requirementsBoard);
 		if (owner != null) {
 			nbt.putUuid("Owner", owner);
@@ -356,6 +382,14 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		page = nbt.getInt("Page");
 		buildIndex = Math.max(0, nbt.getInt("BuildIndex"));
 		ticks = Math.max(0, nbt.getInt("Ticks"));
+		int storedSpeed = nbt.getInt("BlocksPerSecond");
+		blocksPerSecond = storedSpeed == 2 || storedSpeed == 4 || storedSpeed == 8 ? storedSpeed : 1;
+		int[] stored = nbt.getIntArray("Deposited");
+		int[] used = nbt.getIntArray("Consumed");
+		java.util.Arrays.fill(deposited, 0);
+		java.util.Arrays.fill(consumed, 0);
+		System.arraycopy(stored, 0, deposited, 0, Math.min(stored.length, deposited.length));
+		System.arraycopy(used, 0, consumed, 0, Math.min(used.length, consumed.length));
 		requirementsBoard = nbt.getBoolean("RequirementsBoard");
 		owner = nbt.containsUuid("Owner") ? nbt.getUuid("Owner") : null;
 		Direction storedFacing = Direction.byName(nbt.getString("FarmFacing"));
@@ -364,6 +398,59 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		materials.clear();
 		if (nbt.contains("Materials", NbtElement.LIST_TYPE)) {
 			materials.readNbtList(nbt.getList("Materials", NbtElement.COMPOUND_TYPE), registries);
+		}
+	}
+
+	private void absorbInsertedStacks() {
+		FarmTemplate template = FarmTemplates.get(selectedFarm);
+		if (template == null) {
+			return;
+		}
+		adjusting = true;
+		try {
+			for (int index = 0; index < template.materials().size() && index < materials.size(); index++) {
+				ItemStack stack = materials.getStack(index);
+				MaterialSpec spec = template.materials().get(index);
+				if (stack.isEmpty() || !stack.isOf(spec.item())) {
+					continue;
+				}
+				deposited[index] += stack.getCount();
+				materials.setStack(index, ItemStack.EMPTY);
+			}
+		} finally {
+			adjusting = false;
+		}
+	}
+
+	private void returnDeposited(World world, PlayerEntity player, boolean toPlayer) {
+		FarmTemplate template = FarmTemplates.get(selectedFarm);
+		adjusting = true;
+		try {
+			for (int index = 0; index < deposited.length; index++) {
+				int left = deposited[index];
+				deposited[index] = 0;
+				consumed[index] = 0;
+				if (left <= 0 || template == null || index >= template.materials().size()) {
+					continue;
+				}
+				Item item = template.materials().get(index).item();
+				while (left > 0) {
+					int amount = Math.min(left, Math.max(1, item.getMaxCount()));
+					ItemStack stack = new ItemStack(item, amount);
+					left -= amount;
+					if (toPlayer && player != null && player.getInventory().insertStack(stack) && stack.isEmpty()) {
+						continue;
+					}
+					if (player != null && toPlayer && !stack.isEmpty()) {
+						player.dropItem(stack, false);
+					} else if (world != null && !stack.isEmpty()) {
+						net.minecraft.util.ItemScatterer.spawn(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, stack);
+					}
+				}
+			}
+			materials.clear();
+		} finally {
+			adjusting = false;
 		}
 	}
 

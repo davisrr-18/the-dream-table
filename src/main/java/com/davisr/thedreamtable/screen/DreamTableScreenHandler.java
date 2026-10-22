@@ -24,12 +24,16 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int PAGE_WORK = 1;
 	public static final int PAGE_REQUIREMENTS = 2;
 	public static final int PAGE_SCHEMES = 3;
+	public static final int PAGE_OPTIONS = 4;
 	public static final int BUTTON_REQUIREMENTS = 100;
 	public static final int BUTTON_BUILD = 101;
 	public static final int BUTTON_DISCARD = 102;
 	public static final int BUTTON_BACK = 103;
 	public static final int BUTTON_SCHEMES = 110;
 	public static final int BUTTON_SCHEMES_BACK = 111;
+	public static final int BUTTON_OPTIONS = 120;
+	public static final int BUTTON_OPTIONS_BACK = 121;
+	public static final int BUTTON_SPEED = 140;
 	public static final int BUTTON_SCHEME = 200;
 
 	private final ScreenHandlerContext context;
@@ -40,6 +44,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private int buildIndex;
 	private int phase;
 	private int total;
+	private int blocksPerSecond = 1;
 
 	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, DreamTableBlockEntity blockEntity) {
 		this(syncId, inventory, blockEntity.getPos(), blockEntity.getMaterials(), blockEntity.getSelectedFarm(), blockEntity.getPage(), phaseOf(blockEntity.getPhase()), blockEntity.getBuildIndex(), blockEntity.totalSteps());
@@ -62,8 +67,13 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		for (int index = 0; index < FarmTemplate.MAX_SLOTS; index++) {
 			addSlot(new MaterialSlot(materials, index, DreamTableLayout.materialX(index), DreamTableLayout.materialY(index), this));
 		}
+		int materialCount = 0;
+		FarmTemplate openTemplate = FarmTemplates.get(this.selectedFarm);
+		if (openTemplate != null) {
+			materialCount = openTemplate.materials().size();
+		}
 		int originX = DreamTableLayout.inventoryX();
-		int originY = DreamTableLayout.inventoryY();
+		int originY = DreamTableLayout.inventoryY(materialCount);
 		for (int row = 0; row < 3; row++) {
 			for (int column = 0; column < 9; column++) {
 				addSlot(new PlayerMaterialSlot(inventory, column + row * 9 + 9, originX + column * 18, originY + row * 18, this));
@@ -83,6 +93,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 							case 1 -> table.getBuildIndex();
 							case 2 -> phaseOf(table.getPhase());
 							case 3 -> table.totalSteps();
+							case 4 -> table.getBlocksPerSecond();
 							default -> 0;
 						};
 					}
@@ -92,6 +103,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 					case 1 -> buildIndex;
 					case 2 -> phase;
 					case 3 -> total;
+					case 4 -> blocksPerSecond;
 					default -> 0;
 				};
 			}
@@ -103,6 +115,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 					case 1 -> DreamTableScreenHandler.this.buildIndex = value;
 					case 2 -> DreamTableScreenHandler.this.phase = value;
 					case 3 -> DreamTableScreenHandler.this.total = value;
+					case 4 -> DreamTableScreenHandler.this.blocksPerSecond = value;
 					default -> {
 					}
 				}
@@ -110,7 +123,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 			@Override
 			public int size() {
-				return 4;
+				return 5;
 			}
 		});
 	}
@@ -133,6 +146,24 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	public int getTotal() {
 		return total;
+	}
+
+	public int getBlocksPerSecond() {
+		return blocksPerSecond == 2 || blocksPerSecond == 4 || blocksPerSecond == 8 ? blocksPerSecond : 1;
+	}
+
+	public int deposited(int index) {
+		DreamTableBlockEntity blockEntity = table();
+		return blockEntity == null ? 0 : blockEntity.deposited(index);
+	}
+
+	public int supplied(int index) {
+		DreamTableBlockEntity blockEntity = table();
+		return blockEntity == null ? 0 : blockEntity.supplied(index);
+	}
+
+	public void previewSpeed(int speed) {
+		blocksPerSecond = speed == 2 || speed == 4 || speed == 8 ? speed : 1;
 	}
 
 	public MaterialSpec material(int index) {
@@ -203,6 +234,21 @@ public class DreamTableScreenHandler extends ScreenHandler {
 			case BUTTON_SCHEMES_BACK -> {
 				table.setPage(PAGE_SELECT);
 				page = PAGE_SELECT;
+				yield true;
+			}
+			case BUTTON_OPTIONS -> {
+				table.setPage(PAGE_OPTIONS);
+				page = PAGE_OPTIONS;
+				yield true;
+			}
+			case BUTTON_OPTIONS_BACK -> {
+				table.setPage(PAGE_SELECT);
+				page = PAGE_SELECT;
+				yield true;
+			}
+			case BUTTON_SPEED + 1, BUTTON_SPEED + 2, BUTTON_SPEED + 4, BUTTON_SPEED + 8 -> {
+				table.setBlocksPerSecond(id - BUTTON_SPEED);
+				blocksPerSecond = table.getBlocksPerSecond();
 				yield true;
 			}
 			case BUTTON_BUILD -> {

@@ -24,19 +24,23 @@ public final class DreamTableLayout {
 		return (PANEL_WIDTH - 162) / 2;
 	}
 
-	public static int gridRows() {
-		return (FarmTemplate.MAX_SLOTS + COLUMNS - 1) / COLUMNS;
+	public static int rowsFor(int materials) {
+		return Math.max(1, (Math.max(materials, 1) + COLUMNS - 1) / COLUMNS);
 	}
 
-	public static int backY() {
-		return HEADER + 8 + gridRows() * GRID + 6;
+	public static int backY(int materials) {
+		return HEADER + 8 + rowsFor(materials) * GRID + 6;
+	}
+
+	public static int inventoryY(int materials) {
+		return backY(materials) + BUTTON + 14;
 	}
 
 	public static int inventoryY() {
-		return backY() + BUTTON + 14;
+		return inventoryY(1);
 	}
 
-	public static int requirementsHeight() {
-		return inventoryY() + 3 * 18 + 4 + 18 + 12;
+	public static int requirementsHeight(int materials) {
+		return inventoryY(materials) + 3 * 18 + 4 + 18 + 12;
 	}
 }
