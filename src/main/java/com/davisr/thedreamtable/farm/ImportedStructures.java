@@ -428,6 +428,9 @@ public final class ImportedStructures {
 		if (state.contains(net.minecraft.state.property.Properties.BED_PART) && state.get(net.minecraft.state.property.Properties.BED_PART) == BedPart.HEAD) {
 			return null;
 		}
+		if (block == Blocks.BAMBOO_SAPLING) {
+			return Items.BAMBOO;
+		}
 		if (block == Blocks.WATER) {
 			return Items.WATER_BUCKET;
 		}
@@ -559,7 +562,7 @@ public final class ImportedStructures {
 		if (block == Blocks.WATER || block == Blocks.LAVA) {
 			return 2;
 		}
-		if (block instanceof PlantBlock || block == Blocks.SUGAR_CANE || block == Blocks.BAMBOO || block == Blocks.CACTUS) {
+		if (block instanceof PlantBlock || block == Blocks.SUGAR_CANE || block == Blocks.BAMBOO || block == Blocks.BAMBOO_SAPLING || block == Blocks.CACTUS) {
 			return 3;
 		}
 		return 0;

@@ -81,6 +81,16 @@ public final class FarmTemplates {
 	}
 
 	private static FarmTemplate bamboo() {
+		try (InputStream stream = FarmTemplates.class.getResourceAsStream("/data/the_dream_table/structures/bamboo_farm.schem")) {
+			if (stream != null) {
+				FarmTemplate template = ImportedStructures.read(FarmOptions.BAMBOO.id(), stream);
+				if (template != null) {
+					return template;
+				}
+			}
+		} catch (IOException | RuntimeException exception) {
+			TheDreamTableMod.LOGGER.error("Could not load the bamboo schematic", exception);
+		}
 		return pistonRow(FarmOptions.BAMBOO.id(), false);
 	}
 
