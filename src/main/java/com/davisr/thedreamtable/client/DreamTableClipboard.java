@@ -7,6 +7,7 @@ import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.MaterialSpec;
 import com.davisr.thedreamtable.network.DepositMaterialPayload;
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
@@ -36,6 +37,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
@@ -74,6 +77,7 @@ public final class DreamTableClipboard {
 	private static float yaw;
 	private static int page;
 	private static int pageCount = 1;
+	private static boolean useWasDown;
 	private static int lastDepositAge = -1;
 	private static float itemLabelY = -0.48F;
 	private static float itemBarTop = -0.64F;
@@ -100,6 +104,24 @@ public final class DreamTableClipboard {
 			}
 			return interact(player) ? TypedActionResult.fail(stack) : TypedActionResult.pass(stack);
 		});
+		ClientTickEvents.END_CLIENT_TICK.register(DreamTableClipboard::turnPageWithEmptyHand);
+	}
+
+	private static void turnPageWithEmptyHand(MinecraftClient client) {
+		if (client.player == null || client.currentScreen != null) {
+			useWasDown = false;
+			return;
+		}
+		boolean down = client.options.useKey.isPressed();
+		boolean pressed = down && !useWasDown;
+		useWasDown = down;
+		if (!pressed || !client.player.getMainHandStack().isEmpty() || !hits(client.player)) {
+			return;
+		}
+		if (client.crosshairTarget instanceof BlockHitResult block && block.getType() == HitResult.Type.BLOCK && !isCloserThanBlock(client.player, block.getPos())) {
+			return;
+		}
+		interact(client.player);
 	}
 
 	public static void pin(BlockPos pos) {

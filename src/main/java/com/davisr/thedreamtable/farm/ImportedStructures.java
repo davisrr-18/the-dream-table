@@ -104,8 +104,15 @@ public final class ImportedStructures {
 		return name.endsWith(".nbt") || name.endsWith(".schem") || name.endsWith(".litematic");
 	}
 
+	public static FarmTemplate read(String id, java.io.InputStream stream) throws IOException {
+		return fromRoot(id, NbtIo.readCompressed(stream, NbtSizeTracker.ofUnlimitedBytes()));
+	}
+
 	private static FarmTemplate read(String id, Path path) throws IOException {
-		NbtCompound root = readNbt(path);
+		return fromRoot(id, readNbt(path));
+	}
+
+	private static FarmTemplate fromRoot(String id, NbtCompound root) throws IOException {
 		if (root.contains("Schematic", NbtElement.COMPOUND_TYPE)) {
 			root = root.getCompound("Schematic");
 		}
@@ -117,15 +124,15 @@ public final class ImportedStructures {
 		} else if (root.contains("blocks", NbtElement.LIST_TYPE)) {
 			readVanilla(root, steps);
 		} else {
-			TheDreamTableMod.LOGGER.warn("{} has no block NBT the table can build", path.getFileName());
+			TheDreamTableMod.LOGGER.warn("{} has no block NBT the table can build", id);
 			return null;
 		}
 		if (steps.isEmpty()) {
-			TheDreamTableMod.LOGGER.warn("{} has no blocks to build", path.getFileName());
+			TheDreamTableMod.LOGGER.warn("{} has no blocks to build", id);
 			return null;
 		}
 		if (steps.size() > MAX_BLOCKS) {
-			TheDreamTableMod.LOGGER.warn("{} has {} blocks; the limit is {}", path.getFileName(), steps.size(), MAX_BLOCKS);
+			TheDreamTableMod.LOGGER.warn("{} has {} blocks; the limit is {}", id, steps.size(), MAX_BLOCKS);
 			return null;
 		}
 		steps.sort(Comparator

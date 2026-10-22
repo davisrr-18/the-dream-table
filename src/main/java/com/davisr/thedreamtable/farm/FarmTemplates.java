@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.TheDreamTableMod;
 import net.minecraft.block.BambooBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -14,6 +15,8 @@ import net.minecraft.item.Items;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.Direction;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -64,6 +67,16 @@ public final class FarmTemplates {
 	}
 
 	private static FarmTemplate sugarCane() {
+		try (InputStream stream = FarmTemplates.class.getResourceAsStream("/data/the_dream_table/structures/sugar_cane_farm.schem")) {
+			if (stream != null) {
+				FarmTemplate template = ImportedStructures.read(FarmOptions.SUGAR_CANE.id(), stream);
+				if (template != null) {
+					return template;
+				}
+			}
+		} catch (IOException | RuntimeException exception) {
+			TheDreamTableMod.LOGGER.error("Could not load the sugar cane schematic", exception);
+		}
 		return pistonRow(FarmOptions.SUGAR_CANE.id(), true);
 	}
 

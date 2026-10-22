@@ -41,7 +41,7 @@ public final class FarmBuilder {
 		if (!step.isEntity()) {
 			BlockState existing = world.getBlockState(target);
 			BlockState placed = step.state().rotate(FarmGeometry.rotation(facing));
-			if (existing.isOf(placed.getBlock())) {
+			if (alreadyThere(existing, placed)) {
 				table.advance();
 				if (table.getBuildIndex() >= template.steps().size()) {
 					table.finish();
@@ -81,6 +81,16 @@ public final class FarmBuilder {
 		if (table.getBuildIndex() >= template.steps().size()) {
 			settle(world, table, template, facing);
 			table.finish();
+		}
+		return true;
+	}
+
+	private static boolean alreadyThere(BlockState existing, BlockState placed) {
+		if (!existing.isOf(placed.getBlock())) {
+			return false;
+		}
+		if (placed.getFluidState().isStill()) {
+			return existing.getFluidState().isStill();
 		}
 		return true;
 	}
