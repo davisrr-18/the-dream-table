@@ -1,12 +1,12 @@
 # Redstone Dreams
 
-Alpha `1.0.0-alpha` para Minecraft **1.21.1** com Fabric Loader e Fabric API.
+Alpha `1.0.0-alpha` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
 
-A Dream Table escolhe uma farm clássica, mostra o holograma no mundo e constrói um bloco por segundo depois que os materiais são entregues.
+The Dream Table picks a classic farm, shows the hologram in the world, and places one block per second after the materials are delivered.
 
-## Como jogar
+## How to play
 
-A mesa fica na aba Redstone do criativo, ou nesta receita:
+The table is in the Redstone creative tab, or craft it with this recipe:
 
 ```
 LLL
@@ -14,40 +14,40 @@ PLP
 OOO
 ```
 
-Lápis-lazúli na fileira de cima e no centro, papel nas laterais e tábuas de carvalho embaixo.
+Lapis lazuli on the top row and in the center, paper on the sides, and oak planks along the bottom.
 
-1. Coloque a mesa e escolha a farm.
-2. Saia do menu. Um marcador amarelo segue a mira.
-3. Clique direito no chão para fixar o holograma. Clique de novo para mudar o lugar.
-4. **R** gira a farm. A tecla pode ser trocada em Controles, categoria Redstone Dreams.
-5. Segure o material e clique direito na prancha para entregar. A linha é riscada quando fecha a conta.
-6. Volte à mesa e clique em Construir. A posição trava e a obra anda um bloco por segundo.
+1. Place the table and choose a farm.
+2. Close the menu. A yellow marker follows the crosshair.
+3. Right-click the ground to anchor the hologram. Right-click again to move it.
+4. **R** rotates the farm. The key can be changed in Controls, under Redstone Dreams.
+5. Hold the material and right-click the clipboard to deliver it. The line is struck through when the count is met.
+6. Return to the table and click Build. The position locks, and the build places one block per second.
 
-Farms desta alpha: cana, bambu, plantação, farm de mobs e farm de ferro. O terreno precisa estar livre. Se um bloco impedir a obra, ele fica vermelho no holograma.
+Farms in this alpha: sugar cane, bamboo, crops, mob farm, and iron farm. The ground needs to be clear. A block that gets in the way shows up red on the hologram.
 
-Descartar devolve os materiais e tira o holograma.
+Discard returns the materials and removes the hologram.
 
-Em **Meus esquemas**, a mesa lê arquivos `.nbt`, `.schem` e `.litematic` nestas pastas da instância:
+Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` files from these instance folders:
 
 - `schematics`
 - `config/worldedit/schematics`
 - `config/litematica`
 - `config/redstone_dreams/structures`
-- `schematics` dentro da pasta do mundo
+- `schematics` inside the world folder
 
-## Requisitos
+## Requirements
 
 - Minecraft 1.21.1
-- Fabric Loader 0.16 ou mais novo
+- Fabric Loader 0.16 or newer
 - Fabric API
 - Java 21
 
-## Compilar
+## Build
 
-Na raiz do projeto, com Java 21:
+From the project root, with Java 21:
 
 ```
 ./gradlew build
 ```
 
-O arquivo do mod fica em `build/libs/redstone_dreams-1.0.0-alpha.jar`. Os jars com sufixo `sources` e `dev` são só para desenvolvimento.
+The mod jar is `build/libs/redstone_dreams-1.0.0-alpha.jar`. Jars suffixed with `sources` or `dev` are for development only.
