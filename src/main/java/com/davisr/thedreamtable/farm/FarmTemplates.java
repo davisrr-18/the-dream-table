@@ -147,8 +147,22 @@ public final class FarmTemplates {
 		return FarmTemplate.of(id, steps);
 	}
 
-	/** Nine by five plot. Villagers harvest, a minecart under the soil feeds two chests. Water is sealed in by farmland. */
 	private static FarmTemplate crop() {
+		try (InputStream stream = FarmTemplates.class.getResourceAsStream("/data/the_dream_table/structures/crop_farm.schem")) {
+			if (stream != null) {
+				FarmTemplate template = ImportedStructures.read(FarmOptions.CROP.id(), stream);
+				if (template != null) {
+					return template;
+				}
+			}
+		} catch (IOException | RuntimeException exception) {
+			TheDreamTableMod.LOGGER.error("Could not load the crop schematic", exception);
+		}
+		return legacyCrop();
+	}
+
+	/** Nine by five plot. Villagers harvest, a minecart under the soil feeds two chests. Water is sealed in by farmland. */
+	private static FarmTemplate legacyCrop() {
 		List<FarmStep> steps = new ArrayList<>();
 		List<FarmStep> fluid = new ArrayList<>();
 		for (int x = 0; x <= 8; x++) {

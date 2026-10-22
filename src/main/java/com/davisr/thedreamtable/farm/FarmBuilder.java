@@ -89,8 +89,8 @@ public final class FarmBuilder {
 		if (!existing.isOf(placed.getBlock())) {
 			return false;
 		}
-		if (placed.getFluidState().isStill()) {
-			return existing.getFluidState().isStill();
+		if (!placed.getFluidState().isEmpty()) {
+			return existing.getFluidState().getLevel() == placed.getFluidState().getLevel();
 		}
 		return true;
 	}

@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> materials) {
-	public static final int MAX_SLOTS = 27;
+	public static final int MAX_SLOTS = 54;
 
 	public static FarmTemplate of(String id, List<FarmStep> steps) {
 		Map<Item, Integer> totals = new LinkedHashMap<>();

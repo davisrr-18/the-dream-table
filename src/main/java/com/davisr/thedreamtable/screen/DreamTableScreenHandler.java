@@ -261,7 +261,13 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	}
 
 	private DreamTableBlockEntity table() {
-		return context.get((world, pos) -> world.getBlockEntity(pos) instanceof DreamTableBlockEntity table ? table : null, null);
+		DreamTableBlockEntity[] found = new DreamTableBlockEntity[1];
+		context.run((world, pos) -> {
+			if (world.getBlockEntity(pos) instanceof DreamTableBlockEntity blockEntity) {
+				found[0] = blockEntity;
+			}
+		});
+		return found[0];
 	}
 
 	private static int totalFor(String farm) {
