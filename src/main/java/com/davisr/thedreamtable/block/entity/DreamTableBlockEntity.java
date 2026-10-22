@@ -225,16 +225,14 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 			}
 			ItemStack slot = materials.getStack(index);
 			int slotHave = slot.isOf(spec.item()) ? slot.getCount() : 0;
-			int room = Math.min(spec.count(), spec.item().getMaxCount()) - slotHave;
+			int room = spec.count() - slotHave;
 			if (room <= 0) {
 				continue;
 			}
 			int moved = Math.min(room, take - (stored(stack.getItem()) - before));
-			if (slot.isEmpty() || !slot.isOf(spec.item())) {
-				materials.setStack(index, new ItemStack(spec.item(), moved));
-			} else {
-				slot.increment(moved);
-			}
+			ItemStack filled = new ItemStack(spec.item());
+			filled.setCount(slotHave + moved);
+			materials.setStack(index, filled);
 		}
 		int accepted = stored(stack.getItem()) - before;
 		if (accepted <= 0) {

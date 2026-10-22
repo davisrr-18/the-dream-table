@@ -22,13 +22,7 @@ public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> m
 		}
 		List<MaterialSpec> materials = new ArrayList<>();
 		for (Map.Entry<Item, Integer> entry : totals.entrySet()) {
-			int remaining = entry.getValue();
-			int stackLimit = Math.max(1, entry.getKey().getMaxCount());
-			while (remaining > 0) {
-				int stack = Math.min(stackLimit, remaining);
-				materials.add(new MaterialSpec(entry.getKey(), stack));
-				remaining -= stack;
-			}
+			materials.add(new MaterialSpec(entry.getKey(), entry.getValue()));
 		}
 		if (materials.size() > MAX_SLOTS) {
 			throw new IllegalStateException(id + " needs " + materials.size() + " material slots");

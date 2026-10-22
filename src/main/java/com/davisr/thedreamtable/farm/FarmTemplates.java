@@ -210,8 +210,22 @@ public final class FarmTemplates {
 		return FarmTemplate.of(FarmOptions.CROP.id(), steps);
 	}
 
-	/** Dark room of dirt. Open trapdoors make mobs walk into a hopper line. */
 	private static FarmTemplate mobDarkRoom() {
+		try (InputStream stream = FarmTemplates.class.getResourceAsStream("/data/the_dream_table/structures/mob_farm.schem")) {
+			if (stream != null) {
+				FarmTemplate template = ImportedStructures.read(FarmOptions.MOB_DARK_ROOM.id(), stream);
+				if (template != null) {
+					return template;
+				}
+			}
+		} catch (IOException | RuntimeException exception) {
+			TheDreamTableMod.LOGGER.error("Could not load the mob farm schematic", exception);
+		}
+		return legacyMobFarm();
+	}
+
+	/** Dark room of dirt. Open trapdoors make mobs walk into a hopper line. */
+	private static FarmTemplate legacyMobFarm() {
 		List<FarmStep> steps = new ArrayList<>();
 		for (int x = 0; x <= 9; x++) {
 			for (int z = 0; z <= 9; z++) {

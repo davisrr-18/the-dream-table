@@ -299,6 +299,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> {
 		}
 		if (inside(mouseX, mouseY, cardX(), buttons + (BUTTON_HEIGHT + 6) * 2, cardWidth(), BUTTON_HEIGHT)) {
 			this.handler.preview("", DreamTableScreenHandler.PAGE_SELECT);
+			DreamTableHologram.clear();
 			com.davisr.thedreamtable.client.DreamTableClipboard.close();
 			press(DreamTableScreenHandler.BUTTON_DISCARD);
 			return true;

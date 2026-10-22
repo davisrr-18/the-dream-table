@@ -122,7 +122,7 @@ public final class DreamTableHologram {
 		if (tablePos == null || context.world() == null || context.matrixStack() == null) {
 			return;
 		}
-		if (!(context.world().getBlockState(tablePos).getBlock() instanceof DreamTableBlock)) {
+		if (!tableStillThere(context.world())) {
 			return;
 		}
 		String farm = farmId;
@@ -320,8 +320,19 @@ public final class DreamTableHologram {
 		return table.hasAnchor() && !DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase());
 	}
 
+	private static boolean tableStillThere(net.minecraft.world.World world) {
+		if (tablePos != null && world.getBlockState(tablePos).getBlock() instanceof DreamTableBlock) {
+			return true;
+		}
+		if (tablePos != null) {
+			clear();
+			DreamTableClipboard.close();
+		}
+		return false;
+	}
+
 	private static boolean tryPlace(PlayerEntity player, BlockHitResult hit) {
-		if (tablePos == null || farmId.isEmpty() || locked()) {
+		if (!tableStillThere(player.getWorld()) || farmId.isEmpty() || locked()) {
 			return false;
 		}
 		if (player.getWorld().getBlockState(hit.getBlockPos()).getBlock() instanceof DreamTableBlock) {

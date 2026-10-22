@@ -89,8 +89,8 @@ public final class FarmBuilder {
 		if (!existing.isOf(placed.getBlock())) {
 			return false;
 		}
-		if (!placed.getFluidState().isEmpty()) {
-			return existing.getFluidState().getLevel() == placed.getFluidState().getLevel();
+		if (placed.contains(net.minecraft.state.property.Properties.LEVEL_15) && existing.contains(net.minecraft.state.property.Properties.LEVEL_15)) {
+			return existing.get(net.minecraft.state.property.Properties.LEVEL_15).equals(placed.get(net.minecraft.state.property.Properties.LEVEL_15));
 		}
 		return true;
 	}
