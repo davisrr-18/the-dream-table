@@ -1,6 +1,6 @@
 # Redstone Dreams
 
-Alpha `0.0.1-alpha` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
+Alpha `1.0.1-alpha` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and places one block per second after the materials are delivered.
 
@@ -50,4 +50,4 @@ From the project root, with Java 21:
 ./gradlew build
 ```
 
-The mod jar is `build/libs/redstone_dreams-0.0.1-alpha.jar`. Jars suffixed with `sources` or `dev` are for development only.
+The mod jar is `build/libs/redstone_dreams-1.0.1-alpha.jar`. Jars suffixed with `sources` or `dev` are for development only.
