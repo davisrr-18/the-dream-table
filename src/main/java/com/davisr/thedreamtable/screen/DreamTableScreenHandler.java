@@ -1,21 +1,25 @@
 package com.davisr.thedreamtable.screen;
 
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
-import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.MaterialSpec;
+import com.davisr.thedreamtable.farm.MaterialSwaps;
 import com.davisr.thedreamtable.registry.ModBlocks;
 import com.davisr.thedreamtable.registry.ModScreenHandlers;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerContext;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.WorldSavePath;
+import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
 
@@ -25,20 +29,28 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int PAGE_REQUIREMENTS = 2;
 	public static final int PAGE_SCHEMES = 3;
 	public static final int PAGE_OPTIONS = 4;
+	public static final int PAGE_MATERIALS = 5;
+	public static final int PAGE_SWAP = 6;
+
 	public static final int BUTTON_REQUIREMENTS = 100;
 	public static final int BUTTON_BUILD = 101;
 	public static final int BUTTON_DISCARD = 102;
-	public static final int BUTTON_MENU = 104;
 	public static final int BUTTON_BACK = 103;
+	public static final int BUTTON_MENU = 104;
+	public static final int BUTTON_PAUSE = 105;
 	public static final int BUTTON_SCHEMES = 110;
 	public static final int BUTTON_SCHEMES_BACK = 111;
 	public static final int BUTTON_OPTIONS = 120;
 	public static final int BUTTON_OPTIONS_BACK = 121;
+	public static final int BUTTON_MATERIALS = 130;
+	public static final int BUTTON_MATERIALS_BACK = 131;
+	public static final int BUTTON_SWAP_BACK = 132;
 	public static final int BUTTON_SPEED = 140;
 	public static final int BUTTON_SCHEME = 200;
+	public static final int BUTTON_SWAP_OPEN = 1000;
+	public static final int BUTTON_SWAP_PICK = 2000;
 
 	private final ScreenHandlerContext context;
-	private final Inventory materials;
 	private final boolean client;
 	private String selectedFarm;
 	private int page;
@@ -46,87 +58,44 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private int phase;
 	private int total;
 	private int blocksPerSecond = 1;
+	private int previewSwap = -1;
 
 	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, DreamTableBlockEntity blockEntity) {
-		this(syncId, inventory, blockEntity.getPos(), blockEntity.getMaterials(), blockEntity.getSelectedFarm(), blockEntity.getPage(), phaseOf(blockEntity.getPhase()), blockEntity.getBuildIndex(), blockEntity.totalSteps());
+		this(syncId, inventory, blockEntity.getPos(), blockEntity.getMaterials(), blockEntity.getSelectedFarm(), blockEntity.getPage(), phaseOf(blockEntity.getPhase()), blockEntity.getBuildIndex());
 	}
 
 	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, OpenData data) {
-		this(syncId, inventory, data.pos(), new SimpleInventory(FarmTemplate.MAX_SLOTS), data.farm(), data.page(), data.phase(), data.index(), totalFor(data.farm()));
+		this(syncId, inventory, data.pos(), new SimpleInventory(FarmTemplate.MAX_SLOTS), data.farm(), data.page(), data.phase(), data.index());
 	}
 
-	private DreamTableScreenHandler(int syncId, PlayerInventory inventory, net.minecraft.util.math.BlockPos pos, Inventory materials, String selectedFarm, int page, int phase, int buildIndex, int total) {
+	private DreamTableScreenHandler(int syncId, PlayerInventory inventory, BlockPos pos, Inventory materials, String selectedFarm, int page, int phase, int buildIndex) {
 		super(ModScreenHandlers.DREAM_TABLE, syncId);
 		this.context = ScreenHandlerContext.create(inventory.player.getWorld(), pos);
-		this.materials = materials;
 		this.client = inventory.player.getWorld().isClient();
 		this.selectedFarm = selectedFarm == null ? "" : selectedFarm;
 		this.page = page;
 		this.phase = phase;
 		this.buildIndex = buildIndex;
-		this.total = total;
+		this.total = totalFor(this.selectedFarm);
+		addSlots(inventory, materials);
+		addProperties(new Properties());
+	}
+
+	private void addSlots(PlayerInventory inventory, Inventory materials) {
 		for (int index = 0; index < FarmTemplate.MAX_SLOTS; index++) {
 			addSlot(new MaterialSlot(materials, index, DreamTableLayout.materialX(index), DreamTableLayout.materialY(index), this));
 		}
-		int materialCount = 0;
-		FarmTemplate openTemplate = FarmTemplates.get(this.selectedFarm);
-		if (openTemplate != null) {
-			materialCount = openTemplate.materials().size();
-		}
+		FarmTemplate template = FarmTemplates.get(selectedFarm);
 		int originX = DreamTableLayout.inventoryX();
-		int originY = DreamTableLayout.inventoryY(materialCount);
+		int originY = DreamTableLayout.inventoryY(template == null ? 0 : template.materials().size());
 		for (int row = 0; row < 3; row++) {
 			for (int column = 0; column < 9; column++) {
-				addSlot(new PlayerMaterialSlot(inventory, column + row * 9 + 9, originX + column * 18, originY + row * 18, this));
+				addSlot(new PlayerSlot(inventory, column + row * 9 + 9, originX + column * 18, originY + row * 18));
 			}
 		}
 		for (int column = 0; column < 9; column++) {
-			addSlot(new PlayerMaterialSlot(inventory, column, originX + column * 18, originY + 3 * 18 + 4, this));
+			addSlot(new PlayerSlot(inventory, column, originX + column * 18, originY + 3 * 18 + 4));
 		}
-		addProperties(new net.minecraft.screen.PropertyDelegate() {
-			@Override
-			public int get(int index) {
-				if (!client) {
-					DreamTableBlockEntity table = table();
-					if (table != null) {
-						return switch (index) {
-							case 0 -> table.getPage();
-							case 1 -> table.getBuildIndex();
-							case 2 -> phaseOf(table.getPhase());
-							case 3 -> table.totalSteps();
-							case 4 -> table.getBlocksPerSecond();
-							default -> 0;
-						};
-					}
-				}
-				return switch (index) {
-					case 0 -> page;
-					case 1 -> buildIndex;
-					case 2 -> phase;
-					case 3 -> total;
-					case 4 -> blocksPerSecond;
-					default -> 0;
-				};
-			}
-
-			@Override
-			public void set(int index, int value) {
-				switch (index) {
-					case 0 -> DreamTableScreenHandler.this.page = value;
-					case 1 -> DreamTableScreenHandler.this.buildIndex = value;
-					case 2 -> DreamTableScreenHandler.this.phase = value;
-					case 3 -> DreamTableScreenHandler.this.total = value;
-					case 4 -> DreamTableScreenHandler.this.blocksPerSecond = value;
-					default -> {
-					}
-				}
-			}
-
-			@Override
-			public int size() {
-				return 5;
-			}
-		});
 	}
 
 	public String getSelectedFarm() {
@@ -150,21 +119,17 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	}
 
 	public int getBlocksPerSecond() {
-		return blocksPerSecond == 2 || blocksPerSecond == 4 || blocksPerSecond == 8 ? blocksPerSecond : 1;
+		return DreamTableBlockEntity.validSpeed(blocksPerSecond);
 	}
 
 	public int deposited(int index) {
-		DreamTableBlockEntity blockEntity = table();
-		return blockEntity == null ? 0 : blockEntity.deposited(index);
+		DreamTableBlockEntity table = table();
+		return table == null ? 0 : table.deposited(index);
 	}
 
 	public int supplied(int index) {
-		DreamTableBlockEntity blockEntity = table();
-		return blockEntity == null ? 0 : blockEntity.supplied(index);
-	}
-
-	public void previewSpeed(int speed) {
-		blocksPerSecond = speed == 2 || speed == 4 || speed == 8 ? speed : 1;
+		DreamTableBlockEntity table = table();
+		return table == null ? 0 : table.supplied(index);
 	}
 
 	public MaterialSpec material(int index) {
@@ -175,100 +140,65 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		return template.materials().get(index);
 	}
 
-	public net.minecraft.util.math.BlockPos getTablePos() {
-		return context.get((world, pos) -> pos, net.minecraft.util.math.BlockPos.ORIGIN);
+	/** The item the player delivers for this material, after any swap. */
+	public Item materialItem(int index) {
+		MaterialSpec spec = material(index);
+		if (spec == null) {
+			return null;
+		}
+		DreamTableBlockEntity table = table();
+		return table == null ? spec.item() : table.resolve(spec.item());
 	}
 
+	public List<Item> swapOptions(int index) {
+		MaterialSpec spec = material(index);
+		return spec == null ? List.of() : MaterialSwaps.options(FarmTemplates.get(selectedFarm), spec.item());
+	}
+
+	public boolean canSwap(int index) {
+		DreamTableBlockEntity table = table();
+		return table != null && table.canSwap(index) && !swapOptions(index).isEmpty();
+	}
+
+	public int getSwapMaterial() {
+		if (client && previewSwap >= 0) {
+			return previewSwap;
+		}
+		DreamTableBlockEntity table = table();
+		return table == null ? -1 : table.getSwapMaterial();
+	}
+
+	public void previewSwap(int index) {
+		previewSwap = index;
+	}
+
+	public void previewSpeed(int speed) {
+		blocksPerSecond = DreamTableBlockEntity.validSpeed(speed);
+	}
+
+	/** Shows a page on the client right away, before the server confirms it. */
 	public void preview(String farm, int nextPage) {
 		this.selectedFarm = farm;
 		this.page = nextPage;
-		FarmTemplate template = FarmTemplates.get(farm);
-		this.total = template == null ? 0 : template.steps().size();
+		this.total = totalFor(farm);
+	}
+
+	public BlockPos getTablePos() {
+		return context.get((world, pos) -> pos, BlockPos.ORIGIN);
 	}
 
 	@Override
 	public boolean onButtonClick(PlayerEntity player, int id) {
-		if (!canUse(player)) {
-			return false;
-		}
 		DreamTableBlockEntity table = table();
-		if (!(player instanceof ServerPlayerEntity serverPlayer) || table == null) {
+		if (!canUse(player) || !(player instanceof ServerPlayerEntity serverPlayer) || table == null) {
 			return false;
 		}
-		java.nio.file.Path worldRoot = serverPlayer.getServerWorld().getServer().getSavePath(net.minecraft.util.WorldSavePath.ROOT);
-		FarmTemplates.reloadImports(worldRoot);
-		if (id >= 0 && id < FarmOptions.ALL.size()) {
-			return openFarm(table, FarmOptions.ALL.get(id).id());
+		FarmTemplates.reloadImports(serverPlayer.getServerWorld().getServer().getSavePath(WorldSavePath.ROOT));
+		if (!TableButtons.press(table, serverPlayer, id)) {
+			return false;
 		}
-		if (id >= BUTTON_SCHEME) {
-			int index = id - BUTTON_SCHEME;
-			List<FarmOptions.FarmOption> imported = FarmTemplates.imported();
-			if (index >= 0 && index < imported.size()) {
-				return openFarm(table, imported.get(index).id());
-			}
-		}
-		return switch (id) {
-			case BUTTON_MENU -> {
-				table.setPage(PAGE_SELECT);
-				page = PAGE_SELECT;
-				yield true;
-			}
-			case BUTTON_REQUIREMENTS -> {
-				table.setRequirementsBoard(true);
-				yield true;
-			}
-			case BUTTON_BACK -> {
-				table.setPage(PAGE_WORK);
-				page = PAGE_WORK;
-				yield true;
-			}
-			case BUTTON_SCHEMES -> {
-				table.setPage(PAGE_SCHEMES);
-				page = PAGE_SCHEMES;
-				yield true;
-			}
-			case BUTTON_SCHEMES_BACK -> {
-				table.setPage(PAGE_SELECT);
-				page = PAGE_SELECT;
-				yield true;
-			}
-			case BUTTON_OPTIONS -> {
-				table.setPage(PAGE_OPTIONS);
-				page = PAGE_OPTIONS;
-				yield true;
-			}
-			case BUTTON_OPTIONS_BACK -> {
-				table.setPage(PAGE_SELECT);
-				page = PAGE_SELECT;
-				yield true;
-			}
-			case BUTTON_SPEED + 1, BUTTON_SPEED + 2, BUTTON_SPEED + 4, BUTTON_SPEED + 8 -> {
-				table.setBlocksPerSecond(id - BUTTON_SPEED);
-				blocksPerSecond = table.getBlocksPerSecond();
-				yield true;
-			}
-			case BUTTON_BUILD -> {
-				if (DreamTableBlockEntity.PHASE_BLOCKED.equals(table.getPhase()) || DreamTableBlockEntity.PHASE_NEED.equals(table.getPhase())) {
-					table.begin(serverPlayer, false);
-				} else if (DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) && !table.getSelectedFarm().isEmpty()) {
-					table.begin(serverPlayer, true);
-				} else {
-					yield false;
-				}
-				phase = phaseOf(table.getPhase());
-				yield true;
-			}
-			case BUTTON_DISCARD -> {
-				table.discard(serverPlayer);
-				selectedFarm = "";
-				page = PAGE_SELECT;
-				phase = 0;
-				buildIndex = 0;
-				total = 0;
-				yield true;
-			}
-			default -> false;
-		};
+		copyFrom(table);
+		return true;
 	}
 
 	@Override
@@ -282,11 +212,10 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		}
 		ItemStack stack = slot.getStack();
 		ItemStack original = stack.copy();
-		if (index < FarmTemplate.MAX_SLOTS) {
-			if (!insertItem(stack, FarmTemplate.MAX_SLOTS, this.slots.size(), true)) {
-				return ItemStack.EMPTY;
-			}
-		} else if (!insertItem(stack, 0, FarmTemplate.MAX_SLOTS, false)) {
+		boolean moved = index < FarmTemplate.MAX_SLOTS
+				? insertItem(stack, FarmTemplate.MAX_SLOTS, this.slots.size(), true)
+				: insertItem(stack, 0, FarmTemplate.MAX_SLOTS, false);
+		if (!moved) {
 			return ItemStack.EMPTY;
 		}
 		if (stack.isEmpty()) {
@@ -300,6 +229,26 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	@Override
 	public boolean canUse(PlayerEntity player) {
 		return canUse(context, player, ModBlocks.DREAM_TABLE);
+	}
+
+	public static int phaseOf(String phase) {
+		return switch (phase) {
+			case DreamTableBlockEntity.PHASE_BUILDING -> 1;
+			case DreamTableBlockEntity.PHASE_BLOCKED -> 2;
+			case DreamTableBlockEntity.PHASE_DONE -> 3;
+			case DreamTableBlockEntity.PHASE_NEED -> 4;
+			case DreamTableBlockEntity.PHASE_PAUSED -> 5;
+			default -> 0;
+		};
+	}
+
+	private void copyFrom(DreamTableBlockEntity table) {
+		selectedFarm = table.getSelectedFarm();
+		page = table.getPage();
+		phase = phaseOf(table.getPhase());
+		buildIndex = table.getBuildIndex();
+		total = table.totalSteps();
+		blocksPerSecond = table.getBlocksPerSecond();
 	}
 
 	private DreamTableBlockEntity table() {
@@ -317,46 +266,58 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		return template == null ? 0 : template.steps().size();
 	}
 
-	private boolean openFarm(DreamTableBlockEntity table, String id) {
-		if (id.equals(table.getSelectedFarm())) {
-			table.setPage(PAGE_WORK);
-			selectedFarm = id;
-			page = PAGE_WORK;
-			total = table.totalSteps();
-			return true;
+	/** Page, build index, phase, step total, and speed, read from the table on the server and stored on the client. */
+	private final class Properties implements PropertyDelegate {
+		@Override
+		public int get(int index) {
+			DreamTableBlockEntity table = client ? null : table();
+			if (table != null) {
+				return switch (index) {
+					case 0 -> table.getPage();
+					case 1 -> table.getBuildIndex();
+					case 2 -> phaseOf(table.getPhase());
+					case 3 -> table.totalSteps();
+					case 4 -> table.getBlocksPerSecond();
+					default -> 0;
+				};
+			}
+			return switch (index) {
+				case 0 -> page;
+				case 1 -> buildIndex;
+				case 2 -> phase;
+				case 3 -> total;
+				case 4 -> blocksPerSecond;
+				default -> 0;
+			};
 		}
-		if (table.hasProgress()) {
-			return true;
+
+		@Override
+		public void set(int index, int value) {
+			switch (index) {
+				case 0 -> page = value;
+				case 1 -> buildIndex = value;
+				case 2 -> phase = value;
+				case 3 -> total = value;
+				case 4 -> blocksPerSecond = value;
+				default -> {
+				}
+			}
 		}
-		table.setSelectedFarm(id);
-		table.setPage(PAGE_WORK);
-		selectedFarm = table.getSelectedFarm();
-		page = PAGE_WORK;
-		total = table.totalSteps();
-		return true;
+
+		@Override
+		public int size() {
+			return 5;
+		}
 	}
 
-	public static int phaseOf(String phase) {
-		return switch (phase) {
-			case DreamTableBlockEntity.PHASE_BUILDING -> 1;
-			case DreamTableBlockEntity.PHASE_BLOCKED -> 2;
-			case DreamTableBlockEntity.PHASE_DONE -> 3;
-			case DreamTableBlockEntity.PHASE_NEED -> 4;
-			default -> 0;
-		};
-	}
-
-	private static final class PlayerMaterialSlot extends Slot {
-		private final DreamTableScreenHandler handler;
-
-		private PlayerMaterialSlot(PlayerInventory inventory, int index, int x, int y, DreamTableScreenHandler handler) {
+	private final class PlayerSlot extends Slot {
+		private PlayerSlot(PlayerInventory inventory, int index, int x, int y) {
 			super(inventory, index, x, y);
-			this.handler = handler;
 		}
 
 		@Override
 		public boolean isEnabled() {
-			return handler.page == PAGE_REQUIREMENTS;
+			return page == PAGE_REQUIREMENTS;
 		}
 	}
 }

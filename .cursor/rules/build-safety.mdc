@@ -1,0 +1,16 @@
+---
+description: Rules that keep farm building, clearing and dismantling safe
+globs: src/main/java/com/davisr/thedreamtable/farm/**/*.java,src/main/java/com/davisr/thedreamtable/block/**/*.java
+alwaysApply: false
+---
+
+# Build safety
+
+- In `FarmBuilder`, run every check (already built, protected obstacle, material available) before changing anything. A step that stops must leave the world and the counts untouched, so retrying never duplicates drops or steps.
+- Place, clear and dismantle with `Block.NOTIFY_LISTENERS | Block.FORCE_STATE`, never with neighbor updates. `settle()` runs one update pass when the farm is finished.
+- Never clear protected blocks: block entities, unbreakable blocks, redstone parts, pistons, rails, TNT, infested blocks, and anything in `ObstacleRules.KEEP`. Add new exceptions there.
+- Record every step the table places with `recordPlaced(usedItem)`.
+- Discard only takes apart unfinished builds, and only steps the table placed that still hold the same block. Refunds go only to paid steps. Water refunds nothing, because the bucket came back when it was poured. Empty containers into the player's hands before removing them.
+- Material counts are always keyed by the template's original item. `resolve()` gives the swapped item.
+- A material can be swapped only before any of it is delivered and before the build starts.
+- Keep NBT key names stable so existing worlds keep loading. New data gets new keys with safe defaults.

@@ -1,0 +1,23 @@
+---
+description: Stack, build commands, versions, releases and language for The Dream Table
+alwaysApply: true
+---
+
+# Project workflow
+
+## Stack and build
+- Minecraft 1.21.1, Fabric Loader, Fabric API, Yarn `1.21.1+build.3`, Java 21.
+- Build: `JAVA_HOME=/home/davisr/.jdks/jdk-21.0.12.1+1 ./gradlew build`, then delete `build/libs/*sources*.jar`. Only the mod jar stays in `build/libs`.
+- After every change run `./gradlew compileJava`. The game can't be launched here, so always say what was not tested in game.
+- Look up vanilla APIs with `javap` on `~/.gradle/caches/fabric-loom/minecraftMaven/net/minecraft/minecraft-merged/1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2/minecraft-merged-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar`. Don't guess method names.
+
+## Versions and releases
+- The version lives in `gradle.properties` (`mod_version`) and in the README (version line and jar name). Format: `X.Y.Z-beta`.
+- Test builds stay local. Commit, push and release only when Davi asks.
+- Release: commit, `git push`, then `gh release create vX.Y.Z-beta build/libs/the_dream_table-X.Y.Z-beta.jar --prerelease`. Then give Davi an English changelog for CurseForge.
+- Never copy jars into the CurseForge modpack instance unless asked.
+
+## Language
+- Talk to Davi in Portuguese.
+- In-game text, README, release notes, changelogs and code comments are in English.
+- All player-facing text goes in `assets/the_dream_table/lang/en_us.json` under `gui.the_dream_table.*`. Never hard-code UI strings.

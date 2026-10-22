@@ -1,0 +1,14 @@
+---
+description: Look and behavior of the table menu, clipboard and hologram
+globs: src/main/java/com/davisr/thedreamtable/screen/**/*.java,src/main/java/com/davisr/thedreamtable/client/**/*.java
+alwaysApply: false
+---
+
+# UI style
+
+- Use the `Theme` colors and the `Painter` styles for cards, buttons and fields. Cards are 168 px wide.
+- The panel stays fixed on screen and only the content below the header scrolls (`Viewport`).
+- Draw text without shadow on the cream panel. Vanilla text fields draw with shadow, so use them only for input, as `SearchBox` does.
+- Destructive actions, such as discarding a started build, need a second click.
+- Clipboard icons use each item's own model, facing forward, at the 2D icon size.
+- Clipboard page arrows play the book page-turn sound.

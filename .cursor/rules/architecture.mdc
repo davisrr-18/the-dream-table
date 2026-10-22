@@ -1,0 +1,30 @@
+---
+description: Package layout and where new code belongs
+globs: src/main/java/**/*.java
+alwaysApply: false
+---
+
+# Architecture
+
+- `block/entity`: `DreamTableBlockEntity` is the facade. Its state lives in `MaterialLedger` (delivered and used counts, swaps), `BuildProgress` (phase, step, timer, owner, speed, placed and paid steps), and `FarmPlacement` (anchor and facing).
+- `farm`:
+  - `FarmBuilder` places one step per call.
+  - `FarmDismantler` takes an unfinished build apart on discard.
+  - `ObstacleRules` decides what may be cleared.
+  - `FarmSpawns` handles mobs and buckets.
+  - `MaterialSwaps` lists compatible blocks.
+- `farm/schematic`: one reader per format (`VanillaReader`, `SpongeReader`, `LitematicaReader`), driven by `SchematicReader`.
+- `farm/legacy`: code-built farms, used only when a bundled `.schem` can't be read.
+- `screen`: `DreamTableScreen` only wires things together. `TableButtons` is the server side of every button. Page and button ids are constants in `DreamTableScreenHandler`.
+- `screen/page`: one `TablePage` per menu page. `ProjectState` reads the synced phase on the client.
+- `screen/ui`: `Theme`, `Painter`, `Viewport`, `SearchBox`.
+- `client/clipboard` and `client/hologram`: the world-space board and the ghost blocks.
+
+## Server owns the state
+The client only previews with `handler.preview(...)` and sends a button id. `TableButtons` changes the table, and the table calls `sync()`.
+
+## Adding a menu page
+1. Add `PAGE_*` and `BUTTON_*` constants in `DreamTableScreenHandler`.
+2. Handle the buttons in `TableButtons`.
+3. Create a `TablePage` in `screen/page` that draws through `PageContext` (`card`, `button`, `go`).
+4. Register the page in `DreamTableScreen.page()`.

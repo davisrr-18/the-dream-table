@@ -1,7 +1,5 @@
 package com.davisr.thedreamtable.screen;
 
-import com.davisr.thedreamtable.farm.FarmTemplate;
-
 public final class DreamTableLayout {
 	public static final int PANEL_WIDTH = 196;
 	public static final int HEADER = 46;

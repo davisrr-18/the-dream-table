@@ -33,7 +33,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 			if (!(player.getWorld().getBlockEntity(payload.table()) instanceof DreamTableBlockEntity table)) {
 				return;
 			}
-			if (DreamTableBlockEntity.PHASE_BLOCKED.equals(table.getPhase()) || DreamTableBlockEntity.PHASE_NEED.equals(table.getPhase())) {
+			if (table.canResume()) {
 				table.begin(player, false);
 				return;
 			}
