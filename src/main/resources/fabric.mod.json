@@ -1,8 +1,8 @@
 {
 	"schemaVersion": 1,
-	"id": "redstone_dreams",
+	"id": "the_dream_table",
 	"version": "${version}",
-	"name": "Redstone Dreams",
+	"name": "The Dream Table",
 	"description": "Blueprint table that builds classic redstone farms, one block at a time.",
 	"authors": [
 		"Davi"
@@ -11,10 +11,10 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"com.davisr.redstonedreams.RedstoneDreamsMod"
+			"com.davisr.thedreamtable.TheDreamTableMod"
 		],
 		"client": [
-			"com.davisr.redstonedreams.RedstoneDreamsClient"
+			"com.davisr.thedreamtable.TheDreamTableClient"
 		]
 	},
 	"depends": {

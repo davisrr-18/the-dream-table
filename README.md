@@ -1,4 +1,4 @@
-# Redstone Dreams
+# The Dream Table
 
 Alpha `1.0.1-alpha` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
 
@@ -19,7 +19,7 @@ Lapis lazuli on the top row and in the center, paper on the sides, and oak plank
 1. Place the table and choose a farm.
 2. Close the menu. A yellow marker follows the crosshair.
 3. Right-click the ground to anchor the hologram. Right-click again to move it.
-4. **R** rotates the farm. The key can be changed in Controls, under Redstone Dreams.
+4. **R** rotates the farm. The key can be changed in Controls, under The Dream Table.
 5. Hold the material and right-click the clipboard to deliver it. The line is struck through when the count is met.
 6. Return to the table and click Build. The position locks, and the build places one block per second.
 
@@ -32,7 +32,7 @@ Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` file
 - `schematics`
 - `config/worldedit/schematics`
 - `config/litematica`
-- `config/redstone_dreams/structures`
+- `config/the_dream_table/structures`
 - `schematics` inside the world folder
 
 ## Requirements
@@ -50,4 +50,4 @@ From the project root, with Java 21:
 ./gradlew build
 ```
 
-The mod jar is `build/libs/redstone_dreams-1.0.1-alpha.jar`. Jars suffixed with `sources` or `dev` are for development only.
+The mod jar is `build/libs/the_dream_table-1.0.1-alpha.jar`. Jars suffixed with `sources` or `dev` are for development only.
