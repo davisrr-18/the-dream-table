@@ -33,11 +33,11 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 			if (!(player.getWorld().getBlockEntity(payload.table()) instanceof DreamTableBlockEntity table)) {
 				return;
 			}
-			if (DreamTableBlockEntity.PHASE_BLOCKED.equals(table.getPhase())) {
+			if (DreamTableBlockEntity.PHASE_BLOCKED.equals(table.getPhase()) || DreamTableBlockEntity.PHASE_NEED.equals(table.getPhase())) {
 				table.begin(player, false);
 				return;
 			}
-			if (!DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) || !table.hasAllMaterials()) {
+			if (!DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) || table.getSelectedFarm().isEmpty()) {
 				return;
 			}
 			Direction facing = payload.facing() != null && payload.facing().getAxis().isHorizontal()

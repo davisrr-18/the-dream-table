@@ -208,6 +208,10 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> {
 					for (int index = 0; index < FarmOptions.ALL.size(); index++) {
 						if (hit(mouseX, mouseY, cardX(), cardY(index), cardWidth(), CARD_HEIGHT)) {
 							FarmOption option = FarmOptions.ALL.get(index);
+							if (!option.id().equals(this.handler.getSelectedFarm()) && projectLocked()) {
+								remindCurrentFarm();
+								return true;
+							}
 							this.handler.preview(option.id(), DreamTableScreenHandler.PAGE_WORK);
 							press(index);
 							return true;
@@ -252,7 +256,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> {
 		for (int index = 0; index < FarmOptions.ALL.size(); index++) {
 			FarmOption option = FarmOptions.ALL.get(index);
 			boolean selected = option.id().equals(this.handler.getSelectedFarm());
-			drawOption(context, option.icon().getDefaultStack(), option.title(), cardX(), cardY(index), mouseX, mouseY, selected, true);
+			drawOption(context, option.icon().getDefaultStack(), option.title(), cardX(), cardY(index), mouseX, mouseY, selected, !projectLocked() || selected);
 		}
 		drawOption(context, new ItemStack(net.minecraft.item.Items.BOOK), Text.translatable("gui.the_dream_table.schemes"), cardX(), cardY(FarmOptions.ALL.size()), mouseX, mouseY, false, true);
 		drawOption(context, new ItemStack(net.minecraft.item.Items.REPEATER), Text.translatable("gui.the_dream_table.options"), cardX(), cardY(FarmOptions.ALL.size() + 1), mouseX, mouseY, false, true);
@@ -301,7 +305,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> {
 			for (int index = 0; index < schemes.size(); index++) {
 				FarmOption option = schemes.get(index);
 				boolean selected = option.id().equals(this.handler.getSelectedFarm());
-				drawOption(context, option.icon().getDefaultStack(), option.title(), cardX(), cardY(index), mouseX, mouseY, selected, true);
+				drawOption(context, option.icon().getDefaultStack(), option.title(), cardX(), cardY(index), mouseX, mouseY, selected, !projectLocked() || selected);
 			}
 		}
 		drawAction(context, Text.translatable("gui.the_dream_table.back"), cardX(), schemesBackY(), mouseX, mouseY, true, false);
@@ -311,6 +315,10 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> {
 		List<FarmOption> schemes = FarmTemplates.imported();
 		for (int index = 0; index < schemes.size(); index++) {
 			if (hit(mouseX, mouseY, cardX(), cardY(index), cardWidth(), CARD_HEIGHT)) {
+				if (!schemes.get(index).id().equals(this.handler.getSelectedFarm()) && projectLocked()) {
+					remindCurrentFarm();
+					return true;
+				}
 				this.handler.preview(schemes.get(index).id(), DreamTableScreenHandler.PAGE_WORK);
 				press(DreamTableScreenHandler.BUTTON_SCHEME + index);
 				return true;
@@ -340,12 +348,15 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> {
 		}
 
 		int buttons = workButtonsY();
+		drawAction(context, Text.translatable("gui.the_dream_table.menu"), cardX(), buttons, mouseX, mouseY, true, false);
+		buttons += BUTTON_HEIGHT + 6;
 		drawAction(context, Text.translatable("gui.the_dream_table.requirements"), cardX(), buttons, mouseX, mouseY, true, false);
 		boolean buildEnabled = buildEnabled();
 		Text buildLabel = switch (this.handler.getPhase()) {
 			case 1 -> Text.translatable("gui.the_dream_table.building_short");
 			case 2 -> Text.translatable("gui.the_dream_table.retry");
 			case 3 -> Text.translatable("gui.the_dream_table.done_short");
+			case 4 -> Text.translatable("gui.the_dream_table.continue");
 			default -> Text.translatable("gui.the_dream_table.build");
 		};
 		drawAction(context, buildLabel, cardX(), buttons + BUTTON_HEIGHT + 6, mouseX, mouseY, buildEnabled, true);
@@ -475,6 +486,12 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> {
 	private boolean clickWork(double mouseX, double mouseY) {
 		int buttons = workButtonsY();
 		if (hit(mouseX, mouseY, cardX(), buttons, cardWidth(), BUTTON_HEIGHT)) {
+			this.handler.preview(this.handler.getSelectedFarm(), DreamTableScreenHandler.PAGE_SELECT);
+			press(DreamTableScreenHandler.BUTTON_MENU);
+			return true;
+		}
+		buttons += BUTTON_HEIGHT + 6;
+		if (hit(mouseX, mouseY, cardX(), buttons, cardWidth(), BUTTON_HEIGHT)) {
 			com.davisr.thedreamtable.client.DreamTableClipboard.pin(this.handler.getTablePos());
 			press(DreamTableScreenHandler.BUTTON_REQUIREMENTS);
 			if (this.client != null) {
@@ -507,17 +524,37 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> {
 		return false;
 	}
 
-	private boolean buildEnabled() {
+	private boolean buildInProgress() {
 		int phase = this.handler.getPhase();
-		if (phase == 2) {
+		return phase == 1 || phase == 2 || phase == 4;
+	}
+
+	private boolean projectLocked() {
+		if (this.handler.getSelectedFarm().isEmpty() || this.handler.getPhase() == 3) {
+			return false;
+		}
+		if (buildInProgress() || DreamTableHologram.hasPlacement()) {
 			return true;
 		}
-		if (phase != 0) {
+		FarmTemplate template = FarmTemplates.get(this.handler.getSelectedFarm());
+		if (template == null) {
 			return false;
 		}
-		if (!DreamTableHologram.hasPlacement()) {
-			return false;
+		for (int index = 0; index < template.materials().size(); index++) {
+			if (this.handler.supplied(index) > 0) {
+				return true;
+			}
 		}
+		return false;
+	}
+
+	private void remindCurrentFarm() {
+		if (this.client != null && this.client.player != null) {
+			this.client.inGameHud.setOverlayMessage(Text.translatable("gui.the_dream_table.farm_busy"), false);
+		}
+	}
+
+	private boolean hasAllMaterials() {
 		FarmTemplate template = FarmTemplates.get(this.handler.getSelectedFarm());
 		if (template == null) {
 			return false;
@@ -531,18 +568,33 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> {
 		return true;
 	}
 
+	private boolean buildEnabled() {
+		int phase = this.handler.getPhase();
+		if (phase == 2 || phase == 4) {
+			return true;
+		}
+		if (phase != 0) {
+			return false;
+		}
+		if (!DreamTableHologram.hasPlacement()) {
+			return false;
+		}
+		return FarmTemplates.get(this.handler.getSelectedFarm()) != null;
+	}
+
 	private Text statusText() {
 		return switch (this.handler.getPhase()) {
 			case 1 -> Text.translatable("gui.the_dream_table.building", this.handler.getBuildIndex(), this.handler.getTotal());
 			case 2 -> Text.translatable("gui.the_dream_table.blocked");
 			case 3 -> Text.translatable("gui.the_dream_table.done");
+			case 4 -> Text.translatable("gui.the_dream_table.paused");
 			default -> {
 				if (!DreamTableHologram.hasPlacement()) {
 					yield Text.translatable("gui.the_dream_table.place_first");
 				}
-				yield buildEnabled()
+				yield hasAllMaterials()
 						? Text.translatable("gui.the_dream_table.ready")
-						: Text.translatable("gui.the_dream_table.need_materials");
+						: Text.translatable("gui.the_dream_table.partial");
 			}
 		};
 	}
@@ -640,7 +692,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> {
 
 	private int workContentHeight() {
 		int buttons = PAD + CARD_HEIGHT + 8 + 14 + 16;
-		return buttons + (BUTTON_HEIGHT + 6) * 2 + BUTTON_HEIGHT + 8;
+		return buttons + (BUTTON_HEIGHT + 6) * 3 + BUTTON_HEIGHT + 8;
 	}
 
 	private int scrollTrackX() {

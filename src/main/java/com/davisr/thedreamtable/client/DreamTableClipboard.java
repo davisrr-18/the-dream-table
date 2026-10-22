@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.client;
 
 import com.davisr.thedreamtable.block.DreamTableBlock;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.MaterialSpec;
@@ -48,13 +49,19 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public final class DreamTableClipboard {
 	private static final int ROWS_PER_PAGE = 6;
-	private static final float HALF_W = 0.95F;
+	private static final float COL_SPAN = 1.56F;
+	private static final float COL_GAP = 0.18F;
+	private static final float TOTALS_LEFT = -(COL_SPAN + COL_GAP * 0.5F);
+	private static final float TOTALS_RIGHT = TOTALS_LEFT + COL_SPAN;
+	private static final float ORDER_LEFT = COL_GAP * 0.5F;
+	private static final float ORDER_RIGHT = ORDER_LEFT + COL_SPAN;
+	private static final float HALF_W = ORDER_RIGHT + 0.17F;
 	private static final float HALF_H = 1.28F;
 	private static final float TEXT = 0.0125F;
 	private static final float TITLE_TEXT = 0.017F;
@@ -62,22 +69,22 @@ public final class DreamTableClipboard {
 	private static final float ROW_TOP = 0.70F;
 	private static final float ROW_STEP = 0.195F;
 	private static final float ICON = 0.16F;
-	private static final float LEFT = -0.78F;
-	private static final float RIGHT = 0.78F;
+	private static final float LEFT = TOTALS_LEFT;
+	private static final float RIGHT = ORDER_RIGHT;
 	private static final float TITLE_Y = 1.02F;
+	private static final float COLUMN_Y = 0.82F;
 	private static final float BAR_H = 0.07F;
 	private static final float BUTTON_H = 0.18F;
-	private static final float PREV_X0 = -0.78F;
-	private static final float PREV_X1 = -0.36F;
-	private static final float NEXT_X0 = 0.36F;
-	private static final float NEXT_X1 = 0.78F;
+	private static final float BUTTON_W = 0.38F;
 
 	private static BlockPos pinned;
 	private static Box hitbox;
 	private static Vec3d anchor = Vec3d.ZERO;
 	private static float yaw;
-	private static int page;
-	private static int pageCount = 1;
+	private static int totalsPage;
+	private static int totalsPages = 1;
+	private static int orderPage;
+	private static int orderPages = 1;
 	private static boolean useWasDown;
 	private static int lastDepositAge = -1;
 	private static float itemLabelY = -0.48F;
@@ -127,13 +134,15 @@ public final class DreamTableClipboard {
 
 	public static void pin(BlockPos pos) {
 		pinned = pos;
-		page = 0;
+		totalsPage = 0;
+		orderPage = 0;
 	}
 
 	public static void close() {
 		pinned = null;
 		hitbox = null;
-		page = 0;
+		totalsPage = 0;
+		orderPage = 0;
 	}
 
 	private static void render(WorldRenderContext context) {
@@ -163,18 +172,21 @@ public final class DreamTableClipboard {
 
 		Direction facing = context.world().getBlockState(pos).get(Properties.HORIZONTAL_FACING);
 		Direction side = facing.rotateYClockwise();
-		anchor = Vec3d.ofCenter(pos).add(side.getOffsetX() * 3.4, 1.55, side.getOffsetZ() * 3.4);
+		anchor = Vec3d.ofCenter(pos).add(side.getOffsetX() * 4.6, 1.55, side.getOffsetZ() * 4.6);
 		hitbox = new Box(anchor, anchor).expand(HALF_W + 0.15, HALF_H + 0.15, 0.45);
 		yaw = -facing.asRotation();
 
-		List<Line> lines = lines(table, template);
-		pageCount = Math.max(1, (lines.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
-		page = Math.min(page, pageCount - 1);
-		int from = page * ROWS_PER_PAGE;
-		int to = Math.min(lines.size(), from + ROWS_PER_PAGE);
+		List<Line> totals = totals(table, template);
+		List<Line> order = lines(table, template);
+		totalsPages = Math.max(1, (totals.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
+		orderPages = Math.max(1, (order.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
+		totalsPage = Math.min(totalsPage, totalsPages - 1);
+		orderPage = Math.min(orderPage, orderPages - 1);
+		List<Line> totalsShown = totals.subList(totalsPage * ROWS_PER_PAGE, Math.min(totals.size(), (totalsPage + 1) * ROWS_PER_PAGE));
+		List<Line> orderShown = order.subList(orderPage * ROWS_PER_PAGE, Math.min(order.size(), (orderPage + 1) * ROWS_PER_PAGE));
 		int itemHave = 0;
 		int itemNeed = 0;
-		for (Line line : lines) {
+		for (Line line : totals) {
 			itemHave += Math.min(line.have(), line.need());
 			itemNeed += line.need();
 		}
@@ -188,7 +200,7 @@ public final class DreamTableClipboard {
 		float itemProgress = itemNeed == 0 ? 0.0F : itemHave / (float) itemNeed;
 		float buildProgress = table.totalSteps() == 0 ? 0.0F : table.getBuildIndex() / (float) table.totalSteps();
 		drawBoard(matrices);
-		drawSheet(matrices, lines.subList(from, to), itemHave, itemNeed, table.getBuildIndex(), table.totalSteps(), itemProgress, buildProgress);
+		drawSheet(matrices, totalsShown, orderShown, itemHave, itemNeed, table.getBuildIndex(), table.totalSteps(), itemProgress, buildProgress);
 		matrices.pop();
 	}
 
@@ -213,108 +225,137 @@ public final class DreamTableClipboard {
 		flushColor(buffer);
 	}
 
-	private static void drawSheet(MatrixStack matrices, List<Line> pageLines, int itemHave, int itemNeed, int built, int steps, float itemProgress, float buildProgress) {
+	private static void drawSheet(MatrixStack matrices, List<Line> totalsPageLines, List<Line> orderPageLines, int itemHave, int itemNeed, int built, int steps, float itemProgress, float buildProgress) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		TextRenderer text = client.textRenderer;
 		int light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
-		float body = text.fontHeight * TEXT;
 		PlayerEntity player = client.player;
 		Vec3d look = player == null ? null : planeHit(player);
-		Zone hover = look == null ? Zone.NONE : zoneAt(localX(look), localY(look));
-		int hoverRow = look == null ? -1 : rowIndexAt(localX(look), localY(look), pageLines.size());
+		double lookX = look == null ? 0.0 : localX(look);
+		double lookY = look == null ? 0.0 : localY(look);
+		Zone hover = look == null ? Zone.NONE : zoneAt(lookX, lookY);
 		ItemStack held = player == null ? ItemStack.EMPTY : player.getMainHandStack();
 
 		BufferBuilder chrome = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		float titleBottom = TITLE_Y - text.fontHeight * TITLE_TEXT;
-		flat(chrome, matrices, LEFT, titleBottom - 0.045F, RIGHT, titleBottom - 0.030F, 0.012F, 0.45F, 0.32F, 0.18F);
+		flat(chrome, matrices, LEFT, titleBottom - 0.02F, RIGHT, titleBottom - 0.008F, 0.012F, 0.45F, 0.32F, 0.18F);
+		flat(chrome, matrices, -0.012F, itemLabelY + 0.08F, 0.012F, COLUMN_Y + 0.04F, 0.012F, 0.55F, 0.40F, 0.22F);
 		flat(chrome, matrices, LEFT, itemLabelY + 0.055F, RIGHT, itemLabelY + 0.070F, 0.012F, 0.45F, 0.32F, 0.18F);
-		float row = ROW_TOP;
-		for (int index = 0; index < pageLines.size(); index++) {
-			Line line = pageLines.get(index);
-			boolean matchesHeld = !held.isEmpty() && held.isOf(line.stack().getItem());
-			if (matchesHeld || index == hoverRow) {
-				float top = row + 0.03F;
-				float bottom = row - Math.max(body, ICON) - 0.02F;
-				if (matchesHeld) {
-					flat(chrome, matrices, LEFT - 0.02F, bottom, RIGHT + 0.02F, top, 0.01F, 0.72F, 0.84F, 0.52F);
-				} else {
-					flat(chrome, matrices, LEFT - 0.02F, bottom, RIGHT + 0.02F, top, 0.01F, 0.86F, 0.78F, 0.58F);
-				}
-			}
-			row -= ROW_STEP;
-		}
+		highlightRows(chrome, matrices, totalsPageLines, TOTALS_LEFT, TOTALS_RIGHT, held, lookX, lookY);
+		highlightRows(chrome, matrices, orderPageLines, ORDER_LEFT, ORDER_RIGHT, held, lookX, lookY);
 		progress(chrome, matrices, itemBarTop, itemProgress, 0.36F, 0.64F, 0.24F);
 		progress(chrome, matrices, buildBarTop, buildProgress, 0.72F, 0.44F, 0.16F);
-		if (pageCount > 1) {
-			plate(chrome, matrices, PREV_X0, buttonY0, PREV_X1, buttonY1, page > 0, hover == Zone.PREV);
-			plate(chrome, matrices, NEXT_X0, buttonY0, NEXT_X1, buttonY1, page < pageCount - 1, hover == Zone.NEXT);
+		if (totalsPages > 1) {
+			plate(chrome, matrices, TOTALS_LEFT, buttonY0, TOTALS_LEFT + BUTTON_W, buttonY1, totalsPage > 0, hover == Zone.TOTALS_PREV);
+			plate(chrome, matrices, TOTALS_RIGHT - BUTTON_W, buttonY0, TOTALS_RIGHT, buttonY1, totalsPage < totalsPages - 1, hover == Zone.TOTALS_NEXT);
+		}
+		if (orderPages > 1) {
+			plate(chrome, matrices, ORDER_LEFT, buttonY0, ORDER_LEFT + BUTTON_W, buttonY1, orderPage > 0, hover == Zone.ORDER_PREV);
+			plate(chrome, matrices, ORDER_RIGHT - BUTTON_W, buttonY0, ORDER_RIGHT, buttonY1, orderPage < orderPages - 1, hover == Zone.ORDER_NEXT);
 		}
 		flushColor(chrome);
 
-		if (pageCount > 1) {
+		if (totalsPages > 1 || orderPages > 1) {
 			BufferBuilder arrows = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
-			arrow(arrows, matrices, PREV_X0, buttonY0, PREV_X1, buttonY1, false, page > 0);
-			arrow(arrows, matrices, NEXT_X0, buttonY0, NEXT_X1, buttonY1, true, page < pageCount - 1);
+			if (totalsPages > 1) {
+				arrow(arrows, matrices, TOTALS_LEFT, buttonY0, TOTALS_LEFT + BUTTON_W, buttonY1, false, totalsPage > 0);
+				arrow(arrows, matrices, TOTALS_RIGHT - BUTTON_W, buttonY0, TOTALS_RIGHT, buttonY1, true, totalsPage < totalsPages - 1);
+			}
+			if (orderPages > 1) {
+				arrow(arrows, matrices, ORDER_LEFT, buttonY0, ORDER_LEFT + BUTTON_W, buttonY1, false, orderPage > 0);
+				arrow(arrows, matrices, ORDER_RIGHT - BUTTON_W, buttonY0, ORDER_RIGHT, buttonY1, true, orderPage < orderPages - 1);
+			}
 			flushColor(arrows);
 		}
 
 		List<Float> strikes = new ArrayList<>();
 		List<Float> strikeFrom = new ArrayList<>();
-		row = ROW_TOP;
-		List<PlacedName> placed = new ArrayList<>();
-		for (Line line : pageLines) {
-			placed.add(placeName(text, line.stack().getName().getString(), line.have() + "/" + line.need()));
-		}
-		for (int index = 0; index < pageLines.size(); index++) {
-			PlacedName name = placed.get(index);
-			float iconY = row - name.height() * 0.5F - ICON * 0.5F;
-			drawItemIcon(matrices, pageLines.get(index).stack(), LEFT, iconY, ICON);
-			if (pageLines.get(index).done()) {
-				float lineHeight = text.fontHeight * name.scale();
-				float gap = name.lines().size() > 1 ? 0.006F : 0.0F;
-				for (int line = 0; line < name.lines().size(); line++) {
-					strikes.add(row - line * (lineHeight + gap) - lineHeight * 0.55F);
-					strikeFrom.add(LEFT + ICON + 0.05F);
-				}
-			}
-			row -= ROW_STEP;
-		}
+		List<Float> strikeTo = new ArrayList<>();
+		drawColumnIcons(matrices, text, totalsPageLines, TOTALS_LEFT, TOTALS_RIGHT, strikes, strikeFrom, strikeTo);
+		drawColumnIcons(matrices, text, orderPageLines, ORDER_LEFT, ORDER_RIGHT, strikes, strikeFrom, strikeTo);
 		DiffuseLighting.enableForLevel();
 
-		label(matrices, text, light, LEFT, TITLE_Y, Text.translatable("gui.the_dream_table.requirements"), TITLE_TEXT);
+		labelCenter(matrices, text, light, 0.0F, TITLE_Y, Text.translatable("gui.the_dream_table.requirements"), TITLE_TEXT);
+		label(matrices, text, light, TOTALS_LEFT, COLUMN_Y, Text.translatable("gui.the_dream_table.totals"), TEXT);
+		label(matrices, text, light, ORDER_LEFT, COLUMN_Y, Text.translatable("gui.the_dream_table.order"), TEXT);
 		label(matrices, text, light, LEFT, itemLabelY, Text.translatable("gui.the_dream_table.items"), TEXT);
 		labelRight(matrices, text, light, RIGHT, itemLabelY, Text.literal(itemHave + "/" + itemNeed), TEXT);
 		label(matrices, text, light, LEFT, buildLabelY, Text.translatable("gui.the_dream_table.blocks"), TEXT);
 		labelRight(matrices, text, light, RIGHT, buildLabelY, Text.literal(built + "/" + steps), TEXT);
-		if (pageCount > 1) {
-			float pageHeight = text.fontHeight * PAGE_TEXT;
-			float pageY = buttonY1 - (BUTTON_H - pageHeight) * 0.5F;
-			labelCenter(matrices, text, light, 0.0F, pageY, Text.translatable("gui.the_dream_table.count", page + 1, pageCount), PAGE_TEXT);
+		float pageHeight = text.fontHeight * PAGE_TEXT;
+		float pageY = buttonY1 - (BUTTON_H - pageHeight) * 0.5F;
+		if (totalsPages > 1) {
+			labelCenter(matrices, text, light, (TOTALS_LEFT + TOTALS_RIGHT) * 0.5F, pageY, Text.translatable("gui.the_dream_table.count", totalsPage + 1, totalsPages), PAGE_TEXT);
+		}
+		if (orderPages > 1) {
+			labelCenter(matrices, text, light, (ORDER_LEFT + ORDER_RIGHT) * 0.5F, pageY, Text.translatable("gui.the_dream_table.count", orderPage + 1, orderPages), PAGE_TEXT);
 		}
 
-		row = ROW_TOP;
-		for (int index = 0; index < pageLines.size(); index++) {
-			Line line = pageLines.get(index);
-			PlacedName name = placed.get(index);
-			Text count = Text.literal(line.have() + "/" + line.need());
-			float nameX = LEFT + ICON + 0.06F;
-			float lineHeight = text.fontHeight * name.scale();
-			float gap = name.lines().size() > 1 ? 0.006F : 0.0F;
-			for (int lineIndex = 0; lineIndex < name.lines().size(); lineIndex++) {
-				label(matrices, text, light, nameX, row - lineIndex * (lineHeight + gap), Text.literal(name.lines().get(lineIndex)), name.scale());
-			}
-			labelRight(matrices, text, light, RIGHT, row, count, TEXT);
-			row -= ROW_STEP;
-		}
+		drawColumnNames(matrices, text, light, totalsPageLines, TOTALS_LEFT, TOTALS_RIGHT);
+		drawColumnNames(matrices, text, light, orderPageLines, ORDER_LEFT, ORDER_RIGHT);
 
 		if (!strikes.isEmpty()) {
 			BufferBuilder strike = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 			for (int index = 0; index < strikes.size(); index++) {
 				float mid = strikes.get(index);
 				float thick = 0.007F;
-				flat(strike, matrices, strikeFrom.get(index), mid - thick, RIGHT, mid + thick, 0.055F, 0.29F, 0.18F, 0.08F);
+				flat(strike, matrices, strikeFrom.get(index), mid - thick, strikeTo.get(index), mid + thick, 0.055F, 0.29F, 0.18F, 0.08F);
 			}
 			flushColor(strike);
+		}
+	}
+
+	private static void highlightRows(BufferBuilder chrome, MatrixStack matrices, List<Line> rows, float left, float right, ItemStack held, double lookX, double lookY) {
+		float body = MinecraftClient.getInstance().textRenderer.fontHeight * TEXT;
+		int hoverRow = rowIndexAt(lookX, lookY, rows.size(), left, right);
+		float row = ROW_TOP;
+		for (int index = 0; index < rows.size(); index++) {
+			boolean matchesHeld = !held.isEmpty() && held.isOf(rows.get(index).stack().getItem());
+			if (matchesHeld || index == hoverRow) {
+				float top = row + 0.03F;
+				float bottom = row - Math.max(body, ICON) - 0.02F;
+				if (matchesHeld) {
+					flat(chrome, matrices, left - 0.02F, bottom, right + 0.02F, top, 0.01F, 0.72F, 0.84F, 0.52F);
+				} else {
+					flat(chrome, matrices, left - 0.02F, bottom, right + 0.02F, top, 0.01F, 0.86F, 0.78F, 0.58F);
+				}
+			}
+			row -= ROW_STEP;
+		}
+	}
+
+	private static void drawColumnIcons(MatrixStack matrices, TextRenderer text, List<Line> rows, float left, float right, List<Float> strikes, List<Float> strikeFrom, List<Float> strikeTo) {
+		float row = ROW_TOP;
+		for (Line line : rows) {
+			PlacedName name = placeName(text, line.stack().getName().getString(), line.have() + "/" + line.need(), left, right);
+			float iconY = row - name.height() * 0.5F - ICON * 0.5F;
+			drawItemIcon(matrices, line.stack(), left, iconY, ICON);
+			if (line.done()) {
+				float lineHeight = text.fontHeight * name.scale();
+				float gap = name.lines().size() > 1 ? 0.006F : 0.0F;
+				for (int index = 0; index < name.lines().size(); index++) {
+					strikes.add(row - index * (lineHeight + gap) - lineHeight * 0.55F);
+					strikeFrom.add(left + ICON + 0.05F);
+					strikeTo.add(right);
+				}
+			}
+			row -= ROW_STEP;
+		}
+	}
+
+	private static void drawColumnNames(MatrixStack matrices, TextRenderer text, int light, List<Line> rows, float left, float right) {
+		float row = ROW_TOP;
+		for (Line line : rows) {
+			PlacedName name = placeName(text, line.stack().getName().getString(), line.have() + "/" + line.need(), left, right);
+			Text count = Text.literal(line.have() + "/" + line.need());
+			float nameX = left + ICON + 0.06F;
+			float lineHeight = text.fontHeight * name.scale();
+			float gap = name.lines().size() > 1 ? 0.006F : 0.0F;
+			for (int index = 0; index < name.lines().size(); index++) {
+				label(matrices, text, light, nameX, row - index * (lineHeight + gap), Text.literal(name.lines().get(index)), name.scale());
+			}
+			labelRight(matrices, text, light, right, row, count, TEXT);
+			row -= ROW_STEP;
 		}
 	}
 
@@ -336,11 +377,11 @@ public final class DreamTableClipboard {
 		matrices.pop();
 	}
 
-	private static PlacedName placeName(TextRenderer text, String name, String count) {
-		float nameX = LEFT + ICON + 0.06F;
+	private static PlacedName placeName(TextRenderer text, String name, String count, float left, float right) {
+		float nameX = left + ICON + 0.06F;
 		float countWorld = text.getWidth(count) * TEXT;
-		float firstWorld = Math.max(0.25F, RIGHT - 0.04F - countWorld - nameX);
-		float fullWorld = Math.max(firstWorld, RIGHT - 0.02F - nameX);
+		float firstWorld = Math.max(0.25F, right - 0.04F - countWorld - nameX);
+		float fullWorld = Math.max(firstWorld, right - 0.02F - nameX);
 		float room = ROW_STEP - 0.05F;
 		if (text.getWidth(name) * TEXT <= firstWorld) {
 			return new PlacedName(List.of(name), TEXT, text.fontHeight * TEXT);
@@ -496,11 +537,17 @@ public final class DreamTableClipboard {
 		if (zone != Zone.NONE) {
 			if (player.age != lastDepositAge) {
 				lastDepositAge = player.age;
-				if (zone == Zone.PREV && page > 0) {
-					page--;
+				if (zone == Zone.TOTALS_PREV && totalsPage > 0) {
+					totalsPage--;
 					playPage();
-				} else if (zone == Zone.NEXT && page < pageCount - 1) {
-					page++;
+				} else if (zone == Zone.TOTALS_NEXT && totalsPage < totalsPages - 1) {
+					totalsPage++;
+					playPage();
+				} else if (zone == Zone.ORDER_PREV && orderPage > 0) {
+					orderPage--;
+					playPage();
+				} else if (zone == Zone.ORDER_NEXT && orderPage < orderPages - 1) {
+					orderPage++;
 					playPage();
 				}
 			}
@@ -567,20 +614,26 @@ public final class DreamTableClipboard {
 	}
 
 	private static Zone zoneAt(double x, double y) {
-		if (pageCount <= 1 || y > buttonY1 + 0.03 || y < buttonY0 - 0.03) {
+		if (y > buttonY1 + 0.03 || y < buttonY0 - 0.03) {
 			return Zone.NONE;
 		}
-		if (x >= PREV_X0 - 0.03 && x <= PREV_X1 + 0.03) {
-			return Zone.PREV;
+		if (totalsPages > 1 && x >= TOTALS_LEFT - 0.03 && x <= TOTALS_LEFT + BUTTON_W + 0.03) {
+			return Zone.TOTALS_PREV;
 		}
-		if (x >= NEXT_X0 - 0.03 && x <= NEXT_X1 + 0.03) {
-			return Zone.NEXT;
+		if (totalsPages > 1 && x >= TOTALS_RIGHT - BUTTON_W - 0.03 && x <= TOTALS_RIGHT + 0.03) {
+			return Zone.TOTALS_NEXT;
+		}
+		if (orderPages > 1 && x >= ORDER_LEFT - 0.03 && x <= ORDER_LEFT + BUTTON_W + 0.03) {
+			return Zone.ORDER_PREV;
+		}
+		if (orderPages > 1 && x >= ORDER_RIGHT - BUTTON_W - 0.03 && x <= ORDER_RIGHT + 0.03) {
+			return Zone.ORDER_NEXT;
 		}
 		return Zone.NONE;
 	}
 
-	private static int rowIndexAt(double x, double y, int rows) {
-		if (rows <= 0 || x < LEFT - 0.02 || x > RIGHT + 0.02) {
+	private static int rowIndexAt(double x, double y, int rows, float left, float right) {
+		if (rows <= 0 || x < left - 0.02 || x > right + 0.02) {
 			return -1;
 		}
 		float body = MinecraftClient.getInstance().textRenderer.fontHeight * TEXT;
@@ -605,16 +658,49 @@ public final class DreamTableClipboard {
 		return hit.y - anchor.y;
 	}
 
-	private static List<Line> lines(DreamTableBlockEntity table, FarmTemplate template) {
-		Map<net.minecraft.item.Item, Integer> need = new LinkedHashMap<>();
-		for (MaterialSpec spec : template.materials()) {
-			need.merge(spec.item(), spec.count(), Integer::sum);
-		}
+	private static List<Line> totals(DreamTableBlockEntity table, FarmTemplate template) {
 		List<Line> lines = new ArrayList<>();
-		for (Map.Entry<net.minecraft.item.Item, Integer> entry : need.entrySet()) {
-			lines.add(new Line(entry.getKey().getDefaultStack(), table.stored(entry.getKey()), entry.getValue()));
+		for (MaterialSpec spec : template.materials()) {
+			int have = Math.min(table.stored(spec.item()), spec.count());
+			lines.add(new Line(spec.item().getDefaultStack(), have, spec.count()));
 		}
 		return lines;
+	}
+
+	private static List<Line> lines(DreamTableBlockEntity table, FarmTemplate template) {
+		Map<net.minecraft.item.Item, Integer> remaining = new HashMap<>();
+		for (MaterialSpec spec : template.materials()) {
+			remaining.putIfAbsent(spec.item(), table.stored(spec.item()));
+		}
+		List<Line> lines = new ArrayList<>();
+		net.minecraft.item.Item current = null;
+		int need = 0;
+		for (FarmStep step : template.steps()) {
+			net.minecraft.item.Item item = step.item();
+			if (item == null) {
+				continue;
+			}
+			if (item == current) {
+				need++;
+				continue;
+			}
+			if (current != null) {
+				lines.add(line(current, need, remaining));
+			}
+			current = item;
+			need = 1;
+		}
+		if (current != null) {
+			lines.add(line(current, need, remaining));
+		}
+		return lines;
+	}
+
+	private static Line line(net.minecraft.item.Item item, int need, Map<net.minecraft.item.Item, Integer> remaining) {
+		int available = remaining.getOrDefault(item, 0);
+		int have = Math.min(need, available);
+		remaining.put(item, available - have);
+		return new Line(item.getDefaultStack(), have, need);
 	}
 
 	private record Line(ItemStack stack, int have, int need) {
@@ -628,8 +714,10 @@ public final class DreamTableClipboard {
 
 	private enum Zone {
 		NONE,
-		PREV,
-		NEXT
+		TOTALS_PREV,
+		TOTALS_NEXT,
+		ORDER_PREV,
+		ORDER_NEXT
 	}
 
 }

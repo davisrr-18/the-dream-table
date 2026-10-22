@@ -28,6 +28,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_REQUIREMENTS = 100;
 	public static final int BUTTON_BUILD = 101;
 	public static final int BUTTON_DISCARD = 102;
+	public static final int BUTTON_MENU = 104;
 	public static final int BUTTON_BACK = 103;
 	public static final int BUTTON_SCHEMES = 110;
 	public static final int BUTTON_SCHEMES_BACK = 111;
@@ -197,26 +198,21 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		java.nio.file.Path worldRoot = serverPlayer.getServerWorld().getServer().getSavePath(net.minecraft.util.WorldSavePath.ROOT);
 		FarmTemplates.reloadImports(worldRoot);
 		if (id >= 0 && id < FarmOptions.ALL.size()) {
-			table.setSelectedFarm(FarmOptions.ALL.get(id).id());
-			table.setPage(PAGE_WORK);
-			selectedFarm = table.getSelectedFarm();
-			page = PAGE_WORK;
-			total = table.totalSteps();
-			return true;
+			return openFarm(table, FarmOptions.ALL.get(id).id());
 		}
 		if (id >= BUTTON_SCHEME) {
 			int index = id - BUTTON_SCHEME;
 			List<FarmOptions.FarmOption> imported = FarmTemplates.imported();
 			if (index >= 0 && index < imported.size()) {
-				table.setSelectedFarm(imported.get(index).id());
-				table.setPage(PAGE_WORK);
-				selectedFarm = table.getSelectedFarm();
-				page = PAGE_WORK;
-				total = table.totalSteps();
-				return true;
+				return openFarm(table, imported.get(index).id());
 			}
 		}
 		return switch (id) {
+			case BUTTON_MENU -> {
+				table.setPage(PAGE_SELECT);
+				page = PAGE_SELECT;
+				yield true;
+			}
 			case BUTTON_REQUIREMENTS -> {
 				table.setRequirementsBoard(true);
 				yield true;
@@ -252,9 +248,9 @@ public class DreamTableScreenHandler extends ScreenHandler {
 				yield true;
 			}
 			case BUTTON_BUILD -> {
-				if (DreamTableBlockEntity.PHASE_BLOCKED.equals(table.getPhase())) {
+				if (DreamTableBlockEntity.PHASE_BLOCKED.equals(table.getPhase()) || DreamTableBlockEntity.PHASE_NEED.equals(table.getPhase())) {
 					table.begin(serverPlayer, false);
-				} else if (DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) && table.hasAllMaterials()) {
+				} else if (DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) && !table.getSelectedFarm().isEmpty()) {
 					table.begin(serverPlayer, true);
 				} else {
 					yield false;
@@ -321,11 +317,31 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		return template == null ? 0 : template.steps().size();
 	}
 
+	private boolean openFarm(DreamTableBlockEntity table, String id) {
+		if (id.equals(table.getSelectedFarm())) {
+			table.setPage(PAGE_WORK);
+			selectedFarm = id;
+			page = PAGE_WORK;
+			total = table.totalSteps();
+			return true;
+		}
+		if (table.hasProgress()) {
+			return true;
+		}
+		table.setSelectedFarm(id);
+		table.setPage(PAGE_WORK);
+		selectedFarm = table.getSelectedFarm();
+		page = PAGE_WORK;
+		total = table.totalSteps();
+		return true;
+	}
+
 	public static int phaseOf(String phase) {
 		return switch (phase) {
 			case DreamTableBlockEntity.PHASE_BUILDING -> 1;
 			case DreamTableBlockEntity.PHASE_BLOCKED -> 2;
 			case DreamTableBlockEntity.PHASE_DONE -> 3;
+			case DreamTableBlockEntity.PHASE_NEED -> 4;
 			default -> 0;
 		};
 	}

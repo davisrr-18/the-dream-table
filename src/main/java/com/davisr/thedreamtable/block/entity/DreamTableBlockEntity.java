@@ -38,6 +38,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	public static final String PHASE_IDLE = "idle";
 	public static final String PHASE_BUILDING = "building";
 	public static final String PHASE_BLOCKED = "blocked";
+	public static final String PHASE_NEED = "need";
 	public static final String PHASE_DONE = "done";
 	public static final int TICKS_PER_BLOCK = 20;
 
@@ -105,8 +106,31 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		this.requirementsBoard = false;
 		java.util.Arrays.fill(deposited, 0);
 		java.util.Arrays.fill(consumed, 0);
+		phase = PHASE_IDLE;
+		buildIndex = 0;
+		ticks = 0;
 		clearPlacement();
 		sync();
+	}
+
+	public boolean hasProgress() {
+		if (PHASE_DONE.equals(phase)) {
+			return false;
+		}
+		if (isBusy() || hasAnchor()) {
+			return true;
+		}
+		for (int value : deposited) {
+			if (value > 0) {
+				return true;
+			}
+		}
+		for (int value : consumed) {
+			if (value > 0) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public boolean hasAnchor() {
@@ -147,6 +171,10 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 
 	public String getPhase() {
 		return phase;
+	}
+
+	public boolean isBusy() {
+		return PHASE_BUILDING.equals(phase) || PHASE_BLOCKED.equals(phase) || PHASE_NEED.equals(phase);
 	}
 
 	public int getBuildIndex() {
@@ -194,9 +222,9 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	}
 
 	public void missingMaterial() {
-		phase = PHASE_BLOCKED;
+		phase = PHASE_NEED;
 		sync();
-		tell(Text.translatable("gui.the_dream_table.need_materials"));
+		tell(Text.translatable("gui.the_dream_table.paused"));
 		sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), pos, 0.8F, 0.5F);
 	}
 
