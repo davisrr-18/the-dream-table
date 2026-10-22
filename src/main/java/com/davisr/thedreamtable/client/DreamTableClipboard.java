@@ -20,18 +20,19 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.DiffuseLighting;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.render.model.BakedModel;
-import net.minecraft.client.texture.Sprite;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.screen.PlayerScreenHandler;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.util.Identifier;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.state.property.Properties;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
@@ -257,44 +258,28 @@ public final class DreamTableClipboard {
 			flushColor(arrows);
 		}
 
-		BufferBuilder icons = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
 		List<Float> strikes = new ArrayList<>();
-		List<ChestIcon> chestIcons = new ArrayList<>();
+		List<Float> strikeFrom = new ArrayList<>();
 		row = ROW_TOP;
-		boolean anyIcon = false;
+		List<PlacedName> placed = new ArrayList<>();
 		for (Line line : pageLines) {
-			float iconY = row - body * 0.5F - ICON * 0.5F;
-			Identifier chest = chestTexture(line.stack().getItem());
-			if (chest != null) {
-				chestIcons.add(new ChestIcon(chest, LEFT, iconY));
-			} else {
-				BakedModel model = client.getItemRenderer().getModel(line.stack(), client.world, null, 0);
-				if (sprite(icons, matrices, model, LEFT, iconY, ICON)) {
-					anyIcon = true;
+			placed.add(placeName(text, line.stack().getName().getString(), line.have() + "/" + line.need()));
+		}
+		for (int index = 0; index < pageLines.size(); index++) {
+			PlacedName name = placed.get(index);
+			float iconY = row - name.height() * 0.5F - ICON * 0.5F;
+			drawItemIcon(matrices, pageLines.get(index).stack(), LEFT, iconY, ICON);
+			if (pageLines.get(index).done()) {
+				float lineHeight = text.fontHeight * name.scale();
+				float gap = name.lines().size() > 1 ? 0.006F : 0.0F;
+				for (int line = 0; line < name.lines().size(); line++) {
+					strikes.add(row - line * (lineHeight + gap) - lineHeight * 0.55F);
+					strikeFrom.add(LEFT + ICON + 0.05F);
 				}
-			}
-			if (line.done()) {
-				strikes.add(row - body * 0.55F);
 			}
 			row -= ROW_STEP;
 		}
-		if (!anyIcon) {
-			icons.endNullable();
-		} else {
-			RenderSystem.setShaderTexture(0, PlayerScreenHandler.BLOCK_ATLAS_TEXTURE);
-			RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
-			RenderSystem.enableBlend();
-			RenderSystem.defaultBlendFunc();
-			RenderSystem.disableDepthTest();
-			RenderSystem.disableCull();
-			BuiltBuffer iconsBuilt = icons.endNullable();
-			if (iconsBuilt != null) {
-				BufferRenderer.drawWithGlobalProgram(iconsBuilt);
-			}
-			RenderSystem.enableDepthTest();
-			RenderSystem.enableCull();
-		}
-		drawChests(matrices, chestIcons);
+		DiffuseLighting.enableForLevel();
 
 		label(matrices, text, light, LEFT, TITLE_Y, Text.translatable("gui.the_dream_table.requirements"), TITLE_TEXT);
 		label(matrices, text, light, LEFT, itemLabelY, Text.translatable("gui.the_dream_table.items"), TEXT);
@@ -308,22 +293,96 @@ public final class DreamTableClipboard {
 		}
 
 		row = ROW_TOP;
-		for (Line line : pageLines) {
+		for (int index = 0; index < pageLines.size(); index++) {
+			Line line = pageLines.get(index);
+			PlacedName name = placed.get(index);
 			Text count = Text.literal(line.have() + "/" + line.need());
 			float nameX = LEFT + ICON + 0.06F;
-			int maxPixels = Math.max(4, (int) ((RIGHT - text.getWidth(count) * TEXT - 0.06F - nameX) / TEXT));
-			label(matrices, text, light, nameX, row, Text.literal(fit(text, line.stack().getName().getString(), maxPixels)), TEXT);
+			float lineHeight = text.fontHeight * name.scale();
+			float gap = name.lines().size() > 1 ? 0.006F : 0.0F;
+			for (int lineIndex = 0; lineIndex < name.lines().size(); lineIndex++) {
+				label(matrices, text, light, nameX, row - lineIndex * (lineHeight + gap), Text.literal(name.lines().get(lineIndex)), name.scale());
+			}
 			labelRight(matrices, text, light, RIGHT, row, count, TEXT);
 			row -= ROW_STEP;
 		}
 
 		if (!strikes.isEmpty()) {
 			BufferBuilder strike = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-			for (float mid : strikes) {
-				flat(strike, matrices, LEFT, mid - 0.008F, RIGHT, mid + 0.008F, 0.055F, 0.29F, 0.18F, 0.08F);
+			for (int index = 0; index < strikes.size(); index++) {
+				float mid = strikes.get(index);
+				float thick = 0.007F;
+				flat(strike, matrices, strikeFrom.get(index), mid - thick, RIGHT, mid + thick, 0.055F, 0.29F, 0.18F, 0.08F);
 			}
 			flushColor(strike);
 		}
+	}
+
+	private static void drawItemIcon(MatrixStack matrices, ItemStack stack, float x, float y, float size) {
+		if (stack.isEmpty()) {
+			return;
+		}
+		MinecraftClient client = MinecraftClient.getInstance();
+		BakedModel model = client.getItemRenderer().getModel(stack, client.world, null, 0);
+		matrices.push();
+		matrices.translate(x + size * 0.5F, y + size * 0.5F, size * 0.5F + 0.02F);
+		matrices.scale(size, size, size);
+		DiffuseLighting.disableGuiDepthLighting();
+		RenderSystem.enableBlend();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.enableDepthTest();
+		client.getItemRenderer().renderItem(stack, ModelTransformationMode.NONE, false, matrices, client.getBufferBuilders().getEntityVertexConsumers(), LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV, model);
+		client.getBufferBuilders().getEntityVertexConsumers().draw();
+		matrices.pop();
+	}
+
+	private static PlacedName placeName(TextRenderer text, String name, String count) {
+		float nameX = LEFT + ICON + 0.06F;
+		float countWorld = text.getWidth(count) * TEXT;
+		float firstWorld = Math.max(0.25F, RIGHT - 0.04F - countWorld - nameX);
+		float fullWorld = Math.max(firstWorld, RIGHT - 0.02F - nameX);
+		float room = ROW_STEP - 0.05F;
+		if (text.getWidth(name) * TEXT <= firstWorld) {
+			return new PlacedName(List.of(name), TEXT, text.fontHeight * TEXT);
+		}
+		for (float scale = TEXT; scale >= 0.0075F; scale -= 0.0005F) {
+			int first = Math.max(4, (int) (firstWorld / scale));
+			int next = Math.max(first, (int) (fullWorld / scale));
+			List<String> lines = wrapName(text, name, first, next);
+			if (lines == null) {
+				continue;
+			}
+			float gap = lines.size() > 1 ? 0.006F : 0.0F;
+			float height = lines.size() * text.fontHeight * scale + (lines.size() - 1) * gap;
+			if (height <= room) {
+				return new PlacedName(lines, scale, height);
+			}
+		}
+		int next = Math.max(8, (int) (fullWorld / 0.0075F));
+		return new PlacedName(List.of(fit(text, name, next)), 0.0075F, text.fontHeight * 0.0075F);
+	}
+
+	private static List<String> wrapName(TextRenderer text, String name, int first, int next) {
+		List<String> lines = new ArrayList<>();
+		String rest = name;
+		for (int line = 0; line < 2 && !rest.isEmpty(); line++) {
+			int limit = line == 0 ? first : next;
+			if (text.getWidth(rest) <= limit) {
+				lines.add(rest);
+				return lines;
+			}
+			String piece = text.trimToWidth(rest, limit);
+			if (piece.isEmpty()) {
+				return null;
+			}
+			int space = piece.lastIndexOf(' ');
+			if (space >= 4) {
+				piece = piece.substring(0, space);
+			}
+			lines.add(piece);
+			rest = rest.substring(piece.length()).stripLeading();
+		}
+		return rest.isEmpty() ? lines : null;
 	}
 
 	private static void progress(BufferBuilder buffer, MatrixStack matrices, float top, float amount, float red, float green, float blue) {
@@ -375,89 +434,8 @@ public final class DreamTableClipboard {
 		buffer.vertex(matrix, centerX - direction * 0.045F, centerY - 0.055F, z).color(red, green, blue, 1.0F);
 	}
 
-	private static Identifier chestTexture(net.minecraft.item.Item item) {
-		if (item == Items.CHEST) {
-			return Identifier.ofVanilla("textures/entity/chest/normal.png");
-		}
-		if (item == Items.TRAPPED_CHEST) {
-			return Identifier.ofVanilla("textures/entity/chest/trapped.png");
-		}
-		if (item == Items.ENDER_CHEST) {
-			return Identifier.ofVanilla("textures/entity/chest/ender.png");
-		}
-		return null;
-	}
-
-	private static void drawChests(MatrixStack matrices, List<ChestIcon> icons) {
-		if (icons.isEmpty()) {
-			return;
-		}
-		Map<Identifier, List<ChestIcon>> groups = new LinkedHashMap<>();
-		for (ChestIcon icon : icons) {
-			groups.computeIfAbsent(icon.texture(), key -> new ArrayList<>()).add(icon);
-		}
-		RenderSystem.enableBlend();
-		RenderSystem.defaultBlendFunc();
-		RenderSystem.disableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
-		for (Map.Entry<Identifier, List<ChestIcon>> group : groups.entrySet()) {
-			RenderSystem.setShaderTexture(0, group.getKey());
-			BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
-			for (ChestIcon icon : group.getValue()) {
-				chestFront(buffer, matrices, icon.x(), icon.y(), ICON);
-			}
-			BuiltBuffer built = buffer.endNullable();
-			if (built != null) {
-				BufferRenderer.drawWithGlobalProgram(built);
-			}
-		}
-		RenderSystem.enableDepthTest();
-		RenderSystem.enableCull();
-	}
-
-	private static void chestFront(BufferBuilder buffer, MatrixStack matrices, float x, float y, float size) {
-		float bodyHeight = size * (10.0F / 15.0F);
-		textured(buffer, matrices, x, y, x + size, y + bodyHeight, 42.0F / 64.0F, 43.0F / 64.0F, 56.0F / 64.0F, 33.0F / 64.0F);
-		textured(buffer, matrices, x, y + bodyHeight, x + size, y + size, 42.0F / 64.0F, 19.0F / 64.0F, 56.0F / 64.0F, 14.0F / 64.0F);
-		float latchWidth = size * (2.0F / 14.0F);
-		float latchHeight = size * (4.0F / 15.0F);
-		float latchX = x + (size - latchWidth) * 0.5F;
-		float latchY = y + bodyHeight - latchHeight * 0.45F;
-		textured(buffer, matrices, latchX, latchY, latchX + latchWidth, latchY + latchHeight, 4.0F / 64.0F, 5.0F / 64.0F, 6.0F / 64.0F, 1.0F / 64.0F);
-	}
-
-	private static void textured(BufferBuilder buffer, MatrixStack matrices, float x, float y, float x1, float y1, float u0, float vBottom, float u1, float vTop) {
-		Matrix4f matrix = matrices.peek().getPositionMatrix();
-		float z = 0.03F;
-		buffer.vertex(matrix, x, y, z).texture(u0, vBottom).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x, y1, z).texture(u0, vTop).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x1, y1, z).texture(u1, vTop).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x1, y, z).texture(u1, vBottom).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x1, y, z).texture(u1, vBottom).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x1, y1, z).texture(u1, vTop).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x, y1, z).texture(u0, vTop).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x, y, z).texture(u0, vBottom).color(255, 255, 255, 255);
-	}
-
-	private static boolean sprite(BufferBuilder buffer, MatrixStack matrices, BakedModel model, float x, float y, float size) {
-		Sprite icon = model.getParticleSprite();
-		if (icon == null) {
-			return false;
-		}
-		Matrix4f matrix = matrices.peek().getPositionMatrix();
-		float x1 = x + size;
-		float y1 = y + size;
-		float z = 0.03F;
-		buffer.vertex(matrix, x, y, z).texture(icon.getMinU(), icon.getMaxV()).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x, y1, z).texture(icon.getMinU(), icon.getMinV()).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x1, y1, z).texture(icon.getMaxU(), icon.getMinV()).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x1, y, z).texture(icon.getMaxU(), icon.getMaxV()).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x1, y, z).texture(icon.getMaxU(), icon.getMaxV()).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x1, y1, z).texture(icon.getMaxU(), icon.getMinV()).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x, y1, z).texture(icon.getMinU(), icon.getMinV()).color(255, 255, 255, 255);
-		buffer.vertex(matrix, x, y, z).texture(icon.getMinU(), icon.getMaxV()).color(255, 255, 255, 255);
-		return true;
+	private static void playPage() {
+		MinecraftClient.getInstance().getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_BOOK_PAGE_TURN, 1.0F));
 	}
 
 	private static void label(MatrixStack matrices, TextRenderer text, int light, float x, float y, Text content, float scale) {
@@ -520,8 +498,10 @@ public final class DreamTableClipboard {
 				lastDepositAge = player.age;
 				if (zone == Zone.PREV && page > 0) {
 					page--;
+					playPage();
 				} else if (zone == Zone.NEXT && page < pageCount - 1) {
 					page++;
+					playPage();
 				}
 			}
 			return true;
@@ -643,12 +623,13 @@ public final class DreamTableClipboard {
 		}
 	}
 
+	private record PlacedName(List<String> lines, float scale, float height) {
+	}
+
 	private enum Zone {
 		NONE,
 		PREV,
 		NEXT
 	}
 
-	private record ChestIcon(Identifier texture, float x, float y) {
-	}
 }

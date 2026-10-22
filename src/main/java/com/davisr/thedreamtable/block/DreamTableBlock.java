@@ -128,9 +128,6 @@ public class DreamTableBlock extends BlockWithEntity {
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (!world.isClient && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table && table.isRequirementsBoard() && table.offerFromHand(player)) {
-			return ActionResult.SUCCESS;
-		}
 		if (!world.isClient) {
 			player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
 		}

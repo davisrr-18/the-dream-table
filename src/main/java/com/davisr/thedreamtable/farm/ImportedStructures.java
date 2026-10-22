@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Set;
 
 public final class ImportedStructures {
-	private static final int MAX_BLOCKS = 4096;
+	private static final int MAX_BLOCKS = 16384;
 
 	private ImportedStructures() {
 	}

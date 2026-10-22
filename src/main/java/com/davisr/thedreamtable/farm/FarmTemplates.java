@@ -257,11 +257,25 @@ public final class FarmTemplates {
 		return FarmTemplate.of(FarmOptions.MOB_DARK_ROOM.id(), steps);
 	}
 
+	private static FarmTemplate iron() {
+		try (InputStream stream = FarmTemplates.class.getResourceAsStream("/data/the_dream_table/structures/iron_farm.schem")) {
+			if (stream != null) {
+				FarmTemplate template = ImportedStructures.read(FarmOptions.IRON_GOLEM.id(), stream);
+				if (template != null) {
+					return template;
+				}
+			}
+		} catch (IOException | RuntimeException exception) {
+			TheDreamTableMod.LOGGER.error("Could not load the iron farm schematic", exception);
+		}
+		return legacyIron();
+	}
+
 	/**
 	 * Villagers, beds and composters above a dirt platform. A sealed water trench pushes golems onto campfires,
 	 * and hoppers under the trench store the iron. Water is placed after the walls.
 	 */
-	private static FarmTemplate iron() {
+	private static FarmTemplate legacyIron() {
 		List<FarmStep> steps = new ArrayList<>();
 		List<FarmStep> fluid = new ArrayList<>();
 		for (int x = 0; x <= 9; x++) {

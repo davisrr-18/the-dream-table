@@ -1,6 +1,6 @@
 # The Dream Table
 
-Alpha `1.0.5-alpha` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
+Alpha `1.0.6-alpha` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets the pace at 1, 2, 4, or 8 blocks per second.
 
@@ -27,7 +27,7 @@ Farms in this alpha: sugar cane, bamboo, crops, mob farm, and iron farm. The gro
 
 Discard returns the materials and removes the hologram.
 
-Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` files from these instance folders:
+Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` files of up to 16,384 blocks from these instance folders:
 
 - `schematics`
 - `config/worldedit/schematics`
@@ -50,4 +50,4 @@ From the project root, with Java 21:
 ./gradlew build
 ```
 
-The mod jar is `build/libs/the_dream_table-1.0.5-alpha.jar`. Jars suffixed with `sources` or `dev` are for development only.
+The mod jar is `build/libs/the_dream_table-1.0.6-alpha.jar`. Jars suffixed with `sources` or `dev` are for development only.
