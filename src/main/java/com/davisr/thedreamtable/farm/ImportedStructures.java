@@ -27,6 +27,7 @@ import java.util.stream.Stream;
  * modification time or size changes; otherwise the parsed farm is reused, since the list is refreshed on every menu click.
  */
 public final class ImportedStructures {
+	public static final String ID_PREFIX = "nbt:";
 	private static final Map<Path, Parsed> CACHE = new HashMap<>();
 
 	private ImportedStructures() {
@@ -147,8 +148,8 @@ public final class ImportedStructures {
 	}
 
 	private static String uniqueId(String display, Map<String, FarmTemplate> templates) {
-		String base = "nbt:" + display.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "_").replaceAll("^_|_$", "");
-		if (base.equals("nbt:")) {
+		String base = ID_PREFIX + display.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "_").replaceAll("^_|_$", "");
+		if (base.equals(ID_PREFIX)) {
 			base = "nbt:structure";
 		}
 		String id = base;

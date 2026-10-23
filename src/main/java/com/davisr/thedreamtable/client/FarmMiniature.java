@@ -24,7 +24,7 @@ import java.util.Map;
 /**
  * A small turning model of the local player's chosen farm floating above the table, with their material swaps.
  * It draws the visible faces from {@link FarmFaces}, worked out once per farm, and only within {@link #RENDER_DISTANCE}
- * blocks, since a Big farm has thousands of blocks.
+ * blocks, since a large farm or schematic can have thousands of blocks.
  */
 public final class FarmMiniature implements BlockEntityRenderer<DreamTableBlockEntity> {
 	private static final int RENDER_DISTANCE = 32;

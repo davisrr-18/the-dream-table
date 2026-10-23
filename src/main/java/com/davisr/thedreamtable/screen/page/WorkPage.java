@@ -186,7 +186,7 @@ public final class WorkPage implements TablePage {
 	/** Mob farms below sea level fill with bats and glow squids and compete with caves for spawns. */
 	private boolean lowMobFarm() {
 		MinecraftClient client = MinecraftClient.getInstance();
-		boolean mobs = FarmOptions.Group.of(ui.farm()).filter(group -> group == FarmOptions.Group.MOB_FARMS).isPresent();
+		boolean mobs = FarmOptions.Category.of(ui.farm()).filter(category -> category == FarmOptions.Category.MOBS).isPresent();
 		return mobs && client.world != null && DreamTableHologram.anchorForBuild().getY() < client.world.getSeaLevel();
 	}
 

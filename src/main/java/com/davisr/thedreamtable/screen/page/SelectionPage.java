@@ -31,7 +31,7 @@ public final class SelectionPage implements TablePage {
 	}
 
 	private static Text count(Category category) {
-		int farms = category.groups().size();
+		int farms = category.farms().size();
 		return farms == 1 ? Text.translatable("gui.the_dream_table.farm_count_one") : Text.translatable("gui.the_dream_table.farm_count", farms);
 	}
 

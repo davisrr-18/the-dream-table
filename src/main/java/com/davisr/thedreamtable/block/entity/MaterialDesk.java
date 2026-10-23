@@ -63,6 +63,10 @@ final class MaterialDesk {
 		return ledger.swaps();
 	}
 
+	void restoreSwaps(Map<Item, Item> saved) {
+		ledger.restoreSwaps(saved);
+	}
+
 	List<Item> swapOptions(int index) {
 		return ledger.swapOptions(template.get(), index);
 	}

@@ -4,9 +4,9 @@ import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
-import com.davisr.thedreamtable.farm.FarmSize;
-import com.davisr.thedreamtable.farm.FarmTemplate;
+import com.davisr.thedreamtable.farm.FarmStorage;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.farm.ImportedStructures;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
@@ -20,8 +20,8 @@ import java.util.List;
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /**
- * Every farm this player finished, in every dimension, newest first. Clicking one keeps it loaded, or stops keeping it,
- * up to the server's limit. The list comes from the server each time the page opens.
+ * My Farms: every farm this player finished, in every dimension, newest first, with whether it is running.
+ * Clicking one opens {@link FarmPage}. The list comes from the server each time the page opens.
  */
 public final class LoadedFarmsPage implements TablePage {
 	private static final int NOTE_HEIGHT = 36;
@@ -49,21 +49,29 @@ public final class LoadedFarmsPage implements TablePage {
 		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
 	}
 
-	private void card(DrawContext context, FarmLoader.Entry farm, int y, int mouseX, int mouseY) {
+	static void card(PageContext ui, DrawContext context, FarmLoader.Entry farm, Text detail, int y, int mouseX, int mouseY) {
 		FarmOption option = FarmOptions.byId(farm.farmId()).orElse(null);
 		ItemStack icon = option == null ? new ItemStack(Items.STRUCTURE_BLOCK) : option.icon().getDefaultStack();
-		Text name = option == null ? Text.literal(farm.farmId()) : option.title();
-		Text where = Text.translatable("gui.the_dream_table.farm_at", farm.where().getX(), farm.where().getY(), farm.where().getZ(), dimension(farm.dimension()));
-		FarmTemplate template = FarmTemplates.get(farm.farmId());
-		if (template == null) {
-			ui.card(context, icon, name, where, y, mouseX, mouseY, farm.loaded(), true);
-			return;
-		}
-		FarmSize size = FarmSize.of(template.steps().size());
-		ui.card(context, icon, name, where, size.title(), FarmCard.color(size), y, mouseX, mouseY, farm.loaded(), true);
+		Text name = option != null ? option.title() : FarmTemplates.isImported(farm.farmId())
+				? Text.literal(farm.farmId().substring(ImportedStructures.ID_PREFIX.length()))
+				: Text.translatable("gui.the_dream_table.retired_name");
+		ui.card(context, icon, name, detail, y, mouseX, mouseY, farm.loaded(), true);
 	}
 
-	private static Text dimension(String id) {
+	private void card(DrawContext context, FarmLoader.Entry farm, int y, int mouseX, int mouseY) {
+		Text where = Text.translatable("gui.the_dream_table.farm_status_at", status(farm.status()), farm.where().getX(), farm.where().getY(), farm.where().getZ());
+		card(ui, context, farm, where, y, mouseX, mouseY);
+	}
+
+	static Text status(int status) {
+		return Text.translatable(switch (status) {
+			case FarmStorage.RUNNING -> "gui.the_dream_table.status_running";
+			case FarmStorage.FULL -> "gui.the_dream_table.status_full";
+			default -> "gui.the_dream_table.status_unloaded";
+		});
+	}
+
+	static Text dimension(String id) {
 		Identifier dimension = Identifier.tryParse(id);
 		if (dimension != null && dimension.getNamespace().equals("minecraft")) {
 			return Text.translatable("gui.the_dream_table.dimension." + dimension.getPath());
@@ -84,8 +92,8 @@ public final class LoadedFarmsPage implements TablePage {
 		List<FarmLoader.Entry> farms = LoadedFarmsView.received() && LoadedFarmsView.limit() > 0 ? LoadedFarmsView.farms() : List.of();
 		for (int index = 0; index < farms.size(); index++) {
 			if (ui.cardHit(mouseX, mouseY, ui.view().cardY(index))) {
-				LoadedFarmsView.toggle(farms.get(index).key());
-				ui.actions().click();
+				LoadedFarmsView.select(farms.get(index).key());
+				ui.go(DreamTableScreenHandler.PAGE_FARM, DreamTableScreenHandler.BUTTON_FARM_OPEN);
 				return true;
 			}
 		}
@@ -103,7 +111,7 @@ public final class LoadedFarmsPage implements TablePage {
 
 	@Override
 	public Text subtitle() {
-		return Text.translatable("gui.the_dream_table.loaded_title", LoadedFarmsView.loaded(), LoadedFarmsView.limit());
+		return Text.translatable("gui.the_dream_table.my_farms_title", LoadedFarmsView.loaded(), LoadedFarmsView.limit());
 	}
 
 	private int shownCards() {

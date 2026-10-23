@@ -11,6 +11,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
@@ -114,14 +115,18 @@ public final class FarmDismantler {
 		}
 		BlockState expected = MaterialSwaps.apply(step.state(), swaps).rotate(FarmGeometry.rotation(site.facing()));
 		BlockState current = world.getBlockState(pos);
-		if (!BlockMatch.sameShape(current, expected) || !BuildPermission.canBreak(world, player, pos, current)) {
+		if (!BlockMatch.stillFarm(current, expected) || !BuildPermission.canBreak(world, player, pos, current)) {
 			return true;
 		}
 		if (!current.getFluidState().isEmpty()) {
 			batch.liquids.add(pos);
 		}
 		takeContents(world, pos, batch.contents);
+		batch.cleared.add(pos);
 		world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+		if (batch.removed == 0) {
+			world.spawnParticles(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 4, 0.25, 0.25, 0.25, 0.01);
+		}
 		batch.removed++;
 		// Water already handed its empty bucket back when it was poured, so it refunds nothing.
 		if (paid.get(index) && step.item() != null && step.item() != Items.WATER_BUCKET) {
@@ -135,16 +140,31 @@ public final class FarmDismantler {
 		private final Map<Item, Integer> refunds = new LinkedHashMap<>();
 		private final List<ItemStack> contents = new ArrayList<>();
 		private final List<BlockPos> liquids = new ArrayList<>();
+		private final List<BlockPos> cleared = new ArrayList<>();
 		private int removed;
 
 		private void hand(ServerWorld world, PlayerEntity player) {
 			drain(world, liquids);
+			settle(world, cleared);
 			for (Map.Entry<Item, Integer> refund : refunds.entrySet()) {
 				giveAll(player, refund.getKey(), refund.getValue());
 			}
 			for (ItemStack stack : contents) {
 				give(player, stack);
 			}
+		}
+	}
+
+	/**
+	 * Removal itself skips neighbor updates, so whatever leaned on a removed block, like cane or bamboo that grew,
+	 * crops planted on farmland, torches, redstone or an extended piston's head, would float. Once a batch is out,
+	 * its neighbors are told, and what lost its support drops as items, as it would when mined by hand.
+	 */
+	private static void settle(ServerWorld world, List<BlockPos> cleared) {
+		BlockState air = Blocks.AIR.getDefaultState();
+		for (BlockPos pos : cleared) {
+			air.updateNeighbors(world, pos, Block.NOTIFY_ALL);
+			world.updateNeighbors(pos, Blocks.AIR);
 		}
 	}
 

@@ -38,10 +38,9 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int PAGE_SWAP = 6;
 	public static final int PAGE_SPEED = 7;
 	public static final int PAGE_LOADED = 8;
+	public static final int PAGE_FARM = 9;
 	/** Plus the category index, so a reopened menu returns to the same category. */
 	public static final int PAGE_CATEGORY = 10;
-	/** Plus the farm group index, for the list of one farm's sizes. */
-	public static final int PAGE_GROUP = 20;
 
 	public static final int BUTTON_REQUIREMENTS = 100;
 	public static final int BUTTON_BUILD = 101;
@@ -57,12 +56,11 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_SPEED_BACK = 141;
 	public static final int BUTTON_LOADED_FARMS = 145;
 	public static final int BUTTON_LOADED_BACK = 146;
+	public static final int BUTTON_FARM_OPEN = 147;
+	public static final int BUTTON_FARM_BACK = 148;
 	/** Plus the category index. */
 	public static final int BUTTON_CATEGORY = 160;
 	public static final int BUTTON_CATEGORY_BACK = 170;
-	/** Plus the farm group index. */
-	public static final int BUTTON_GROUP = 180;
-	public static final int BUTTON_GROUP_BACK = 199;
 	public static final int BUTTON_MATERIALS = 130;
 	public static final int BUTTON_MATERIALS_BACK = 131;
 	public static final int BUTTON_SWAP_BACK = 132;
@@ -73,6 +71,11 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_SWAP_PICK = 2000;
 	/** Plus a percentage from 1 to 100, for the custom speed slider. */
 	public static final int BUTTON_PACE_CUSTOM = 3000;
+	/** Plus the farm's place in the My Farms list. */
+	public static final int BUTTON_FARM_REPAIR = 5000;
+	public static final int BUTTON_FARM_TAKE_DOWN = 6000;
+	public static final int BUTTON_FARM_FORGET = 7000;
+	public static final int FARM_BUTTONS = 1000;
 
 	private final ScreenHandlerContext context;
 	private final boolean client;

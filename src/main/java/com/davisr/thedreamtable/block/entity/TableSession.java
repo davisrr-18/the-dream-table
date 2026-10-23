@@ -97,7 +97,20 @@ public final class TableSession {
 	}
 
 	void tick(ServerWorld world) {
+		if (retired()) {
+			ServerPlayerEntity owner = onlineOwner(world);
+			if (owner != null) {
+				discard(owner);
+				owner.sendMessage(Text.translatable("gui.the_dream_table.farm_retired"), false);
+			}
+			return;
+		}
 		build.tick(world);
+	}
+
+	/** A built-in farm that left the mod in an update. Its project is dropped and the delivered items handed back. */
+	private boolean retired() {
+		return !selectedFarm.isEmpty() && !FarmTemplates.isImported(selectedFarm) && template() == null;
 	}
 
 	// Farm choice and menu
@@ -160,6 +173,11 @@ public final class TableSession {
 
 	Map<Item, Item> swaps() {
 		return desk.swaps();
+	}
+
+	void restoreSwaps(Map<Item, Item> saved) {
+		desk.restoreSwaps(saved);
+		sync();
 	}
 
 	/** The material swaps as a stable text, so previews built from them can be cached and rebuilt when they change. */

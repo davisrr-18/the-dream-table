@@ -43,6 +43,12 @@ public final class MaterialLedger {
 		return Map.copyOf(swaps);
 	}
 
+	/** Puts back the swaps a finished farm was built with, so repairing it uses the same blocks. */
+	public void restoreSwaps(Map<Item, Item> saved) {
+		swaps.clear();
+		swaps.putAll(saved);
+	}
+
 	public boolean anyDelivered() {
 		for (int index = 0; index < deposited.length; index++) {
 			if (deposited[index] > 0 || consumed[index] > 0) {

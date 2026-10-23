@@ -6,12 +6,13 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 import java.util.List;
 
-/** The local player's finished farms as the server last sent them, for the Keep Farms Loaded page. */
+/** The local player's finished farms as the server last sent them, for the My Farms pages. */
 public final class LoadedFarmsView {
 	private static List<FarmLoader.Entry> farms = List.of();
 	private static int limit;
 	private static boolean received;
 	private static boolean requested;
+	private static String selected = "";
 
 	private LoadedFarmsView() {
 	}
@@ -46,6 +47,20 @@ public final class LoadedFarmsView {
 			requested = true;
 			send("");
 		}
+	}
+
+	/** The farm whose page is open, by key, so it stays the same farm when the list is refreshed. */
+	public static void select(String key) {
+		selected = key;
+	}
+
+	public static int selectedIndex() {
+		for (int index = 0; index < farms.size(); index++) {
+			if (farms.get(index).key().equals(selected)) {
+				return index;
+			}
+		}
+		return -1;
 	}
 
 	public static void invalidate() {

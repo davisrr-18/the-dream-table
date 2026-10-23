@@ -1,6 +1,8 @@
 package com.davisr.thedreamtable.farm;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.block.FluidBlock;
 import net.minecraft.block.SlabBlock;
 import net.minecraft.state.property.Properties;
@@ -35,6 +37,20 @@ final class BlockMatch {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * Like {@link #sameShape}, but also accepts what the game turns the block into by itself: farmland that dried
+	 * into dirt, a bamboo shoot that grew into bamboo. Used to tell whether a block is still the farm's, when taking it
+	 * down or counting what a repair would place.
+	 */
+	static boolean stillFarm(BlockState existing, BlockState expected) {
+		return sameShape(existing, expected) || sameFamily(existing, expected, Blocks.FARMLAND, Blocks.DIRT)
+				|| sameFamily(existing, expected, Blocks.BAMBOO_SAPLING, Blocks.BAMBOO);
+	}
+
+	private static boolean sameFamily(BlockState existing, BlockState expected, Block first, Block second) {
+		return (expected.isOf(first) || expected.isOf(second)) && (existing.isOf(first) || existing.isOf(second));
 	}
 
 	/** Liquids are told apart by level, since a source and flowing water are different steps. Composters and cauldrons are not: players fill them. */

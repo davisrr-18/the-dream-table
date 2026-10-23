@@ -8,8 +8,10 @@ import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ChunkTicketType;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
@@ -18,14 +20,17 @@ import net.minecraft.world.PersistentState;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Keeps the finished farms each player picked in Options loaded, up to the server's limit.
+ * Keeps the finished farms each player picked in My Farms loaded, up to the server's limit, and tells the owner once
+ * when a loaded farm's chests and barrels are all full.
  * Every chunk a farm covers gets a ticket that makes it entity-ticking, so plants grow, items fall and hoppers move them.
  * Tickets are renewed every few seconds and expire on their own, so an unpicked or taken-down farm unloads soon.
  * Natural mob spawning needs a player within 128 blocks no matter what, so mob farms only run with someone nearby.
@@ -40,12 +45,21 @@ public final class FarmLoader extends PersistentState {
 	/** Per player, the picked farms as "dimension|farm id within that world". */
 	private final Map<UUID, Set<String>> picked = new HashMap<>();
 
-	/** One of a player's finished farms, as listed in Keep Farms Loaded. */
-	public record Entry(String key, String farmId, String dimension, BlockPos where, boolean loaded) {
+	/**
+	 * One of a player's finished farms, as listed in My Farms, with its {@link FarmStorage} status and how many of its
+	 * blocks are missing, or {@link #UNKNOWN} when part of it is not loaded.
+	 */
+	public record Entry(String key, String farmId, String dimension, BlockPos where, boolean loaded, int status, int missing, boolean available) {
 	}
 
-	private record Located(String key, ServerWorld world, FarmAreas.Finished farm) {
+	public static final int UNKNOWN = -1;
+
+	/** A finished farm and the world it stands in. */
+	public record Located(String key, ServerWorld world, FarmAreas.Finished farm) {
 	}
+
+	/** Farms already reported full, so the owner hears about it once, until it has room again. */
+	private final Set<String> reportedFull = new HashSet<>();
 
 	public static void register() {
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
@@ -65,7 +79,10 @@ public final class FarmLoader extends PersistentState {
 		List<Entry> entries = new ArrayList<>();
 		for (Located farm : located(server, player)) {
 			String dimension = farm.world().getRegistryKey().getValue().toString();
-			entries.add(new Entry(farm.key(), farm.farm().farmId(), dimension, farm.farm().where(), keys.contains(farm.key())));
+			FarmTemplate template = FarmTemplates.get(farm.farm().farmId());
+			int status = FarmStorage.status(farm.world(), template, farm.farm().site());
+			entries.add(new Entry(farm.key(), farm.farm().farmId(), dimension, farm.farm().where(), keys.contains(farm.key()), status, missing(farm, template),
+					template != null && template.signature() == farm.farm().signature()));
 		}
 		return entries;
 	}
@@ -98,16 +115,47 @@ public final class FarmLoader extends PersistentState {
 				continue;
 			}
 			Set<String> found = new LinkedHashSet<>();
+			ServerPlayerEntity owner = server.getPlayerManager().getPlayer(entry.getKey());
 			for (Located farm : located(server, entry.getKey())) {
 				if (keys.contains(farm.key()) && found.size() < limit) {
 					found.add(farm.key());
 					load(farm.world(), farm.farm().box());
+					reportIfFull(owner, farm);
 				}
 			}
 			if (keys.retainAll(found)) {
 				markDirty();
 			}
 		}
+	}
+
+	/** Blocks a repair would place, or {@link #UNKNOWN} while part of the farm is unloaded or its file is gone. */
+	public static int missing(Located farm, FarmTemplate template) {
+		if (template == null || template.signature() != farm.farm().signature()) {
+			return UNKNOWN;
+		}
+		FarmAreas.Presence presence = FarmAreas.presence(farm.world(), template, farm.farm().site(), farm.farm().swaps());
+		return presence.unloaded() ? UNKNOWN : presence.missing();
+	}
+
+	private void reportIfFull(ServerPlayerEntity owner, Located farm) {
+		FarmTemplate template = FarmTemplates.get(farm.farm().farmId());
+		boolean full = FarmStorage.status(farm.world(), template, farm.farm().site()) == FarmStorage.FULL;
+		if (!full) {
+			reportedFull.remove(farm.key());
+			return;
+		}
+		if (owner != null && reportedFull.add(farm.key())) {
+			BlockPos where = farm.farm().where();
+			Text name = FarmOptions.byId(farm.farm().farmId()).map(FarmOptions.FarmOption::title).orElse(Text.literal(farm.farm().farmId()));
+			owner.sendMessage(Text.translatable("gui.the_dream_table.storage_full", name, where.getX(), where.getY(), where.getZ()), false);
+		}
+	}
+
+	/** The player's finished farm at this place in the My Farms list, as last listed. */
+	public Optional<Located> at(MinecraftServer server, UUID player, int index) {
+		List<Located> farms = located(server, player);
+		return index >= 0 && index < farms.size() ? Optional.of(farms.get(index)) : Optional.empty();
 	}
 
 	private static List<Located> located(MinecraftServer server, UUID player) {

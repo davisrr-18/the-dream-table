@@ -4,6 +4,8 @@ import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmDismantler;
 import com.davisr.thedreamtable.farm.FarmTemplate;
+import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.network.ServerSchematicsPayload;
 import com.davisr.thedreamtable.network.SessionSyncPayload;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
@@ -24,6 +26,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.text.Text;
+import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
@@ -188,6 +191,10 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
 		TableSession session = session(player);
 		session.markClientDirty();
+		if (player instanceof ServerPlayerEntity serverPlayer) {
+			FarmTemplates.reloadImports(serverPlayer.getServer().getSavePath(WorldSavePath.ROOT));
+			ServerSchematicsPayload.send(serverPlayer);
+		}
 		return new DreamTableScreenHandler(syncId, playerInventory, session);
 	}
 

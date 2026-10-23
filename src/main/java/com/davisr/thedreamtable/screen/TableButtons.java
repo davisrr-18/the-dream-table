@@ -3,7 +3,11 @@ package com.davisr.thedreamtable.screen;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.BuildPace;
+import com.davisr.thedreamtable.block.entity.FarmCare;
+import com.davisr.thedreamtable.farm.FarmAreas;
+import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmOptions;
+import com.davisr.thedreamtable.network.LoadedFarmsPayload;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import net.minecraft.server.network.ServerPlayerEntity;
 
@@ -23,12 +27,11 @@ final class TableButtons {
 		if (id >= BUTTON_CATEGORY && id < BUTTON_CATEGORY + FarmOptions.Category.values().length) {
 			return page(table, PAGE_CATEGORY + id - BUTTON_CATEGORY);
 		}
-		if (id >= BUTTON_GROUP && id < BUTTON_GROUP + FarmOptions.Group.values().length) {
-			return page(table, PAGE_GROUP + id - BUTTON_GROUP);
+		if (id >= BUTTON_FARM_FORGET && id < BUTTON_FARM_FORGET + FARM_BUTTONS) {
+			return forget(player, id - BUTTON_FARM_FORGET);
 		}
-		if (id == BUTTON_GROUP_BACK) {
-			int category = FarmOptions.Group.byIndex(table.getPage() - PAGE_GROUP).flatMap(FarmOptions.Category::of).map(Enum::ordinal).orElse(-1);
-			return page(table, category < 0 ? PAGE_SELECT : PAGE_CATEGORY + category);
+		if (id >= BUTTON_FARM_REPAIR && id < BUTTON_FARM_TAKE_DOWN + FARM_BUTTONS) {
+			return careFor(table, player, id);
 		}
 		if (id > BUTTON_PACE_CUSTOM && id <= BUTTON_PACE_CUSTOM + BuildPace.MAX_PERCENT) {
 			table.build().setPace(BuildPace.ofPercent(id - BUTTON_PACE_CUSTOM));
@@ -52,7 +55,8 @@ final class TableButtons {
 			case BUTTON_SCHEMES -> page(table, PAGE_SCHEMES);
 			case BUTTON_OPTIONS, BUTTON_SPEED_BACK, BUTTON_LOADED_BACK -> page(table, PAGE_OPTIONS);
 			case BUTTON_SPEED_OPEN -> page(table, PAGE_SPEED);
-			case BUTTON_LOADED_FARMS -> page(table, PAGE_LOADED);
+			case BUTTON_LOADED_FARMS, BUTTON_FARM_BACK -> page(table, PAGE_LOADED);
+			case BUTTON_FARM_OPEN -> page(table, PAGE_FARM);
 			case BUTTON_REQUIREMENTS -> {
 				table.setRequirementsBoard(true);
 				yield true;
@@ -69,6 +73,29 @@ final class TableButtons {
 			}
 			default -> false;
 		};
+	}
+
+	/** Repairs or takes down a finished farm from My Farms, then sends the updated list. */
+	private static boolean careFor(TableSession table, ServerPlayerEntity player, int id) {
+		boolean repair = id < BUTTON_FARM_TAKE_DOWN;
+		int index = id - (repair ? BUTTON_FARM_REPAIR : BUTTON_FARM_TAKE_DOWN);
+		boolean done = FarmLoader.of(player.getServer()).at(player.getServer(), player.getUuid(), index)
+				.map(farm -> repair ? FarmCare.repair(table, player, farm) : FarmCare.takeDown(table, player, farm))
+				.orElse(false);
+		LoadedFarmsPayload.send(player);
+		return done;
+	}
+
+	/** Drops a finished farm the mod can no longer build or take down, so its area is free again. */
+	private static boolean forget(ServerPlayerEntity player, int index) {
+		boolean done = FarmLoader.of(player.getServer()).at(player.getServer(), player.getUuid(), index)
+				.map(farm -> {
+					FarmAreas.of(farm.world()).release(farm.farm().key());
+					return true;
+				})
+				.orElse(false);
+		LoadedFarmsPayload.send(player);
+		return done;
 	}
 
 	private static boolean page(TableSession table, int page) {

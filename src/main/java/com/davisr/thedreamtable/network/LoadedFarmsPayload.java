@@ -16,18 +16,23 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
 
-/** The player's finished farms for the Keep Farms Loaded page, and the server's limit. Sent only to that player. */
+/** The player's finished farms for the My Farms pages, and the server's limit. Sent only to that player. */
 public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, int limit) implements CustomPayload {
 	public static final Id<LoadedFarmsPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "loaded_farms"));
 	private static final int MAX_FARMS = 512;
-	private static final PacketCodec<RegistryByteBuf, FarmLoader.Entry> ENTRY = PacketCodec.tuple(
-			PacketCodecs.STRING, FarmLoader.Entry::key,
-			PacketCodecs.STRING, FarmLoader.Entry::farmId,
-			PacketCodecs.STRING, FarmLoader.Entry::dimension,
-			BlockPos.PACKET_CODEC, FarmLoader.Entry::where,
-			PacketCodecs.BOOL, FarmLoader.Entry::loaded,
-			FarmLoader.Entry::new
-	);
+	private static final PacketCodec<RegistryByteBuf, FarmLoader.Entry> ENTRY = PacketCodec.of(
+			(entry, buf) -> {
+				buf.writeString(entry.key());
+				buf.writeString(entry.farmId());
+				buf.writeString(entry.dimension());
+				buf.writeBlockPos(entry.where());
+				buf.writeBoolean(entry.loaded());
+				buf.writeVarInt(entry.status());
+				buf.writeVarInt(entry.missing() + 1);
+				buf.writeBoolean(entry.available());
+			},
+			buf -> new FarmLoader.Entry(buf.readString(), buf.readString(), buf.readString(), buf.readBlockPos(),
+					buf.readBoolean(), buf.readVarInt(), buf.readVarInt() - 1, buf.readBoolean()));
 	public static final PacketCodec<RegistryByteBuf, LoadedFarmsPayload> CODEC = PacketCodec.tuple(
 			ENTRY.collect(PacketCodecs.toList(MAX_FARMS)), LoadedFarmsPayload::farms,
 			PacketCodecs.VAR_INT, LoadedFarmsPayload::limit,

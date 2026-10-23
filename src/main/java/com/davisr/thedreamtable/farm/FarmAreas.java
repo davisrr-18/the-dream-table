@@ -63,8 +63,11 @@ public final class FarmAreas extends PersistentState {
 	private record Built(String farmId, long signature, FarmSite site, Map<Item, Item> swaps, long finishedAt) {
 	}
 
-	/** A player's finished farm, for the Keep Farms Loaded list. {@code id} tells it apart from their other farms in this world. */
-	public record Finished(String id, String farmId, BlockPos where, Box box, long finishedAt) {
+	/**
+	 * A player's finished farm, for the My Farms list. {@code id} tells it apart from their other farms in this world;
+	 * the rest is what repairing or taking it down needs.
+	 */
+	public record Finished(String id, Key key, String farmId, long signature, FarmSite site, Map<Item, Item> swaps, BlockPos where, Box box, long finishedAt) {
 	}
 
 	private record Area(Box box, @Nullable Built built) {
@@ -132,7 +135,8 @@ public final class FarmAreas extends PersistentState {
 			if (built != null && entry.getKey().player().equals(player)) {
 				Key key = entry.getKey();
 				BlockPos where = built.site().anchor() != null ? built.site().anchor() : built.site().table();
-				farms.add(new Finished(key.table() + "/" + key.spot(), built.farmId(), where, entry.getValue().box(), built.finishedAt()));
+				farms.add(new Finished(key.table() + "/" + key.spot(), key, built.farmId(), built.signature(), built.site(), built.swaps(), where,
+						entry.getValue().box(), built.finishedAt()));
 			}
 		}
 		return farms;
@@ -202,11 +206,11 @@ public final class FarmAreas extends PersistentState {
 		return presence.unloaded() || presence.percent() >= 50;
 	}
 
-	/** How much of a farm already stands at a site, counting only loaded blocks. */
-	public record Presence(int percent, boolean unloaded) {
+	/** How much of a farm already stands at a site, counting only loaded blocks, and how many of those are missing. */
+	public record Presence(int percent, int missing, boolean unloaded) {
 	}
 
-	/** Compares every block of the farm with the world, the way Discard does ({@link BlockMatch#sameShape}). */
+	/** Compares every block of the farm with the world, the way Discard does ({@link BlockMatch#stillFarm}). */
 	public static Presence presence(ServerWorld world, FarmTemplate template, FarmSite site, Map<Item, Item> swaps) {
 		int blocks = 0;
 		int found = 0;
@@ -222,11 +226,11 @@ public final class FarmAreas extends PersistentState {
 			}
 			BlockState expected = MaterialSwaps.apply(step.state(), swaps).rotate(FarmGeometry.rotation(site.facing()));
 			blocks++;
-			if (BlockMatch.sameShape(world.getBlockState(pos), expected)) {
+			if (BlockMatch.stillFarm(world.getBlockState(pos), expected)) {
 				found++;
 			}
 		}
-		return new Presence(blocks == 0 ? 0 : found * 100 / blocks, unloaded);
+		return new Presence(blocks == 0 ? 0 : found * 100 / blocks, blocks - found, unloaded);
 	}
 
 	@Override

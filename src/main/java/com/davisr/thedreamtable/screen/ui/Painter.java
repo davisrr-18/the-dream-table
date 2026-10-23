@@ -74,16 +74,6 @@ public final class Painter {
 		context.drawText(text, trim(detail, CARD_WIDTH - 46), x + 34, y + 19, HINT, false);
 	}
 
-	/** A two-line card with a short colored tag at the right end of the name line, such as a farm's size. */
-	public void card(DrawContext context, ItemStack icon, Text label, Text detail, Text tag, int tagColor, int x, int y, boolean hovered, boolean selected, boolean enabled) {
-		card(context, icon, Text.empty(), x, y, hovered, selected, enabled);
-		int right = x + CARD_WIDTH - 10;
-		int tagWidth = text.getWidth(tag);
-		context.drawText(text, tag, right - tagWidth, y + 7, enabled ? tagColor : MUTED, false);
-		context.drawText(text, trim(label, right - tagWidth - 6 - (x + 34)), x + 34, y + 7, enabled ? NAME : MUTED, false);
-		context.drawText(text, trim(detail, CARD_WIDTH - 46), x + 34, y + 19, HINT, false);
-	}
-
 	public void button(DrawContext context, Text label, int x, int y, boolean hovered, boolean enabled, boolean primary) {
 		boolean hover = enabled && hovered;
 		int w = CARD_WIDTH;
