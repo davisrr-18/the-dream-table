@@ -153,6 +153,10 @@ public final class WorkPage implements TablePage {
 		if (!DreamTableHologram.hasPlacement()) {
 			return Text.translatable("gui.the_dream_table.place_first");
 		}
+		String problem = DreamTableHologram.placementProblem();
+		if (!problem.isEmpty()) {
+			return Text.translatable(problem);
+		}
 		if (ui.actions().creative()) {
 			return Text.translatable("gui.the_dream_table.creative");
 		}

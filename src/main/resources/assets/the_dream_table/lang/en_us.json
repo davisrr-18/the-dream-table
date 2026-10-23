@@ -35,6 +35,7 @@
 	"gui.the_dream_table.build": "Build",
 	"gui.the_dream_table.discard": "Discard",
 	"gui.the_dream_table.out_of_world": "The farm doesn't fit here: part of it is above or below the world, or past the border",
+	"gui.the_dream_table.dismantling": "Taking the build apart; its blocks come back to you as they are removed",
 	"gui.the_dream_table.protected_area": "You can't build the whole farm here: part of the area is protected",
 	"gui.the_dream_table.protected_spot": "You can't build at %s, %s, %s: the spot is protected. Press Try Again when you can",
 	"gui.the_dream_table.farm_overlaps": "Another player's farm at this table is in that spot",

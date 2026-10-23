@@ -1,13 +1,17 @@
 package com.davisr.thedreamtable;
 
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.network.CheckPlacementPayload;
 import com.davisr.thedreamtable.network.DepositMaterialPayload;
 import com.davisr.thedreamtable.network.PlaceFarmPayload;
+import com.davisr.thedreamtable.network.PlacementResultPayload;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.registry.ModBlocks;
 import com.davisr.thedreamtable.registry.ModItems;
 import com.davisr.thedreamtable.registry.ModScreenHandlers;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.minecraft.util.WorldSavePath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,8 +26,11 @@ public final class TheDreamTableMod implements ModInitializer {
 		ModItems.register();
 		ModScreenHandlers.register();
 		FarmTemplates.load();
+		ServerLifecycleEvents.SERVER_STARTING.register(server -> FarmTemplates.reloadImports(server.getSavePath(WorldSavePath.ROOT)));
 		DepositMaterialPayload.register();
 		PlaceFarmPayload.register();
+		CheckPlacementPayload.register();
+		PlacementResultPayload.register();
 		LOGGER.info("The Dream Table loaded");
 	}
 }

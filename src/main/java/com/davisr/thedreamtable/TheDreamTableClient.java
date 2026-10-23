@@ -16,6 +16,7 @@ public final class TheDreamTableClient implements ClientModInitializer {
 		DreamTableHologram.register();
 		DreamTableClipboard.register();
 		DreamTableHologram.registerClicks();
+		DreamTableHologram.registerChecks();
 		TheDreamTableMod.LOGGER.info("The Dream Table client loaded");
 	}
 }

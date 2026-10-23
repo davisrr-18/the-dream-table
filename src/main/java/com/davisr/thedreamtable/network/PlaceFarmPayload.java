@@ -42,9 +42,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 			if (!DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) || table.getSelectedFarm().isEmpty()) {
 				return;
 			}
-			Direction facing = payload.facing() != null && payload.facing().getAxis().isHorizontal()
-					? payload.facing()
-					: player.getHorizontalFacing();
+			Direction facing = horizontal(payload.facing(), player);
 			BlockPos anchor = payload.anchor();
 			if (!inRange(table.getPos(), anchor, player)) {
 				player.sendMessage(Text.translatable("gui.the_dream_table.place_first"), true);
@@ -55,7 +53,11 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 		}));
 	}
 
-	private static boolean inRange(BlockPos table, BlockPos anchor, ServerPlayerEntity player) {
+	static Direction horizontal(Direction facing, ServerPlayerEntity player) {
+		return facing != null && facing.getAxis().isHorizontal() ? facing : player.getHorizontalFacing();
+	}
+
+	static boolean inRange(BlockPos table, BlockPos anchor, ServerPlayerEntity player) {
 		if (anchor == null || anchor.equals(table)) {
 			return false;
 		}

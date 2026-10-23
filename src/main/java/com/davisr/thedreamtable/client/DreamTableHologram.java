@@ -7,6 +7,9 @@ import com.davisr.thedreamtable.client.hologram.GhostRenderer;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.network.CheckPlacementPayload;
+import com.davisr.thedreamtable.network.PlacementResultPayload;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -37,12 +40,36 @@ public final class DreamTableHologram {
 	private static boolean anchored;
 	private static Direction previewFacing;
 	private static int lastPlaceAge = -1;
+	private static Placement checked;
+	private static String problem = "";
 
 	private DreamTableHologram() {
 	}
 
 	public static void register() {
 		WorldRenderEvents.AFTER_TRANSLUCENT.register(DreamTableHologram::render);
+	}
+
+	public static void registerChecks() {
+		ClientPlayNetworking.registerGlobalReceiver(PlacementResultPayload.ID, (payload, context) -> {
+			if (payload.table().equals(tablePos)) {
+				checked = new Placement(payload.anchor(), payload.facing());
+				problem = payload.problem();
+			}
+		});
+	}
+
+	/** The server's reason this placement can't be built, as a lang key, or empty. Only valid for the placement it was asked about. */
+	public static String placementProblem() {
+		return hasPlacement() && new Placement(aimed, previewFacing()).equals(checked) ? problem : "";
+	}
+
+	private static void check() {
+		checked = null;
+		problem = "";
+		if (hasPlacement() && ClientPlayNetworking.canSend(CheckPlacementPayload.ID)) {
+			ClientPlayNetworking.send(new CheckPlacementPayload(tablePos, aimed, previewFacing()));
+		}
 	}
 
 	public static void registerClicks() {
@@ -60,6 +87,8 @@ public final class DreamTableHologram {
 			aimed = null;
 			anchored = false;
 			previewFacing = null;
+			checked = null;
+			problem = "";
 		}
 		tablePos = pos;
 		farmId = nextFarm;
@@ -72,6 +101,7 @@ public final class DreamTableHologram {
 			return;
 		}
 		previewFacing = previewFacing().rotateYClockwise();
+		check();
 		PlayerEntity player = MinecraftClient.getInstance().player;
 		if (player != null) {
 			player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5F, 1.15F);
@@ -106,6 +136,8 @@ public final class DreamTableHologram {
 		aimed = null;
 		anchored = false;
 		previewFacing = null;
+		checked = null;
+		problem = "";
 	}
 
 	private static void render(WorldRenderContext context) {
@@ -135,7 +167,8 @@ public final class DreamTableHologram {
 			GhostRenderer.drawCursor(matrices, cursor, wave);
 		}
 		if (placement != null) {
-			GhostRenderer.drawGhosts(context, matrices, template, table, placement.anchor(), placement.facing(), shownPlaced, shownBlocked, wave);
+			boolean refused = idle && !placementProblem().isEmpty();
+			GhostRenderer.drawGhosts(context, matrices, template, table, placement.anchor(), placement.facing(), shownPlaced, shownBlocked, refused, wave);
 		}
 		matrices.pop();
 	}
@@ -180,6 +213,7 @@ public final class DreamTableHologram {
 		lastPlaceAge = player.age;
 		aimed = anchor;
 		anchored = true;
+		check();
 		player.swingHand(Hand.MAIN_HAND);
 		player.playSound(SoundEvents.BLOCK_AMETHYST_BLOCK_PLACE, 0.7F, 1.4F);
 		return true;

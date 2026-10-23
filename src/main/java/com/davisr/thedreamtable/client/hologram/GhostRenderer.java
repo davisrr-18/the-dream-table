@@ -26,7 +26,10 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
 import org.joml.Matrix4f;
 
-/** Draws the translucent blocks still to be built and the yellow aim marker. The next block glows, or turns red when it is blocked. */
+/**
+ * Draws the translucent blocks still to be built and the yellow aim marker. The next block glows, or turns red when it is blocked.
+ * The whole farm turns red when the server says it can't be built where it was placed.
+ */
 public final class GhostRenderer {
 	private GhostRenderer() {
 	}
@@ -51,7 +54,7 @@ public final class GhostRenderer {
 	}
 
 	public static void drawGhosts(WorldRenderContext context, MatrixStack matrices, FarmTemplate template, TableSession table,
-			BlockPos anchor, Direction facing, int shownPlaced, boolean blocked, float wave) {
+			BlockPos anchor, Direction facing, int shownPlaced, boolean blocked, boolean refused, float wave) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		Random random = Random.create();
 		BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
@@ -64,7 +67,7 @@ public final class GhostRenderer {
 			BlockPos pos = FarmGeometry.toAimed(anchor, facing, template, step);
 			BlockState base = table == null ? step.state() : table.swapState(step.state());
 			BlockState state = base.rotate(FarmGeometry.rotation(facing));
-			Tint tint = Tint.of(index == shownPlaced, blocked, wave);
+			Tint tint = Tint.of(index == shownPlaced, blocked, refused, wave);
 			matrices.push();
 			matrices.translate(pos.getX() + 0.01, pos.getY() + 0.01, pos.getZ() + 0.01);
 			matrices.scale(0.98F, 0.98F, 0.98F);
@@ -91,7 +94,10 @@ public final class GhostRenderer {
 	}
 
 	private record Tint(float red, float green, float blue, int alpha) {
-		static Tint of(boolean next, boolean blocked, float wave) {
+		static Tint of(boolean next, boolean blocked, boolean refused, float wave) {
+			if (refused) {
+				return new Tint(1.0F, 0.42F, 0.38F, 150 + (int) (40 * wave));
+			}
 			if (next && blocked) {
 				return new Tint(1.0F, 0.48F, 0.42F, 220);
 			}

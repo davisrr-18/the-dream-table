@@ -13,7 +13,6 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 
 /**
@@ -38,63 +37,47 @@ public final class FarmBuilder {
 		}
 	}
 
-	/** The box of blocks this farm would occupy, used to keep two players' farms at one table apart. */
-	public static Box footprint(TableSession table, FarmTemplate template) {
-		Direction facing = facing(table);
-		int[] low = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE};
-		int[] high = {Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
-		for (FarmStep step : template.steps()) {
-			BlockPos pos = target(table, template, step, facing);
-			int[] at = {pos.getX(), pos.getY(), pos.getZ()};
-			for (int axis = 0; axis < 3; axis++) {
-				low[axis] = Math.min(low[axis], at[axis]);
-				high[axis] = Math.max(high[axis], at[axis]);
-			}
-		}
-		return new Box(low[0], low[1], low[2], high[0] + 1, high[1] + 1, high[2] + 1);
-	}
-
-	/** True when every step lies between the world floor and ceiling and inside the border. */
-	public static boolean fits(ServerWorld world, TableSession table, FarmTemplate template) {
-		Direction facing = facing(table);
-		for (FarmStep step : template.steps()) {
-			BlockPos pos = target(table, template, step, facing);
-			if (!world.isInBuildLimit(pos) || !world.getWorldBorder().contains(pos)) {
-				return false;
-			}
-		}
-		return true;
+	/** Where this session's farm sits: its anchor, or beside the table when it has none. */
+	public static FarmSite site(TableSession table) {
+		return new FarmSite(table.getPos(), table.hasAnchor() ? table.getFarmAnchor() : null, facing(table));
 	}
 
 	private static boolean step(TableSession table, ServerWorld world) {
 		FarmTemplate template = FarmTemplates.get(table.getSelectedFarm());
-		if (template == null || table.getBuildIndex() >= template.steps().size()) {
+		if (template == null) {
+			return false;
+		}
+		if (table.getBuildIndex() >= template.steps().size()) {
 			table.finish();
 			return false;
 		}
+		ServerPlayerEntity owner = table.onlineOwner(world);
+		if (owner == null) {
+			return false;
+		}
 		FarmStep step = template.steps().get(table.getBuildIndex());
-		Direction facing = facing(table);
-		BlockPos target = target(table, template, step, facing);
+		FarmSite site = site(table);
+		BlockPos target = site.target(template, step);
 		if (!world.isChunkLoaded(target)) {
 			return false;
 		}
-		BlockState placed = step.isEntity() ? null : table.swapState(step.state()).rotate(FarmGeometry.rotation(facing));
+		BlockState placed = step.isEntity() ? null : table.swapState(step.state()).rotate(FarmGeometry.rotation(site.facing()));
 		BlockState existing = placed == null ? null : world.getBlockState(target);
 
 		if (placed != null) {
 			if (BlockMatch.sameBlock(existing, placed)) {
-				return advance(world, table, template, facing);
+				return advance(world, table, template, site);
 			}
-			if (!existing.isReplaceable() && !ObstacleRules.clearable(world, table.getPos(), target, existing)) {
+			if (!existing.isReplaceable() && (!ObstacleRules.clearable(world, table.getPos(), target, existing) || insideOtherFarm(world, table, target))) {
 				table.obstruct(target, existing);
 				return false;
 			}
 		}
-		if (!permitted(world, table, target, existing)) {
+		if (!permitted(world, owner, target, existing)) {
 			table.protectedSpot(target);
 			return false;
 		}
-		boolean free = table.creativeOwner(world);
+		boolean free = owner.isCreative();
 		boolean costs = step.item() != null && !free;
 		if (costs && !table.hasMaterial(step.item())) {
 			table.missingMaterial();
@@ -106,31 +89,27 @@ public final class FarmBuilder {
 			table.placementFailed(target);
 			return false;
 		}
+		boolean paid = costs && table.spendMaterial(step.item());
 		if (placed != null) {
-			table.recordPlaced(costs);
+			table.recordPlaced(paid);
 		}
-		if (costs) {
-			table.consumeMaterial(step.item());
-		}
-		if (placed != null && step.item() == Items.WATER_BUCKET && costs) {
+		if (placed != null && step.item() == Items.WATER_BUCKET && paid) {
 			FarmSpawns.returnBucket(world, table);
 		}
-		return advance(world, table, template, facing);
+		return advance(world, table, template, site);
 	}
 
-	/**
-	 * Builds as the player who started it, so protected land stays protected. While that player is offline
-	 * the area was already checked when the build started, and the build goes on.
-	 */
-	private static boolean permitted(ServerWorld world, TableSession table, BlockPos target, BlockState existing) {
-		ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(table.getOwner());
-		if (owner == null) {
-			return true;
-		}
+	/** Builds as the player who started it, so protected land stays protected. The build waits while that player is offline. */
+	private static boolean permitted(ServerWorld world, ServerPlayerEntity owner, BlockPos target, BlockState existing) {
 		if (existing != null && !existing.isReplaceable()) {
 			return BuildPermission.canBreak(world, owner, target, existing);
 		}
 		return BuildPermission.canPlace(world, owner, target);
+	}
+
+	/** Blocks inside another table's farm, or another player's, belong to that farm and are never cleared. */
+	private static boolean insideOtherFarm(ServerWorld world, TableSession table, BlockPos target) {
+		return FarmAreas.of(world).reservedByOther(world, FarmAreas.Key.build(table.getPos(), table.getOwner()), target);
 	}
 
 	private static boolean spawn(ServerWorld world, BlockPos target, FarmStep step) {
@@ -160,32 +139,26 @@ public final class FarmBuilder {
 		return true;
 	}
 
-	private static boolean advance(ServerWorld world, TableSession table, FarmTemplate template, Direction facing) {
+	private static boolean advance(ServerWorld world, TableSession table, FarmTemplate template, FarmSite site) {
 		table.advance();
 		if (table.getBuildIndex() >= template.steps().size()) {
-			settle(world, table, template, facing);
+			settle(world, template, site);
 			table.finish();
 		}
 		return true;
 	}
 
-	static Direction facing(TableSession table) {
+	private static Direction facing(TableSession table) {
 		return table.hasAnchor() ? table.getFarmFacing() : table.getCachedState().get(Properties.HORIZONTAL_FACING);
 	}
 
-	static BlockPos target(TableSession table, FarmTemplate template, FarmStep step, Direction facing) {
-		return table.hasAnchor()
-				? FarmGeometry.toAimed(table.getFarmAnchor(), facing, template, step)
-				: FarmGeometry.toWorld(table.getPos(), facing, step);
-	}
-
 	/** Blocks are placed without neighbor updates, so the finished farm gets one update pass to start its redstone and liquids. */
-	private static void settle(ServerWorld world, TableSession table, FarmTemplate template, Direction facing) {
+	private static void settle(ServerWorld world, FarmTemplate template, FarmSite site) {
 		for (FarmStep step : template.steps()) {
 			if (step.isEntity() || step.state() == null) {
 				continue;
 			}
-			BlockPos pos = target(table, template, step, facing);
+			BlockPos pos = site.target(template, step);
 			BlockState state = world.getBlockState(pos);
 			if (!state.isAir()) {
 				world.updateNeighbors(pos, state.getBlock());

@@ -1,13 +1,11 @@
 package com.davisr.thedreamtable.farm;
 
-import com.davisr.thedreamtable.block.entity.TableSession;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 
 /**
  * Asks the world whether a player may build at a spot, the way their own hands would be asked:
@@ -28,10 +26,9 @@ public final class BuildPermission {
 	}
 
 	/** True when the player may place at every spot the farm uses. Checked once before a new build starts. */
-	public static boolean canBuildAll(ServerWorld world, ServerPlayerEntity player, TableSession table, FarmTemplate template) {
-		Direction facing = FarmBuilder.facing(table);
+	public static boolean canBuildAll(ServerWorld world, ServerPlayerEntity player, FarmSite site, FarmTemplate template) {
 		for (FarmStep step : template.steps()) {
-			if (!canPlace(world, player, FarmBuilder.target(table, template, step, facing))) {
+			if (!canPlace(world, player, site.target(template, step))) {
 				return false;
 			}
 		}

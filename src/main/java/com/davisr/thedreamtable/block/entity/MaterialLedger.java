@@ -23,16 +23,24 @@ import java.util.Map;
  * Counts per template material: what is delivered and waiting, and what the build already used.
  * Indexes follow {@link FarmTemplate#materials()}; counts are always kept under the original item,
  * while {@link #resolve(Item)} gives the item the player actually delivers after a swap.
+ * Items delivered in Creative never left the player's inventory, so they are counted apart in {@code free}:
+ * the build uses them first, they never mark a step as paid, and they are never handed back.
  */
 public final class MaterialLedger {
 	private final int[] deposited = new int[FarmTemplate.MAX_SLOTS];
 	private final int[] consumed = new int[FarmTemplate.MAX_SLOTS];
+	private final int[] free = new int[FarmTemplate.MAX_SLOTS];
 	private final Map<Item, Item> swaps = new LinkedHashMap<>();
 
 	public void reset() {
 		Arrays.fill(deposited, 0);
 		Arrays.fill(consumed, 0);
+		Arrays.fill(free, 0);
 		swaps.clear();
+	}
+
+	public Map<Item, Item> swaps() {
+		return Map.copyOf(swaps);
 	}
 
 	public boolean anyDelivered() {
@@ -96,7 +104,7 @@ public final class MaterialLedger {
 	}
 
 	/** Takes up to what the farm still needs of this stack's item and returns how many were taken. */
-	public int accept(FarmTemplate template, ItemStack stack) {
+	public int accept(FarmTemplate template, ItemStack stack, boolean creative) {
 		int needed = 0;
 		int have = 0;
 		for (int index = 0; index < template.materials().size(); index++) {
@@ -116,6 +124,9 @@ public final class MaterialLedger {
 			}
 			int moved = Math.min(room, take - accepted);
 			deposited[index] += moved;
+			if (creative) {
+				free[index] += moved;
+			}
 			accepted += moved;
 		}
 		return accepted;
@@ -147,6 +158,7 @@ public final class MaterialLedger {
 		return find(template, original) >= 0;
 	}
 
+	/** Uses one delivered item, Creative ones first. Returns true only when the item used was one the player paid for. */
 	public boolean consume(FarmTemplate template, Item original) {
 		int index = find(template, original);
 		if (index < 0) {
@@ -154,16 +166,21 @@ public final class MaterialLedger {
 		}
 		deposited[index]--;
 		consumed[index]++;
+		if (free[index] > 0) {
+			free[index]--;
+			return false;
+		}
 		return true;
 	}
 
-	/** Empties the counts and returns the delivered items that were not used yet. */
+	/** Empties the counts and returns the delivered items that were not used yet, leaving out Creative ones. */
 	public List<ItemStack> drain(FarmTemplate template) {
 		List<ItemStack> stacks = new ArrayList<>();
 		for (int index = 0; index < deposited.length; index++) {
-			int left = deposited[index];
+			int left = deposited[index] - free[index];
 			deposited[index] = 0;
 			consumed[index] = 0;
+			free[index] = 0;
 			if (left <= 0 || template == null || index >= template.materials().size()) {
 				continue;
 			}
@@ -180,6 +197,19 @@ public final class MaterialLedger {
 	public void write(NbtCompound nbt) {
 		nbt.putIntArray("Deposited", deposited);
 		nbt.putIntArray("Consumed", consumed);
+		nbt.putIntArray("FreeDeposited", free);
+		writeSwaps(nbt, swaps);
+	}
+
+	public void read(NbtCompound nbt) {
+		copy(nbt.getIntArray("Deposited"), deposited);
+		copy(nbt.getIntArray("Consumed"), consumed);
+		copy(nbt.getIntArray("FreeDeposited"), free);
+		swaps.clear();
+		swaps.putAll(readSwaps(nbt));
+	}
+
+	public static void writeSwaps(NbtCompound nbt, Map<Item, Item> swaps) {
 		NbtList list = new NbtList();
 		for (Map.Entry<Item, Item> swap : swaps.entrySet()) {
 			NbtCompound entry = new NbtCompound();
@@ -190,14 +220,8 @@ public final class MaterialLedger {
 		nbt.put("Swaps", list);
 	}
 
-	public void read(NbtCompound nbt) {
-		Arrays.fill(deposited, 0);
-		Arrays.fill(consumed, 0);
-		int[] stored = nbt.getIntArray("Deposited");
-		int[] used = nbt.getIntArray("Consumed");
-		System.arraycopy(stored, 0, deposited, 0, Math.min(stored.length, deposited.length));
-		System.arraycopy(used, 0, consumed, 0, Math.min(used.length, consumed.length));
-		swaps.clear();
+	public static Map<Item, Item> readSwaps(NbtCompound nbt) {
+		Map<Item, Item> swaps = new LinkedHashMap<>();
 		NbtList list = nbt.getList("Swaps", NbtElement.COMPOUND_TYPE);
 		for (int index = 0; index < list.size(); index++) {
 			Identifier from = Identifier.tryParse(list.getCompound(index).getString("From"));
@@ -206,6 +230,12 @@ public final class MaterialLedger {
 				swaps.put(Registries.ITEM.get(from), Registries.ITEM.get(to));
 			}
 		}
+		return swaps;
+	}
+
+	private static void copy(int[] from, int[] into) {
+		Arrays.fill(into, 0);
+		System.arraycopy(from, 0, into, 0, Math.min(from.length, into.length));
 	}
 
 	private int find(FarmTemplate template, Item original) {

@@ -40,6 +40,18 @@ final class BuildProgress {
 		return paid.get(step);
 	}
 
+	BitSet placedSteps() {
+		return (BitSet) placed.clone();
+	}
+
+	BitSet paidSteps() {
+		return (BitSet) paid.clone();
+	}
+
+	long signature() {
+		return signature;
+	}
+
 	String phase() {
 		return phase;
 	}

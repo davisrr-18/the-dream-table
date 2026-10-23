@@ -1,8 +1,10 @@
 package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.BuildPermission;
+import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmDismantler;
+import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import net.minecraft.block.BlockState;
@@ -21,6 +23,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
@@ -86,13 +89,13 @@ public final class TableSession {
 		return player;
 	}
 
-	public boolean creativeOwner(ServerWorld world) {
-		ServerPlayerEntity online = world.getServer().getPlayerManager().getPlayer(player);
-		return online != null && online.isCreative();
+	/** The player, when online. Builds wait while they are away, since their permissions and game mode decide every step. */
+	public ServerPlayerEntity onlineOwner(ServerWorld world) {
+		return world.getServer().getPlayerManager().getPlayer(player);
 	}
 
 	void tick(ServerWorld world) {
-		if (!progress.is(PHASE_BUILDING) || !progress.second()) {
+		if (!progress.is(PHASE_BUILDING) || onlineOwner(world) == null || !progress.second()) {
 			return;
 		}
 		for (int placed = 0; placed < progress.blocksPerSecond() && progress.is(PHASE_BUILDING); placed++) {
@@ -113,6 +116,7 @@ public final class TableSession {
 	}
 
 	public void setSelectedFarm(String farm) {
+		releaseArea();
 		selectedFarm = farm == null ? "" : farm;
 		requirementsBoard = false;
 		ledger.reset();
@@ -239,46 +243,65 @@ public final class TableSession {
 	}
 
 	/**
-	 * Starts or resumes the build. It refuses, and tells the player why, when a new build would reach outside the world
-	 * or overlap another player's farm at this table, or when a resumed build belongs to a farm file that has changed.
+	 * Starts or resumes the build. It refuses, and tells the player why, when a new build can't start where it was placed
+	 * ({@link #problemAt}), or when a resumed build belongs to a farm file that has changed.
+	 * A started build reserves its area in {@link FarmAreas}, so no other farm is placed or cleared inside it.
 	 */
 	public boolean begin(ServerPlayerEntity starter, boolean fromScratch) {
 		FarmTemplate template = template();
-		if (template == null) {
+		if (template == null || !(table.getWorld() instanceof ServerWorld world)) {
 			return false;
 		}
-		if (fromScratch && !canStartHere(starter, template)) {
-			return false;
+		if (fromScratch) {
+			String problem = problemAt(world, starter, FarmBuilder.site(this));
+			if (problem != null) {
+				placement.clear();
+				sync();
+				starter.sendMessage(Text.translatable(problem), true);
+				return false;
+			}
 		}
 		if (!fromScratch && !progress.matches(template.signature())) {
 			starter.sendMessage(Text.translatable("gui.the_dream_table.farm_changed"), true);
 			return false;
 		}
+		FarmAreas.of(world).claim(areaKey(), FarmBuilder.site(this).footprint(template));
 		progress.start(player, fromScratch, template.signature());
 		sync();
 		tell(Text.translatable("gui.the_dream_table.building", progress.index(), totalSteps()));
 		return true;
 	}
 
-	private boolean canStartHere(ServerPlayerEntity starter, FarmTemplate template) {
-		if (!(table.getWorld() instanceof ServerWorld world)) {
-			return true;
+	/**
+	 * Why this farm can't start at the site, as a lang key, or null when it can: it leaves the world, overlaps another farm
+	 * at any table, or touches land the player may not build in. The hologram asks this before Build is pressed.
+	 */
+	public String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site) {
+		FarmTemplate template = template();
+		if (template == null) {
+			return null;
 		}
-		String problem = null;
-		if (!FarmBuilder.fits(world, this, template)) {
-			problem = "gui.the_dream_table.out_of_world";
-		} else if (table.overlapsOthers(this, template)) {
-			problem = "gui.the_dream_table.farm_overlaps";
-		} else if (!BuildPermission.canBuildAll(world, starter, this, template)) {
-			problem = "gui.the_dream_table.protected_area";
+		Box area = site.footprint(template);
+		if (!site.fits(world, template)) {
+			return "gui.the_dream_table.out_of_world";
 		}
-		if (problem == null) {
-			return true;
+		if (table.overlapsOthers(this, area) || FarmAreas.of(world).overlaps(world, areaKey(), area)) {
+			return "gui.the_dream_table.farm_overlaps";
 		}
-		placement.clear();
-		sync();
-		starter.sendMessage(Text.translatable(problem), true);
-		return false;
+		if (!BuildPermission.canBuildAll(world, asker, site, template)) {
+			return "gui.the_dream_table.protected_area";
+		}
+		return null;
+	}
+
+	private FarmAreas.Key areaKey() {
+		return FarmAreas.Key.build(table.getPos(), player);
+	}
+
+	private void releaseArea() {
+		if (table.getWorld() instanceof ServerWorld world) {
+			FarmAreas.of(world).release(areaKey());
+		}
 	}
 
 	/** A block could not be placed, or the step failed unexpectedly. Nothing was spent; Try Again repeats the step. */
@@ -356,11 +379,12 @@ public final class TableSession {
 		}
 		Hand hand = giver.getStackInHand(Hand.MAIN_HAND).isEmpty() ? Hand.OFF_HAND : Hand.MAIN_HAND;
 		ItemStack stack = giver.getStackInHand(hand);
-		int accepted = stack.isEmpty() ? 0 : ledger.accept(template, stack);
+		boolean creative = giver.getAbilities().creativeMode;
+		int accepted = stack.isEmpty() ? 0 : ledger.accept(template, stack, creative);
 		if (accepted <= 0) {
 			return false;
 		}
-		if (!giver.getAbilities().creativeMode) {
+		if (!creative) {
 			stack.decrement(accepted);
 		}
 		sync();
@@ -394,28 +418,36 @@ public final class TableSession {
 		return template != null && ledger.has(template, item);
 	}
 
-	public boolean consumeMaterial(Item item) {
+	/** Uses one delivered item. Returns true when it was one the player paid for, so the step can be refunded later. */
+	public boolean spendMaterial(Item item) {
 		FarmTemplate template = template();
-		if (template == null || !ledger.consume(template, item)) {
+		if (template == null) {
 			return false;
 		}
+		boolean paid = ledger.consume(template, item);
 		table.markDirty();
-		return true;
+		return paid;
 	}
 
-	/** An unfinished build is taken apart first; a finished farm stays standing. */
+	/**
+	 * Gives back the delivered items and frees the session at once. An unfinished build is handed to a
+	 * {@link FarmDismantler}, which takes it apart over the next ticks; a finished farm stays standing.
+	 */
 	public void discard(PlayerEntity discarder) {
 		FarmTemplate template = template();
-		if (table.getWorld() instanceof ServerWorld serverWorld && template != null && !progress.is(PHASE_DONE) && progress.index() > 0) {
+		if (table.getWorld() instanceof ServerWorld world && template != null && !progress.is(PHASE_DONE) && progress.index() > 0) {
 			if (!progress.matches(template.signature())) {
 				discarder.sendMessage(Text.translatable("gui.the_dream_table.discard_changed"), true);
 			} else {
-				int removed = FarmDismantler.dismantle(serverWorld, this, discarder);
-				if (removed > 0) {
-					discarder.sendMessage(Text.translatable("gui.the_dream_table.dismantled", removed), true);
-				}
+				FarmSite site = FarmBuilder.site(this);
+				FarmDismantler job = new FarmDismantler(player, selectedFarm, template.signature(), site, ledger.swaps(),
+						progress.placedSteps(), progress.paidSteps(), progress.index());
+				FarmAreas.of(world).claim(job.areaKey(), site.footprint(template));
+				table.startDismantling(job);
+				discarder.sendMessage(Text.translatable("gui.the_dream_table.dismantling"), true);
 			}
 		}
+		releaseArea();
 		returnDeposited(discarder.getWorld(), discarder);
 		progress.reset(true);
 		page = 0;

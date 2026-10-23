@@ -1,6 +1,8 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
+import com.davisr.thedreamtable.farm.FarmDismantler;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
@@ -27,6 +29,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +53,8 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	private static final UUID SHARED = new UUID(0L, 0L);
 
 	private final Map<UUID, TableSession> sessions = new LinkedHashMap<>();
+	/** Discarded builds still being taken apart. Server only; never sent to clients. */
+	private final List<FarmDismantler> dismantling = new ArrayList<>();
 
 	public DreamTableBlockEntity(BlockPos pos, BlockState state) {
 		super(ModBlockEntities.DREAM_TABLE, pos, state);
@@ -59,7 +65,28 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 			for (TableSession session : List.copyOf(table.sessions.values())) {
 				session.tick(serverWorld);
 			}
+			table.tickDismantling(serverWorld);
 		}
+	}
+
+	void startDismantling(FarmDismantler job) {
+		dismantling.add(job);
+		markDirty();
+	}
+
+	private void tickDismantling(ServerWorld world) {
+		if (dismantling.isEmpty()) {
+			return;
+		}
+		Iterator<FarmDismantler> jobs = dismantling.iterator();
+		while (jobs.hasNext()) {
+			FarmDismantler job = jobs.next();
+			if (job.tick(world)) {
+				FarmAreas.of(world).release(job.areaKey());
+				jobs.remove();
+			}
+		}
+		markDirty();
 	}
 
 	public static int validSpeed(int speed) {
@@ -88,22 +115,28 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		return session(player.getUuid());
 	}
 
-	/** True when another player's farm at this table covers any block this farm would use. */
-	boolean overlapsOthers(TableSession asker, FarmTemplate template) {
-		Box mine = FarmBuilder.footprint(asker, template);
+	/**
+	 * True when another player's farm at this table covers any block of this area. {@link FarmAreas} covers every table,
+	 * but builds started before it existed are only known here.
+	 */
+	boolean overlapsOthers(TableSession asker, Box area) {
 		for (TableSession other : sessions.values()) {
 			FarmTemplate theirs = other.template();
-			if (other != asker && theirs != null && (other.hasAnchor() || other.isBusy()) && mine.intersects(FarmBuilder.footprint(other, theirs))) {
+			if (other != asker && theirs != null && (other.hasAnchor() || other.isBusy()) && area.intersects(FarmBuilder.site(other).footprint(theirs))) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	/** When the table is broken, everyone's delivered materials drop. Built blocks stay. */
+	/** When the table is broken, everyone's delivered materials drop and its farm areas are freed. Built blocks stay, even half-dismantled ones. */
 	public void dropMaterials(World world) {
 		for (TableSession session : sessions.values()) {
 			session.dropMaterials(world);
+		}
+		dismantling.clear();
+		if (world instanceof ServerWorld serverWorld) {
+			FarmAreas.of(serverWorld).releaseTable(pos);
 		}
 	}
 
@@ -140,6 +173,13 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		super.writeNbt(nbt, registries);
 		nbt.put("Sessions", sessionList((session, entry) -> session.write(entry, registries)));
+		NbtList jobs = new NbtList();
+		for (FarmDismantler job : dismantling) {
+			NbtCompound entry = new NbtCompound();
+			job.write(entry);
+			jobs.add(entry);
+		}
+		nbt.put("Dismantling", jobs);
 	}
 
 	private NbtList sessionList(BiConsumer<TableSession, NbtCompound> writer) {
@@ -170,6 +210,14 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		}
 		if (!nbt.contains("Sessions", NbtElement.LIST_TYPE)) {
 			readSharedState(nbt, registries);
+		}
+		dismantling.clear();
+		NbtList jobs = nbt.getList("Dismantling", NbtElement.COMPOUND_TYPE);
+		for (int index = 0; index < jobs.size(); index++) {
+			FarmDismantler job = FarmDismantler.read(jobs.getCompound(index));
+			if (job != null) {
+				dismantling.add(job);
+			}
 		}
 	}
 

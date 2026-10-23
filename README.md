@@ -1,6 +1,6 @@
 # The Dream Table
 
-Beta `1.1.2-beta` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
+Beta `1.1.3-beta` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets the pace at 1, 2, 4, or 8 blocks per second.
 
@@ -29,9 +29,11 @@ Farms in this beta: sugar cane, bamboo, crops, mob farm, and iron farm. Blocks i
 
 Every player has their own session at a table: their own menu page, farm, materials, swaps, clipboard, hologram and build. Players can use the same table at once without affecting each other, and two players' farms at one table can't overlap.
 
-Discard returns the materials and removes the hologram. If the build has started and is not finished, Discard also takes apart the blocks the table placed and gives them back, along with anything stored in its chests and hoppers. It asks for a second click first. Blocks you changed, or that were already there, are left alone. A block you turned or replaced is also left alone; opening a door doesn't count as a change. A finished farm is never taken apart.
+Discard returns the materials and removes the hologram. If the build has started and is not finished, Discard also takes apart the blocks the table placed and gives them back, along with anything stored in its chests and hoppers. It takes them apart a few dozen per tick, so large farms don't lag the server, and you can pick a new farm right away. Items delivered in Creative are never handed back. It asks for a second click first. Blocks you changed, or that were already there, are left alone. A block you turned or replaced is also left alone; opening a door doesn't count as a change. A finished farm is never taken apart.
 
 The build refuses a farm that reaches above or below the world, or past the border. A block is counted as already built only when its direction, half and axis match, so a hopper or stairs facing the wrong way is replaced. If the farm's file changes after the build starts, the build can't be resumed. Discard it and start again; its blocks are left in place.
+
+When you anchor or turn the hologram, the table checks the spot right away: the whole hologram turns red and the reason shows when the farm would leave the world, overlap another farm, or enter protected land. Farms from different tables can't overlap either, and a build never breaks blocks inside another farm's area. Builds and take-aparts only run while the player who started them is online.
 
 The table builds with the permissions of the player who started the build. It won't start a farm that touches spawn protection, land outside the world border, or a claim that player can't build in, and it won't build in Adventure mode. If a spot becomes protected during the build, the build stops there until you press Try Again. Discard skips blocks the discarding player isn't allowed to break. Claim mods that use Fabric's block break event are respected.
 
@@ -58,4 +60,4 @@ From the project root, with Java 21:
 ./gradlew build
 ```
 
-The mod jar is `build/libs/the_dream_table-1.1.2-beta.jar`. Jars suffixed with `sources` or `dev` are for development only.
+The mod jar is `build/libs/the_dream_table-1.1.3-beta.jar`. Jars suffixed with `sources` or `dev` are for development only.
