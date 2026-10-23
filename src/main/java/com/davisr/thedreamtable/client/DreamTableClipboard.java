@@ -86,6 +86,10 @@ public final class DreamTableClipboard {
 		orderPage = 0;
 	}
 
+	public static BlockPos pinnedTable() {
+		return pinned;
+	}
+
 	public static void close() {
 		pinned = null;
 		hitbox = null;

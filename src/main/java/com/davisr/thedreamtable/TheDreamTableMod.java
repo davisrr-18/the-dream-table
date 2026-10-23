@@ -3,8 +3,11 @@ package com.davisr.thedreamtable;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.network.CheckPlacementPayload;
 import com.davisr.thedreamtable.network.DepositMaterialPayload;
+import com.davisr.thedreamtable.network.FarmAreasPayload;
 import com.davisr.thedreamtable.network.PlaceFarmPayload;
 import com.davisr.thedreamtable.network.PlacementResultPayload;
+import com.davisr.thedreamtable.network.RequestSessionPayload;
+import com.davisr.thedreamtable.network.SessionSyncPayload;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.registry.ModBlocks;
 import com.davisr.thedreamtable.registry.ModItems;
@@ -26,11 +29,18 @@ public final class TheDreamTableMod implements ModInitializer {
 		ModItems.register();
 		ModScreenHandlers.register();
 		FarmTemplates.load();
-		ServerLifecycleEvents.SERVER_STARTING.register(server -> FarmTemplates.reloadImports(server.getSavePath(WorldSavePath.ROOT)));
+		DreamTableConfig.load();
+		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
+			DreamTableConfig.load();
+			FarmTemplates.reloadImports(server.getSavePath(WorldSavePath.ROOT));
+		});
 		DepositMaterialPayload.register();
 		PlaceFarmPayload.register();
 		CheckPlacementPayload.register();
 		PlacementResultPayload.register();
+		SessionSyncPayload.register();
+		RequestSessionPayload.register();
+		FarmAreasPayload.register();
 		LOGGER.info("The Dream Table loaded");
 	}
 }

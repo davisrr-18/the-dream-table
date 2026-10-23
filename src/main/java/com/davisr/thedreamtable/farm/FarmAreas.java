@@ -11,11 +11,14 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.PersistentState;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -118,6 +121,23 @@ public final class FarmAreas extends PersistentState {
 		return found;
 	}
 
+	/** An area as shown to players who turned on "Show Other Farms". */
+	public record View(Box box, Kind kind) {
+	}
+
+	/** Other players' areas whose middle is within {@code radius} blocks. */
+	public List<View> near(BlockPos center, int radius, UUID viewer) {
+		Vec3d from = Vec3d.ofCenter(center);
+		List<View> views = new ArrayList<>();
+		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
+			Box box = entry.getValue().box();
+			if (!entry.getKey().player().equals(viewer) && box.getCenter().squaredDistanceTo(from) <= (double) radius * radius) {
+				views.add(new View(box, entry.getKey().kind()));
+			}
+		}
+		return views;
+	}
+
 	/** True when the spot lies inside a farm other than the asker's own. Cheap enough to ask for every block. */
 	public boolean reservedByOther(ServerWorld world, Key asker, BlockPos pos) {
 		return find(world, asker, other -> other.contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5));
@@ -161,23 +181,35 @@ public final class FarmAreas extends PersistentState {
 		if (template == null || template.signature() != built.signature()) {
 			return false;
 		}
+		Presence presence = presence(world, template, built.site(), built.swaps());
+		return presence.unloaded() || presence.percent() >= 50;
+	}
+
+	/** How much of a farm already stands at a site, counting only loaded blocks. */
+	public record Presence(int percent, boolean unloaded) {
+	}
+
+	/** Compares every block of the farm with the world, the way Discard does ({@link BlockMatch#sameShape}). */
+	public static Presence presence(ServerWorld world, FarmTemplate template, FarmSite site, Map<Item, Item> swaps) {
 		int blocks = 0;
 		int found = 0;
+		boolean unloaded = false;
 		for (FarmStep step : template.steps()) {
 			if (step.isEntity() || step.state() == null) {
 				continue;
 			}
-			BlockPos pos = built.site().target(template, step);
+			BlockPos pos = site.target(template, step);
 			if (!world.isChunkLoaded(pos)) {
-				return true;
+				unloaded = true;
+				continue;
 			}
-			BlockState expected = MaterialSwaps.apply(step.state(), built.swaps()).rotate(FarmGeometry.rotation(built.site().facing()));
+			BlockState expected = MaterialSwaps.apply(step.state(), swaps).rotate(FarmGeometry.rotation(site.facing()));
 			blocks++;
 			if (BlockMatch.sameShape(world.getBlockState(pos), expected)) {
 				found++;
 			}
 		}
-		return found * 2 >= blocks;
+		return new Presence(blocks == 0 ? 0 : found * 100 / blocks, unloaded);
 	}
 
 	@Override

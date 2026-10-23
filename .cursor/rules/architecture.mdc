@@ -6,10 +6,11 @@ alwaysApply: false
 
 # Architecture
 
-- `block/entity`: `DreamTableBlockEntity` keeps one `TableSession` per player (a map by UUID), ticks them, saves them, and syncs them. A session holds everything a player does at the table: page, chosen farm, delivered items, placement, and build. It is built from `MaterialLedger` (delivered and used counts, swaps), `BuildProgress` (phase, step, timer, owner, speed, placed and paid steps), and `FarmPlacement` (anchor and facing).
-- `writeNbt` saves everything; `toInitialChunkDataNbt` sends clients only `TableSession.writeForClient` (no slot inventory, step records, timer or signature). Data a client draws must be added there too.
+- `block/entity`: `DreamTableBlockEntity` keeps one `TableSession` per player (a map by UUID), ticks them, saves them, and sends each to its owner. A session holds everything a player does at the table: page, chosen farm, placement. It delegates to `MaterialDesk` (slots + `MaterialLedger`: delivered and used counts, Creative counts, swaps), `SessionBuild` (begin, pace, tick, stops, finish; reach it with `session.build()`), `BuildProgress` (phase, step, credit, owner, pace, placed and paid steps), `SessionAreas` (problem checks, area claims, finished farms) and `FarmPlacement` (anchor and facing).
+- Sync: chunk data carries no sessions (`ClientView` marker). `TableSession.sync()` marks the session dirty; the table sends `SessionSyncPayload` with `writeForClient()` to the owner at most once per tick. A client without its session asks with `RequestSessionPayload` (`OwnSessions`). Data a client draws must be added to `writeForClient`.
+- Server settings live in `DreamTableConfig` (`config/the_dream_table.properties`), client preferences in `client/ClientSettings`.
 - Imported schematics are parsed through `ImportedStructures`' cache (by file time and size), and `FarmTemplates` swaps in the whole new list at once. Don't fill shared lists in place.
-- Never store per-player state on the table itself, and never read another player's session. Server code gets the session from the acting player; client code uses `table.session(localPlayer)`. Never cache a session on the client: each sync replaces the client's copy.
+- Never store per-player state on the table itself, and never read another player's session. Server code gets the session from the acting player; client code uses `table.session(localPlayer)`. Never cache a session on the client: each `SessionSyncPayload` replaces the client's copy.
 - The farm code (`FarmBuilder`, `FarmDismantler`, `FarmSpawns`) takes a `TableSession`, never the table.
 - `farm`:
   - `FarmBuilder` places one step per call.
@@ -22,10 +23,10 @@ alwaysApply: false
 - `screen`: `DreamTableScreen` only wires things together. `TableButtons` is the server side of every button. Page and button ids are constants in `DreamTableScreenHandler`.
 - `screen/page`: one `TablePage` per menu page. `ProjectState` reads the synced phase on the client.
 - `screen/ui`: `Theme`, `Painter`, `Viewport`, `SearchBox`.
-- `client/clipboard` and `client/hologram`: the world-space board and the ghost blocks.
+- `client/clipboard` and `client/hologram`: the world-space board and the ghost blocks. `client/OtherFarms` draws other players' areas from `FarmAreasPayload` when Show Other Farms is on.
 
 ## Server owns the state
-The client only previews with `handler.preview(...)` and sends a button id. `TableButtons` changes the table, and the table calls `sync()`.
+The client only previews with `handler.preview(...)` and sends a button id. `TableButtons` changes the session, and the session calls `sync()`.
 
 ## Adding a menu page
 1. Add `PAGE_*` and `BUTTON_*` constants in `DreamTableScreenHandler`.

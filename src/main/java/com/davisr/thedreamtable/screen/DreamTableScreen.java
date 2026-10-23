@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.client.DreamTableKeys;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.screen.page.MaterialsPage;
 import com.davisr.thedreamtable.screen.page.OptionsPage;
+import com.davisr.thedreamtable.screen.page.SpeedPage;
 import com.davisr.thedreamtable.screen.page.PageContext;
 import com.davisr.thedreamtable.screen.page.ProjectState;
 import com.davisr.thedreamtable.screen.page.RequirementsPage;
@@ -41,6 +42,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private TablePage requirements;
 	private TablePage schemes;
 	private TablePage options;
+	private TablePage speed;
 	private TablePage materials;
 	private TablePage swap;
 
@@ -68,6 +70,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		requirements = new RequirementsPage(ui);
 		schemes = new SchemesPage(ui);
 		options = new OptionsPage(ui);
+		speed = new SpeedPage(ui);
 		materials = new MaterialsPage(ui);
 		swap = new SwapPage(ui, search);
 		layout();
@@ -130,7 +133,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	@Override
 	public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
 		layout();
-		if (button == 0 && view.drag(mouseY)) {
+		if (button == 0 && (view.drag(mouseY) || page().drag(mouseX, mouseY))) {
 			return true;
 		}
 		return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
@@ -141,6 +144,9 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		layout();
 		if (button == 0) {
 			view.endDrag();
+			if (page().release(mouseX, mouseY)) {
+				return true;
+			}
 		}
 		return super.mouseReleased(mouseX, mouseY, button);
 	}
@@ -206,6 +212,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			case DreamTableScreenHandler.PAGE_REQUIREMENTS -> requirements;
 			case DreamTableScreenHandler.PAGE_SCHEMES -> schemes;
 			case DreamTableScreenHandler.PAGE_OPTIONS -> options;
+			case DreamTableScreenHandler.PAGE_SPEED -> speed;
 			case DreamTableScreenHandler.PAGE_MATERIALS -> materials;
 			case DreamTableScreenHandler.PAGE_SWAP -> swap;
 			default -> selection;

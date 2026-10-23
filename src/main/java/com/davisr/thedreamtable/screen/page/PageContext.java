@@ -58,6 +58,10 @@ public final class PageContext {
 		painter.card(context, icon, label, view.cardX(), y, cardHit(mouseX, mouseY, y), selected, enabled);
 	}
 
+	public void card(DrawContext context, ItemStack icon, Text label, Text detail, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
+		painter.card(context, icon, label, detail, view.cardX(), y, cardHit(mouseX, mouseY, y), selected, enabled);
+	}
+
 	public void button(DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
 		painter.button(context, label, view.cardX(), y, buttonHit(mouseX, mouseY, y), enabled, primary);
 	}

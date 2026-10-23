@@ -78,7 +78,7 @@ class BuildProgressTest {
 	void saveAndLoadKeepsEverything() {
 		BuildProgress progress = new BuildProgress();
 		UUID owner = UUID.randomUUID();
-		progress.setPace(-5);
+		progress.setPace(BuildPace.SLOW);
 		progress.start(owner, true, 42L);
 		progress.recordPlaced(true);
 		progress.advance();
@@ -91,7 +91,7 @@ class BuildProgressTest {
 		loaded.read(nbt);
 		assertEquals(DreamTableBlockEntity.PHASE_NEED, loaded.phase());
 		assertEquals(2, loaded.index());
-		assertEquals(-5, loaded.pace());
+		assertEquals(BuildPace.SLOW, loaded.pace());
 		assertEquals(owner, loaded.owner());
 		assertTrue(loaded.placed(0));
 		assertTrue(loaded.paid(0));
@@ -100,7 +100,7 @@ class BuildProgressTest {
 	}
 
 	@Test
-	void oldSpeedsLoadAsTheDefaultDuration() {
+	void oldSpeedsLoadAsTheDefaultLevel() {
 		NbtCompound nbt = new NbtCompound();
 		nbt.putInt("BlocksPerSecond", 4);
 		nbt.putInt("Ticks", 11);

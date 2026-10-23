@@ -1,7 +1,5 @@
 package com.davisr.thedreamtable.block.entity;
 
-import com.davisr.thedreamtable.farm.BuildPace;
-import com.davisr.thedreamtable.farm.BuildPermission;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmDismantler;
@@ -22,51 +20,50 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
-import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
 
 /**
- * One player's use of a table: the menu page, the chosen farm, what was delivered, the placement, and the build.
- * A table keeps one session per player, so two players at the same table never share or disturb each other's state.
+ * One player's use of a table: the menu page, the chosen farm, what was delivered ({@link MaterialDesk}), the placement,
+ * the build ({@link SessionBuild}, {@link BuildProgress}) and its area ({@link SessionAreas}). A table keeps one session per player, so two
+ * players at the same table never share or disturb each other's state. Only its owner's client ever receives it.
  * Reads and writes use the same keys the table used before sessions existed, so older worlds still load.
  */
 public final class TableSession {
 	private static final int MAX_SKIPS_PER_TICK = 4096;
 
 	private final DreamTableBlockEntity table;
-	private final SimpleInventory materials = new SimpleInventory(FarmTemplate.MAX_SLOTS);
-	private final MaterialLedger ledger = new MaterialLedger();
+	private final MaterialDesk desk;
 	private final BuildProgress progress = new BuildProgress();
 	private final FarmPlacement placement = new FarmPlacement();
+	private final SessionAreas areas = new SessionAreas(this);
+	private final SessionBuild build = new SessionBuild(this, progress, areas);
 	private UUID player;
-	private boolean adjusting;
-	private boolean finishedRecorded;
 	private String selectedFarm = "";
 	private int page;
 	private boolean requirementsBoard;
 	private int swapMaterial = -1;
+	private boolean clientDirty = true;
 
 	TableSession(DreamTableBlockEntity table, UUID player) {
 		this.table = table;
 		this.player = player;
-		materials.addListener(inventory -> {
-			if (!adjusting) {
-				absorbInsertedStacks();
-				table.markDirty();
-			}
-		});
+		this.desk = new MaterialDesk(this::template, table::markDirty);
 	}
 
 	public UUID player() {
 		return player;
+	}
+
+	DreamTableBlockEntity table() {
+		return table;
 	}
 
 	/** A session saved before players had their own is handed to the first player who opens the table. */
@@ -76,7 +73,7 @@ public final class TableSession {
 
 	/** An unused session is not saved. */
 	boolean isEmpty() {
-		return selectedFarm.isEmpty() && !ledger.anyDelivered();
+		return selectedFarm.isEmpty() && !desk.anyDelivered();
 	}
 
 	// Table access, so farm code can treat a session like the table it belongs to.
@@ -98,31 +95,8 @@ public final class TableSession {
 		return world.getServer().getPlayerManager().getPlayer(player);
 	}
 
-	/**
-	 * Places the blocks due this tick. Blocks already in place are skipped without using the pace,
-	 * up to {@link #MAX_SKIPS_PER_TICK}, so resuming a half-built farm doesn't wait on them.
-	 */
 	void tick(ServerWorld world) {
-		if (progress.is(PHASE_DONE) && !finishedRecorded) {
-			recordFinished();
-		}
-		if (!progress.is(PHASE_BUILDING) || onlineOwner(world) == null) {
-			return;
-		}
-		int due = progress.due(blocksPerSecond());
-		int placed = 0;
-		int skipped = 0;
-		while (placed < due && skipped < MAX_SKIPS_PER_TICK && progress.is(PHASE_BUILDING)) {
-			FarmBuilder.Outcome outcome = FarmBuilder.placeNext(this, world, placed == 0);
-			if (outcome == FarmBuilder.Outcome.STOPPED) {
-				break;
-			}
-			if (outcome == FarmBuilder.Outcome.PLACED) {
-				placed++;
-			} else {
-				skipped++;
-			}
-		}
+		build.tick(world);
 	}
 
 	// Farm choice and menu
@@ -139,7 +113,7 @@ public final class TableSession {
 		releaseArea();
 		selectedFarm = farm == null ? "" : farm;
 		requirementsBoard = false;
-		ledger.reset();
+		desk.reset();
 		progress.reset(false);
 		swapMaterial = -1;
 		placement.clear();
@@ -148,7 +122,7 @@ public final class TableSession {
 
 	/** True while the farm has a placement, delivered items, or a build that is not finished. */
 	public boolean hasProgress() {
-		return !progress.is(PHASE_DONE) && (progress.busy() || placement.placed() || ledger.anyDelivered());
+		return !progress.is(PHASE_DONE) && (progress.busy() || placement.placed() || desk.anyDelivered());
 	}
 
 	public int getPage() {
@@ -170,32 +144,36 @@ public final class TableSession {
 	}
 
 	public SimpleInventory getMaterials() {
-		return materials;
+		return desk.slots();
 	}
 
 	// Material swaps
 
 	public Item resolve(Item original) {
-		return ledger.resolve(original);
+		return desk.resolve(original);
 	}
 
 	public BlockState swapState(BlockState state) {
-		return ledger.swapState(state);
+		return desk.swapState(state);
+	}
+
+	Map<Item, Item> swaps() {
+		return desk.swaps();
 	}
 
 	public List<Item> swapOptions(int index) {
-		return ledger.swapOptions(template(), index);
+		return desk.swapOptions(index);
 	}
 
 	/** A material can be swapped only before any of it is delivered and before the build starts. */
 	public boolean canSwap(int index) {
 		FarmTemplate template = template();
 		boolean valid = template != null && index >= 0 && index < template.materials().size();
-		return valid && progress.is(PHASE_IDLE) && progress.index() == 0 && ledger.untouched(index);
+		return valid && progress.is(PHASE_IDLE) && progress.index() == 0 && desk.untouched(index);
 	}
 
 	public boolean setSwap(int index, int option) {
-		if (!canSwap(index) || !ledger.swap(template(), index, option)) {
+		if (!canSwap(index) || !desk.swap(index, option)) {
 			return false;
 		}
 		sync();
@@ -230,6 +208,22 @@ public final class TableSession {
 		sync();
 	}
 
+	void clearPlacement() {
+		placement.clear();
+		sync();
+	}
+
+	/** Why the farm can't start at the site, as a lang key, or null. See {@link SessionAreas#problemAt}. */
+	public String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site) {
+		FarmTemplate template = template();
+		return template == null ? null : areas.problemAt(world, asker, site, template);
+	}
+
+	public int existingPercent(ServerWorld world, FarmSite site) {
+		FarmTemplate template = template();
+		return template == null ? 0 : areas.existingPercent(world, site, template);
+	}
+
 	// Build progress
 
 	public String getPhase() {
@@ -240,8 +234,9 @@ public final class TableSession {
 		return progress.busy();
 	}
 
-	public boolean canResume() {
-		return progress.resumable();
+	/** Starting, resuming, pacing and stopping the build. */
+	public SessionBuild build() {
+		return build;
 	}
 
 	public int getBuildIndex() {
@@ -253,181 +248,17 @@ public final class TableSession {
 		return template == null ? 0 : template.steps().size();
 	}
 
-	/** The chosen pace, as stored by {@link BuildPace}: blocks per second, or a target duration. */
-	public int getPace() {
-		return progress.pace();
-	}
-
-	public void setPace(int pace) {
-		progress.setPace(pace);
-		sync();
-	}
-
-	public int blocksPerSecond() {
-		return BuildPace.blocksPerSecond(progress.pace(), totalSteps());
-	}
-
-	/**
-	 * Starts or resumes the build. It refuses, and tells the player why, when a new build can't start where it was placed
-	 * ({@link #problemAt}), or when a resumed build belongs to a farm file that has changed.
-	 * A started build reserves its area in {@link FarmAreas}, so no other farm is placed or cleared inside it.
-	 */
-	public boolean begin(ServerPlayerEntity starter, boolean fromScratch) {
-		FarmTemplate template = template();
-		if (template == null || !(table.getWorld() instanceof ServerWorld world)) {
-			return false;
-		}
-		if (fromScratch) {
-			String problem = problemAt(world, starter, FarmBuilder.site(this));
-			if (problem != null) {
-				placement.clear();
-				sync();
-				starter.sendMessage(Text.translatable(problem), true);
-				return false;
-			}
-		}
-		if (!fromScratch && !progress.matches(template.signature())) {
-			starter.sendMessage(Text.translatable("gui.the_dream_table.farm_changed"), true);
-			return false;
-		}
-		FarmAreas.of(world).claim(areaKey(), FarmBuilder.site(this).footprint(template));
-		progress.start(player, fromScratch, template.signature());
-		sync();
-		tell(Text.translatable("gui.the_dream_table.building", progress.index(), totalSteps()));
-		return true;
-	}
-
-	/**
-	 * Why this farm can't start at the site, as a lang key, or null when it can: it leaves the world, overlaps another farm
-	 * at any table, or touches land the player may not build in. The hologram asks this before Build is pressed.
-	 */
-	public String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site) {
-		FarmTemplate template = template();
-		if (template == null) {
-			return null;
-		}
-		Box area = site.footprint(template);
-		if (!site.fits(world, template)) {
-			return "gui.the_dream_table.out_of_world";
-		}
-		if (table.overlapsOthers(this, area)) {
-			return "gui.the_dream_table.farm_overlaps";
-		}
-		FarmAreas.Conflict conflict = FarmAreas.of(world).conflict(world, areaKey(), area);
-		if (conflict == FarmAreas.Conflict.ACTIVE) {
-			return "gui.the_dream_table.farm_overlaps";
-		}
-		if (conflict == FarmAreas.Conflict.FINISHED) {
-			return "gui.the_dream_table.farm_overlaps_finished";
-		}
-		if (!BuildPermission.canBuildAll(world, asker, site, template)) {
-			return "gui.the_dream_table.protected_area";
-		}
-		return null;
-	}
-
-	private FarmAreas.Key areaKey() {
-		return FarmAreas.Key.build(table.getPos(), player);
-	}
-
-	/**
-	 * A finished farm keeps its area after this session moves on to another farm, so no later farm is placed over it
-	 * or clears its blocks. Farms finished before areas existed are recorded the first time their table ticks.
-	 */
-	private void recordFinished() {
-		finishedRecorded = true;
-		FarmTemplate template = template();
-		if (template != null && table.getWorld() instanceof ServerWorld world) {
-			FarmAreas areas = FarmAreas.of(world);
-			areas.recordFinished(player, template, FarmBuilder.site(this), ledger.swaps());
-			areas.release(areaKey());
-		}
-	}
-
-	private void releaseArea() {
-		if (table.getWorld() instanceof ServerWorld world) {
-			FarmAreas.of(world).release(areaKey());
-		}
-	}
-
-	/** A block could not be placed, or the step failed unexpectedly. Nothing was spent; Try Again repeats the step. */
-	public void placementFailed(BlockPos where) {
-		progress.stop(PHASE_BLOCKED);
-		sync();
-		tell(Text.translatable("gui.the_dream_table.place_failed", where.getX(), where.getY(), where.getZ()));
-		table.sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), where, 0.8F, 0.5F);
-	}
-
-	/** The owner isn't allowed to build at this spot, by spawn protection, the border, or a claim. Try Again checks again. */
-	public void protectedSpot(BlockPos where) {
-		progress.stop(PHASE_BLOCKED);
-		sync();
-		tell(Text.translatable("gui.the_dream_table.protected_spot", where.getX(), where.getY(), where.getZ()));
-		table.sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), where, 0.8F, 0.5F);
-	}
-
-	public void obstruct(BlockPos where, BlockState obstacle) {
-		progress.stop(PHASE_BLOCKED);
-		sync();
-		tell(Text.translatable("gui.the_dream_table.blocked_at", obstacle.getBlock().getName()));
-		table.sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), where, 0.8F, 0.5F);
-	}
-
-	public void missingMaterial() {
-		progress.stop(PHASE_NEED);
-		sync();
-		tell(Text.translatable("gui.the_dream_table.paused"));
-		table.sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), table.getPos(), 0.8F, 0.5F);
-	}
-
-	/** Stops after the current step; nothing is undone and resuming continues from the next block. */
-	public boolean pause() {
-		if (!progress.is(PHASE_BUILDING)) {
-			return false;
-		}
-		progress.stop(PHASE_PAUSED);
-		sync();
-		tell(Text.translatable("gui.the_dream_table.paused_build", progress.index(), totalSteps()));
-		return true;
-	}
-
-	public void finish() {
-		progress.stop(PHASE_DONE);
-		recordFinished();
-		sync();
-		tell(Text.translatable("gui.the_dream_table.done"));
-		table.sound(SoundEvents.BLOCK_BEACON_ACTIVATE, table.getPos(), 0.6F, 1.2F);
-	}
-
-	public void advance() {
-		progress.advance();
-		sync();
-	}
-
-	/** Marks the current step as placed by the table, and whether it used a delivered item. */
-	public void recordPlaced(boolean usedItem) {
-		progress.recordPlaced(usedItem);
-	}
-
-	public boolean wasPlaced(int step) {
-		return progress.placed(step);
-	}
-
-	public boolean wasPaid(int step) {
-		return progress.paid(step);
-	}
-
 	// Delivered materials
 
+	/** Delivers the held stack on the clipboard. When the build waits for exactly this block, it continues right away. */
 	public boolean offerFromHand(PlayerEntity giver) {
-		FarmTemplate template = template();
-		if (!requirementsBoard || template == null) {
+		if (!requirementsBoard || template() == null) {
 			return false;
 		}
 		Hand hand = giver.getStackInHand(Hand.MAIN_HAND).isEmpty() ? Hand.OFF_HAND : Hand.MAIN_HAND;
 		ItemStack stack = giver.getStackInHand(hand);
 		boolean creative = giver.getAbilities().creativeMode;
-		int accepted = stack.isEmpty() ? 0 : ledger.accept(template, stack, creative);
+		int accepted = desk.accept(stack, creative);
 		if (accepted <= 0) {
 			return false;
 		}
@@ -436,55 +267,47 @@ public final class TableSession {
 		}
 		sync();
 		if (table.getWorld() != null) {
-			table.getWorld().playSound(null, table.getPos(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 0.5F, 1.15F);
+			table.getWorld().playSound(null, getPos(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 0.5F, 1.15F);
 		}
 		giver.swingHand(hand);
 		if (giver instanceof ServerPlayerEntity deliverer && progress.is(PHASE_NEED) && nextStepReady()) {
-			begin(deliverer, false);
+			build.begin(deliverer, false);
 		}
 		return true;
 	}
 
-	/** True when the step the build stopped at has its material now, so a delivery can continue the build without a trip to the table. */
 	private boolean nextStepReady() {
 		FarmTemplate template = template();
 		if (template == null || progress.index() >= template.steps().size()) {
 			return false;
 		}
 		Item needed = template.steps().get(progress.index()).item();
-		return needed == null || hasMaterial(needed);
+		return needed == null || desk.has(needed);
 	}
 
 	public boolean hasAllMaterials() {
-		FarmTemplate template = template();
-		return template != null && ledger.complete(template);
+		return desk.complete();
 	}
 
 	public int deposited(int index) {
-		return ledger.deposited(index);
+		return desk.deposited(index);
 	}
 
 	public int supplied(int index) {
-		return ledger.supplied(index);
+		return desk.supplied(index);
 	}
 
 	public int stored(Item item) {
-		FarmTemplate template = template();
-		return template == null ? 0 : ledger.stored(template, item);
+		return desk.stored(item);
 	}
 
 	public boolean hasMaterial(Item item) {
-		FarmTemplate template = template();
-		return template != null && ledger.has(template, item);
+		return desk.has(item);
 	}
 
 	/** Uses one delivered item. Returns true when it was one the player paid for, so the step can be refunded later. */
 	public boolean spendMaterial(Item item) {
-		FarmTemplate template = template();
-		if (template == null) {
-			return false;
-		}
-		boolean paid = ledger.consume(template, item);
+		boolean paid = desk.spend(item);
 		table.markDirty();
 		return paid;
 	}
@@ -500,7 +323,7 @@ public final class TableSession {
 				discarder.sendMessage(Text.translatable("gui.the_dream_table.discard_changed"), true);
 			} else {
 				FarmSite site = FarmBuilder.site(this);
-				FarmDismantler job = new FarmDismantler(player, selectedFarm, template.signature(), site, ledger.swaps(),
+				FarmDismantler job = new FarmDismantler(player, selectedFarm, template.signature(), site, desk.swaps(),
 						progress.placedSteps(), progress.paidSteps(), progress.index());
 				FarmAreas.of(world).claim(job.areaKey(), site.footprint(template));
 				table.startDismantling(job);
@@ -508,42 +331,49 @@ public final class TableSession {
 			}
 		}
 		releaseArea();
-		returnDeposited(discarder.getWorld(), discarder);
+		desk.returnAll(discarder.getWorld(), getPos(), discarder);
 		progress.reset(true);
 		page = 0;
 		selectedFarm = "";
 		requirementsBoard = false;
-		ledger.reset();
+		desk.reset();
 		swapMaterial = -1;
 		placement.clear();
 		sync();
 	}
 
 	void dropMaterials(World world) {
-		returnDeposited(world, null);
+		desk.returnAll(world, getPos(), null);
 	}
 
-	// Saving
+	private void releaseArea() {
+		if (table.getWorld() instanceof ServerWorld world) {
+			areas.release(world);
+		}
+	}
+
+	// Saving and syncing
 
 	void write(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		nbt.putString("SelectedFarm", selectedFarm);
 		nbt.putInt("Page", page);
 		nbt.putBoolean("RequirementsBoard", requirementsBoard);
 		nbt.putInt("SwapMaterial", swapMaterial);
-		nbt.put("Materials", materials.toNbtList(registries));
+		desk.write(nbt, registries);
 		progress.write(nbt);
 		placement.write(nbt);
-		ledger.write(nbt);
 	}
 
-	/** The trimmed copy sent to clients: no slot inventory, no step records, no page, which the menu syncs on its own. */
-	void writeForClient(NbtCompound nbt) {
+	/** The trimmed copy sent to the owner's client: no slot inventory, no step records, no page, which the menu syncs on its own. */
+	NbtCompound writeForClient() {
+		NbtCompound nbt = new NbtCompound();
 		nbt.putString("SelectedFarm", selectedFarm);
 		nbt.putBoolean("RequirementsBoard", requirementsBoard);
 		nbt.putInt("SwapMaterial", swapMaterial);
+		desk.writeForClient(nbt);
 		progress.writeForClient(nbt);
 		placement.write(nbt);
-		ledger.write(nbt);
+		return nbt;
 	}
 
 	void read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
@@ -551,13 +381,9 @@ public final class TableSession {
 		page = nbt.getInt("Page");
 		requirementsBoard = nbt.getBoolean("RequirementsBoard");
 		swapMaterial = nbt.contains("SwapMaterial", NbtElement.INT_TYPE) ? nbt.getInt("SwapMaterial") : -1;
-		materials.clear();
-		if (nbt.contains("Materials", NbtElement.LIST_TYPE)) {
-			materials.readNbtList(nbt.getList("Materials", NbtElement.COMPOUND_TYPE), registries);
-		}
 		progress.read(nbt);
 		placement.read(nbt);
-		ledger.read(nbt);
+		desk.read(nbt, registries);
 	}
 
 	/** The player who started the build, for sessions saved before players had their own. */
@@ -565,45 +391,23 @@ public final class TableSession {
 		return progress.owner();
 	}
 
-	private void absorbInsertedStacks() {
-		FarmTemplate template = template();
-		if (template == null) {
-			return;
-		}
-		adjusting = true;
-		try {
-			ledger.absorb(template, materials);
-		} finally {
-			adjusting = false;
-		}
+	/** True once after every change, so the table sends the owner one update per tick at most. */
+	boolean takeClientDirty() {
+		boolean dirty = clientDirty;
+		clientDirty = false;
+		return dirty;
 	}
 
-	/** Gives the unused delivered items back to the player, or drops them at the table. */
-	private void returnDeposited(World world, PlayerEntity receiver) {
-		adjusting = true;
-		try {
-			for (ItemStack stack : ledger.drain(template())) {
-				if (receiver != null && receiver.getInventory().insertStack(stack) && stack.isEmpty()) {
-					continue;
-				}
-				if (receiver != null) {
-					receiver.dropItem(stack, false);
-				} else if (world != null) {
-					BlockPos pos = table.getPos();
-					ItemScatterer.spawn(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, stack);
-				}
-			}
-			materials.clear();
-		} finally {
-			adjusting = false;
-		}
+	void markClientDirty() {
+		clientDirty = true;
 	}
 
-	private void tell(Text text) {
+	void tell(Text text) {
 		table.tell(player, text);
 	}
 
-	private void sync() {
-		table.sync();
+	void sync() {
+		clientDirty = true;
+		table.markDirty();
 	}
 }

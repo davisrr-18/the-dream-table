@@ -40,7 +40,7 @@ public final class FarmBuilder {
 			return step(table, world, sound);
 		} catch (RuntimeException exception) {
 			TheDreamTableMod.LOGGER.error("Build step {} failed for {}", table.getBuildIndex(), table.getSelectedFarm(), exception);
-			table.placementFailed(table.getPos());
+			table.build().placementFailed(table.getPos());
 			return Outcome.STOPPED;
 		}
 	}
@@ -56,7 +56,7 @@ public final class FarmBuilder {
 			return Outcome.STOPPED;
 		}
 		if (table.getBuildIndex() >= template.steps().size()) {
-			table.finish();
+			table.build().finish();
 			return Outcome.STOPPED;
 		}
 		ServerPlayerEntity owner = table.onlineOwner(world);
@@ -66,6 +66,7 @@ public final class FarmBuilder {
 		FarmStep step = template.steps().get(table.getBuildIndex());
 		FarmSite site = site(table);
 		BlockPos target = site.target(template, step);
+		ChunkKeeper.keepSpot(world, target);
 		if (!world.isChunkLoaded(target)) {
 			return Outcome.STOPPED;
 		}
@@ -78,29 +79,29 @@ public final class FarmBuilder {
 				return Outcome.SKIPPED;
 			}
 			if (!existing.isReplaceable() && (!ObstacleRules.clearable(world, table.getPos(), target, existing) || insideOtherFarm(world, table, target))) {
-				table.obstruct(target, existing);
+				table.build().obstruct(target, existing);
 				return Outcome.STOPPED;
 			}
 		}
 		if (!permitted(world, owner, target, existing)) {
-			table.protectedSpot(target);
+			table.build().protectedSpot(target);
 			return Outcome.STOPPED;
 		}
 		boolean free = owner.isCreative();
 		boolean costs = step.item() != null && !free;
 		if (costs && !table.hasMaterial(step.item())) {
-			table.missingMaterial();
+			table.build().missingMaterial();
 			return Outcome.STOPPED;
 		}
 
 		boolean done = placed == null ? spawn(world, target, step) : place(world, target, placed, step, !free, sound);
 		if (!done) {
-			table.placementFailed(target);
+			table.build().placementFailed(target);
 			return Outcome.STOPPED;
 		}
 		boolean paid = costs && table.spendMaterial(step.item());
 		if (placed != null) {
-			table.recordPlaced(paid);
+			table.build().recordPlaced(paid);
 		}
 		if (placed != null && step.item() == Items.WATER_BUCKET && paid) {
 			FarmSpawns.returnBucket(world, table);
@@ -152,10 +153,10 @@ public final class FarmBuilder {
 	}
 
 	private static void advance(ServerWorld world, TableSession table, FarmTemplate template, FarmSite site) {
-		table.advance();
+		table.build().advance();
 		if (table.getBuildIndex() >= template.steps().size()) {
 			settle(world, template, site);
-			table.finish();
+			table.build().finish();
 		}
 	}
 

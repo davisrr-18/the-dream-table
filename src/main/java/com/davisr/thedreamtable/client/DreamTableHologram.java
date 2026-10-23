@@ -9,6 +9,7 @@ import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.network.CheckPlacementPayload;
 import com.davisr.thedreamtable.network.PlacementResultPayload;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
@@ -40,8 +41,11 @@ public final class DreamTableHologram {
 	private static boolean anchored;
 	private static Direction previewFacing;
 	private static int lastPlaceAge = -1;
+	private static final int RECHECK_TICKS = 40;
 	private static Placement checked;
 	private static String problem = "";
+	private static int existing;
+	private static int recheckTicks;
 
 	private DreamTableHologram() {
 	}
@@ -55,20 +59,45 @@ public final class DreamTableHologram {
 			if (payload.table().equals(tablePos)) {
 				checked = new Placement(payload.anchor(), payload.facing());
 				problem = payload.problem();
+				existing = payload.existing();
+			}
+		});
+		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			if (++recheckTicks >= RECHECK_TICKS) {
+				recheckTicks = 0;
+				if (hasPlacement() && !locked()) {
+					send(false);
+				}
 			}
 		});
 	}
 
 	/** The server's reason this placement can't be built, as a lang key, or empty. Only valid for the placement it was asked about. */
 	public static String placementProblem() {
-		return hasPlacement() && new Placement(aimed, previewFacing()).equals(checked) ? problem : "";
+		return checkedNow() ? problem : "";
 	}
 
+	/** How much of this farm already stands at the placement, in percent, so an older farm can be built over and protected. */
+	public static int existingPercent() {
+		return checkedNow() ? existing : 0;
+	}
+
+	private static boolean checkedNow() {
+		return hasPlacement() && new Placement(aimed, previewFacing()).equals(checked);
+	}
+
+	/** A new placement forgets the old answer; the regular recheck keeps showing it until the new one arrives. */
 	private static void check() {
 		checked = null;
 		problem = "";
+		existing = 0;
+		recheckTicks = 0;
+		send(true);
+	}
+
+	private static void send(boolean announce) {
 		if (hasPlacement() && ClientPlayNetworking.canSend(CheckPlacementPayload.ID)) {
-			ClientPlayNetworking.send(new CheckPlacementPayload(tablePos, aimed, previewFacing()));
+			ClientPlayNetworking.send(new CheckPlacementPayload(tablePos, aimed, previewFacing(), announce));
 		}
 	}
 
@@ -89,6 +118,7 @@ public final class DreamTableHologram {
 			previewFacing = null;
 			checked = null;
 			problem = "";
+			existing = 0;
 		}
 		tablePos = pos;
 		farmId = nextFarm;
@@ -138,6 +168,7 @@ public final class DreamTableHologram {
 		previewFacing = null;
 		checked = null;
 		problem = "";
+		existing = 0;
 	}
 
 	private static void render(WorldRenderContext context) {

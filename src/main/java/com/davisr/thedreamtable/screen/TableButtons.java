@@ -20,6 +20,10 @@ final class TableButtons {
 		if (id >= 0 && id < FarmOptions.ALL.size()) {
 			return openFarm(table, FarmOptions.ALL.get(id).id());
 		}
+		if (id > BUTTON_PACE_CUSTOM && id <= BUTTON_PACE_CUSTOM + BuildPace.MAX_PERCENT) {
+			table.build().setPace(BuildPace.ofPercent(id - BUTTON_PACE_CUSTOM));
+			return true;
+		}
 		if (id >= BUTTON_SWAP_PICK) {
 			return pickSwap(table, id - BUTTON_SWAP_PICK);
 		}
@@ -36,17 +40,18 @@ final class TableButtons {
 			case BUTTON_MATERIALS_BACK, BUTTON_BACK -> page(table, PAGE_WORK);
 			case BUTTON_MENU, BUTTON_SCHEMES_BACK, BUTTON_OPTIONS_BACK -> page(table, PAGE_SELECT);
 			case BUTTON_SCHEMES -> page(table, PAGE_SCHEMES);
-			case BUTTON_OPTIONS -> page(table, PAGE_OPTIONS);
+			case BUTTON_OPTIONS, BUTTON_SPEED_BACK -> page(table, PAGE_OPTIONS);
+			case BUTTON_SPEED_OPEN -> page(table, PAGE_SPEED);
 			case BUTTON_REQUIREMENTS -> {
 				table.setRequirementsBoard(true);
 				yield true;
 			}
-			case BUTTON_PACE_MINUTES + 1, BUTTON_PACE_MINUTES + 5, BUTTON_PACE_MINUTES + 10 -> {
-				table.setPace(BuildPace.ofMinutes(id - BUTTON_PACE_MINUTES));
+			case BUTTON_PACE, BUTTON_PACE + 1, BUTTON_PACE + 2 -> {
+				table.build().setPace(BuildPace.LEVELS[id - BUTTON_PACE]);
 				yield true;
 			}
 			case BUTTON_BUILD -> build(table, player);
-			case BUTTON_PAUSE -> table.pause();
+			case BUTTON_PAUSE -> table.build().pause();
 			case BUTTON_DISCARD -> {
 				table.discard(player);
 				yield true;
@@ -61,11 +66,11 @@ final class TableButtons {
 	}
 
 	private static boolean build(TableSession table, ServerPlayerEntity player) {
-		if (table.canResume()) {
-			return table.begin(player, false);
+		if (table.build().canResume()) {
+			return table.build().begin(player, false);
 		}
 		if (DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) && !table.getSelectedFarm().isEmpty()) {
-			return table.begin(player, true);
+			return table.build().begin(player, true);
 		}
 		return false;
 	}

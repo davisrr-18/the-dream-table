@@ -10,14 +10,18 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
-/** The server's answer to {@link CheckPlacementPayload}: the lang key of the problem, or empty when the farm fits there. */
-public record PlacementResultPayload(BlockPos table, BlockPos anchor, Direction facing, String problem) implements CustomPayload {
+/**
+ * The server's answer to {@link CheckPlacementPayload}: the lang key of the problem, or empty when the farm fits there,
+ * and how much of the farm already stands there, in percent.
+ */
+public record PlacementResultPayload(BlockPos table, BlockPos anchor, Direction facing, String problem, int existing) implements CustomPayload {
 	public static final Id<PlacementResultPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "placement_result"));
 	public static final PacketCodec<RegistryByteBuf, PlacementResultPayload> CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC, PlacementResultPayload::table,
 			BlockPos.PACKET_CODEC, PlacementResultPayload::anchor,
 			Direction.PACKET_CODEC, PlacementResultPayload::facing,
 			PacketCodecs.STRING, PlacementResultPayload::problem,
+			PacketCodecs.VAR_INT, PlacementResultPayload::existing,
 			PlacementResultPayload::new
 	);
 

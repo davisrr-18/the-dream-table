@@ -80,6 +80,7 @@ public final class FarmDismantler {
 		if (online == null) {
 			return false;
 		}
+		ChunkKeeper.keepTable(world, site.table());
 		Batch batch = new Batch();
 		next = Math.min(next, template.steps().size() - 1);
 		for (int checked = 0; next >= 0 && checked < STEPS_PER_TICK && batch.removed < BLOCKS_PER_TICK; checked++) {
@@ -107,6 +108,7 @@ public final class FarmDismantler {
 			return true;
 		}
 		BlockPos pos = site.target(template, step);
+		ChunkKeeper.keepSpot(world, pos);
 		if (!world.isChunkLoaded(pos)) {
 			return false;
 		}

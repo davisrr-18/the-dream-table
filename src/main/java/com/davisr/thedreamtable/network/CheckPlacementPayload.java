@@ -3,11 +3,13 @@ package com.davisr.thedreamtable.network;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
+import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmSite;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -17,23 +19,28 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 /**
- * Sent when the player anchors or turns the hologram, before Build. The server runs the same checks Build will
- * and answers with {@link PlacementResultPayload}, so the hologram turns red and the reason shows right away.
+ * Sent when the player anchors or turns the hologram, and every few seconds while it waits for Build.
+ * The server runs the same checks Build will and answers with {@link PlacementResultPayload},
+ * so the hologram turns red and the reason shows right away.
  */
-public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction facing) implements CustomPayload {
+public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction facing, boolean announce) implements CustomPayload {
 	public static final Id<CheckPlacementPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "check_placement"));
 	public static final PacketCodec<RegistryByteBuf, CheckPlacementPayload> CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC, CheckPlacementPayload::table,
 			BlockPos.PACKET_CODEC, CheckPlacementPayload::anchor,
 			Direction.PACKET_CODEC, CheckPlacementPayload::facing,
+			PacketCodecs.BOOL, CheckPlacementPayload::announce,
 			CheckPlacementPayload::new
 	);
+
+	/** The player may stand anywhere they can aim the hologram from. */
+	private static final double MAX_DISTANCE = FarmGeometry.AIM_RANGE + 16.0;
 
 	public static void register() {
 		PayloadTypeRegistry.playC2S().register(ID, CODEC);
 		ServerPlayNetworking.registerGlobalReceiver(ID, (payload, context) -> context.server().execute(() -> {
 			ServerPlayerEntity player = context.player();
-			if (player.squaredDistanceTo(payload.table().toCenterPos()) > 64.0 || !(player.getWorld() instanceof ServerWorld world)) {
+			if (player.squaredDistanceTo(payload.table().toCenterPos()) > MAX_DISTANCE * MAX_DISTANCE || !(player.getWorld() instanceof ServerWorld world)) {
 				return;
 			}
 			if (!(world.getBlockEntity(payload.table()) instanceof DreamTableBlockEntity blockEntity)) {
@@ -45,9 +52,11 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 				return;
 			}
 			Direction facing = PlaceFarmPayload.horizontal(payload.facing(), player);
-			String problem = table.problemAt(world, player, new FarmSite(table.getPos(), payload.anchor(), facing));
-			ServerPlayNetworking.send(player, new PlacementResultPayload(payload.table(), payload.anchor(), facing, problem == null ? "" : problem));
-			if (problem != null) {
+			FarmSite site = new FarmSite(table.getPos(), payload.anchor(), facing);
+			String problem = table.problemAt(world, player, site);
+			int existing = problem == null ? table.existingPercent(world, site) : 0;
+			ServerPlayNetworking.send(player, new PlacementResultPayload(payload.table(), payload.anchor(), facing, problem == null ? "" : problem, existing));
+			if (problem != null && payload.announce()) {
 				player.sendMessage(Text.translatable(problem), true);
 			}
 		}));

@@ -67,6 +67,13 @@ public final class Painter {
 		context.drawText(text, trim(label, w - 46), x + 34, y + 12, enabled ? NAME : MUTED, false);
 	}
 
+	/** A card with a second, smaller line under the name, such as what an option does. */
+	public void card(DrawContext context, ItemStack icon, Text label, Text detail, int x, int y, boolean hovered, boolean selected, boolean enabled) {
+		card(context, icon, Text.empty(), x, y, hovered, selected, enabled);
+		context.drawText(text, trim(label, CARD_WIDTH - 46), x + 34, y + 7, enabled ? NAME : MUTED, false);
+		context.drawText(text, trim(detail, CARD_WIDTH - 46), x + 34, y + 19, HINT, false);
+	}
+
 	public void button(DrawContext context, Text label, int x, int y, boolean hovered, boolean enabled, boolean primary) {
 		boolean hover = enabled && hovered;
 		int w = CARD_WIDTH;
@@ -97,6 +104,16 @@ public final class Painter {
 			int filled = Math.max(0, width * done / total);
 			context.fill(x, y, x + filled, y + 6, 0xFF3E86C4);
 		}
+	}
+
+	/** A horizontal slider: the filled part of the track up to {@code fraction}, and a knob there. 12 px tall. */
+	public void slider(DrawContext context, int x, int y, int width, float fraction, boolean active) {
+		int knob = x + Math.round((width - 6) * Math.max(0.0F, Math.min(1.0F, fraction)));
+		context.fill(x, y + 4, x + width, y + 8, 0xFF163E66);
+		context.fill(x, y + 4, knob + 3, y + 8, active ? CYAN : 0xFF3E86C4);
+		context.fill(knob - 1, y - 1, knob + 7, y + 13, NAVY);
+		context.fill(knob, y, knob + 6, y + 12, active ? 0xFFFFFFFF : CARD_FILL);
+		context.fill(knob + 1, y + 1, knob + 5, y + 11, active ? CARD_FILL_SELECTED : 0xFFFFFFFF);
 	}
 
 	public void slotFrame(DrawContext context, int x, int y) {

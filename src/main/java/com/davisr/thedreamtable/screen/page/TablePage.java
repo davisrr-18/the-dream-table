@@ -8,6 +8,15 @@ public interface TablePage {
 
 	boolean click(double mouseX, double mouseY);
 
+	/** Called while the left button is held after a click this page handled, such as on a slider. */
+	default boolean drag(double mouseX, double mouseY) {
+		return false;
+	}
+
+	default boolean release(double mouseX, double mouseY) {
+		return false;
+	}
+
 	int contentHeight();
 
 	Text subtitle();

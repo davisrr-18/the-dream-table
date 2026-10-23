@@ -4,9 +4,11 @@ import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmDismantler;
 import com.davisr.thedreamtable.farm.FarmTemplate;
+import com.davisr.thedreamtable.network.SessionSyncPayload;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import com.davisr.thedreamtable.screen.OpenData;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
@@ -15,9 +17,6 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
-import net.minecraft.network.listener.ClientPlayPacketListener;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -35,7 +34,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.BiConsumer;
 
 /**
  * The table block. It keeps one {@link TableSession} per player, so every player who uses it has their own
@@ -50,10 +48,13 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	public static final String PHASE_DONE = "done";
 
 	private static final UUID SHARED = new UUID(0L, 0L);
+	private static final String CLIENT_VIEW = "ClientView";
+	private static final double SEND_DISTANCE = 512.0;
 
 	private final Map<UUID, TableSession> sessions = new LinkedHashMap<>();
 	/** Discarded builds still being taken apart. Server only; never sent to clients. */
 	private final List<FarmDismantler> dismantling = new ArrayList<>();
+	private boolean ownSessionReceived;
 
 	public DreamTableBlockEntity(BlockPos pos, BlockState state) {
 		super(ModBlockEntities.DREAM_TABLE, pos, state);
@@ -65,7 +66,44 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 				session.tick(serverWorld);
 			}
 			table.tickDismantling(serverWorld);
+			table.sendSessions(serverWorld);
 		}
+	}
+
+	/**
+	 * Each owner gets only their own session, and only once per tick however often it changed. An owner too far away
+	 * to have the table loaded gets nothing; their client asks again when the table loads.
+	 */
+	private void sendSessions(ServerWorld world) {
+		for (TableSession session : sessions.values()) {
+			if (session.takeClientDirty()) {
+				ServerPlayerEntity owner = session.onlineOwner(world);
+				if (owner != null && owner.getServerWorld() == world && owner.squaredDistanceTo(pos.toCenterPos()) < SEND_DISTANCE * SEND_DISTANCE) {
+					ServerPlayNetworking.send(owner, new SessionSyncPayload(pos, session.writeForClient()));
+				}
+			}
+		}
+	}
+
+	/** The owner's client asked for its session, after the table's chunk loaded or the menu opened. */
+	public void resend(PlayerEntity player) {
+		session(player).markClientDirty();
+	}
+
+	/** On the client: the server's copy of this player's session. Replaces whatever the client had. */
+	public void receiveOwnSession(UUID player, NbtCompound nbt) {
+		if (world == null) {
+			return;
+		}
+		TableSession session = new TableSession(this, player);
+		session.read(nbt, world.getRegistryManager());
+		sessions.put(player, session);
+		ownSessionReceived = true;
+	}
+
+	/** On the client: false until the server sent this player's session for this copy of the table. */
+	public boolean hasOwnSession() {
+		return ownSessionReceived;
 	}
 
 	void startDismantling(FarmDismantler job) {
@@ -89,8 +127,8 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	}
 
 	/**
-	 * The session for this player, created on first use. A client holds only the sessions the server sent,
-	 * so it gets an empty one until the player picks a farm.
+	 * The session for this player, created on first use. A client only ever holds its own player's session,
+	 * sent by {@link #sendSessions}, and gets an empty one until it arrives.
 	 */
 	public TableSession session(UUID player) {
 		TableSession session = sessions.get(player);
@@ -148,26 +186,35 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 
 	@Override
 	public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-		return new DreamTableScreenHandler(syncId, playerInventory, session(player));
+		TableSession session = session(player);
+		session.markClientDirty();
+		return new DreamTableScreenHandler(syncId, playerInventory, session);
 	}
 
-	@Override
-	public Packet<ClientPlayPacketListener> toUpdatePacket() {
-		return BlockEntityUpdateS2CPacket.create(this);
-	}
-
-	/** Sent on chunk load and on every sync. It carries only what clients draw, so builds stay cheap to sync while blocks are placed. */
+	/**
+	 * Chunk data carries no sessions at all, so no player can read another's. Each owner gets theirs through
+	 * {@link SessionSyncPayload}; the marker tells {@link #readNbt} that this is not a save to load.
+	 */
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
 		NbtCompound nbt = new NbtCompound();
-		nbt.put("Sessions", sessionList(TableSession::writeForClient));
+		nbt.putBoolean(CLIENT_VIEW, true);
 		return nbt;
 	}
 
 	@Override
 	protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		super.writeNbt(nbt, registries);
-		nbt.put("Sessions", sessionList((session, entry) -> session.write(entry, registries)));
+		NbtList list = new NbtList();
+		for (TableSession session : sessions.values()) {
+			if (!session.isEmpty()) {
+				NbtCompound entry = new NbtCompound();
+				entry.putUuid("Player", session.player());
+				session.write(entry, registries);
+				list.add(entry);
+			}
+		}
+		nbt.put("Sessions", list);
 		NbtList jobs = new NbtList();
 		for (FarmDismantler job : dismantling) {
 			NbtCompound entry = new NbtCompound();
@@ -177,22 +224,12 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		nbt.put("Dismantling", jobs);
 	}
 
-	private NbtList sessionList(BiConsumer<TableSession, NbtCompound> writer) {
-		NbtList list = new NbtList();
-		for (TableSession session : sessions.values()) {
-			if (!session.isEmpty()) {
-				NbtCompound entry = new NbtCompound();
-				entry.putUuid("Player", session.player());
-				writer.accept(session, entry);
-				list.add(entry);
-			}
-		}
-		return list;
-	}
-
 	@Override
 	protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		super.readNbt(nbt, registries);
+		if (nbt.getBoolean(CLIENT_VIEW)) {
+			return;
+		}
 		sessions.clear();
 		NbtList list = nbt.getList("Sessions", NbtElement.COMPOUND_TYPE);
 		for (int index = 0; index < list.size(); index++) {
@@ -243,10 +280,5 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		}
 	}
 
-	void sync() {
-		markDirty();
-		if (world instanceof ServerWorld serverWorld) {
-			serverWorld.getChunkManager().markForUpdate(pos);
-		}
-	}
+
 }

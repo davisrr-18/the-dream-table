@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.DreamTableBlock;
 import net.minecraft.block.AbstractRailBlock;
 import net.minecraft.block.Block;
@@ -10,8 +11,11 @@ import net.minecraft.block.PistonBlock;
 import net.minecraft.block.PistonHeadBlock;
 import net.minecraft.block.TntBlock;
 import net.minecraft.block.enums.DoubleBlockHalf;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.TagKey;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldEvents;
 
@@ -24,6 +28,9 @@ final class ObstacleRules {
 			Blocks.TURTLE_EGG, Blocks.SNIFFER_EGG, Blocks.FROGSPAWN,
 			Blocks.RESPAWN_ANCHOR, Blocks.LODESTONE, Blocks.NOTE_BLOCK, Blocks.REDSTONE_LAMP);
 
+	/** Blocks from other mods that modpacks want left alone: {@code #the_dream_table:protected}. */
+	public static final TagKey<Block> PROTECTED = TagKey.of(RegistryKeys.BLOCK, Identifier.of(TheDreamTableMod.MOD_ID, "protected"));
+
 	private ObstacleRules() {
 	}
 
@@ -33,7 +40,7 @@ final class ObstacleRules {
 	 */
 	static boolean clearable(ServerWorld world, BlockPos tablePos, BlockPos pos, BlockState state) {
 		Block block = state.getBlock();
-		if (pos.equals(tablePos) || block instanceof DreamTableBlock || KEEP.contains(block)) {
+		if (pos.equals(tablePos) || block instanceof DreamTableBlock || KEEP.contains(block) || state.isIn(PROTECTED)) {
 			return false;
 		}
 		if (state.hasBlockEntity() || state.getHardness(world, pos) < 0.0F || state.emitsRedstonePower()) {

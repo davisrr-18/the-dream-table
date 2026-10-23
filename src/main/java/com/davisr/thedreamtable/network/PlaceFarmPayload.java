@@ -35,8 +35,8 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 				return;
 			}
 			TableSession table = blockEntity.session(player);
-			if (table.canResume()) {
-				table.begin(player, false);
+			if (table.build().canResume()) {
+				table.build().begin(player, false);
 				return;
 			}
 			if (!DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) || table.getSelectedFarm().isEmpty()) {
@@ -49,7 +49,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 				return;
 			}
 			table.setPlacement(anchor, facing);
-			table.begin(player, true);
+			table.build().begin(player, true);
 		}));
 	}
 

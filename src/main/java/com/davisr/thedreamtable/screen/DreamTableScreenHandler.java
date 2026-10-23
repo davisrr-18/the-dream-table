@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.screen;
 
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmTemplate;
@@ -34,6 +35,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int PAGE_OPTIONS = 4;
 	public static final int PAGE_MATERIALS = 5;
 	public static final int PAGE_SWAP = 6;
+	public static final int PAGE_SPEED = 7;
 
 	public static final int BUTTON_REQUIREMENTS = 100;
 	public static final int BUTTON_BUILD = 101;
@@ -45,13 +47,18 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_SCHEMES_BACK = 111;
 	public static final int BUTTON_OPTIONS = 120;
 	public static final int BUTTON_OPTIONS_BACK = 121;
+	public static final int BUTTON_SPEED_OPEN = 140;
+	public static final int BUTTON_SPEED_BACK = 141;
 	public static final int BUTTON_MATERIALS = 130;
 	public static final int BUTTON_MATERIALS_BACK = 131;
 	public static final int BUTTON_SWAP_BACK = 132;
-	public static final int BUTTON_PACE_MINUTES = 150;
+	/** Plus the index in {@link BuildPace#LEVELS}. */
+	public static final int BUTTON_PACE = 150;
 	public static final int BUTTON_SCHEME = 200;
 	public static final int BUTTON_SWAP_OPEN = 1000;
 	public static final int BUTTON_SWAP_PICK = 2000;
+	/** Plus a percentage from 1 to 100, for the custom speed slider. */
+	public static final int BUTTON_PACE_CUSTOM = 3000;
 
 	private final ScreenHandlerContext context;
 	private final boolean client;
@@ -62,6 +69,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private int phase;
 	private int total;
 	private int pace = BuildPace.DEFAULT;
+	private int blocksPerSecond;
+	private int maxRate = BuildPace.MAX_RATE;
 	private int previewSwap = -1;
 
 	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, TableSession session) {
@@ -125,6 +134,16 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	public int getPace() {
 		return BuildPace.valid(pace);
+	}
+
+	/** The server's actual rate, which counts its configured limit and Creative; estimated from the pace until it arrives. */
+	public int getBlocksPerSecond() {
+		return blocksPerSecond > 0 ? blocksPerSecond : blocksPerSecondAt(getPace());
+	}
+
+	/** The rate a speed level gives under the server's limit, for the estimates on the Options cards. */
+	public int blocksPerSecondAt(int level) {
+		return BuildPace.blocksPerSecond(level, maxRate);
 	}
 
 	public int deposited(int index) {
@@ -253,7 +272,9 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		phase = phaseOf(table.getPhase());
 		buildIndex = table.getBuildIndex();
 		total = table.totalSteps();
-		pace = table.getPace();
+		pace = table.build().pace();
+		blocksPerSecond = table.build().blocksPerSecond();
+		maxRate = DreamTableConfig.maxBlocksPerSecond();
 	}
 
 	/** This player's session at the table, looked up fresh each time because the client's copy is replaced on every sync. */
@@ -272,7 +293,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		return template == null ? 0 : template.steps().size();
 	}
 
-	/** Page, build index, phase, step total, and speed, read from the table on the server and stored on the client. */
+	/** Page, build index, phase, step total, speed level, actual rate and server limit, read from the table on the server and stored on the client. */
 	private final class Properties implements PropertyDelegate {
 		@Override
 		public int get(int index) {
@@ -283,7 +304,9 @@ public class DreamTableScreenHandler extends ScreenHandler {
 					case 1 -> table.getBuildIndex();
 					case 2 -> phaseOf(table.getPhase());
 					case 3 -> table.totalSteps();
-					case 4 -> table.getPace();
+					case 4 -> table.build().pace();
+					case 5 -> table.build().blocksPerSecond();
+					case 6 -> DreamTableConfig.maxBlocksPerSecond();
 					default -> 0;
 				};
 			}
@@ -293,6 +316,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 				case 2 -> phase;
 				case 3 -> total;
 				case 4 -> pace;
+				case 5 -> blocksPerSecond;
+				case 6 -> maxRate;
 				default -> 0;
 			};
 		}
@@ -305,6 +330,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 				case 2 -> phase = value;
 				case 3 -> total = value;
 				case 4 -> pace = value;
+				case 5 -> blocksPerSecond = value;
+				case 6 -> maxRate = value;
 				default -> {
 				}
 			}
@@ -312,7 +339,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 		@Override
 		public int size() {
-			return 5;
+			return 7;
 		}
 	}
 

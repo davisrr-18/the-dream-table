@@ -24,6 +24,8 @@ public final class WorkPage implements TablePage {
 	private static final int DISCARD = 4;
 	private static final int ROWS = 5;
 	private static final long CONFIRM_MS = 3000L;
+	/** From this much, the spot already holds this farm, likely one finished before finished farms were protected. */
+	private static final int EXISTING_FARM_PERCENT = 50;
 
 	private final PageContext ui;
 	private long confirmUntil;
@@ -150,14 +152,11 @@ public final class WorkPage implements TablePage {
 		};
 	}
 
-	/** Adds the estimate at the chosen pace, like "~4 min". Blocks already in place are skipped, so it can finish sooner. */
+	/** Adds the estimate at the actual rate, like "~4 min". Blocks already in place are skipped, so it can finish sooner. */
 	private Text withTimeLeft(Text status) {
 		DreamTableScreenHandler handler = ui.handler();
-		int seconds = BuildPace.secondsLeft(handler.getPace(), handler.getTotal(), handler.getBuildIndex());
-		Text left = seconds >= 60
-				? Text.translatable("gui.the_dream_table.eta_minutes", (seconds + 59) / 60)
-				: Text.translatable("gui.the_dream_table.eta_seconds", seconds);
-		return Text.translatable("gui.the_dream_table.with_eta", status, left);
+		int seconds = BuildPace.secondsLeftAt(handler.getBlocksPerSecond(), handler.getTotal(), handler.getBuildIndex());
+		return Text.translatable("gui.the_dream_table.with_eta", status, TimeText.of(seconds));
 	}
 
 	private Text idleStatus() {
@@ -167,6 +166,10 @@ public final class WorkPage implements TablePage {
 		String problem = DreamTableHologram.placementProblem();
 		if (!problem.isEmpty()) {
 			return Text.translatable(problem);
+		}
+		int existing = DreamTableHologram.existingPercent();
+		if (existing >= EXISTING_FARM_PERCENT) {
+			return Text.translatable("gui.the_dream_table.existing_farm", existing);
 		}
 		if (ui.actions().creative()) {
 			return Text.translatable("gui.the_dream_table.creative");
