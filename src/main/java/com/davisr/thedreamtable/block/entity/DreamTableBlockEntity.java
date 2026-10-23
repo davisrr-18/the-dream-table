@@ -48,7 +48,6 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	public static final String PHASE_NEED = "need";
 	public static final String PHASE_PAUSED = "paused";
 	public static final String PHASE_DONE = "done";
-	public static final int TICKS_PER_BLOCK = 20;
 
 	private static final UUID SHARED = new UUID(0L, 0L);
 
@@ -87,10 +86,6 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 			}
 		}
 		markDirty();
-	}
-
-	public static int validSpeed(int speed) {
-		return speed == 2 || speed == 4 || speed == 8 ? speed : 1;
 	}
 
 	/**

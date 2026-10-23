@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.screen;
 
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
@@ -47,7 +48,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_MATERIALS = 130;
 	public static final int BUTTON_MATERIALS_BACK = 131;
 	public static final int BUTTON_SWAP_BACK = 132;
-	public static final int BUTTON_SPEED = 140;
+	public static final int BUTTON_PACE_MINUTES = 150;
 	public static final int BUTTON_SCHEME = 200;
 	public static final int BUTTON_SWAP_OPEN = 1000;
 	public static final int BUTTON_SWAP_PICK = 2000;
@@ -60,7 +61,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private int buildIndex;
 	private int phase;
 	private int total;
-	private int blocksPerSecond = 1;
+	private int pace = BuildPace.DEFAULT;
 	private int previewSwap = -1;
 
 	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, TableSession session) {
@@ -122,8 +123,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		return total;
 	}
 
-	public int getBlocksPerSecond() {
-		return DreamTableBlockEntity.validSpeed(blocksPerSecond);
+	public int getPace() {
+		return BuildPace.valid(pace);
 	}
 
 	public int deposited(int index) {
@@ -176,8 +177,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		previewSwap = index;
 	}
 
-	public void previewSpeed(int speed) {
-		blocksPerSecond = DreamTableBlockEntity.validSpeed(speed);
+	public void previewPace(int value) {
+		pace = BuildPace.valid(value);
 	}
 
 	/** Shows a page on the client right away, before the server confirms it. */
@@ -252,7 +253,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		phase = phaseOf(table.getPhase());
 		buildIndex = table.getBuildIndex();
 		total = table.totalSteps();
-		blocksPerSecond = table.getBlocksPerSecond();
+		pace = table.getPace();
 	}
 
 	/** This player's session at the table, looked up fresh each time because the client's copy is replaced on every sync. */
@@ -282,7 +283,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 					case 1 -> table.getBuildIndex();
 					case 2 -> phaseOf(table.getPhase());
 					case 3 -> table.totalSteps();
-					case 4 -> table.getBlocksPerSecond();
+					case 4 -> table.getPace();
 					default -> 0;
 				};
 			}
@@ -291,7 +292,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 				case 1 -> buildIndex;
 				case 2 -> phase;
 				case 3 -> total;
-				case 4 -> blocksPerSecond;
+				case 4 -> pace;
 				default -> 0;
 			};
 		}
@@ -303,7 +304,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 				case 1 -> buildIndex = value;
 				case 2 -> phase = value;
 				case 3 -> total = value;
-				case 4 -> blocksPerSecond = value;
+				case 4 -> pace = value;
 				default -> {
 				}
 			}

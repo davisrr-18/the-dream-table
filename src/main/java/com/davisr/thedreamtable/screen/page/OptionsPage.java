@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.screen.page;
 
+import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.Item;
@@ -9,9 +10,13 @@ import net.minecraft.text.Text;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
+/** The pace list: "finish in about N minutes", which scales the speed with the farm's size. */
 public final class OptionsPage implements TablePage {
-	private static final int[] SPEEDS = {1, 2, 4, 8};
-	private static final Item[] ICONS = {Items.CLOCK, Items.REPEATER, Items.COMPARATOR, Items.REDSTONE_BLOCK};
+	private static final Choice[] CHOICES = {
+			new Choice(BuildPace.ofMinutes(10), Items.CLOCK, "gui.the_dream_table.pace_10", DreamTableScreenHandler.BUTTON_PACE_MINUTES + 10),
+			new Choice(BuildPace.ofMinutes(5), Items.REPEATER, "gui.the_dream_table.pace_5", DreamTableScreenHandler.BUTTON_PACE_MINUTES + 5),
+			new Choice(BuildPace.ofMinutes(1), Items.REDSTONE_BLOCK, "gui.the_dream_table.pace_1", DreamTableScreenHandler.BUTTON_PACE_MINUTES + 1),
+	};
 
 	private final PageContext ui;
 
@@ -19,22 +24,25 @@ public final class OptionsPage implements TablePage {
 		this.ui = ui;
 	}
 
+	private record Choice(int pace, Item icon, String label, int button) {
+	}
+
 	@Override
 	public void draw(DrawContext context, int mouseX, int mouseY) {
-		int speed = ui.handler().getBlocksPerSecond();
-		for (int index = 0; index < SPEEDS.length; index++) {
-			Text label = Text.translatable("gui.the_dream_table.speed_" + SPEEDS[index]);
-			ui.card(context, new ItemStack(ICONS[index]), label, ui.view().cardY(index), mouseX, mouseY, speed == SPEEDS[index], true);
+		int pace = ui.handler().getPace();
+		for (int index = 0; index < CHOICES.length; index++) {
+			Choice choice = CHOICES[index];
+			ui.card(context, new ItemStack(choice.icon()), Text.translatable(choice.label()), ui.view().cardY(index), mouseX, mouseY, pace == choice.pace(), true);
 		}
 		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
 	}
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
-		for (int index = 0; index < SPEEDS.length; index++) {
+		for (int index = 0; index < CHOICES.length; index++) {
 			if (ui.cardHit(mouseX, mouseY, ui.view().cardY(index))) {
-				ui.handler().previewSpeed(SPEEDS[index]);
-				ui.actions().press(DreamTableScreenHandler.BUTTON_SPEED + SPEEDS[index]);
+				ui.handler().previewPace(CHOICES[index].pace());
+				ui.actions().press(CHOICES[index].button());
 				return true;
 			}
 		}
@@ -47,7 +55,7 @@ public final class OptionsPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		return PAD + SPEEDS.length * CARD_HEIGHT + (SPEEDS.length - 1) * CARD_GAP + 6 + BUTTON_HEIGHT + 4;
+		return PAD + CHOICES.length * CARD_HEIGHT + (CHOICES.length - 1) * CARD_GAP + 6 + BUTTON_HEIGHT + 4;
 	}
 
 	@Override
@@ -56,6 +64,6 @@ public final class OptionsPage implements TablePage {
 	}
 
 	private int backY() {
-		return ui.view().cardY(SPEEDS.length - 1) + CARD_HEIGHT + 6;
+		return ui.view().cardY(CHOICES.length - 1) + CARD_HEIGHT + 6;
 	}
 }

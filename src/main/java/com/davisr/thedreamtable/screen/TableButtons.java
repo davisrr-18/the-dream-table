@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.screen;
 
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
+import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -40,8 +41,8 @@ final class TableButtons {
 				table.setRequirementsBoard(true);
 				yield true;
 			}
-			case BUTTON_SPEED + 1, BUTTON_SPEED + 2, BUTTON_SPEED + 4, BUTTON_SPEED + 8 -> {
-				table.setBlocksPerSecond(id - BUTTON_SPEED);
+			case BUTTON_PACE_MINUTES + 1, BUTTON_PACE_MINUTES + 5, BUTTON_PACE_MINUTES + 10 -> {
+				table.setPace(BuildPace.ofMinutes(id - BUTTON_PACE_MINUTES));
 				yield true;
 			}
 			case BUTTON_BUILD -> build(table, player);

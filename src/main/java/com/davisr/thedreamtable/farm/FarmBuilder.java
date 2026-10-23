@@ -26,14 +26,22 @@ public final class FarmBuilder {
 	private FarmBuilder() {
 	}
 
-	/** An unexpected error pauses the build instead of crashing the server. */
-	public static boolean placeNext(TableSession table, ServerWorld world) {
+	/** What one call did: placed a block or spawned an entity, skipped a block already in place, or stopped. */
+	public enum Outcome {
+		PLACED, SKIPPED, STOPPED
+	}
+
+	/**
+	 * An unexpected error pauses the build instead of crashing the server. Only the first block of a tick plays
+	 * its place sound, since fast paces place many blocks per tick.
+	 */
+	public static Outcome placeNext(TableSession table, ServerWorld world, boolean sound) {
 		try {
-			return step(table, world);
+			return step(table, world, sound);
 		} catch (RuntimeException exception) {
 			TheDreamTableMod.LOGGER.error("Build step {} failed for {}", table.getBuildIndex(), table.getSelectedFarm(), exception);
 			table.placementFailed(table.getPos());
-			return false;
+			return Outcome.STOPPED;
 		}
 	}
 
@@ -42,52 +50,53 @@ public final class FarmBuilder {
 		return new FarmSite(table.getPos(), table.hasAnchor() ? table.getFarmAnchor() : null, facing(table));
 	}
 
-	private static boolean step(TableSession table, ServerWorld world) {
+	private static Outcome step(TableSession table, ServerWorld world, boolean sound) {
 		FarmTemplate template = FarmTemplates.get(table.getSelectedFarm());
 		if (template == null) {
-			return false;
+			return Outcome.STOPPED;
 		}
 		if (table.getBuildIndex() >= template.steps().size()) {
 			table.finish();
-			return false;
+			return Outcome.STOPPED;
 		}
 		ServerPlayerEntity owner = table.onlineOwner(world);
 		if (owner == null) {
-			return false;
+			return Outcome.STOPPED;
 		}
 		FarmStep step = template.steps().get(table.getBuildIndex());
 		FarmSite site = site(table);
 		BlockPos target = site.target(template, step);
 		if (!world.isChunkLoaded(target)) {
-			return false;
+			return Outcome.STOPPED;
 		}
 		BlockState placed = step.isEntity() ? null : table.swapState(step.state()).rotate(FarmGeometry.rotation(site.facing()));
 		BlockState existing = placed == null ? null : world.getBlockState(target);
 
 		if (placed != null) {
 			if (BlockMatch.sameBlock(existing, placed)) {
-				return advance(world, table, template, site);
+				advance(world, table, template, site);
+				return Outcome.SKIPPED;
 			}
 			if (!existing.isReplaceable() && (!ObstacleRules.clearable(world, table.getPos(), target, existing) || insideOtherFarm(world, table, target))) {
 				table.obstruct(target, existing);
-				return false;
+				return Outcome.STOPPED;
 			}
 		}
 		if (!permitted(world, owner, target, existing)) {
 			table.protectedSpot(target);
-			return false;
+			return Outcome.STOPPED;
 		}
 		boolean free = owner.isCreative();
 		boolean costs = step.item() != null && !free;
 		if (costs && !table.hasMaterial(step.item())) {
 			table.missingMaterial();
-			return false;
+			return Outcome.STOPPED;
 		}
 
-		boolean done = placed == null ? spawn(world, target, step) : place(world, target, placed, step, !free);
+		boolean done = placed == null ? spawn(world, target, step) : place(world, target, placed, step, !free, sound);
 		if (!done) {
 			table.placementFailed(target);
-			return false;
+			return Outcome.STOPPED;
 		}
 		boolean paid = costs && table.spendMaterial(step.item());
 		if (placed != null) {
@@ -96,7 +105,8 @@ public final class FarmBuilder {
 		if (placed != null && step.item() == Items.WATER_BUCKET && paid) {
 			FarmSpawns.returnBucket(world, table);
 		}
-		return advance(world, table, template, site);
+		advance(world, table, template, site);
+		return Outcome.PLACED;
 	}
 
 	/** Builds as the player who started it, so protected land stays protected. The build waits while that player is offline. */
@@ -121,7 +131,7 @@ public final class FarmBuilder {
 	}
 
 	/** Sets the block, confirms it took, then settles the block it replaced. Drops items only in survival. */
-	private static boolean place(ServerWorld world, BlockPos target, BlockState placed, FarmStep step, boolean drop) {
+	private static boolean place(ServerWorld world, BlockPos target, BlockState placed, FarmStep step, boolean drop, boolean sound) {
 		BlockState old = world.getBlockState(target);
 		if (!world.setBlockState(target, placed, FLAGS) || !world.getBlockState(target).isOf(placed.getBlock())) {
 			return false;
@@ -135,17 +145,18 @@ public final class FarmBuilder {
 			data.putInt("z", target.getZ());
 			blockEntity.read(data, world.getRegistryManager());
 		}
-		world.playSound(null, target, placed.getSoundGroup().getPlaceSound(), SoundCategory.BLOCKS, 0.85F, 0.9F + world.random.nextFloat() * 0.2F);
+		if (sound) {
+			world.playSound(null, target, placed.getSoundGroup().getPlaceSound(), SoundCategory.BLOCKS, 0.85F, 0.9F + world.random.nextFloat() * 0.2F);
+		}
 		return true;
 	}
 
-	private static boolean advance(ServerWorld world, TableSession table, FarmTemplate template, FarmSite site) {
+	private static void advance(ServerWorld world, TableSession table, FarmTemplate template, FarmSite site) {
 		table.advance();
 		if (table.getBuildIndex() >= template.steps().size()) {
 			settle(world, template, site);
 			table.finish();
 		}
-		return true;
 	}
 
 	private static Direction facing(TableSession table) {

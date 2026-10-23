@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.BuildPermission;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
@@ -38,6 +39,8 @@ import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
  * Reads and writes use the same keys the table used before sessions existed, so older worlds still load.
  */
 public final class TableSession {
+	private static final int MAX_SKIPS_PER_TICK = 4096;
+
 	private final DreamTableBlockEntity table;
 	private final SimpleInventory materials = new SimpleInventory(FarmTemplate.MAX_SLOTS);
 	private final MaterialLedger ledger = new MaterialLedger();
@@ -45,6 +48,7 @@ public final class TableSession {
 	private final FarmPlacement placement = new FarmPlacement();
 	private UUID player;
 	private boolean adjusting;
+	private boolean finishedRecorded;
 	private String selectedFarm = "";
 	private int page;
 	private boolean requirementsBoard;
@@ -94,13 +98,29 @@ public final class TableSession {
 		return world.getServer().getPlayerManager().getPlayer(player);
 	}
 
+	/**
+	 * Places the blocks due this tick. Blocks already in place are skipped without using the pace,
+	 * up to {@link #MAX_SKIPS_PER_TICK}, so resuming a half-built farm doesn't wait on them.
+	 */
 	void tick(ServerWorld world) {
-		if (!progress.is(PHASE_BUILDING) || onlineOwner(world) == null || !progress.second()) {
+		if (progress.is(PHASE_DONE) && !finishedRecorded) {
+			recordFinished();
+		}
+		if (!progress.is(PHASE_BUILDING) || onlineOwner(world) == null) {
 			return;
 		}
-		for (int placed = 0; placed < progress.blocksPerSecond() && progress.is(PHASE_BUILDING); placed++) {
-			if (!FarmBuilder.placeNext(this, world)) {
+		int due = progress.due(blocksPerSecond());
+		int placed = 0;
+		int skipped = 0;
+		while (placed < due && skipped < MAX_SKIPS_PER_TICK && progress.is(PHASE_BUILDING)) {
+			FarmBuilder.Outcome outcome = FarmBuilder.placeNext(this, world, placed == 0);
+			if (outcome == FarmBuilder.Outcome.STOPPED) {
 				break;
+			}
+			if (outcome == FarmBuilder.Outcome.PLACED) {
+				placed++;
+			} else {
+				skipped++;
 			}
 		}
 	}
@@ -233,13 +253,18 @@ public final class TableSession {
 		return template == null ? 0 : template.steps().size();
 	}
 
-	public int getBlocksPerSecond() {
-		return progress.blocksPerSecond();
+	/** The chosen pace, as stored by {@link BuildPace}: blocks per second, or a target duration. */
+	public int getPace() {
+		return progress.pace();
 	}
 
-	public void setBlocksPerSecond(int speed) {
-		progress.setBlocksPerSecond(speed);
+	public void setPace(int pace) {
+		progress.setPace(pace);
 		sync();
+	}
+
+	public int blocksPerSecond() {
+		return BuildPace.blocksPerSecond(progress.pace(), totalSteps());
 	}
 
 	/**
@@ -285,8 +310,15 @@ public final class TableSession {
 		if (!site.fits(world, template)) {
 			return "gui.the_dream_table.out_of_world";
 		}
-		if (table.overlapsOthers(this, area) || FarmAreas.of(world).overlaps(world, areaKey(), area)) {
+		if (table.overlapsOthers(this, area)) {
 			return "gui.the_dream_table.farm_overlaps";
+		}
+		FarmAreas.Conflict conflict = FarmAreas.of(world).conflict(world, areaKey(), area);
+		if (conflict == FarmAreas.Conflict.ACTIVE) {
+			return "gui.the_dream_table.farm_overlaps";
+		}
+		if (conflict == FarmAreas.Conflict.FINISHED) {
+			return "gui.the_dream_table.farm_overlaps_finished";
 		}
 		if (!BuildPermission.canBuildAll(world, asker, site, template)) {
 			return "gui.the_dream_table.protected_area";
@@ -296,6 +328,20 @@ public final class TableSession {
 
 	private FarmAreas.Key areaKey() {
 		return FarmAreas.Key.build(table.getPos(), player);
+	}
+
+	/**
+	 * A finished farm keeps its area after this session moves on to another farm, so no later farm is placed over it
+	 * or clears its blocks. Farms finished before areas existed are recorded the first time their table ticks.
+	 */
+	private void recordFinished() {
+		finishedRecorded = true;
+		FarmTemplate template = template();
+		if (template != null && table.getWorld() instanceof ServerWorld world) {
+			FarmAreas areas = FarmAreas.of(world);
+			areas.recordFinished(player, template, FarmBuilder.site(this), ledger.swaps());
+			areas.release(areaKey());
+		}
 	}
 
 	private void releaseArea() {
@@ -347,6 +393,7 @@ public final class TableSession {
 
 	public void finish() {
 		progress.stop(PHASE_DONE);
+		recordFinished();
 		sync();
 		tell(Text.translatable("gui.the_dream_table.done"));
 		table.sound(SoundEvents.BLOCK_BEACON_ACTIVATE, table.getPos(), 0.6F, 1.2F);
@@ -392,7 +439,20 @@ public final class TableSession {
 			table.getWorld().playSound(null, table.getPos(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 0.5F, 1.15F);
 		}
 		giver.swingHand(hand);
+		if (giver instanceof ServerPlayerEntity deliverer && progress.is(PHASE_NEED) && nextStepReady()) {
+			begin(deliverer, false);
+		}
 		return true;
+	}
+
+	/** True when the step the build stopped at has its material now, so a delivery can continue the build without a trip to the table. */
+	private boolean nextStepReady() {
+		FarmTemplate template = template();
+		if (template == null || progress.index() >= template.steps().size()) {
+			return false;
+		}
+		Item needed = template.steps().get(progress.index()).item();
+		return needed == null || hasMaterial(needed);
 	}
 
 	public boolean hasAllMaterials() {

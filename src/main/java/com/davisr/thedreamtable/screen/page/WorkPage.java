@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.client.DreamTableClipboard;
 import com.davisr.thedreamtable.client.DreamTableHologram;
+import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import com.davisr.thedreamtable.network.PlaceFarmPayload;
@@ -140,13 +141,23 @@ public final class WorkPage implements TablePage {
 	private Text status() {
 		DreamTableScreenHandler handler = ui.handler();
 		return switch (handler.getPhase()) {
-			case ProjectState.BUILDING -> Text.translatable("gui.the_dream_table.building", handler.getBuildIndex(), handler.getTotal());
+			case ProjectState.BUILDING -> withTimeLeft(Text.translatable("gui.the_dream_table.building", handler.getBuildIndex(), handler.getTotal()));
 			case ProjectState.BLOCKED -> Text.translatable("gui.the_dream_table.blocked");
 			case ProjectState.DONE -> Text.translatable("gui.the_dream_table.done");
 			case ProjectState.WAITING -> Text.translatable("gui.the_dream_table.paused");
-			case ProjectState.PAUSED -> Text.translatable("gui.the_dream_table.paused_build", handler.getBuildIndex(), handler.getTotal());
+			case ProjectState.PAUSED -> withTimeLeft(Text.translatable("gui.the_dream_table.paused_build", handler.getBuildIndex(), handler.getTotal()));
 			default -> idleStatus();
 		};
+	}
+
+	/** Adds the estimate at the chosen pace, like "~4 min". Blocks already in place are skipped, so it can finish sooner. */
+	private Text withTimeLeft(Text status) {
+		DreamTableScreenHandler handler = ui.handler();
+		int seconds = BuildPace.secondsLeft(handler.getPace(), handler.getTotal(), handler.getBuildIndex());
+		Text left = seconds >= 60
+				? Text.translatable("gui.the_dream_table.eta_minutes", (seconds + 59) / 60)
+				: Text.translatable("gui.the_dream_table.eta_seconds", seconds);
+		return Text.translatable("gui.the_dream_table.with_eta", status, left);
 	}
 
 	private Text idleStatus() {
