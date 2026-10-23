@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.client;
 
 import com.davisr.thedreamtable.block.DreamTableBlock;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.client.clipboard.ClipboardDraw;
 import com.davisr.thedreamtable.client.clipboard.ClipboardLayout;
 import com.davisr.thedreamtable.client.clipboard.ClipboardLayout.Rows;
@@ -115,7 +116,7 @@ public final class DreamTableClipboard {
 		if (context.world() == null || context.matrixStack() == null || context.camera() == null) {
 			return;
 		}
-		DreamTableBlockEntity table = shownTable(context);
+		TableSession table = shownTable(context);
 		FarmTemplate template = table == null ? null : FarmTemplates.get(table.getSelectedFarm());
 		if (template == null) {
 			return;
@@ -137,12 +138,18 @@ public final class DreamTableClipboard {
 		matrices.pop();
 	}
 
-	private static DreamTableBlockEntity shownTable(WorldRenderContext context) {
+	/** The local player's own session at the pinned table: every player sees only their own board. */
+	private static TableSession shownTable(WorldRenderContext context) {
 		BlockPos pos = pinned != null ? pinned : DreamTableHologram.trackedTable();
 		if (pos == null || !(context.world().getBlockState(pos).getBlock() instanceof DreamTableBlock)) {
 			return null;
 		}
-		if (!(context.world().getBlockEntity(pos) instanceof DreamTableBlockEntity table) || table.getSelectedFarm().isEmpty()) {
+		PlayerEntity player = MinecraftClient.getInstance().player;
+		if (player == null || !(context.world().getBlockEntity(pos) instanceof DreamTableBlockEntity blockEntity)) {
+			return null;
+		}
+		TableSession table = blockEntity.session(player);
+		if (table.getSelectedFarm().isEmpty()) {
 			return null;
 		}
 		if (table.isRequirementsBoard()) {
@@ -152,7 +159,7 @@ public final class DreamTableClipboard {
 		return pos.equals(pinned) ? table : null;
 	}
 
-	private static ClipboardSheet.State sheetState(DreamTableBlockEntity table, FarmTemplate template) {
+	private static ClipboardSheet.State sheetState(TableSession table, FarmTemplate template) {
 		List<Line> totals = ClipboardLines.totals(table, template);
 		List<Line> order = ClipboardLines.order(table, template);
 		totalsPages = ClipboardLayout.pages(totals.size());

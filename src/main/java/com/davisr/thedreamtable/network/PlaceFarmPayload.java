@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -30,9 +31,10 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 			if (player.squaredDistanceTo(payload.table().toCenterPos()) > 64.0) {
 				return;
 			}
-			if (!(player.getWorld().getBlockEntity(payload.table()) instanceof DreamTableBlockEntity table)) {
+			if (!(player.getWorld().getBlockEntity(payload.table()) instanceof DreamTableBlockEntity blockEntity)) {
 				return;
 			}
+			TableSession table = blockEntity.session(player);
 			if (table.canResume()) {
 				table.begin(player, false);
 				return;

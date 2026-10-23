@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.client;
 
 import com.davisr.thedreamtable.block.DreamTableBlock;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.client.hologram.GhostRenderer;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmTemplate;
@@ -9,6 +10,7 @@ import com.davisr.thedreamtable.farm.FarmTemplates;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
@@ -110,7 +112,7 @@ public final class DreamTableHologram {
 		if (tablePos == null || context.world() == null || context.matrixStack() == null || !tableStillThere(context.world())) {
 			return;
 		}
-		DreamTableBlockEntity table = context.world().getBlockEntity(tablePos) instanceof DreamTableBlockEntity found ? found : null;
+		TableSession table = localSession(context.world().getBlockEntity(tablePos));
 		boolean synced = table != null && !table.getSelectedFarm().isEmpty();
 		FarmTemplate template = FarmTemplates.get(synced ? table.getSelectedFarm() : farmId);
 		if (template == null) {
@@ -143,7 +145,8 @@ public final class DreamTableHologram {
 		if (client.world == null || tablePos == null) {
 			return true;
 		}
-		if (!(client.world.getBlockEntity(tablePos) instanceof DreamTableBlockEntity table)) {
+		TableSession table = localSession(client.world.getBlockEntity(tablePos));
+		if (table == null) {
 			return false;
 		}
 		return table.hasAnchor() && !DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase());
@@ -182,7 +185,7 @@ public final class DreamTableHologram {
 		return true;
 	}
 
-	private static Placement placement(DreamTableBlockEntity table) {
+	private static Placement placement(TableSession table) {
 		if (table != null && table.hasAnchor() && !DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase())) {
 			return new Placement(table.getFarmAnchor(), table.getFarmFacing());
 		}
@@ -216,6 +219,12 @@ public final class DreamTableHologram {
 			return null;
 		}
 		return pos;
+	}
+
+	/** The local player's own session; the hologram never shows another player's farm. */
+	private static TableSession localSession(BlockEntity blockEntity) {
+		PlayerEntity player = MinecraftClient.getInstance().player;
+		return player != null && blockEntity instanceof DreamTableBlockEntity table ? table.session(player) : null;
 	}
 
 	private record Placement(BlockPos anchor, Direction facing) {

@@ -18,8 +18,8 @@ import java.util.function.Supplier;
 public final class FarmTemplates {
 	private static final String STRUCTURES = "/data/the_dream_table/structures/";
 	private static final Map<String, FarmTemplate> TEMPLATES = new LinkedHashMap<>();
-	private static final Map<String, FarmTemplate> IMPORTED = new LinkedHashMap<>();
-	private static final List<FarmOption> IMPORTED_OPTIONS = new ArrayList<>();
+	/** Replaced as a whole on every reload, so a reader never sees a half-built list. */
+	private static volatile ImportedStructures.Imports imports = ImportedStructures.Imports.EMPTY;
 
 	static {
 		register(FarmOptions.SUGAR_CANE, "sugar_cane_farm", () -> PlantFarms.pistonRow(FarmOptions.SUGAR_CANE.id(), true));
@@ -37,22 +37,26 @@ public final class FarmTemplates {
 	}
 
 	public static void reloadImports(Path worldRoot) {
-		ImportedStructures.reload(IMPORTED, IMPORTED_OPTIONS, worldRoot);
+		imports = ImportedStructures.reload(worldRoot);
 	}
 
 	public static FarmTemplate get(String id) {
 		FarmTemplate builtIn = TEMPLATES.get(id);
-		return builtIn != null ? builtIn : IMPORTED.get(id);
+		return builtIn != null ? builtIn : imports.templates().get(id);
+	}
+
+	public static boolean isBuiltIn(String id) {
+		return TEMPLATES.containsKey(id);
 	}
 
 	public static List<FarmOption> options() {
 		List<FarmOption> options = new ArrayList<>(FarmOptions.ALL);
-		options.addAll(IMPORTED_OPTIONS);
+		options.addAll(imports.options());
 		return options;
 	}
 
 	public static List<FarmOption> imported() {
-		return List.copyOf(IMPORTED_OPTIONS);
+		return imports.options();
 	}
 
 	/** Uses the bundled schematic, or the code-built farm when the file is missing or unreadable. */

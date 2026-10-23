@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.screen;
 
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.MaterialSpec;
@@ -22,6 +23,7 @@ import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.UUID;
 
 public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int PAGE_SELECT = 0;
@@ -52,6 +54,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	private final ScreenHandlerContext context;
 	private final boolean client;
+	private final UUID playerId;
 	private String selectedFarm;
 	private int page;
 	private int buildIndex;
@@ -60,8 +63,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private int blocksPerSecond = 1;
 	private int previewSwap = -1;
 
-	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, DreamTableBlockEntity blockEntity) {
-		this(syncId, inventory, blockEntity.getPos(), blockEntity.getMaterials(), blockEntity.getSelectedFarm(), blockEntity.getPage(), phaseOf(blockEntity.getPhase()), blockEntity.getBuildIndex());
+	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, TableSession session) {
+		this(syncId, inventory, session.getPos(), session.getMaterials(), session.getSelectedFarm(), session.getPage(), phaseOf(session.getPhase()), session.getBuildIndex());
 	}
 
 	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, OpenData data) {
@@ -72,6 +75,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		super(ModScreenHandlers.DREAM_TABLE, syncId);
 		this.context = ScreenHandlerContext.create(inventory.player.getWorld(), pos);
 		this.client = inventory.player.getWorld().isClient();
+		this.playerId = inventory.player.getUuid();
 		this.selectedFarm = selectedFarm == null ? "" : selectedFarm;
 		this.page = page;
 		this.phase = phase;
@@ -123,12 +127,12 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	}
 
 	public int deposited(int index) {
-		DreamTableBlockEntity table = table();
+		TableSession table = table();
 		return table == null ? 0 : table.deposited(index);
 	}
 
 	public int supplied(int index) {
-		DreamTableBlockEntity table = table();
+		TableSession table = table();
 		return table == null ? 0 : table.supplied(index);
 	}
 
@@ -146,7 +150,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		if (spec == null) {
 			return null;
 		}
-		DreamTableBlockEntity table = table();
+		TableSession table = table();
 		return table == null ? spec.item() : table.resolve(spec.item());
 	}
 
@@ -156,7 +160,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	}
 
 	public boolean canSwap(int index) {
-		DreamTableBlockEntity table = table();
+		TableSession table = table();
 		return table != null && table.canSwap(index) && !swapOptions(index).isEmpty();
 	}
 
@@ -164,7 +168,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		if (client && previewSwap >= 0) {
 			return previewSwap;
 		}
-		DreamTableBlockEntity table = table();
+		TableSession table = table();
 		return table == null ? -1 : table.getSwapMaterial();
 	}
 
@@ -189,7 +193,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	@Override
 	public boolean onButtonClick(PlayerEntity player, int id) {
-		DreamTableBlockEntity table = table();
+		TableSession table = table();
 		if (!canUse(player) || !(player instanceof ServerPlayerEntity serverPlayer) || table == null) {
 			return false;
 		}
@@ -242,7 +246,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		};
 	}
 
-	private void copyFrom(DreamTableBlockEntity table) {
+	private void copyFrom(TableSession table) {
 		selectedFarm = table.getSelectedFarm();
 		page = table.getPage();
 		phase = phaseOf(table.getPhase());
@@ -251,11 +255,12 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		blocksPerSecond = table.getBlocksPerSecond();
 	}
 
-	private DreamTableBlockEntity table() {
-		DreamTableBlockEntity[] found = new DreamTableBlockEntity[1];
+	/** This player's session at the table, looked up fresh each time because the client's copy is replaced on every sync. */
+	private TableSession table() {
+		TableSession[] found = new TableSession[1];
 		context.run((world, pos) -> {
 			if (world.getBlockEntity(pos) instanceof DreamTableBlockEntity blockEntity) {
-				found[0] = blockEntity;
+				found[0] = blockEntity.session(playerId);
 			}
 		});
 		return found[0];
@@ -270,7 +275,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private final class Properties implements PropertyDelegate {
 		@Override
 		public int get(int index) {
-			DreamTableBlockEntity table = client ? null : table();
+			TableSession table = client ? null : table();
 			if (table != null) {
 				return switch (index) {
 					case 0 -> table.getPage();

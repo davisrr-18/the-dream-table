@@ -131,6 +131,13 @@ final class BuildProgress {
 		nbt.putLongArray("PaidSteps", paid.toLongArray());
 	}
 
+	/** What clients need to draw the menu, hologram and clipboard. The step records, timer and signature stay on the server. */
+	void writeForClient(NbtCompound nbt) {
+		nbt.putString("Phase", phase);
+		nbt.putInt("BuildIndex", index);
+		nbt.putInt("BlocksPerSecond", blocksPerSecond);
+	}
+
 	void read(NbtCompound nbt) {
 		String stored = nbt.getString("Phase");
 		phase = stored.isEmpty() ? PHASE_IDLE : stored;

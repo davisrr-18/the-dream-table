@@ -6,7 +6,11 @@ alwaysApply: false
 
 # Architecture
 
-- `block/entity`: `DreamTableBlockEntity` is the facade. Its state lives in `MaterialLedger` (delivered and used counts, swaps), `BuildProgress` (phase, step, timer, owner, speed, placed and paid steps), and `FarmPlacement` (anchor and facing).
+- `block/entity`: `DreamTableBlockEntity` keeps one `TableSession` per player (a map by UUID), ticks them, saves them, and syncs them. A session holds everything a player does at the table: page, chosen farm, delivered items, placement, and build. It is built from `MaterialLedger` (delivered and used counts, swaps), `BuildProgress` (phase, step, timer, owner, speed, placed and paid steps), and `FarmPlacement` (anchor and facing).
+- `writeNbt` saves everything; `toInitialChunkDataNbt` sends clients only `TableSession.writeForClient` (no slot inventory, step records, timer or signature). Data a client draws must be added there too.
+- Imported schematics are parsed through `ImportedStructures`' cache (by file time and size), and `FarmTemplates` swaps in the whole new list at once. Don't fill shared lists in place.
+- Never store per-player state on the table itself, and never read another player's session. Server code gets the session from the acting player; client code uses `table.session(localPlayer)`. Never cache a session on the client: each sync replaces the client's copy.
+- The farm code (`FarmBuilder`, `FarmDismantler`, `FarmSpawns`) takes a `TableSession`, never the table.
 - `farm`:
   - `FarmBuilder` places one step per call.
   - `FarmDismantler` takes an unfinished build apart on discard.

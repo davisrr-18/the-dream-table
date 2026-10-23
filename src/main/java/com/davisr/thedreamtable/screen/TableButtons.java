@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.screen;
 
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -14,7 +15,7 @@ final class TableButtons {
 	private TableButtons() {
 	}
 
-	static boolean press(DreamTableBlockEntity table, ServerPlayerEntity player, int id) {
+	static boolean press(TableSession table, ServerPlayerEntity player, int id) {
 		if (id >= 0 && id < FarmOptions.ALL.size()) {
 			return openFarm(table, FarmOptions.ALL.get(id).id());
 		}
@@ -53,12 +54,12 @@ final class TableButtons {
 		};
 	}
 
-	private static boolean page(DreamTableBlockEntity table, int page) {
+	private static boolean page(TableSession table, int page) {
 		table.setPage(page);
 		return true;
 	}
 
-	private static boolean build(DreamTableBlockEntity table, ServerPlayerEntity player) {
+	private static boolean build(TableSession table, ServerPlayerEntity player) {
 		if (table.canResume()) {
 			return table.begin(player, false);
 		}
@@ -68,7 +69,7 @@ final class TableButtons {
 		return false;
 	}
 
-	private static boolean openSwap(DreamTableBlockEntity table, int material) {
+	private static boolean openSwap(TableSession table, int material) {
 		if (!table.canSwap(material) || table.swapOptions(material).isEmpty()) {
 			return false;
 		}
@@ -76,7 +77,7 @@ final class TableButtons {
 		return page(table, PAGE_SWAP);
 	}
 
-	private static boolean pickSwap(DreamTableBlockEntity table, int option) {
+	private static boolean pickSwap(TableSession table, int option) {
 		int material = table.getSwapMaterial();
 		if (material < 0 || !table.setSwap(material, option)) {
 			return false;
@@ -85,7 +86,7 @@ final class TableButtons {
 	}
 
 	/** Opening the current farm returns to it; another farm only replaces it when nothing was started. */
-	private static boolean openFarm(DreamTableBlockEntity table, String id) {
+	private static boolean openFarm(TableSession table, String id) {
 		if (!id.equals(table.getSelectedFarm())) {
 			if (table.hasProgress()) {
 				return true;

@@ -1,6 +1,6 @@
 package com.davisr.thedreamtable.client.hologram;
 
-import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
@@ -50,7 +50,7 @@ public final class GhostRenderer {
 		RenderSystem.enableCull();
 	}
 
-	public static void drawGhosts(WorldRenderContext context, MatrixStack matrices, FarmTemplate template, DreamTableBlockEntity table,
+	public static void drawGhosts(WorldRenderContext context, MatrixStack matrices, FarmTemplate template, TableSession table,
 			BlockPos anchor, Direction facing, int shownPlaced, boolean blocked, float wave) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		Random random = Random.create();

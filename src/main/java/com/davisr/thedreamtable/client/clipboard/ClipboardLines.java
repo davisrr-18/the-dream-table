@@ -1,6 +1,6 @@
 package com.davisr.thedreamtable.client.clipboard;
 
-import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.MaterialSpec;
@@ -27,7 +27,7 @@ public final class ClipboardLines {
 		}
 	}
 
-	public static List<Line> totals(DreamTableBlockEntity table, FarmTemplate template) {
+	public static List<Line> totals(TableSession table, FarmTemplate template) {
 		List<Line> lines = new ArrayList<>();
 		for (MaterialSpec spec : template.materials()) {
 			int have = Math.min(table.stored(spec.item()), spec.count());
@@ -37,7 +37,7 @@ public final class ClipboardLines {
 	}
 
 	/** Delivered items fill the order from the top, so earlier steps are struck through first. */
-	public static List<Line> order(DreamTableBlockEntity table, FarmTemplate template) {
+	public static List<Line> order(TableSession table, FarmTemplate template) {
 		Map<Item, Integer> remaining = new HashMap<>();
 		for (MaterialSpec spec : template.materials()) {
 			remaining.putIfAbsent(spec.item(), table.stored(spec.item()));
@@ -71,7 +71,7 @@ public final class ClipboardLines {
 		return lines.subList(Math.min(from, lines.size()), Math.min(lines.size(), from + ClipboardLayout.ROWS_PER_PAGE));
 	}
 
-	private static Line line(DreamTableBlockEntity table, Item item, int need, Map<Item, Integer> remaining) {
+	private static Line line(TableSession table, Item item, int need, Map<Item, Integer> remaining) {
 		int available = remaining.getOrDefault(item, 0);
 		int have = Math.min(need, available);
 		remaining.put(item, available - have);

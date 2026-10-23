@@ -25,7 +25,7 @@ public record DepositMaterialPayload(BlockPos table) implements CustomPayload {
 				return;
 			}
 			if (player.getWorld().getBlockEntity(payload.table()) instanceof DreamTableBlockEntity table) {
-				table.offerFromHand(player);
+				table.session(player).offerFromHand(player);
 			}
 		}));
 	}

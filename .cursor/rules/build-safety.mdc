@@ -16,4 +16,5 @@ alwaysApply: false
 - Discard only takes apart unfinished builds, and only steps the table placed that still match with `BlockMatch.sameShape`, so a block the player turned or replaced stays. Refunds go only to paid steps. Water refunds nothing, because the bucket came back when it was poured. Empty containers into the player's hands before removing them.
 - Material counts are always keyed by the template's original item. `resolve()` gives the swapped item.
 - A material can be swapped only before any of it is delivered and before the build starts.
+- Respect protected land through `BuildPermission`: a new build needs `canBuildAll` for the starter; each step checks the online owner (`canBreak` for obstacles, `canPlace` otherwise) and stops with `protectedSpot`; Discard skips blocks the discarding player can't break. Never place or remove blocks around these checks.
 - Keep NBT key names stable so existing worlds keep loading. New data gets new keys with safe defaults.

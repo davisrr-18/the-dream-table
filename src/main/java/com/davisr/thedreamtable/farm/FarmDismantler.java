@@ -1,6 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
-import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.block.entity.TableSession;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -33,7 +33,7 @@ public final class FarmDismantler {
 	}
 
 	/** Returns how many blocks were removed. */
-	public static int dismantle(ServerWorld world, DreamTableBlockEntity table, PlayerEntity player) {
+	public static int dismantle(ServerWorld world, TableSession table, PlayerEntity player) {
 		FarmTemplate template = table.template();
 		if (template == null) {
 			return 0;
@@ -52,7 +52,7 @@ public final class FarmDismantler {
 			BlockPos pos = FarmBuilder.target(table, template, step, facing);
 			BlockState expected = table.swapState(step.state()).rotate(FarmGeometry.rotation(facing));
 			BlockState current = world.getBlockState(pos);
-			if (!BlockMatch.sameShape(current, expected)) {
+			if (!BlockMatch.sameShape(current, expected) || !BuildPermission.canBreak(world, player, pos, current)) {
 				continue;
 			}
 			if (!current.getFluidState().isEmpty()) {
@@ -95,7 +95,7 @@ public final class FarmDismantler {
 	}
 
 	/** Water already handed its empty bucket back when it was poured, so it refunds nothing. */
-	private static boolean refundable(DreamTableBlockEntity table, int index, FarmStep step) {
+	private static boolean refundable(TableSession table, int index, FarmStep step) {
 		return table.wasPaid(index) && step.item() != null && step.item() != Items.WATER_BUCKET;
 	}
 

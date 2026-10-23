@@ -1,6 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
-import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.block.entity.TableSession;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.mob.MobEntity;
@@ -44,7 +44,7 @@ final class FarmSpawns {
 		return true;
 	}
 
-	static void returnBucket(ServerWorld world, DreamTableBlockEntity table) {
+	static void returnBucket(ServerWorld world, TableSession table) {
 		ItemStack bucket = new ItemStack(Items.BUCKET);
 		ServerPlayerEntity player = table.getOwner() == null ? null : world.getServer().getPlayerManager().getPlayer(table.getOwner());
 		if (player != null && player.getInventory().insertStack(bucket) && bucket.isEmpty()) {

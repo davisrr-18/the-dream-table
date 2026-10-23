@@ -1,17 +1,19 @@
 package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
-import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.block.entity.TableSession;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 
 /**
@@ -26,7 +28,7 @@ public final class FarmBuilder {
 	}
 
 	/** An unexpected error pauses the build instead of crashing the server. */
-	public static boolean placeNext(DreamTableBlockEntity table, ServerWorld world) {
+	public static boolean placeNext(TableSession table, ServerWorld world) {
 		try {
 			return step(table, world);
 		} catch (RuntimeException exception) {
@@ -36,8 +38,24 @@ public final class FarmBuilder {
 		}
 	}
 
+	/** The box of blocks this farm would occupy, used to keep two players' farms at one table apart. */
+	public static Box footprint(TableSession table, FarmTemplate template) {
+		Direction facing = facing(table);
+		int[] low = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE};
+		int[] high = {Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
+		for (FarmStep step : template.steps()) {
+			BlockPos pos = target(table, template, step, facing);
+			int[] at = {pos.getX(), pos.getY(), pos.getZ()};
+			for (int axis = 0; axis < 3; axis++) {
+				low[axis] = Math.min(low[axis], at[axis]);
+				high[axis] = Math.max(high[axis], at[axis]);
+			}
+		}
+		return new Box(low[0], low[1], low[2], high[0] + 1, high[1] + 1, high[2] + 1);
+	}
+
 	/** True when every step lies between the world floor and ceiling and inside the border. */
-	public static boolean fits(ServerWorld world, DreamTableBlockEntity table, FarmTemplate template) {
+	public static boolean fits(ServerWorld world, TableSession table, FarmTemplate template) {
 		Direction facing = facing(table);
 		for (FarmStep step : template.steps()) {
 			BlockPos pos = target(table, template, step, facing);
@@ -48,7 +66,7 @@ public final class FarmBuilder {
 		return true;
 	}
 
-	private static boolean step(DreamTableBlockEntity table, ServerWorld world) {
+	private static boolean step(TableSession table, ServerWorld world) {
 		FarmTemplate template = FarmTemplates.get(table.getSelectedFarm());
 		if (template == null || table.getBuildIndex() >= template.steps().size()) {
 			table.finish();
@@ -61,9 +79,9 @@ public final class FarmBuilder {
 			return false;
 		}
 		BlockState placed = step.isEntity() ? null : table.swapState(step.state()).rotate(FarmGeometry.rotation(facing));
+		BlockState existing = placed == null ? null : world.getBlockState(target);
 
 		if (placed != null) {
-			BlockState existing = world.getBlockState(target);
 			if (BlockMatch.sameBlock(existing, placed)) {
 				return advance(world, table, template, facing);
 			}
@@ -71,6 +89,10 @@ public final class FarmBuilder {
 				table.obstruct(target, existing);
 				return false;
 			}
+		}
+		if (!permitted(world, table, target, existing)) {
+			table.protectedSpot(target);
+			return false;
 		}
 		boolean free = table.creativeOwner(world);
 		boolean costs = step.item() != null && !free;
@@ -94,6 +116,21 @@ public final class FarmBuilder {
 			FarmSpawns.returnBucket(world, table);
 		}
 		return advance(world, table, template, facing);
+	}
+
+	/**
+	 * Builds as the player who started it, so protected land stays protected. While that player is offline
+	 * the area was already checked when the build started, and the build goes on.
+	 */
+	private static boolean permitted(ServerWorld world, TableSession table, BlockPos target, BlockState existing) {
+		ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(table.getOwner());
+		if (owner == null) {
+			return true;
+		}
+		if (existing != null && !existing.isReplaceable()) {
+			return BuildPermission.canBreak(world, owner, target, existing);
+		}
+		return BuildPermission.canPlace(world, owner, target);
 	}
 
 	private static boolean spawn(ServerWorld world, BlockPos target, FarmStep step) {
@@ -123,7 +160,7 @@ public final class FarmBuilder {
 		return true;
 	}
 
-	private static boolean advance(ServerWorld world, DreamTableBlockEntity table, FarmTemplate template, Direction facing) {
+	private static boolean advance(ServerWorld world, TableSession table, FarmTemplate template, Direction facing) {
 		table.advance();
 		if (table.getBuildIndex() >= template.steps().size()) {
 			settle(world, table, template, facing);
@@ -132,18 +169,18 @@ public final class FarmBuilder {
 		return true;
 	}
 
-	static Direction facing(DreamTableBlockEntity table) {
+	static Direction facing(TableSession table) {
 		return table.hasAnchor() ? table.getFarmFacing() : table.getCachedState().get(Properties.HORIZONTAL_FACING);
 	}
 
-	static BlockPos target(DreamTableBlockEntity table, FarmTemplate template, FarmStep step, Direction facing) {
+	static BlockPos target(TableSession table, FarmTemplate template, FarmStep step, Direction facing) {
 		return table.hasAnchor()
 				? FarmGeometry.toAimed(table.getFarmAnchor(), facing, template, step)
 				: FarmGeometry.toWorld(table.getPos(), facing, step);
 	}
 
 	/** Blocks are placed without neighbor updates, so the finished farm gets one update pass to start its redstone and liquids. */
-	private static void settle(ServerWorld world, DreamTableBlockEntity table, FarmTemplate template, Direction facing) {
+	private static void settle(ServerWorld world, TableSession table, FarmTemplate template, Direction facing) {
 		for (FarmStep step : template.steps()) {
 			if (step.isEntity() || step.state() == null) {
 				continue;

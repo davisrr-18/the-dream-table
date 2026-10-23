@@ -1,9 +1,7 @@
 package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.FarmBuilder;
-import com.davisr.thedreamtable.farm.FarmDismantler;
 import com.davisr.thedreamtable.farm.FarmTemplate;
-import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import com.davisr.thedreamtable.screen.OpenData;
@@ -12,11 +10,9 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.SimpleInventory;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
@@ -26,20 +22,20 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
-import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 
 /**
- * The table: which farm is chosen, what the player delivered, where the farm goes, and how far the build is.
- * Every change is synced to clients, which read it for the menu, the hologram and the clipboard.
+ * The table block. It keeps one {@link TableSession} per player, so every player who uses it has their own
+ * menu, farm, materials and build. The table itself only ticks the builds, saves the sessions, and syncs them to clients.
  */
 public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<OpenData> {
 	public static final String PHASE_IDLE = "idle";
@@ -50,33 +46,18 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	public static final String PHASE_DONE = "done";
 	public static final int TICKS_PER_BLOCK = 20;
 
-	private final SimpleInventory materials = new SimpleInventory(FarmTemplate.MAX_SLOTS);
-	private final MaterialLedger ledger = new MaterialLedger();
-	private final BuildProgress progress = new BuildProgress();
-	private final FarmPlacement placement = new FarmPlacement();
-	private boolean adjusting;
-	private String selectedFarm = "";
-	private int page;
-	private boolean requirementsBoard;
-	private int swapMaterial = -1;
+	private static final UUID SHARED = new UUID(0L, 0L);
+
+	private final Map<UUID, TableSession> sessions = new LinkedHashMap<>();
 
 	public DreamTableBlockEntity(BlockPos pos, BlockState state) {
 		super(ModBlockEntities.DREAM_TABLE, pos, state);
-		materials.addListener(inventory -> {
-			if (!adjusting) {
-				absorbInsertedStacks();
-				markDirty();
-			}
-		});
 	}
 
 	public static void tick(World world, BlockPos pos, BlockState state, DreamTableBlockEntity table) {
-		if (!(world instanceof ServerWorld serverWorld) || !table.progress.is(PHASE_BUILDING) || !table.progress.second()) {
-			return;
-		}
-		for (int placed = 0; placed < table.progress.blocksPerSecond() && table.progress.is(PHASE_BUILDING); placed++) {
-			if (!FarmBuilder.placeNext(table, serverWorld)) {
-				break;
+		if (world instanceof ServerWorld serverWorld) {
+			for (TableSession session : List.copyOf(table.sessions.values())) {
+				session.tick(serverWorld);
 			}
 		}
 	}
@@ -85,317 +66,51 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		return speed == 2 || speed == 4 || speed == 8 ? speed : 1;
 	}
 
-
-	public String getSelectedFarm() {
-		return selectedFarm;
-	}
-
-	public FarmTemplate template() {
-		return FarmTemplates.get(selectedFarm);
-	}
-
-	public void setSelectedFarm(String selectedFarm) {
-		this.selectedFarm = selectedFarm == null ? "" : selectedFarm;
-		requirementsBoard = false;
-		ledger.reset();
-		progress.reset(false);
-		swapMaterial = -1;
-		placement.clear();
-		sync();
-	}
-
-	/** True while the farm has a placement, delivered items, or a build that is not finished. */
-	public boolean hasProgress() {
-		return !progress.is(PHASE_DONE) && (progress.busy() || placement.placed() || ledger.anyDelivered());
-	}
-
-	public int getPage() {
-		return page;
-	}
-
-	public void setPage(int page) {
-		this.page = page;
-		sync();
-	}
-
-	public boolean isRequirementsBoard() {
-		return requirementsBoard;
-	}
-
-	public void setRequirementsBoard(boolean requirementsBoard) {
-		this.requirementsBoard = requirementsBoard;
-		sync();
-	}
-
-	public SimpleInventory getMaterials() {
-		return materials;
-	}
-
-
-	public Item resolve(Item original) {
-		return ledger.resolve(original);
-	}
-
-	public BlockState swapState(BlockState state) {
-		return ledger.swapState(state);
-	}
-
-	public List<Item> swapOptions(int index) {
-		return ledger.swapOptions(template(), index);
-	}
-
-	/** A material can be swapped only before any of it is delivered and before the build starts. */
-	public boolean canSwap(int index) {
-		FarmTemplate template = template();
-		boolean valid = template != null && index >= 0 && index < template.materials().size();
-		return valid && progress.is(PHASE_IDLE) && progress.index() == 0 && ledger.untouched(index);
-	}
-
-	public boolean setSwap(int index, int option) {
-		if (!canSwap(index) || !ledger.swap(template(), index, option)) {
-			return false;
-		}
-		sync();
-		return true;
-	}
-
-	public int getSwapMaterial() {
-		return swapMaterial;
-	}
-
-	public void setSwapMaterial(int index) {
-		swapMaterial = index;
-		sync();
-	}
-
-
-	public boolean hasAnchor() {
-		return placement.placed();
-	}
-
-	public BlockPos getFarmAnchor() {
-		return placement.anchor();
-	}
-
-	public Direction getFarmFacing() {
-		return placement.facing();
-	}
-
-	public void setPlacement(BlockPos anchor, Direction facing) {
-		placement.set(anchor, facing);
-		sync();
-	}
-
-
-	public String getPhase() {
-		return progress.phase();
-	}
-
-	public boolean isBusy() {
-		return progress.busy();
-	}
-
-	public boolean canResume() {
-		return progress.resumable();
-	}
-
-	public int getBuildIndex() {
-		return progress.index();
-	}
-
-	public int totalSteps() {
-		FarmTemplate template = template();
-		return template == null ? 0 : template.steps().size();
-	}
-
-	public UUID getOwner() {
-		return progress.owner();
-	}
-
-	public boolean creativeOwner(ServerWorld world) {
-		ServerPlayerEntity player = progress.owner() == null ? null : world.getServer().getPlayerManager().getPlayer(progress.owner());
-		return player != null && player.isCreative();
-	}
-
-	public int getBlocksPerSecond() {
-		return progress.blocksPerSecond();
-	}
-
-	public void setBlocksPerSecond(int speed) {
-		progress.setBlocksPerSecond(speed);
-		sync();
-	}
-
 	/**
-	 * Starts or resumes the build. It refuses, and tells the player why, when a new build would reach outside the world,
-	 * or when a resumed build belongs to a farm file that has changed since it started.
+	 * The session for this player, created on first use. A client holds only the sessions the server sent,
+	 * so it gets an empty one until the player picks a farm.
 	 */
-	public boolean begin(ServerPlayerEntity player, boolean fromScratch) {
-		FarmTemplate template = template();
-		if (template == null) {
-			return false;
-		}
-		if (fromScratch && world instanceof ServerWorld serverWorld && !FarmBuilder.fits(serverWorld, this, template)) {
-			placement.clear();
-			sync();
-			player.sendMessage(Text.translatable("gui.the_dream_table.out_of_world"), true);
-			return false;
-		}
-		if (!fromScratch && !progress.matches(template.signature())) {
-			player.sendMessage(Text.translatable("gui.the_dream_table.farm_changed"), true);
-			return false;
-		}
-		progress.start(player.getUuid(), fromScratch, template.signature());
-		sync();
-		tell(Text.translatable("gui.the_dream_table.building", progress.index(), totalSteps()));
-		return true;
-	}
-
-	/** A block could not be placed, or the step failed unexpectedly. Nothing was spent; Try Again repeats the step. */
-	public void placementFailed(BlockPos where) {
-		progress.stop(PHASE_BLOCKED);
-		sync();
-		tell(Text.translatable("gui.the_dream_table.place_failed", where.getX(), where.getY(), where.getZ()));
-		sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), where, 0.8F, 0.5F);
-	}
-
-	public void obstruct(BlockPos where, BlockState obstacle) {
-		progress.stop(PHASE_BLOCKED);
-		sync();
-		tell(Text.translatable("gui.the_dream_table.blocked_at", obstacle.getBlock().getName()));
-		sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), where, 0.8F, 0.5F);
-	}
-
-	public void missingMaterial() {
-		progress.stop(PHASE_NEED);
-		sync();
-		tell(Text.translatable("gui.the_dream_table.paused"));
-		sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), pos, 0.8F, 0.5F);
-	}
-
-	/** Stops after the current step; nothing is undone and resuming continues from the next block. */
-	public boolean pause() {
-		if (!progress.is(PHASE_BUILDING)) {
-			return false;
-		}
-		progress.stop(PHASE_PAUSED);
-		sync();
-		tell(Text.translatable("gui.the_dream_table.paused_build", progress.index(), totalSteps()));
-		return true;
-	}
-
-	public void finish() {
-		progress.stop(PHASE_DONE);
-		sync();
-		tell(Text.translatable("gui.the_dream_table.done"));
-		sound(SoundEvents.BLOCK_BEACON_ACTIVATE, pos, 0.6F, 1.2F);
-	}
-
-	public void advance() {
-		progress.advance();
-		sync();
-	}
-
-	/** Marks the current step as placed by the table, and whether it used a delivered item. */
-	public void recordPlaced(boolean usedItem) {
-		progress.recordPlaced(usedItem);
-	}
-
-	public boolean wasPlaced(int step) {
-		return progress.placed(step);
-	}
-
-	public boolean wasPaid(int step) {
-		return progress.paid(step);
-	}
-
-
-	public boolean offerFromHand(PlayerEntity player) {
-		FarmTemplate template = template();
-		if (!requirementsBoard || template == null) {
-			return false;
-		}
-		Hand hand = player.getStackInHand(Hand.MAIN_HAND).isEmpty() ? Hand.OFF_HAND : Hand.MAIN_HAND;
-		ItemStack stack = player.getStackInHand(hand);
-		int accepted = stack.isEmpty() ? 0 : ledger.accept(template, stack);
-		if (accepted <= 0) {
-			return false;
-		}
-		if (!player.getAbilities().creativeMode) {
-			stack.decrement(accepted);
-		}
-		sync();
-		if (world != null) {
-			world.playSound(null, pos, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 0.5F, 1.15F);
-		}
-		player.swingHand(hand);
-		return true;
-	}
-
-	public boolean hasAllMaterials() {
-		FarmTemplate template = template();
-		return template != null && ledger.complete(template);
-	}
-
-	public int deposited(int index) {
-		return ledger.deposited(index);
-	}
-
-	public int supplied(int index) {
-		return ledger.supplied(index);
-	}
-
-	public int stored(Item item) {
-		FarmTemplate template = template();
-		return template == null ? 0 : ledger.stored(template, item);
-	}
-
-	public boolean hasMaterial(Item item) {
-		FarmTemplate template = template();
-		return template != null && ledger.has(template, item);
-	}
-
-	public boolean consumeMaterial(Item item) {
-		FarmTemplate template = template();
-		if (template == null || !ledger.consume(template, item)) {
-			return false;
-		}
-		markDirty();
-		return true;
-	}
-
-	/** An unfinished build is taken apart first; a finished farm stays standing. */
-	public void discard(PlayerEntity player) {
-		FarmTemplate template = template();
-		if (world instanceof ServerWorld serverWorld && template != null && !progress.is(PHASE_DONE) && progress.index() > 0) {
-			if (!progress.matches(template.signature())) {
-				player.sendMessage(Text.translatable("gui.the_dream_table.discard_changed"), true);
+	public TableSession session(UUID player) {
+		TableSession session = sessions.get(player);
+		if (session == null) {
+			session = sessions.remove(SHARED);
+			if (session == null) {
+				session = new TableSession(this, player);
 			} else {
-				int removed = FarmDismantler.dismantle(serverWorld, this, player);
-				if (removed > 0) {
-					player.sendMessage(Text.translatable("gui.the_dream_table.dismantled", removed), true);
-				}
+				session.adopt(player);
+			}
+			sessions.put(player, session);
+		}
+		return session;
+	}
+
+	public TableSession session(PlayerEntity player) {
+		return session(player.getUuid());
+	}
+
+	/** True when another player's farm at this table covers any block this farm would use. */
+	boolean overlapsOthers(TableSession asker, FarmTemplate template) {
+		Box mine = FarmBuilder.footprint(asker, template);
+		for (TableSession other : sessions.values()) {
+			FarmTemplate theirs = other.template();
+			if (other != asker && theirs != null && (other.hasAnchor() || other.isBusy()) && mine.intersects(FarmBuilder.footprint(other, theirs))) {
+				return true;
 			}
 		}
-		returnDeposited(player.getWorld(), player);
-		progress.reset(true);
-		page = 0;
-		selectedFarm = "";
-		requirementsBoard = false;
-		ledger.reset();
-		swapMaterial = -1;
-		placement.clear();
-		sync();
+		return false;
 	}
 
+	/** When the table is broken, everyone's delivered materials drop. Built blocks stay. */
 	public void dropMaterials(World world) {
-		returnDeposited(world, null);
+		for (TableSession session : sessions.values()) {
+			session.dropMaterials(world);
+		}
 	}
-
 
 	@Override
 	public OpenData getScreenOpeningData(ServerPlayerEntity player) {
-		return new OpenData(pos, selectedFarm, page, DreamTableScreenHandler.phaseOf(progress.phase()), progress.index());
+		TableSession session = session(player);
+		return new OpenData(pos, session.getSelectedFarm(), session.getPage(), DreamTableScreenHandler.phaseOf(session.getPhase()), session.getBuildIndex());
 	}
 
 	@Override
@@ -405,7 +120,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 
 	@Override
 	public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-		return new DreamTableScreenHandler(syncId, playerInventory, this);
+		return new DreamTableScreenHandler(syncId, playerInventory, session(player));
 	}
 
 	@Override
@@ -413,90 +128,79 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
+	/** Sent on chunk load and on every sync. It carries only what clients draw, so builds stay cheap to sync while blocks are placed. */
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		return createNbt(registries);
+		NbtCompound nbt = new NbtCompound();
+		nbt.put("Sessions", sessionList(TableSession::writeForClient));
+		return nbt;
 	}
 
 	@Override
 	protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		super.writeNbt(nbt, registries);
-		nbt.putString("SelectedFarm", selectedFarm);
-		nbt.putInt("Page", page);
-		nbt.putBoolean("RequirementsBoard", requirementsBoard);
-		nbt.putInt("SwapMaterial", swapMaterial);
-		nbt.put("Materials", materials.toNbtList(registries));
-		progress.write(nbt);
-		placement.write(nbt);
-		ledger.write(nbt);
+		nbt.put("Sessions", sessionList((session, entry) -> session.write(entry, registries)));
+	}
+
+	private NbtList sessionList(BiConsumer<TableSession, NbtCompound> writer) {
+		NbtList list = new NbtList();
+		for (TableSession session : sessions.values()) {
+			if (!session.isEmpty()) {
+				NbtCompound entry = new NbtCompound();
+				entry.putUuid("Player", session.player());
+				writer.accept(session, entry);
+				list.add(entry);
+			}
+		}
+		return list;
 	}
 
 	@Override
 	protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		super.readNbt(nbt, registries);
-		selectedFarm = nbt.getString("SelectedFarm");
-		page = nbt.getInt("Page");
-		requirementsBoard = nbt.getBoolean("RequirementsBoard");
-		swapMaterial = nbt.contains("SwapMaterial", NbtElement.INT_TYPE) ? nbt.getInt("SwapMaterial") : -1;
-		materials.clear();
-		if (nbt.contains("Materials", NbtElement.LIST_TYPE)) {
-			materials.readNbtList(nbt.getList("Materials", NbtElement.COMPOUND_TYPE), registries);
-		}
-		progress.read(nbt);
-		placement.read(nbt);
-		ledger.read(nbt);
-	}
-
-	private void absorbInsertedStacks() {
-		FarmTemplate template = template();
-		if (template == null) {
-			return;
-		}
-		adjusting = true;
-		try {
-			ledger.absorb(template, materials);
-		} finally {
-			adjusting = false;
-		}
-	}
-
-	/** Gives the unused delivered items back to the player, or drops them at the table. */
-	private void returnDeposited(World world, PlayerEntity player) {
-		adjusting = true;
-		try {
-			for (ItemStack stack : ledger.drain(template())) {
-				if (player != null && player.getInventory().insertStack(stack) && stack.isEmpty()) {
-					continue;
-				}
-				if (player != null) {
-					player.dropItem(stack, false);
-				} else if (world != null) {
-					ItemScatterer.spawn(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, stack);
-				}
+		sessions.clear();
+		NbtList list = nbt.getList("Sessions", NbtElement.COMPOUND_TYPE);
+		for (int index = 0; index < list.size(); index++) {
+			NbtCompound entry = list.getCompound(index);
+			if (entry.containsUuid("Player")) {
+				TableSession session = new TableSession(this, entry.getUuid("Player"));
+				session.read(entry, registries);
+				sessions.put(session.player(), session);
 			}
-			materials.clear();
-		} finally {
-			adjusting = false;
+		}
+		if (!nbt.contains("Sessions", NbtElement.LIST_TYPE)) {
+			readSharedState(nbt, registries);
 		}
 	}
 
-	private void tell(Text text) {
-		if (!(world instanceof ServerWorld serverWorld) || progress.owner() == null) {
+	/** Worlds saved before sessions kept one shared state. It goes to the player who started its build, or else to whoever opens the table first. */
+	private void readSharedState(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+		TableSession shared = new TableSession(this, SHARED);
+		shared.read(nbt, registries);
+		if (shared.isEmpty()) {
 			return;
 		}
-		ServerPlayerEntity player = serverWorld.getServer().getPlayerManager().getPlayer(progress.owner());
-		if (player != null) {
-			player.sendMessage(text, true);
+		UUID owner = shared.savedOwner();
+		shared.adopt(owner != null ? owner : SHARED);
+		sessions.put(shared.player(), shared);
+	}
+
+	void tell(UUID player, Text text) {
+		if (world instanceof ServerWorld serverWorld) {
+			ServerPlayerEntity online = serverWorld.getServer().getPlayerManager().getPlayer(player);
+			if (online != null) {
+				online.sendMessage(text, true);
+			}
 		}
 	}
 
-	private void sound(SoundEvent sound, BlockPos where, float volume, float pitch) {
+	void sound(SoundEvent sound, BlockPos where, float volume, float pitch) {
 		if (world != null) {
 			world.playSound(null, where, sound, SoundCategory.BLOCKS, volume, pitch);
 		}
 	}
 
-	private void sync() {
+	void sync() {
 		markDirty();
 		if (world instanceof ServerWorld serverWorld) {
 			serverWorld.getChunkManager().markForUpdate(pos);
