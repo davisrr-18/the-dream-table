@@ -8,6 +8,7 @@ import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import com.davisr.thedreamtable.network.PlaceFarmPayload;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -167,6 +168,9 @@ public final class WorkPage implements TablePage {
 		if (!problem.isEmpty()) {
 			return Text.translatable(problem);
 		}
+		if (lowMobFarm()) {
+			return Text.translatable("gui.the_dream_table.mob_low");
+		}
 		int existing = DreamTableHologram.existingPercent();
 		if (existing >= EXISTING_FARM_PERCENT) {
 			return Text.translatable("gui.the_dream_table.existing_farm", existing);
@@ -177,6 +181,13 @@ public final class WorkPage implements TablePage {
 		return ProjectState.hasAllMaterials(ui.handler())
 				? Text.translatable("gui.the_dream_table.ready")
 				: Text.translatable("gui.the_dream_table.partial");
+	}
+
+	/** Mob farms below sea level fill with bats and glow squids and compete with caves for spawns. */
+	private boolean lowMobFarm() {
+		MinecraftClient client = MinecraftClient.getInstance();
+		boolean mobs = FarmOptions.Group.of(ui.farm()).filter(group -> group == FarmOptions.Group.MOB_FARMS).isPresent();
+		return mobs && client.world != null && DreamTableHologram.anchorForBuild().getY() < client.world.getSeaLevel();
 	}
 
 	private int statusY() {

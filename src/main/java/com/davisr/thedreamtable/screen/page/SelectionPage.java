@@ -1,7 +1,6 @@
 package com.davisr.thedreamtable.screen.page;
 
-import com.davisr.thedreamtable.farm.FarmOptions;
-import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
+import com.davisr.thedreamtable.farm.FarmOptions.Category;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
@@ -10,7 +9,10 @@ import net.minecraft.text.Text;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
+/** The first menu page: the farm categories, then My Schematics and Options. The category of the current farm is highlighted. */
 public final class SelectionPage implements TablePage {
+	private static final Category[] CATEGORIES = Category.values();
+
 	private final PageContext ui;
 
 	public SelectionPage(PageContext ui) {
@@ -19,26 +21,25 @@ public final class SelectionPage implements TablePage {
 
 	@Override
 	public void draw(DrawContext context, int mouseX, int mouseY) {
-		boolean locked = ProjectState.locked(ui.handler());
-		for (int index = 0; index < FarmOptions.ALL.size(); index++) {
-			FarmOption option = FarmOptions.ALL.get(index);
-			boolean selected = option.id().equals(ui.farm());
-			ui.card(context, option.icon().getDefaultStack(), option.title(), ui.view().cardY(index), mouseX, mouseY, selected, !locked || selected);
+		Category current = Category.of(ui.farm()).orElse(null);
+		for (int index = 0; index < CATEGORIES.length; index++) {
+			Category category = CATEGORIES[index];
+			ui.card(context, category.icon().getDefaultStack(), category.title(), count(category), ui.view().cardY(index), mouseX, mouseY, category == current, true);
 		}
 		ui.card(context, new ItemStack(Items.BOOK), Text.translatable("gui.the_dream_table.schemes"), schemesY(), mouseX, mouseY, false, true);
 		ui.card(context, new ItemStack(Items.REPEATER), Text.translatable("gui.the_dream_table.options"), optionsY(), mouseX, mouseY, false, true);
 	}
 
+	private static Text count(Category category) {
+		int farms = category.groups().size();
+		return farms == 1 ? Text.translatable("gui.the_dream_table.farm_count_one") : Text.translatable("gui.the_dream_table.farm_count", farms);
+	}
+
 	@Override
 	public boolean click(double mouseX, double mouseY) {
-		for (int index = 0; index < FarmOptions.ALL.size(); index++) {
+		for (int index = 0; index < CATEGORIES.length; index++) {
 			if (ui.cardHit(mouseX, mouseY, ui.view().cardY(index))) {
-				FarmOption option = FarmOptions.ALL.get(index);
-				if (!option.id().equals(ui.farm()) && ProjectState.locked(ui.handler())) {
-					ui.message("gui.the_dream_table.farm_busy");
-					return true;
-				}
-				ui.go(option.id(), DreamTableScreenHandler.PAGE_WORK, index);
+				ui.go(DreamTableScreenHandler.PAGE_CATEGORY + index, DreamTableScreenHandler.BUTTON_CATEGORY + index);
 				return true;
 			}
 		}
@@ -55,7 +56,7 @@ public final class SelectionPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		int count = FarmOptions.ALL.size() + 2;
+		int count = CATEGORIES.length + 2;
 		return PAD + count * CARD_HEIGHT + (count - 1) * CARD_GAP + 6;
 	}
 
@@ -65,10 +66,10 @@ public final class SelectionPage implements TablePage {
 	}
 
 	private int schemesY() {
-		return ui.view().cardY(FarmOptions.ALL.size());
+		return ui.view().cardY(CATEGORIES.length);
 	}
 
 	private int optionsY() {
-		return ui.view().cardY(FarmOptions.ALL.size() + 1);
+		return ui.view().cardY(CATEGORIES.length + 1);
 	}
 }

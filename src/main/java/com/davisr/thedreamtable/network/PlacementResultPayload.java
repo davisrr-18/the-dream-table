@@ -15,6 +15,8 @@ import net.minecraft.util.math.Direction;
  * and how much of the farm already stands there, in percent.
  */
 public record PlacementResultPayload(BlockPos table, BlockPos anchor, Direction facing, String problem, int existing) implements CustomPayload {
+	/** For the quiet rechecks: the farm already standing there was counted when the spot was picked. */
+	public static final int UNCHANGED = -1;
 	public static final Id<PlacementResultPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "placement_result"));
 	public static final PacketCodec<RegistryByteBuf, PlacementResultPayload> CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC, PlacementResultPayload::table,

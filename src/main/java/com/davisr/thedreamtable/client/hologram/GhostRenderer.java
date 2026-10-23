@@ -1,13 +1,11 @@
 package com.davisr.thedreamtable.client.hologram;
 
 import com.davisr.thedreamtable.block.entity.TableSession;
-import com.davisr.thedreamtable.farm.FarmGeometry;
+import com.davisr.thedreamtable.client.FarmFaces;
 import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.BuiltBuffer;
@@ -16,15 +14,15 @@ import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.render.WorldRenderer;
-import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.client.render.model.BakedQuad;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.screen.PlayerScreenHandler;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.random.Random;
 import org.joml.Matrix4f;
+
+import java.util.List;
 
 /**
  * Draws the translucent blocks still to be built and the yellow aim marker. The next block glows, or turns red when it is blocked.
@@ -53,31 +51,42 @@ public final class GhostRenderer {
 		RenderSystem.enableCull();
 	}
 
+	/**
+	 * Draws the blocks still to build from the cached {@link FarmFaces}. A face covered by another block of the farm is
+	 * skipped when that block is already built or drawn too, so the top of the last shown layer still gets its faces.
+	 */
 	public static void drawGhosts(WorldRenderContext context, MatrixStack matrices, FarmTemplate template, TableSession table,
-			BlockPos anchor, Direction facing, int shownPlaced, boolean blocked, boolean refused, float wave) {
-		MinecraftClient client = MinecraftClient.getInstance();
-		Random random = Random.create();
+			BlockPos anchor, Direction facing, int shownPlaced, boolean blocked, boolean refused, int topLayer, float wave) {
+		List<FarmFaces.Part> parts = table == null
+				? FarmFaces.of(template, "", state -> state, facing)
+				: FarmFaces.of(template, table.swapKey(), table::swapState, facing);
+		List<FarmStep> steps = template.steps();
 		BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
 		boolean any = false;
-		for (int index = shownPlaced; index < template.steps().size(); index++) {
-			FarmStep step = template.steps().get(index);
-			if (step.isEntity() || step.state() == null) {
+		for (FarmFaces.Part part : parts) {
+			int index = part.step();
+			if (index < shownPlaced || steps.get(index).y() > topLayer) {
 				continue;
 			}
-			BlockPos pos = FarmGeometry.toAimed(anchor, facing, template, step);
-			BlockState base = table == null ? step.state() : table.swapState(step.state());
-			BlockState state = base.rotate(FarmGeometry.rotation(facing));
 			Tint tint = Tint.of(index == shownPlaced, blocked, refused, wave);
 			matrices.push();
-			matrices.translate(pos.getX() + 0.01, pos.getY() + 0.01, pos.getZ() + 0.01);
+			matrices.translate(anchor.getX() + part.pos().getX() + 0.01, anchor.getY() + part.pos().getY() + 0.01, anchor.getZ() + part.pos().getZ() + 0.01);
 			matrices.scale(0.98F, 0.98F, 0.98F);
-			BakedModel model = client.getBlockRenderManager().getModel(state);
-			random.setSeed(pos.asLong());
-			if (!ghostModel(buffer, matrices, context, state, pos, model, random, tint)) {
-				ghostCube(buffer, matrices, model.getParticleSprite(), tint);
+			boolean drawn = false;
+			for (int quad = 0; quad < part.quads().size(); quad++) {
+				int cover = part.coveredBy()[quad];
+				if (cover >= 0 && (cover < shownPlaced || steps.get(cover).y() <= topLayer)) {
+					continue;
+				}
+				ghostQuad(buffer, matrices, part.quads().get(quad), part.tints()[quad], tint);
+				drawn = true;
+			}
+			if (part.quads().isEmpty()) {
+				ghostCube(buffer, matrices, part.fallback(), tint);
+				drawn = true;
 			}
 			matrices.pop();
-			any = true;
+			any |= drawn;
 		}
 		BuiltBuffer built = buffer.endNullable();
 		if (!any || built == null) {
@@ -108,38 +117,15 @@ public final class GhostRenderer {
 		}
 	}
 
-	private static boolean ghostModel(BufferBuilder buffer, MatrixStack matrices, WorldRenderContext context, BlockState state, BlockPos pos, BakedModel model, Random random, Tint tint) {
-		boolean any = false;
-		for (Direction face : Direction.values()) {
-			for (BakedQuad quad : model.getQuads(state, face, random)) {
-				ghostQuad(buffer, matrices, context, state, pos, quad, tint);
-				any = true;
-			}
-		}
-		for (BakedQuad quad : model.getQuads(state, null, random)) {
-			ghostQuad(buffer, matrices, context, state, pos, quad, tint);
-			any = true;
-		}
-		return any;
-	}
-
-	private static void ghostQuad(BufferBuilder buffer, MatrixStack matrices, WorldRenderContext context, BlockState state, BlockPos pos, BakedQuad quad, Tint tint) {
+	private static void ghostQuad(BufferBuilder buffer, MatrixStack matrices, BakedQuad quad, int color, Tint tint) {
 		int[] data = quad.getVertexData();
 		int stride = data.length / 4;
 		if (stride < 6) {
 			return;
 		}
-		float tintRed = 1.0F;
-		float tintGreen = 1.0F;
-		float tintBlue = 1.0F;
-		if (quad.hasColor() && context.world() != null) {
-			int color = MinecraftClient.getInstance().getBlockColors().getColor(state, context.world(), pos, quad.getColorIndex());
-			if (color != -1) {
-				tintRed = ((color >> 16) & 255) / 255.0F;
-				tintGreen = ((color >> 8) & 255) / 255.0F;
-				tintBlue = (color & 255) / 255.0F;
-			}
-		}
+		float tintRed = color == -1 ? 1.0F : ((color >> 16) & 255) / 255.0F;
+		float tintGreen = color == -1 ? 1.0F : ((color >> 8) & 255) / 255.0F;
+		float tintBlue = color == -1 ? 1.0F : (color & 255) / 255.0F;
 		int red = Math.min(255, (int) (tintRed * tint.red() * 255.0F));
 		int green = Math.min(255, (int) (tintGreen * tint.green() * 255.0F));
 		int blue = Math.min(255, (int) (tintBlue * tint.blue() * 255.0F));

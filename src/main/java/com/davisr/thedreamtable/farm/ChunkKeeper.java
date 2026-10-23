@@ -5,7 +5,11 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
+
 import java.util.Comparator;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Keeps the chunks a running build needs loaded while its owner is online but far away: the table's chunk, so it keeps
@@ -21,6 +25,10 @@ public final class ChunkKeeper {
 	private ChunkKeeper() {
 	}
 
+	/** A chunk renewed this recently is skipped, since a fast build asks for the same chunk many times a tick. */
+	private static final int RENEW_TICKS = 20;
+	private static final Map<ServerWorld, Long2LongOpenHashMap> RENEWED = new WeakHashMap<>();
+
 	public static void keepTable(ServerWorld world, BlockPos table) {
 		ChunkPos chunk = new ChunkPos(table);
 		world.getChunkManager().addTicket(TICKET, chunk, TABLE_RADIUS, chunk);
@@ -29,6 +37,16 @@ public final class ChunkKeeper {
 	/** Loads, or keeps loaded, the chunk of a block about to be placed or removed. */
 	public static void keepSpot(ServerWorld world, BlockPos spot) {
 		ChunkPos chunk = new ChunkPos(spot);
+		Long2LongOpenHashMap renewed = RENEWED.computeIfAbsent(world, ignored -> new Long2LongOpenHashMap());
+		long now = world.getTime();
+		long last = renewed.getOrDefault(chunk.toLong(), Long.MIN_VALUE);
+		if (now - last < RENEW_TICKS && world.isChunkLoaded(chunk.x, chunk.z)) {
+			return;
+		}
+		if (renewed.size() > 4096) {
+			renewed.long2LongEntrySet().removeIf(entry -> now - entry.getLongValue() >= EXPIRY_TICKS);
+		}
+		renewed.put(chunk.toLong(), now);
 		world.getChunkManager().addTicket(TICKET, chunk, 0, chunk);
 	}
 }

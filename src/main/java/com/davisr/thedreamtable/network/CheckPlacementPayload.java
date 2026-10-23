@@ -54,7 +54,7 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 			Direction facing = PlaceFarmPayload.horizontal(payload.facing(), player);
 			FarmSite site = new FarmSite(table.getPos(), payload.anchor(), facing);
 			String problem = table.problemAt(world, player, site);
-			int existing = problem == null ? table.existingPercent(world, site) : 0;
+			int existing = problem != null ? 0 : payload.announce() ? table.existingPercent(world, site) : PlacementResultPayload.UNCHANGED;
 			ServerPlayNetworking.send(player, new PlacementResultPayload(payload.table(), payload.anchor(), facing, problem == null ? "" : problem, existing));
 			if (problem != null && payload.announce()) {
 				player.sendMessage(Text.translatable(problem), true);

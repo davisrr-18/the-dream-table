@@ -19,6 +19,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
@@ -42,6 +43,9 @@ public final class DreamTableHologram {
 	private static Direction previewFacing;
 	private static int lastPlaceAge = -1;
 	private static final int RECHECK_TICKS = 40;
+	/** While building, the hologram shows the layer being built and this many above it, unless all layers are on. */
+	private static final int LAYERS_AHEAD = 1;
+	private static boolean allLayers;
 	private static Placement checked;
 	private static String problem = "";
 	private static int existing;
@@ -59,7 +63,9 @@ public final class DreamTableHologram {
 			if (payload.table().equals(tablePos)) {
 				checked = new Placement(payload.anchor(), payload.facing());
 				problem = payload.problem();
-				existing = payload.existing();
+				if (payload.existing() != PlacementResultPayload.UNCHANGED) {
+					existing = payload.existing();
+				}
 			}
 		});
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -138,6 +144,16 @@ public final class DreamTableHologram {
 		}
 	}
 
+	/** H switches a running build's hologram between the next layers only and the whole farm. */
+	public static void toggleLayers() {
+		allLayers = !allLayers;
+		PlayerEntity player = MinecraftClient.getInstance().player;
+		if (player != null) {
+			player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5F, allLayers ? 1.2F : 0.9F);
+			player.sendMessage(Text.translatable(allLayers ? "gui.the_dream_table.layers_all" : "gui.the_dream_table.layers_current"), true);
+		}
+	}
+
 	public static Direction previewFacing() {
 		if (previewFacing == null) {
 			PlayerEntity player = MinecraftClient.getInstance().player;
@@ -199,9 +215,21 @@ public final class DreamTableHologram {
 		}
 		if (placement != null) {
 			boolean refused = idle && !placementProblem().isEmpty();
-			GhostRenderer.drawGhosts(context, matrices, template, table, placement.anchor(), placement.facing(), shownPlaced, shownBlocked, refused, wave);
+			int topLayer = topLayer(template, shownPlaced, idle);
+			GhostRenderer.drawGhosts(context, matrices, template, table, placement.anchor(), placement.facing(), shownPlaced, shownBlocked, refused, topLayer, wave);
 		}
 		matrices.pop();
+	}
+
+	/**
+	 * The highest template layer to draw. Placing shows the whole farm to judge the spot; a running build shows the layer
+	 * of its next block and the one above, which keeps tall farms readable and cheap to draw.
+	 */
+	private static int topLayer(FarmTemplate template, int placed, boolean idle) {
+		if (idle || allLayers || placed >= template.steps().size()) {
+			return Integer.MAX_VALUE;
+		}
+		return template.steps().get(placed).y() + LAYERS_AHEAD;
 	}
 
 	private static boolean locked() {

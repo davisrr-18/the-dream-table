@@ -17,8 +17,14 @@ import java.util.Properties;
 public final class DreamTableConfig {
 	private static final String FILE = "the_dream_table.properties";
 	private static final String MAX_RATE = "max_blocks_per_second";
+	private static final String MAX_LOADED = "max_loaded_farms_per_player";
+	private static final String LOAD_OFFLINE = "load_farms_while_offline";
+	public static final int MAX_LOADED_DEFAULT = 3;
+	public static final int MAX_LOADED_LIMIT = 16;
 
 	private static volatile int maxBlocksPerSecond = BuildPace.MAX_RATE;
+	private static volatile int maxLoadedFarms = MAX_LOADED_DEFAULT;
+	private static volatile boolean loadWhileOffline;
 
 	private DreamTableConfig() {
 	}
@@ -26,6 +32,15 @@ public final class DreamTableConfig {
 	/** The fastest any build or Creative build may go, in blocks per second. */
 	public static int maxBlocksPerSecond() {
 		return maxBlocksPerSecond;
+	}
+
+	/** How many finished farms each player may keep loaded; 0 turns the option off for everyone. */
+	public static int maxLoadedFarms() {
+		return maxLoadedFarms;
+	}
+
+	public static boolean loadWhileOffline() {
+		return loadWhileOffline;
 	}
 
 	public static void load() {
@@ -39,11 +54,17 @@ public final class DreamTableConfig {
 			}
 		}
 		maxBlocksPerSecond = BuildPace.clampMax(parse(properties.getProperty(MAX_RATE), BuildPace.MAX_RATE));
+		maxLoadedFarms = Math.max(0, Math.min(MAX_LOADED_LIMIT, parse(properties.getProperty(MAX_LOADED), MAX_LOADED_DEFAULT)));
+		loadWhileOffline = Boolean.parseBoolean(properties.getProperty(LOAD_OFFLINE, "false").trim());
 		properties.setProperty(MAX_RATE, Integer.toString(maxBlocksPerSecond));
+		properties.setProperty(MAX_LOADED, Integer.toString(maxLoadedFarms));
+		properties.setProperty(LOAD_OFFLINE, Boolean.toString(loadWhileOffline));
 		try {
 			Files.createDirectories(path.getParent());
 			try (Writer writer = Files.newBufferedWriter(path)) {
-				properties.store(writer, "The Dream Table. " + MAX_RATE + ": fastest a build may go, 1 to " + BuildPace.MAX_LIMIT + " (default " + BuildPace.MAX_RATE + ")");
+				properties.store(writer, "The Dream Table. " + MAX_RATE + ": fastest a build may go, 1 to " + BuildPace.MAX_LIMIT
+						+ " (default " + BuildPace.MAX_RATE + "). " + MAX_LOADED + ": finished farms each player may keep loaded, 0 to "
+						+ MAX_LOADED_LIMIT + " (default " + MAX_LOADED_DEFAULT + "). " + LOAD_OFFLINE + ": keep them loaded while the player is offline");
 			}
 		} catch (IOException exception) {
 			TheDreamTableMod.LOGGER.warn("Could not write {}", path, exception);

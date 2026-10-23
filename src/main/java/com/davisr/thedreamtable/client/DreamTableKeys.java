@@ -13,6 +13,13 @@ public final class DreamTableKeys {
 			"category.the_dream_table"
 	));
 
+	public static final KeyBinding LAYERS = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+			"key.the_dream_table.layers",
+			InputUtil.Type.KEYSYM,
+			InputUtil.GLFW_KEY_H,
+			"category.the_dream_table"
+	));
+
 	private DreamTableKeys() {
 	}
 
@@ -23,6 +30,9 @@ public final class DreamTableKeys {
 			}
 			while (ROTATE.wasPressed()) {
 				DreamTableHologram.rotate();
+			}
+			while (LAYERS.wasPressed()) {
+				DreamTableHologram.toggleLayers();
 			}
 		});
 	}

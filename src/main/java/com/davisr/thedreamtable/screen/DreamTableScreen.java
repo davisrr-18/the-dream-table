@@ -4,6 +4,10 @@ import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.DreamTableKeys;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.screen.page.MaterialsPage;
+import com.davisr.thedreamtable.screen.page.CategoryPage;
+import com.davisr.thedreamtable.screen.page.GroupPage;
+import com.davisr.thedreamtable.screen.page.LoadedFarmsPage;
+import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.screen.page.OptionsPage;
 import com.davisr.thedreamtable.screen.page.SpeedPage;
 import com.davisr.thedreamtable.screen.page.PageContext;
@@ -43,6 +47,9 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private TablePage schemes;
 	private TablePage options;
 	private TablePage speed;
+	private TablePage category;
+	private TablePage group;
+	private TablePage loaded;
 	private TablePage materials;
 	private TablePage swap;
 
@@ -71,6 +78,10 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		schemes = new SchemesPage(ui);
 		options = new OptionsPage(ui);
 		speed = new SpeedPage(ui);
+		category = new CategoryPage(ui);
+		group = new GroupPage(ui);
+		loaded = new LoadedFarmsPage(ui);
+		LoadedFarmsView.invalidate();
 		materials = new MaterialsPage(ui);
 		swap = new SwapPage(ui, search);
 		layout();
@@ -207,12 +218,19 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	}
 
 	private TablePage page() {
+		if (CategoryPage.isCategoryPage(this.handler.getPage())) {
+			return category;
+		}
+		if (GroupPage.isGroupPage(this.handler.getPage())) {
+			return group;
+		}
 		return switch (this.handler.getPage()) {
 			case DreamTableScreenHandler.PAGE_WORK -> work;
 			case DreamTableScreenHandler.PAGE_REQUIREMENTS -> requirements;
 			case DreamTableScreenHandler.PAGE_SCHEMES -> schemes;
 			case DreamTableScreenHandler.PAGE_OPTIONS -> options;
 			case DreamTableScreenHandler.PAGE_SPEED -> speed;
+			case DreamTableScreenHandler.PAGE_LOADED -> loaded;
 			case DreamTableScreenHandler.PAGE_MATERIALS -> materials;
 			case DreamTableScreenHandler.PAGE_SWAP -> swap;
 			default -> selection;

@@ -59,8 +59,12 @@ public final class FarmAreas extends PersistentState {
 		}
 	}
 
-	/** A finished farm remembers what it built, so it can tell whether it is still standing. */
-	private record Built(String farmId, long signature, FarmSite site, Map<Item, Item> swaps) {
+	/** A finished farm remembers what it built, so it can tell whether it is still standing, and when it was finished. */
+	private record Built(String farmId, long signature, FarmSite site, Map<Item, Item> swaps, long finishedAt) {
+	}
+
+	/** A player's finished farm, for the Keep Farms Loaded list. {@code id} tells it apart from their other farms in this world. */
+	public record Finished(String id, String farmId, BlockPos where, Box box, long finishedAt) {
 	}
 
 	private record Area(Box box, @Nullable Built built) {
@@ -81,7 +85,7 @@ public final class FarmAreas extends PersistentState {
 	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps) {
 		Key key = Key.finished(player, site);
 		if (!areas.containsKey(key)) {
-			areas.put(key, new Area(site.footprint(template), new Built(template.id(), template.signature(), site, Map.copyOf(swaps))));
+			areas.put(key, new Area(site.footprint(template), new Built(template.id(), template.signature(), site, Map.copyOf(swaps), System.currentTimeMillis())));
 			markDirty();
 		}
 	}
@@ -119,6 +123,19 @@ public final class FarmAreas extends PersistentState {
 			found = Conflict.FINISHED;
 		}
 		return found;
+	}
+
+	public List<Finished> finishedBy(UUID player) {
+		List<Finished> farms = new ArrayList<>();
+		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
+			Built built = entry.getValue().built();
+			if (built != null && entry.getKey().player().equals(player)) {
+				Key key = entry.getKey();
+				BlockPos where = built.site().anchor() != null ? built.site().anchor() : built.site().table();
+				farms.add(new Finished(key.table() + "/" + key.spot(), built.farmId(), where, entry.getValue().box(), built.finishedAt()));
+			}
+		}
+		return farms;
 	}
 
 	/** An area as shown to players who turned on "Show Other Farms". */
@@ -232,6 +249,7 @@ public final class FarmAreas extends PersistentState {
 				built.site().write(site);
 				item.put("Site", site);
 				MaterialLedger.writeSwaps(item, built.swaps());
+				item.putLong("FinishedAt", built.finishedAt());
 			}
 			list.add(item);
 		}
@@ -250,7 +268,7 @@ public final class FarmAreas extends PersistentState {
 			}
 			Kind kind = kindOf(item);
 			Built built = kind == Kind.FINISHED
-					? new Built(item.getString("Farm"), item.getLong("FarmSignature"), FarmSite.read(item.getCompound("Site")), MaterialLedger.readSwaps(item))
+					? new Built(item.getString("Farm"), item.getLong("FarmSignature"), FarmSite.read(item.getCompound("Site")), MaterialLedger.readSwaps(item), item.getLong("FinishedAt"))
 					: null;
 			Key key = new Key(item.getLong("Table"), item.getUuid("Player"), kind, item.getLong("Spot"));
 			state.areas.put(key, new Area(new Box(box[0], box[1], box[2], box[3], box[4], box[5]), built));

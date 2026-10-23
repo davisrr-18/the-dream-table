@@ -13,6 +13,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -159,6 +160,16 @@ public final class TableSession {
 
 	Map<Item, Item> swaps() {
 		return desk.swaps();
+	}
+
+	/** The material swaps as a stable text, so previews built from them can be cached and rebuilt when they change. */
+	public String swapKey() {
+		StringBuilder key = new StringBuilder();
+		desk.swaps().entrySet().stream()
+				.map(swap -> Registries.ITEM.getId(swap.getKey()) + ">" + Registries.ITEM.getId(swap.getValue()))
+				.sorted()
+				.forEach(swap -> key.append(swap).append(';'));
+		return key.toString();
 	}
 
 	public List<Item> swapOptions(int index) {

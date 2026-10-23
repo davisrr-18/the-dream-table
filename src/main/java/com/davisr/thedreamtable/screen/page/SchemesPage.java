@@ -34,7 +34,7 @@ public final class SchemesPage implements TablePage {
 			for (int index = 0; index < schemes.size(); index++) {
 				FarmOption option = schemes.get(index);
 				boolean selected = option.id().equals(ui.farm());
-				ui.card(context, option.icon().getDefaultStack(), option.title(), ui.view().cardY(index), mouseX, mouseY, selected, !locked || selected);
+				FarmCard.draw(ui, context, option, ui.view().cardY(index), mouseX, mouseY, selected, !locked || selected);
 			}
 		}
 		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);

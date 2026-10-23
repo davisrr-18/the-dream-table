@@ -1,6 +1,6 @@
 # The Dream Table
 
-Beta `1.1.5-beta` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
+Beta `2.0.0-beta` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets how fast it builds.
 
@@ -16,16 +16,16 @@ OOO
 
 Lapis lazuli on the top row and in the center, paper on the sides, and oak planks along the bottom.
 
-1. Place the table and choose a farm.
-2. Close the menu. A yellow marker follows the crosshair.
+1. Place the table, pick a category (Plant Farms, Mob Farms or Resource Farms), then a farm (like Sugar Cane), then its size. Each farm shows a size tag (Tiny up to 512 blocks, Medium up to 4,096, Big up to 16,384), its block count, and how long it takes at your build speed. My Schematics shows the same.
+2. A small turning model of the chosen farm floats above the table. Close the menu. A yellow marker follows the crosshair.
 3. Right-click the ground to anchor the hologram. Right-click again to move it.
-4. **R** rotates the farm. The key can be changed in Controls, under The Dream Table.
+4. **R** rotates the farm. While it builds, the hologram shows only the layer being built and the one above; **H** switches to the whole farm and back. Both keys can be changed in Controls, under The Dream Table.
 5. Hold the material and right-click the clipboard to deliver it. The line is struck through when the count is met.
 6. Return to the table and click Build. The position locks. The build can start before every material is on the clipboard, and it waits at the next missing block instead of skipping it. In Creative mode, the build needs no materials and runs at the server's fastest rate. While it builds, the same button reads **Pause**; press it to stop after the current block, and **Resume** to pick up from the next one.
 
 **Materials**, on the farm screen, swaps a block for another of the same shape: full block for full block, stairs for stairs, slab for slab, glass for glass, bed for bed, and so on. Type in the search box at the top of the list to find a block by name. Pick the swap before delivering that material or starting the build. The hologram, the clipboard, and the build all use the new block. Options, on the farm list, opens Build Speed: Slow, Normal (the default) or Fast, which are 25%, 50% and 100% of the server's fastest rate (64, 128 and 256 blocks per second by default). Each option shows its share and how long the chosen farm would take. Custom has a slider: drag it to any share from 1% to 100%. Blocks are spread evenly over each second. While building or paused, the farm screen shows the time left, like "~4 min". Blocks already in place are skipped instantly and don't count against the pace. When the build waits for a missing block, delivering it on the clipboard continues the build on its own.
 
-Farms in this beta: sugar cane, bamboo, crops, mob farm, and iron farm. Blocks in the way are broken and dropped as items as the build reaches them (in Creative they are just removed). Blocks that hold data, like chests, furnaces, hoppers, signs, beds, and spawners, are never removed. Neither are unbreakable blocks, redstone parts, pistons, rails, TNT, infested blocks, or blocks you can't get back, like budding amethyst and eggs. The build stops there and the block shows up red on the hologram. Clearing never updates the blocks around it, so nothing outside the farm falls, pops off, or fires.
+Farms in this beta: sugar cane and bamboo (Tiny, Medium and Big), crops (Tiny and Medium), mob farm (Medium and Big), and iron farm. The Big mob farm stacks four spawning floors on one drop. Larger sugar cane and bamboo farms stack more rows upwards instead of spreading out, so they keep a 19 by 7 footprint; Big alternates its rows between two hopper columns and two double chests. Blocks in the way are broken and dropped as items as the build reaches them (in Creative they are just removed). Blocks that hold data, like chests, furnaces, hoppers, signs, beds, and spawners, are never removed. Neither are unbreakable blocks, redstone parts, pistons, rails, TNT, infested blocks, or blocks you can't get back, like budding amethyst and eggs. The build stops there and the block shows up red on the hologram. Clearing never updates the blocks around it, so nothing outside the farm falls, pops off, or fires.
 
 Every player has their own session at a table: their own menu page, farm, materials, swaps, clipboard, hologram and build. Players can use the same table at once without affecting each other, and two players' farms at one table can't overlap.
 
@@ -44,6 +44,8 @@ The table builds with the permissions of the player who started the build. It wo
 Each player's table data is sent only to that player.
 
 Server owners can set `max_blocks_per_second` (1 to 1024, default 256) in `config/the_dream_table.properties`. It caps every build, including Creative ones.
+
+**Keep Farms Loaded**, in Options, lists every farm you finished, in every dimension, with its size, coordinates and dimension. Click the ones you want kept loaded while you play, so plants grow, hoppers collect and iron golems spawn even when you are far away, up to the server's `max_loaded_farms_per_player` (0 to 16, default 3). Set `load_farms_while_offline=true` to keep them loaded after you log off. Mob farms are the exception: the game only spawns mobs within 128 blocks of a player, loaded or not. Build them above sea level and away from caves; the table reminds you when you place one lower.
 
 Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` files of up to 16,384 blocks from these instance folders:
 
@@ -68,4 +70,4 @@ From the project root, with Java 21:
 ./gradlew build
 ```
 
-The mod jar is `build/libs/the_dream_table-1.1.5-beta.jar`. Jars suffixed with `sources` or `dev` are for development only.
+The mod jar is `build/libs/the_dream_table-2.0.0-beta.jar`. Jars suffixed with `sources` or `dev` are for development only.

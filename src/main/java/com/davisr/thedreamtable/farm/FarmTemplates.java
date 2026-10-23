@@ -23,9 +23,15 @@ public final class FarmTemplates {
 
 	static {
 		register(FarmOptions.SUGAR_CANE, "sugar_cane_farm", () -> PlantFarms.pistonRow(FarmOptions.SUGAR_CANE.id(), true));
+		register(FarmOptions.SUGAR_CANE_MEDIUM, "sugar_cane_farm_medium", () -> null);
+		register(FarmOptions.SUGAR_CANE_BIG, "sugar_cane_farm_big", () -> null);
 		register(FarmOptions.BAMBOO, "bamboo_farm", () -> PlantFarms.pistonRow(FarmOptions.BAMBOO.id(), false));
+		register(FarmOptions.BAMBOO_MEDIUM, "bamboo_farm_medium", () -> null);
+		register(FarmOptions.BAMBOO_BIG, "bamboo_farm_big", () -> null);
+		register(FarmOptions.CROP_TINY, "crop_farm_tiny", () -> null);
 		register(FarmOptions.CROP, "crop_farm", () -> PlantFarms.crop(FarmOptions.CROP.id()));
 		register(FarmOptions.MOB_DARK_ROOM, "mob_farm", () -> MobFarms.darkRoom(FarmOptions.MOB_DARK_ROOM.id()));
+		register(FarmOptions.MOB_DARK_ROOM_BIG, "mob_farm_big", () -> null);
 		register(FarmOptions.IRON_GOLEM, "iron_farm", () -> MobFarms.iron(FarmOptions.IRON_GOLEM.id()));
 	}
 
@@ -59,7 +65,10 @@ public final class FarmTemplates {
 		return imports.options();
 	}
 
-	/** Uses the bundled schematic, or the code-built farm when the file is missing or unreadable. */
+	/**
+	 * Uses the bundled schematic, or the code-built farm when the file is missing or unreadable.
+	 * Medium and Big sizes come from {@code tools/farmgen.py} and have no code-built fallback.
+	 */
 	private static void register(FarmOption option, String file, Supplier<FarmTemplate> fallback) {
 		FarmTemplate template = null;
 		try (InputStream stream = FarmTemplates.class.getResourceAsStream(STRUCTURES + file + ".schem")) {
@@ -72,6 +81,8 @@ public final class FarmTemplates {
 		if (template == null) {
 			template = fallback.get();
 		}
-		TEMPLATES.put(template.id(), template);
+		if (template != null) {
+			TEMPLATES.put(template.id(), template);
+		}
 	}
 }

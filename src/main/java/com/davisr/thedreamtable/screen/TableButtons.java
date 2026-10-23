@@ -20,6 +20,16 @@ final class TableButtons {
 		if (id >= 0 && id < FarmOptions.ALL.size()) {
 			return openFarm(table, FarmOptions.ALL.get(id).id());
 		}
+		if (id >= BUTTON_CATEGORY && id < BUTTON_CATEGORY + FarmOptions.Category.values().length) {
+			return page(table, PAGE_CATEGORY + id - BUTTON_CATEGORY);
+		}
+		if (id >= BUTTON_GROUP && id < BUTTON_GROUP + FarmOptions.Group.values().length) {
+			return page(table, PAGE_GROUP + id - BUTTON_GROUP);
+		}
+		if (id == BUTTON_GROUP_BACK) {
+			int category = FarmOptions.Group.byIndex(table.getPage() - PAGE_GROUP).flatMap(FarmOptions.Category::of).map(Enum::ordinal).orElse(-1);
+			return page(table, category < 0 ? PAGE_SELECT : PAGE_CATEGORY + category);
+		}
 		if (id > BUTTON_PACE_CUSTOM && id <= BUTTON_PACE_CUSTOM + BuildPace.MAX_PERCENT) {
 			table.build().setPace(BuildPace.ofPercent(id - BUTTON_PACE_CUSTOM));
 			return true;
@@ -38,10 +48,11 @@ final class TableButtons {
 		return switch (id) {
 			case BUTTON_MATERIALS, BUTTON_SWAP_BACK -> page(table, PAGE_MATERIALS);
 			case BUTTON_MATERIALS_BACK, BUTTON_BACK -> page(table, PAGE_WORK);
-			case BUTTON_MENU, BUTTON_SCHEMES_BACK, BUTTON_OPTIONS_BACK -> page(table, PAGE_SELECT);
+			case BUTTON_MENU, BUTTON_SCHEMES_BACK, BUTTON_OPTIONS_BACK, BUTTON_CATEGORY_BACK -> page(table, PAGE_SELECT);
 			case BUTTON_SCHEMES -> page(table, PAGE_SCHEMES);
-			case BUTTON_OPTIONS, BUTTON_SPEED_BACK -> page(table, PAGE_OPTIONS);
+			case BUTTON_OPTIONS, BUTTON_SPEED_BACK, BUTTON_LOADED_BACK -> page(table, PAGE_OPTIONS);
 			case BUTTON_SPEED_OPEN -> page(table, PAGE_SPEED);
+			case BUTTON_LOADED_FARMS -> page(table, PAGE_LOADED);
 			case BUTTON_REQUIREMENTS -> {
 				table.setRequirementsBoard(true);
 				yield true;
