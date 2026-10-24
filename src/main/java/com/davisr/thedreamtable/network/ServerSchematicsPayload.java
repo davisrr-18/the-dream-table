@@ -48,7 +48,7 @@ public record ServerSchematicsPayload(List<Entry> schematics) implements CustomP
 		PayloadTypeRegistry.playS2C().register(Farm.ID, Farm.CODEC);
 		PayloadTypeRegistry.playC2S().register(Request.ID, Request.CODEC);
 		ServerPlayNetworking.registerGlobalReceiver(Request.ID, (payload, context) -> context.server().execute(() -> {
-			if (!FarmTemplates.isImported(payload.id())) {
+			if (!FarmTemplates.isImported(payload.id()) && !FarmTemplates.isSaved(payload.id())) {
 				return;
 			}
 			FarmTemplate template = FarmTemplates.get(payload.id());

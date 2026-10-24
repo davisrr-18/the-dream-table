@@ -3,10 +3,18 @@ package com.davisr.thedreamtable.screen.page;
 import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.network.FarmDetailsPayload;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
+import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
+
+import java.util.List;
+import java.util.Locale;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
@@ -21,6 +29,10 @@ public final class FarmPage implements TablePage {
 	private static final int TAKE_DOWN = 2;
 	private static final int BACK = 3;
 	private static final long CONFIRM_MS = 3000L;
+	private static final int ITEM_SPACING = 21;
+	/** The storage line may wrap once; its room is kept so the rest of the page doesn't jump. */
+	private static final int STORAGE_LINES = 2;
+	private static final int LINE_HEIGHT = 10;
 
 	private final PageContext ui;
 	private long confirmUntil;
@@ -50,6 +62,7 @@ public final class FarmPage implements TablePage {
 		Text status = farm.available() ? LoadedFarmsPage.status(farm.status()) : Text.translatable(FarmTemplates.isImported(farm.farmId())
 				? "gui.the_dream_table.farm_file_missing" : "gui.the_dream_table.farm_removed");
 		context.drawText(ui.painter().text(), status, ui.view().cardX(), statusY(), HINT, false);
+		drawStorage(context, farm);
 		boolean canLoad = LoadedFarmsView.limit() > 0;
 		Text loaded = Text.translatable(farm.loaded() ? "gui.the_dream_table.keep_loaded_on" : "gui.the_dream_table.keep_loaded_off");
 		ui.button(context, loaded, rowY(LOADED), mouseX, mouseY, canLoad, farm.loaded());
@@ -113,6 +126,47 @@ public final class FarmPage implements TablePage {
 		return false;
 	}
 
+	/** Storage use, the items held with their counts, and the farm's block count, from the latest {@link FarmDetailsPayload}. */
+	private void drawStorage(DrawContext context, FarmLoader.Entry farm) {
+		FarmDetailsPayload details = LoadedFarmsView.details();
+		int x = ui.view().cardX();
+		Text storage;
+		if (details == null) {
+			storage = Text.translatable("gui.the_dream_table.loaded_waiting");
+		} else if (!details.loaded()) {
+			storage = Text.translatable("gui.the_dream_table.storage_unloaded");
+		} else if (details.containers() == 0) {
+			storage = Text.translatable("gui.the_dream_table.storage_none");
+		} else {
+			int percent = details.capacity() == 0 ? 0 : details.stored() * 100 / details.capacity();
+			storage = Text.translatable("gui.the_dream_table.storage_use", details.stored(), details.capacity(), percent);
+		}
+		List<OrderedText> lines = ui.painter().text().wrapLines(storage, CARD_WIDTH);
+		for (int line = 0; line < Math.min(STORAGE_LINES, lines.size()); line++) {
+			context.drawText(ui.painter().text(), lines.get(line), x, storageY() + line * LINE_HEIGHT, NAME, false);
+		}
+		if (details != null) {
+			for (int index = 0; index < details.items().size(); index++) {
+				Identifier id = Identifier.tryParse(details.items().get(index));
+				if (id == null || !Registries.ITEM.containsId(id)) {
+					continue;
+				}
+				int itemX = x + index * ITEM_SPACING;
+				context.drawItem(new ItemStack(Registries.ITEM.get(id)), itemX, itemsY());
+				context.drawText(ui.painter().text(), shortCount(details.counts().get(index)), itemX, itemsY() + 17, HINT, false);
+			}
+			Text info = details.containers() > 0
+					? Text.translatable("gui.the_dream_table.farm_info", details.blocks(), details.containers())
+					: Text.translatable("gui.the_dream_table.farm_size", details.blocks());
+			context.drawText(ui.painter().text(), ui.painter().trim(info, CARD_WIDTH), x, blocksY(), HINT, false);
+		}
+	}
+
+	/** "64", "1.2k": short enough to sit under a 16 pixel icon. */
+	private static String shortCount(int count) {
+		return count < 1000 ? Integer.toString(count) : count < 10000 ? String.format(Locale.ROOT, "%.1fk", count / 1000.0) : count / 1000 + "k";
+	}
+
 	/** "Repair · 12 missing", "Nothing To Repair" when the farm is whole, or just "Repair" while part of it is unloaded. */
 	private static Text repairLabel(FarmLoader.Entry farm) {
 		if (farm.missing() == 0) {
@@ -142,7 +196,19 @@ public final class FarmPage implements TablePage {
 		return ui.view().cardY(0) + CARD_HEIGHT + 8;
 	}
 
+	private int storageY() {
+		return statusY() + 13;
+	}
+
+	private int itemsY() {
+		return storageY() + STORAGE_LINES * LINE_HEIGHT + 2;
+	}
+
+	private int blocksY() {
+		return itemsY() + 28;
+	}
+
 	private int rowY(int row) {
-		return statusY() + 14 + row * (BUTTON_HEIGHT + BUTTON_GAP);
+		return blocksY() + 14 + row * (BUTTON_HEIGHT + BUTTON_GAP);
 	}
 }

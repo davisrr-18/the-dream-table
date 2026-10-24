@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.client.clipboard;
 
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmStep;
+import com.davisr.thedreamtable.farm.FarmGrowth;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.MaterialSpec;
 import net.minecraft.item.Item;
@@ -45,9 +46,9 @@ public final class ClipboardLines {
 		List<Line> lines = new ArrayList<>();
 		Item current = null;
 		int need = 0;
-		for (FarmStep step : template.steps()) {
-			Item item = step.item();
-			if (item == null) {
+		for (int index = 0; index < template.steps().size(); index++) {
+			Item item = template.steps().get(index).item();
+			if (item == null || FarmGrowth.isGrowth(template, index)) {
 				continue;
 			}
 			if (item == current) {

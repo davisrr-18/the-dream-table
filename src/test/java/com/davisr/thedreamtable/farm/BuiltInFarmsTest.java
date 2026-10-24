@@ -47,7 +47,9 @@ class BuiltInFarmsTest {
 	void materialsAddUpToTheSteps() throws IOException {
 		for (String file : FILES) {
 			FarmTemplate farm = read(file);
-			long withItem = farm.steps().stream().filter(step -> step.item() != null).count();
+			long withItem = java.util.stream.IntStream.range(0, farm.steps().size())
+					.filter(index -> farm.steps().get(index).item() != null && !FarmGrowth.isGrowth(farm, index))
+					.count();
 			int listed = farm.materials().stream().mapToInt(MaterialSpec::count).sum();
 			assertEquals(withItem, listed, file);
 		}
@@ -77,8 +79,25 @@ class BuiltInFarmsTest {
 				assertEquals(original.x() + "," + original.y() + "," + original.z(), sent.x() + "," + sent.y() + "," + sent.z(), file + " step " + index);
 			}
 			assertEquals(farm.materials(), copy.materials(), file);
+			assertEquals(farm.signature(), copy.signature(), file);
 			assertEquals(farm.center(), copy.center(), file);
 		}
+	}
+
+	@Test
+	void grownCaneIsGrowthButItsBaseIsNot() throws IOException {
+		FarmTemplate cane = read("sugar_cane_farm");
+		int grown = 0;
+		for (int index = 0; index < cane.steps().size(); index++) {
+			FarmStep step = cane.steps().get(index);
+			if (!step.isEntity() && step.state() != null && step.state().isOf(net.minecraft.block.Blocks.SUGAR_CANE)) {
+				boolean onMud = cane.steps().stream().anyMatch(below -> below.x() == step.x() && below.y() == step.y() - 1 && below.z() == step.z()
+						&& below.state() != null && below.state().isOf(net.minecraft.block.Blocks.MUD));
+				assertEquals(!onMud, FarmGrowth.isGrowth(cane, index), "cane at " + step.x() + "," + step.y());
+				grown += onMud ? 0 : 1;
+			}
+		}
+		assertTrue(grown > 0, "the sugar cane farm has grown cane on top");
 	}
 
 	@Test

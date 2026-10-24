@@ -59,15 +59,20 @@ public final class FarmAreas extends PersistentState {
 		}
 	}
 
-	/** A finished farm remembers what it built, so it can tell whether it is still standing, and when it was finished. */
-	private record Built(String farmId, long signature, FarmSite site, Map<Item, Item> swaps, long finishedAt) {
+	/**
+	 * A finished farm remembers what it built: the farm, the exact design ({@code layout}, kept under a saved id so it
+	 * outlives updates that change or remove the farm), the spot, swaps, and when it was finished. The layout is null
+	 * only for farms finished by an older version whose design has changed since.
+	 */
+	private record Built(String farmId, long signature, FarmSite site, Map<Item, Item> swaps, long finishedAt, @Nullable FarmTemplate layout) {
 	}
 
 	/**
 	 * A player's finished farm, for the My Farms list. {@code id} tells it apart from their other farms in this world;
 	 * the rest is what repairing or taking it down needs.
 	 */
-	public record Finished(String id, Key key, String farmId, long signature, FarmSite site, Map<Item, Item> swaps, BlockPos where, Box box, long finishedAt) {
+	public record Finished(String id, Key key, String farmId, long signature, FarmSite site, Map<Item, Item> swaps, BlockPos where, Box box, long finishedAt,
+			@Nullable FarmTemplate layout) {
 	}
 
 	private record Area(Box box, @Nullable Built built) {
@@ -88,7 +93,9 @@ public final class FarmAreas extends PersistentState {
 	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps) {
 		Key key = Key.finished(player, site);
 		if (!areas.containsKey(key)) {
-			areas.put(key, new Area(site.footprint(template), new Built(template.id(), template.signature(), site, Map.copyOf(swaps), System.currentTimeMillis())));
+			FarmTemplate layout = saved(FarmTemplates.baseId(template.id()), template);
+			areas.put(key, new Area(site.footprint(template), new Built(FarmTemplates.baseId(template.id()), template.signature(), site, Map.copyOf(swaps),
+					System.currentTimeMillis(), layout)));
 			markDirty();
 		}
 	}
@@ -136,7 +143,7 @@ public final class FarmAreas extends PersistentState {
 				Key key = entry.getKey();
 				BlockPos where = built.site().anchor() != null ? built.site().anchor() : built.site().table();
 				farms.add(new Finished(key.table() + "/" + key.spot(), key, built.farmId(), built.signature(), built.site(), built.swaps(), where,
-						entry.getValue().box(), built.finishedAt()));
+						entry.getValue().box(), built.finishedAt(), built.layout()));
 			}
 		}
 		return farms;
@@ -198,8 +205,8 @@ public final class FarmAreas extends PersistentState {
 	 * Unloaded parts can't be checked, so they count as standing; a farm whose file is gone or changed can't be checked and is let go.
 	 */
 	private static boolean standing(ServerWorld world, @Nullable Built built) {
-		FarmTemplate template = built == null ? null : FarmTemplates.get(built.farmId());
-		if (template == null || template.signature() != built.signature()) {
+		FarmTemplate template = built == null ? null : built.layout();
+		if (template == null) {
 			return false;
 		}
 		Presence presence = presence(world, template, built.site(), built.swaps());
@@ -215,8 +222,9 @@ public final class FarmAreas extends PersistentState {
 		int blocks = 0;
 		int found = 0;
 		boolean unloaded = false;
-		for (FarmStep step : template.steps()) {
-			if (step.isEntity() || step.state() == null) {
+		for (int index = 0; index < template.steps().size(); index++) {
+			FarmStep step = template.steps().get(index);
+			if (step.isEntity() || step.state() == null || FarmGrowth.isGrowth(template, index)) {
 				continue;
 			}
 			BlockPos pos = site.target(template, step);
@@ -254,6 +262,9 @@ public final class FarmAreas extends PersistentState {
 				item.put("Site", site);
 				MaterialLedger.writeSwaps(item, built.swaps());
 				item.putLong("FinishedAt", built.finishedAt());
+				if (built.layout() != null) {
+					item.put("Layout", TemplateCodec.encode(built.layout()));
+				}
 			}
 			list.add(item);
 		}
@@ -271,13 +282,40 @@ public final class FarmAreas extends PersistentState {
 				continue;
 			}
 			Kind kind = kindOf(item);
-			Built built = kind == Kind.FINISHED
-					? new Built(item.getString("Farm"), item.getLong("FarmSignature"), FarmSite.read(item.getCompound("Site")), MaterialLedger.readSwaps(item), item.getLong("FinishedAt"))
-					: null;
+			Built built = kind == Kind.FINISHED ? readBuilt(state, item) : null;
 			Key key = new Key(item.getLong("Table"), item.getUuid("Player"), kind, item.getLong("Spot"));
 			state.areas.put(key, new Area(new Box(box[0], box[1], box[2], box[3], box[4], box[5]), built));
 		}
 		return state;
+	}
+
+	/**
+	 * A finished farm's record. Farms saved before designs were kept get theirs from the current farm when it still
+	 * matches, and are saved again with it.
+	 */
+	private static Built readBuilt(FarmAreas state, NbtCompound item) {
+		String farmId = FarmTemplates.baseId(item.getString("Farm"));
+		long signature = item.getLong("FarmSignature");
+		FarmTemplate layout = null;
+		if (item.contains("Layout", NbtElement.COMPOUND_TYPE)) {
+			layout = TemplateCodec.decode(FarmTemplates.savedId(farmId, signature), item.getCompound("Layout"));
+			FarmTemplates.keepSaved(layout);
+		} else {
+			FarmTemplate current = FarmTemplates.get(farmId);
+			if (current != null && current.signature() == signature) {
+				layout = saved(farmId, current);
+				state.markDirty();
+			}
+		}
+		return new Built(farmId, signature, FarmSite.read(item.getCompound("Site")), MaterialLedger.readSwaps(item), item.getLong("FinishedAt"), layout);
+	}
+
+	/** A copy of the design under its saved id, kept in {@link FarmTemplates} so builds and take-aparts can find it. */
+	private static FarmTemplate saved(String farmId, FarmTemplate template) {
+		String id = FarmTemplates.savedId(farmId, template.signature());
+		FarmTemplate layout = template.id().equals(id) ? template : new FarmTemplate(id, template.steps(), template.materials(), template.center());
+		FarmTemplates.keepSaved(layout);
+		return layout;
 	}
 
 	/** Areas saved by 1.1.3 only had a Dismantling flag. */

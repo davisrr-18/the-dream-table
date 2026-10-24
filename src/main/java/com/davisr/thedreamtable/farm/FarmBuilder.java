@@ -65,6 +65,10 @@ public final class FarmBuilder {
 			return Outcome.STOPPED;
 		}
 		FarmStep step = template.steps().get(table.getBuildIndex());
+		if (FarmGrowth.isGrowth(template, table.getBuildIndex())) {
+			advance(world, table, template, site(table));
+			return Outcome.SKIPPED;
+		}
 		FarmSite site = site(table);
 		BlockPos target = site.target(template, step);
 		ChunkKeeper.keepSpot(world, target);

@@ -47,7 +47,9 @@ Server owners can set `max_blocks_per_second` (1 to 1024, default 256) in `confi
 
 **My Farms**, in Options, lists every farm you finished, in every dimension, with its size, coordinates and whether it is running, not loaded, or has full storage. Click one to open it:
 
-- **Keep Loaded** keeps it loaded while you play, so plants grow, hoppers collect and iron golems spawn even when you are far away, up to the server's `max_loaded_farms_per_player` (0 to 16, default 3). When all its chests and barrels fill up, you get a chat message.
+- Its page shows the storage in use, the items held, and the farm's block count.
+- Each farm keeps the exact design it was built with, so Repair and Take Down keep working after an update changes or removes that farm.
+- **Keep Loaded** keeps it loaded while you play, so plants grow, hoppers collect and iron golems spawn even when you are far away or in another dimension, up to the server's `max_loaded_farms_per_player` (0 to 16, default 3). When all its chests and barrels fill up, you get a chat message.
 - **Repair** rebuilds it from the table you are using, in the same dimension: blocks still in place are skipped, so only missing ones are placed and need materials. The button shows how many blocks are missing and is off when nothing is.
 - **Take Down**, after a second click, removes the whole farm a few blocks per tick and gives its blocks and the contents of its chests back, as mining it would. Set `load_farms_while_offline=true` to keep them loaded after you log off. Mob farms are the exception: the game only spawns mobs within 128 blocks of a player, loaded or not. Build them above sea level and away from caves; the table reminds you when you place one lower.
 

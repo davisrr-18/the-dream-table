@@ -29,7 +29,9 @@ public final class ChunkKeeper {
 	private static final int RENEW_TICKS = 20;
 	private static final Map<ServerWorld, Long2LongOpenHashMap> RENEWED = new WeakHashMap<>();
 
+	/** Also keeps the dimension awake: with nobody in it, the game would stop block entities after 15 seconds. */
 	public static void keepTable(ServerWorld world, BlockPos table) {
+		world.resetIdleTimeout();
 		ChunkPos chunk = new ChunkPos(table);
 		world.getChunkManager().addTicket(TICKET, chunk, TABLE_RADIUS, chunk);
 	}

@@ -85,6 +85,7 @@ public final class FarmOptions {
 	}
 
 	public static Optional<FarmOption> byId(String id) {
-		return FarmTemplates.options().stream().filter(option -> option.id().equals(id)).findFirst();
+		String farm = FarmTemplates.baseId(id);
+		return FarmTemplates.options().stream().filter(option -> option.id().equals(farm)).findFirst();
 	}
 }

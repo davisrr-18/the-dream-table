@@ -31,6 +31,12 @@ public final class FarmTemplates {
 	private static final Map<String, Integer> REMOTE_STEPS = new ConcurrentHashMap<>();
 	private static volatile Consumer<String> missing = id -> {
 	};
+	/**
+	 * The exact designs players' finished farms were built with, kept in the world, so repairing or taking one down
+	 * still works after an update changes or removes that farm. Ids are {@link #savedId}.
+	 */
+	private static final Map<String, FarmTemplate> SAVED = new ConcurrentHashMap<>();
+	private static final String SAVED_PREFIX = "saved:";
 
 	static {
 		register(FarmOptions.SUGAR_CANE, "sugar_cane_farm", () -> PlantFarms.pistonRow(FarmOptions.SUGAR_CANE.id(), true));
@@ -56,14 +62,41 @@ public final class FarmTemplates {
 		if (builtIn != null) {
 			return builtIn;
 		}
+		FarmTemplate saved = SAVED.get(id);
+		if (saved != null) {
+			return saved;
+		}
 		if (remoteOptions == null) {
 			return imports.templates().get(id);
 		}
 		FarmTemplate remote = REMOTE.get(id);
-		if (remote == null && isImported(id)) {
+		if (remote == null && (isImported(id) || isSaved(id))) {
 			missing.accept(id);
 		}
 		return remote;
+	}
+
+	/** The id a finished farm's own design is kept under: its farm and the signature of the design it was built with. */
+	public static String savedId(String farmId, long signature) {
+		return SAVED_PREFIX + baseId(farmId) + "#" + Long.toHexString(signature);
+	}
+
+	public static boolean isSaved(String id) {
+		return id.startsWith(SAVED_PREFIX);
+	}
+
+	/** The farm a saved design belongs to, for its name and icon; other ids are returned as they are. */
+	public static String baseId(String id) {
+		if (!isSaved(id)) {
+			return id;
+		}
+		int mark = id.lastIndexOf('#');
+		return id.substring(SAVED_PREFIX.length(), mark < 0 ? id.length() : mark);
+	}
+
+	/** Keeps a finished farm's design under its saved id. The template's own id must already be that id. */
+	public static void keepSaved(FarmTemplate template) {
+		SAVED.putIfAbsent(template.id(), template);
 	}
 
 	/** Imported schematics have ids made by {@link ImportedStructures}; anything else is a built-in farm. */
@@ -81,7 +114,7 @@ public final class FarmTemplates {
 	public static void useRemote(List<FarmOption> options, Map<String, Integer> steps) {
 		REMOTE_STEPS.clear();
 		REMOTE_STEPS.putAll(steps);
-		REMOTE.keySet().retainAll(steps.keySet());
+		REMOTE.keySet().removeIf(id -> isImported(id) && !steps.containsKey(id));
 		remoteOptions = List.copyOf(options);
 	}
 

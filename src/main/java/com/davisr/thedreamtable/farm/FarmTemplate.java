@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import net.minecraft.block.Blocks;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
@@ -20,8 +21,15 @@ public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> m
 
 	public static FarmTemplate of(String id, List<FarmStep> steps) {
 		Map<Item, Integer> totals = new LinkedHashMap<>();
+		Set<Long> plants = new HashSet<>();
 		for (FarmStep step : steps) {
-			if (step.item() != null) {
+			if (grows(step)) {
+				plants.add(BlockPos.asLong(step.x(), step.y(), step.z()));
+			}
+		}
+		for (FarmStep step : steps) {
+			boolean growth = grows(step) && plants.contains(BlockPos.asLong(step.x(), step.y() - 1, step.z()));
+			if (step.item() != null && !growth) {
 				totals.merge(step.item(), 1, Integer::sum);
 			}
 		}
@@ -62,6 +70,13 @@ public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> m
 			hash = 31 * hash + (step.entity() == null ? 0 : Registries.ENTITY_TYPE.getId(step.entity()).hashCode());
 		}
 		return hash == 0 ? 1 : hash;
+	}
+
+	/** Plant segments that grow back by themselves are not asked for; see {@link FarmGrowth}. */
+	private static boolean grows(FarmStep step) {
+		return !step.isEntity() && step.state() != null && (step.state().isOf(Blocks.SUGAR_CANE) || step.state().isOf(Blocks.CACTUS)
+				|| step.state().isOf(Blocks.BAMBOO) || step.state().isOf(Blocks.BAMBOO_SAPLING)
+				|| step.state().isOf(Blocks.KELP) || step.state().isOf(Blocks.KELP_PLANT));
 	}
 
 	private static BlockPos centerOf(List<FarmStep> steps) {

@@ -1,10 +1,12 @@
 package com.davisr.thedreamtable;
 
+import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.network.CheckPlacementPayload;
 import com.davisr.thedreamtable.network.DepositMaterialPayload;
 import com.davisr.thedreamtable.network.FarmAreasPayload;
+import com.davisr.thedreamtable.network.FarmDetailsPayload;
 import com.davisr.thedreamtable.network.LoadedFarmsPayload;
 import com.davisr.thedreamtable.network.PlaceFarmPayload;
 import com.davisr.thedreamtable.network.PlacementResultPayload;
@@ -33,6 +35,7 @@ public final class TheDreamTableMod implements ModInitializer {
 		ModScreenHandlers.register();
 		FarmTemplates.load();
 		DreamTableConfig.load();
+		ServerLifecycleEvents.SERVER_STARTED.register(server -> server.getWorlds().forEach(FarmAreas::of));
 		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
 			DreamTableConfig.load();
 			FarmTemplates.reloadImports(server.getSavePath(WorldSavePath.ROOT));
@@ -47,6 +50,7 @@ public final class TheDreamTableMod implements ModInitializer {
 		FarmLoader.register();
 		LoadedFarmsPayload.register();
 		ServerSchematicsPayload.register();
+		FarmDetailsPayload.register();
 		LOGGER.info("The Dream Table loaded");
 	}
 }
