@@ -15,6 +15,7 @@ import static com.davisr.thedreamtable.farm.MinecartPairing.Action.CREATE_PAIR;
 import static com.davisr.thedreamtable.farm.MinecartPairing.Action.CREATE_PASSENGER_FOR_CART;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class MinecartPairingTest {
 	@Test
@@ -69,26 +70,106 @@ class MinecartPairingTest {
 
 	@Test
 	void failedMountDiscardsOnlyEntitiesCreatedByThatAttempt() {
-		FakeEntity unrelated = new FakeEntity("unrelated");
-
 		FakeEntity existingPassenger = new FakeEntity("existing passenger");
-		FakeOperations cartAttempt = new FakeOperations(unrelated);
+		FakeOperations cartAttempt = new FakeOperations().failMount();
 		assertEquals(FarmSpawns.Result.FAILED,
 				FarmSpawns.spawnMinecart(CREATE_CART_FOR_PASSENGER, existingPassenger, null, cartAttempt));
 		assertEquals(List.of(cartAttempt.createdCart), cartAttempt.discarded);
 		assertFalse(cartAttempt.discarded.contains(existingPassenger));
 
 		FakeEntity existingCart = new FakeEntity("existing cart");
-		FakeOperations passengerAttempt = new FakeOperations(unrelated);
+		FakeOperations passengerAttempt = new FakeOperations().failMount();
 		assertEquals(FarmSpawns.Result.FAILED,
 				FarmSpawns.spawnMinecart(CREATE_PASSENGER_FOR_CART, null, existingCart, passengerAttempt));
 		assertEquals(List.of(passengerAttempt.createdPassenger), passengerAttempt.discarded);
 		assertFalse(passengerAttempt.discarded.contains(existingCart));
 
-		FakeOperations pairAttempt = new FakeOperations(unrelated);
+		FakeOperations pairAttempt = new FakeOperations().failMount();
 		assertEquals(FarmSpawns.Result.FAILED, FarmSpawns.spawnMinecart(CREATE_PAIR, null, null, pairAttempt));
 		assertEquals(List.of(pairAttempt.createdCart, pairAttempt.createdPassenger), pairAttempt.discarded);
-		assertFalse(pairAttempt.discarded.contains(unrelated));
+	}
+
+	@Test
+	void failedCartSpawnStopsBeforePassengerSpawnAndDiscardsTheCreatedPair() {
+		FakeOperations operations = new FakeOperations().failCartSpawn();
+
+		assertEquals(FarmSpawns.Result.FAILED, FarmSpawns.spawnMinecart(CREATE_PAIR, null, null, operations));
+
+		assertEquals(List.of("create passenger", "create cart", "spawn created cart", "discard created cart", "discard created passenger"),
+				operations.calls);
+		assertEquals(List.of(operations.createdCart, operations.createdPassenger), operations.discarded);
+	}
+
+	@Test
+	void failedPassengerSpawnRollsBackTheCreatedCartAndPassenger() {
+		FakeOperations operations = new FakeOperations().failPassengerSpawn();
+
+		assertEquals(FarmSpawns.Result.FAILED, FarmSpawns.spawnMinecart(CREATE_PAIR, null, null, operations));
+
+		assertEquals(List.of("create passenger", "create cart", "spawn created cart", "spawn created passenger",
+				"discard created cart", "discard created passenger"), operations.calls);
+		assertEquals(List.of(operations.createdCart, operations.createdPassenger), operations.discarded);
+	}
+
+	@Test
+	void failedCartSpawnPreservesTheExistingPassenger() {
+		FakeEntity passenger = new FakeEntity("existing passenger");
+		FakeOperations operations = new FakeOperations().failCartSpawn();
+
+		assertEquals(FarmSpawns.Result.FAILED,
+				FarmSpawns.spawnMinecart(CREATE_CART_FOR_PASSENGER, passenger, null, operations));
+
+		assertEquals(List.of("create cart", "spawn created cart", "discard created cart"), operations.calls);
+		assertEquals(List.of(operations.createdCart), operations.discarded);
+		assertFalse(operations.discarded.contains(passenger));
+	}
+
+	@Test
+	void failedPassengerSpawnPreservesTheExistingCart() {
+		FakeEntity cart = new FakeEntity("existing cart");
+		FakeOperations operations = new FakeOperations().failPassengerSpawn();
+
+		assertEquals(FarmSpawns.Result.FAILED,
+				FarmSpawns.spawnMinecart(CREATE_PASSENGER_FOR_CART, null, cart, operations));
+
+		assertEquals(List.of("create passenger", "spawn created passenger", "discard created passenger"), operations.calls);
+		assertEquals(List.of(operations.createdPassenger), operations.discarded);
+		assertFalse(operations.discarded.contains(cart));
+	}
+
+	@Test
+	void successfulCartCreationMountsExistingPassengerWithoutDiscardingIt() {
+		FakeEntity passenger = new FakeEntity("existing passenger");
+		FakeOperations operations = new FakeOperations();
+		assertEquals(FarmSpawns.Result.PLACED,
+				FarmSpawns.spawnMinecart(CREATE_CART_FOR_PASSENGER, passenger, null, operations));
+		assertSame(passenger, operations.mountedPassenger);
+		assertSame(operations.createdCart, operations.mountedCart);
+		assertEquals(List.of("create cart", "spawn created cart", "mount existing passenger -> created cart"), operations.calls);
+		assertEquals(List.of(), operations.discarded);
+	}
+
+	@Test
+	void successfulPassengerCreationMountsItInExistingCartWithoutDiscardingIt() {
+		FakeEntity cart = new FakeEntity("existing cart");
+		FakeOperations operations = new FakeOperations();
+		assertEquals(FarmSpawns.Result.PLACED,
+				FarmSpawns.spawnMinecart(CREATE_PASSENGER_FOR_CART, null, cart, operations));
+		assertSame(operations.createdPassenger, operations.mountedPassenger);
+		assertSame(cart, operations.mountedCart);
+		assertEquals(List.of("create passenger", "spawn created passenger", "mount created passenger -> existing cart"), operations.calls);
+		assertEquals(List.of(), operations.discarded);
+	}
+
+	@Test
+	void successfulPairCreationSpawnsBothAndMountsTheCreatedReferences() {
+		FakeOperations operations = new FakeOperations();
+		assertEquals(FarmSpawns.Result.PLACED, FarmSpawns.spawnMinecart(CREATE_PAIR, null, null, operations));
+		assertSame(operations.createdPassenger, operations.mountedPassenger);
+		assertSame(operations.createdCart, operations.mountedCart);
+		assertEquals(List.of("create passenger", "create cart", "spawn created cart", "spawn created passenger",
+				"mount created passenger -> created cart"), operations.calls);
+		assertEquals(List.of(), operations.discarded);
 	}
 
 	private record Positioned(Vec3d position) {
@@ -98,39 +179,68 @@ class MinecartPairingTest {
 	}
 
 	private static final class FakeOperations implements FarmSpawns.PairingOperations<FakeEntity> {
-		private final FakeEntity unrelated;
+		private final List<String> calls = new ArrayList<>();
 		private final List<FakeEntity> discarded = new ArrayList<>();
+		private boolean cartSpawnSucceeds = true;
+		private boolean passengerSpawnSucceeds = true;
+		private boolean mountSucceeds = true;
 		private FakeEntity createdPassenger;
 		private FakeEntity createdCart;
+		private FakeEntity mountedPassenger;
+		private FakeEntity mountedCart;
 
-		private FakeOperations(FakeEntity unrelated) {
-			this.unrelated = unrelated;
+		private FakeOperations failCartSpawn() {
+			cartSpawnSucceeds = false;
+			return this;
+		}
+
+		private FakeOperations failPassengerSpawn() {
+			passengerSpawnSucceeds = false;
+			return this;
+		}
+
+		private FakeOperations failMount() {
+			mountSucceeds = false;
+			return this;
 		}
 
 		@Override
 		public FakeEntity createPassenger() {
 			createdPassenger = new FakeEntity("created passenger");
+			calls.add("create passenger");
 			return createdPassenger;
 		}
 
 		@Override
 		public FakeEntity createCart() {
 			createdCart = new FakeEntity("created cart");
+			calls.add("create cart");
 			return createdCart;
 		}
 
 		@Override
 		public boolean spawn(FakeEntity entity) {
-			return entity != unrelated;
+			calls.add("spawn " + entity.name());
+			if (entity == createdCart) {
+				return cartSpawnSucceeds;
+			}
+			if (entity == createdPassenger) {
+				return passengerSpawnSucceeds;
+			}
+			throw new AssertionError("Unexpected spawn: " + entity);
 		}
 
 		@Override
 		public boolean mount(FakeEntity passenger, FakeEntity cart) {
-			return false;
+			mountedPassenger = passenger;
+			mountedCart = cart;
+			calls.add("mount " + passenger.name() + " -> " + cart.name());
+			return mountSucceeds;
 		}
 
 		@Override
 		public void discard(FakeEntity entity) {
+			calls.add("discard " + entity.name());
 			discarded.add(entity);
 		}
 	}
