@@ -47,8 +47,9 @@ public final class FarmCare {
 		session.setPlacement(site.anchor(), site.facing());
 		FarmAreas areas = FarmAreas.of(world);
 		areas.release(farm.farm().key());
-		if (!session.build().beginRepair(player, farm.farm().instanceId(), farm.farm().grants())) {
-			areas.recordFinished(player.getUuid(), template, site, farm.farm().swaps(), farm.farm().instanceId(), farm.farm().grants());
+		if (!session.build().beginRepair(player, farm.farm().instanceId(), farm.farm().customName(), farm.farm().grants(), farm.farm().invites())) {
+			areas.recordFinished(player.getUuid(), template, site, farm.farm().swaps(), farm.farm().instanceId(), farm.farm().customName(),
+					farm.farm().grants(), farm.farm().invites());
 			return false;
 		}
 		session.setPage(DreamTableScreenHandler.PAGE_WORK);

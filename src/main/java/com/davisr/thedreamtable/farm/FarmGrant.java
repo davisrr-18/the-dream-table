@@ -11,6 +11,8 @@ import java.util.UUID;
 
 /** An accepted collaborator grant. Ownership is stored separately on the farm. */
 public record FarmGrant(UUID playerUuid, FarmRole role, long acceptedAt) {
+	private static final int MAX_SAVED_GRANTS = 1024;
+
 	public FarmGrant {
 		Objects.requireNonNull(playerUuid, "playerUuid");
 		Objects.requireNonNull(role, "role");
@@ -21,7 +23,11 @@ public record FarmGrant(UUID playerUuid, FarmRole role, long acceptedAt) {
 
 	public static void writeAll(NbtCompound nbt, String key, Map<UUID, FarmGrant> grants) {
 		NbtList list = new NbtList();
+		int written = 0;
 		for (FarmGrant grant : grants.values()) {
+			if (written++ >= MAX_SAVED_GRANTS) {
+				break;
+			}
 			NbtCompound item = new NbtCompound();
 			item.putUuid("Player", grant.playerUuid());
 			item.putString("Role", grant.role().name());
@@ -34,7 +40,7 @@ public record FarmGrant(UUID playerUuid, FarmRole role, long acceptedAt) {
 	public static Map<UUID, FarmGrant> readAll(NbtCompound nbt, String key) {
 		Map<UUID, FarmGrant> grants = new LinkedHashMap<>();
 		NbtList list = nbt.getList(key, NbtElement.COMPOUND_TYPE);
-		for (int index = 0; index < list.size(); index++) {
+		for (int index = 0; index < Math.min(list.size(), MAX_SAVED_GRANTS); index++) {
 			NbtCompound item = list.getCompound(index);
 			if (!item.containsUuid("Player")) {
 				continue;

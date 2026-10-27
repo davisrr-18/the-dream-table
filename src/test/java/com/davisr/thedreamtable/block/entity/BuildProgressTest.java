@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmGrant;
+import com.davisr.thedreamtable.farm.FarmInvite;
 import com.davisr.thedreamtable.farm.FarmRole;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
@@ -121,8 +122,11 @@ class BuildProgressTest {
 		UUID farm = UUID.randomUUID();
 		UUID operator = UUID.randomUUID();
 		Map<UUID, FarmGrant> grants = Map.of(operator, new FarmGrant(operator, FarmRole.OPERATOR, 123L));
+		UUID viewer = UUID.randomUUID();
+		FarmInvite invite = FarmInvite.create(viewer, FarmRole.VIEWER, 456L);
+		Map<UUID, FarmInvite> invites = Map.of(invite.inviteId(), invite);
 		progress.start(UUID.randomUUID(), true, 7L);
-		progress.startRepair(farm, grants);
+		progress.startRepair(farm, "River Farm", grants, invites);
 		progress.keep();
 		progress.setIssue(BuildIssue.at(BuildIssue.Kind.PROTECTED, new BlockPos(1, 2, 3)));
 		progress.stop(DreamTableBlockEntity.PHASE_BLOCKED);
@@ -132,7 +136,9 @@ class BuildProgressTest {
 		loaded.read(nbt);
 		assertTrue(loaded.repair());
 		assertEquals(farm, loaded.repairInstanceId());
+		assertEquals("River Farm", loaded.repairCustomName());
 		assertEquals(grants, loaded.repairGrants());
+		assertEquals(invites, loaded.repairInvites());
 		assertEquals(1, loaded.kept());
 		assertEquals(progress.issue(), loaded.issue());
 		loaded.start(UUID.randomUUID(), false, 7L);
@@ -141,7 +147,9 @@ class BuildProgressTest {
 		loaded.start(UUID.randomUUID(), true, 7L);
 		assertFalse(loaded.repair());
 		assertEquals(null, loaded.repairInstanceId());
+		assertEquals(null, loaded.repairCustomName());
 		assertTrue(loaded.repairGrants().isEmpty());
+		assertTrue(loaded.repairInvites().isEmpty());
 	}
 
 	@Test
@@ -167,5 +175,21 @@ class BuildProgressTest {
 
 		assertNotNull(loaded.repairInstanceId());
 		assertTrue(loaded.repairGrants().isEmpty());
+	}
+
+	@Test
+	void aNormalBuildIgnoresStrayRepairMetadata() {
+		NbtCompound nbt = new NbtCompound();
+		nbt.putUuid("RepairInstanceId", UUID.randomUUID());
+		nbt.putString("RepairCustomName", "Injected");
+
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+
+		assertFalse(loaded.repair());
+		assertEquals(null, loaded.repairInstanceId());
+		assertEquals(null, loaded.repairCustomName());
+		assertTrue(loaded.repairGrants().isEmpty());
+		assertTrue(loaded.repairInvites().isEmpty());
 	}
 }

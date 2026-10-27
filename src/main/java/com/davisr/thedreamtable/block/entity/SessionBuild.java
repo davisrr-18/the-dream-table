@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.ChunkKeeper;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmGrant;
+import com.davisr.thedreamtable.farm.FarmInvite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -52,7 +53,7 @@ public final class SessionBuild {
 	void tick(ServerWorld world) {
 		FarmTemplate template = session.template();
 		if (progress.is(PHASE_DONE) && template != null && !areas.finishedRecorded()) {
-			areas.recordFinished(world, template, progress.repairInstanceId(), progress.repairGrants());
+			areas.recordFinished(world, template, progress.repairInstanceId(), progress.repairCustomName(), progress.repairGrants(), progress.repairInvites());
 		}
 		if (!progress.is(PHASE_BUILDING)) {
 			return;
@@ -154,11 +155,12 @@ public final class SessionBuild {
 	}
 
 	/** Starts a repair: a new build that leaves alone the blocks the player changed and counts them. */
-	public boolean beginRepair(ServerPlayerEntity starter, UUID instanceId, Map<UUID, FarmGrant> grants) {
+	public boolean beginRepair(ServerPlayerEntity starter, UUID instanceId, @Nullable String customName, Map<UUID, FarmGrant> grants,
+			Map<UUID, FarmInvite> invites) {
 		if (!begin(starter, true)) {
 			return false;
 		}
-		progress.startRepair(instanceId, grants);
+		progress.startRepair(instanceId, customName, grants, invites);
 		return true;
 	}
 
@@ -246,7 +248,7 @@ public final class SessionBuild {
 		progress.stop(PHASE_DONE);
 		FarmTemplate template = session.template();
 		if (template != null && session.table().getWorld() instanceof ServerWorld world) {
-			areas.recordFinished(world, template, progress.repairInstanceId(), progress.repairGrants());
+			areas.recordFinished(world, template, progress.repairInstanceId(), progress.repairCustomName(), progress.repairGrants(), progress.repairInvites());
 		}
 		session.sync();
 		Text done = !progress.repair() ? Text.translatable("gui.the_dream_table.done")
