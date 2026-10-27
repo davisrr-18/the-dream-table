@@ -32,10 +32,11 @@ public final class LoadedFarmsPage implements TablePage {
 	private static final int NOTE_HEIGHT = 36;
 	private static final int CHIP_HEIGHT = 14;
 	private static final int CHIP_GAP = 3;
-	private static final int CHIPS = 3;
-	private static final int SHOW = 0;
-	private static final int SORT = 1;
-	private static final int DIMENSION = 2;
+	private static final int CHIPS = 4;
+	private static final int INVITES = 0;
+	private static final int SHOW = 1;
+	private static final int SORT = 2;
+	private static final int DIMENSION = 3;
 	private static final int COUNT_HEIGHT = 12;
 	/** The filters and the count above the cards. */
 	private static final int CONTROLS = CHIPS * (CHIP_HEIGHT + CHIP_GAP) + COUNT_HEIGHT + 2;
@@ -61,9 +62,10 @@ public final class LoadedFarmsPage implements TablePage {
 		LoadedFarmsView.ensure();
 		List<FarmLoader.Entry> farms = LoadedFarmsView.farms();
 		if (!listing()) {
+			chip(context, Text.translatable("gui.the_dream_table.invites_chip", LoadedFarmsView.invites().size()), INVITES, mouseX, mouseY);
 			String key = !LoadedFarmsView.received() ? "gui.the_dream_table.loaded_waiting"
 					: LoadedFarmsView.limit() <= 0 ? "gui.the_dream_table.loaded_off" : "gui.the_dream_table.loaded_empty";
-			note(context, Text.translatable(key), ui.view().cardY(0));
+			note(context, Text.translatable(key), chipY(1));
 		} else {
 			List<Integer> shown = shown();
 			drawControls(context, mouseX, mouseY, shown.size(), farms.size());
@@ -80,6 +82,7 @@ public final class LoadedFarmsPage implements TablePage {
 	}
 
 	private void drawControls(DrawContext context, int mouseX, int mouseY, int shown, int total) {
+		chip(context, Text.translatable("gui.the_dream_table.invites_chip", LoadedFarmsView.invites().size()), INVITES, mouseX, mouseY);
 		String showKey = "gui.the_dream_table.show." + LoadedFarmsView.show().name().toLowerCase(Locale.ROOT);
 		String sortKey = "gui.the_dream_table.sort." + LoadedFarmsView.sort().name().toLowerCase(Locale.ROOT);
 		Text where = LoadedFarmsView.dimension().isEmpty() ? Text.translatable("gui.the_dream_table.dimension_all") : dimension(LoadedFarmsView.dimension());
@@ -108,6 +111,9 @@ public final class LoadedFarmsPage implements TablePage {
 
 	/** The farm's name, its schematic's file name, or "Removed Farm" for one the mod no longer has. */
 	static Text name(FarmLoader.Entry farm) {
+		if (!farm.customName().isEmpty()) {
+			return Text.literal(farm.customName());
+		}
 		FarmOption option = FarmOptions.byId(farm.farmId()).orElse(null);
 		return option != null ? option.title() : FarmTemplates.isImported(farm.farmId())
 				? Text.literal(farm.farmId().substring(ImportedStructures.ID_PREFIX.length()))
@@ -116,7 +122,11 @@ public final class LoadedFarmsPage implements TablePage {
 
 	/** "Running · 45% full · 12 missing · 120 m": its state, then what needs a look, then how far it is or where. */
 	private static Text detail(FarmLoader.Entry farm, FarmListing.Viewer viewer) {
-		Text text = state(farm);
+		Text role = Text.translatable("gui.the_dream_table.role." + farm.role().name().toLowerCase(Locale.ROOT));
+		Text text = joined(role, state(farm));
+		if (farm.favorite()) {
+			text = joined(Text.translatable("gui.the_dream_table.favorite_short"), text);
+		}
 		if (farm.missing() > 0) {
 			text = joined(text, Text.translatable("gui.the_dream_table.missing_short", farm.missing()));
 		}
@@ -165,6 +175,10 @@ public final class LoadedFarmsPage implements TablePage {
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
+		if (chipHit(mouseX, mouseY, INVITES)) {
+			ui.go(DreamTableScreenHandler.PAGE_INVITES, DreamTableScreenHandler.BUTTON_INVITES);
+			return true;
+		}
 		if (listing()) {
 			if (chipHit(mouseX, mouseY, SHOW) || chipHit(mouseX, mouseY, SORT) || chipHit(mouseX, mouseY, DIMENSION)) {
 				if (chipHit(mouseX, mouseY, SHOW)) {
@@ -210,7 +224,7 @@ public final class LoadedFarmsPage implements TablePage {
 
 	private int listHeight() {
 		if (!listing()) {
-			return NOTE_HEIGHT;
+			return CHIP_HEIGHT + CHIP_GAP + NOTE_HEIGHT;
 		}
 		int count = shown().size();
 		return CONTROLS + (count == 0 ? NOTE_HEIGHT : count * CARD_HEIGHT + (count - 1) * CARD_GAP);

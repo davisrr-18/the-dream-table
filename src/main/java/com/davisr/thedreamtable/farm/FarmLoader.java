@@ -62,11 +62,16 @@ public final class FarmLoader extends PersistentState {
 	 * blocks are missing, and how full its chests and barrels are in percent. Missing and storage are {@link #UNKNOWN}
 	 * when part of the farm is not loaded; storage also when the farm has none.
 	 */
-	public record Entry(String key, String farmId, String layoutId, String dimension, BlockPos where, boolean loaded, int status, int missing,
-			boolean available, int storage) {
+	public record Entry(String key, String farmId, String layoutId, String customName, String dimension, BlockPos where, FarmRole role,
+			boolean favorite, boolean tracked, boolean loaded, boolean ownerQuotaFull, int status, int missing, boolean available, int storage) {
 		/** The exact saved design when available, otherwise the base id for older list data and display fallbacks. */
 		public String designId() {
 			return layoutId.isEmpty() ? farmId : layoutId;
+		}
+
+		/** Custom names are already validated server-side; the design id is the client fallback. */
+		public String displayName() {
+			return customName.isEmpty() ? farmId : customName;
 		}
 	}
 
@@ -145,15 +150,26 @@ public final class FarmLoader extends PersistentState {
 
 	/** Every finished farm of the player, newest first, and whether each is picked. */
 	public List<Entry> farmsOf(MinecraftServer server, UUID player) {
-		Set<String> keys = picked.getOrDefault(player, Set.of());
+		FarmPreferences preferences = FarmPreferences.of(server);
 		List<Entry> entries = new ArrayList<>();
-		for (Located farm : located(server, player)) {
-			String dimension = farm.world().getRegistryKey().getValue().toString();
-			FarmTemplate layout = farm.farm().layout();
-			int status = FarmStorage.status(farm.world(), layout, farm.farm().site());
-			entries.add(new Entry(farm.key(), farm.farm().farmId(), layout == null ? "" : layout.id(), dimension, farm.farm().where(), keys.contains(farm.key()),
-					status, missing(farm, layout), layout != null, storagePercent(farm, layout, status)));
+		Map<String, Long> finishedAt = new HashMap<>();
+		for (FarmDirectory.Authorized authorized : FarmDirectory.visibleTo(server, player, DreamTableConfig.farmSharingEnabled())) {
+			FarmDirectory.Located located = authorized.located();
+			FarmAreas.Finished finished = located.farm();
+			String key = located.key().externalForm();
+			FarmTemplate layout = finished.layout();
+			int status = FarmStorage.status(located.world(), layout, finished.site());
+			Set<String> ownerSelections = picked.getOrDefault(finished.ownerUuid(), Set.of());
+			boolean loaded = ownerSelections.contains(key);
+			Located farm = new Located(key, located.world(), finished);
+			finishedAt.put(key, finished.finishedAt());
+			entries.add(new Entry(key, finished.farmId(), layout == null ? "" : layout.id(), finished.customName() == null ? "" : finished.customName(),
+					located.key().dimension().toString(), finished.where(), authorized.role(), preferences.isFavorite(player, located.key()),
+					preferences.tracked(player).filter(located.key()::equals).isPresent(), loaded,
+					!loaded && ownerSelections.size() >= DreamTableConfig.maxLoadedFarms(), status, missing(farm, layout), layout != null,
+					storagePercent(farm, layout, status)));
 		}
+		entries.sort(Comparator.comparingLong((Entry entry) -> finishedAt.getOrDefault(entry.key(), 0L)).reversed());
 		return entries;
 	}
 

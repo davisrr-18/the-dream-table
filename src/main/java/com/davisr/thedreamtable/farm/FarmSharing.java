@@ -68,6 +68,11 @@ public final class FarmSharing {
 
 	public static InviteOutcome invite(FarmAreas areas, UUID instanceId, UUID ownerUuid, UUID playerUuid,
 			FarmRole role, long now, int maxCollaborators, int maxPendingInvites, int pendingForPlayer) {
+		return invite(areas, instanceId, ownerUuid, playerUuid, "", role, now, maxCollaborators, maxPendingInvites, pendingForPlayer);
+	}
+
+	public static InviteOutcome invite(FarmAreas areas, UUID instanceId, UUID ownerUuid, UUID playerUuid, String playerName,
+			FarmRole role, long now, int maxCollaborators, int maxPendingInvites, int pendingForPlayer) {
 		areas.removeExpiredInvites(now);
 		FarmAreas.Finished farm = areas.finished(instanceId).orElse(null);
 		if (farm == null) {
@@ -94,7 +99,7 @@ public final class FarmSharing {
 		if (farm.invites().size() >= FarmInvite.MAX_SAVED_INVITES) {
 			return new InviteOutcome(InviteResult.PENDING_LIMIT, null);
 		}
-		FarmInvite invite = FarmInvite.create(playerUuid, role, now);
+		FarmInvite invite = FarmInvite.create(playerUuid, playerName, role, now);
 		areas.putInvite(instanceId, invite);
 		return new InviteOutcome(InviteResult.SUCCESS, invite);
 	}

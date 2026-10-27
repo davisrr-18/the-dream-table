@@ -165,6 +165,37 @@ public final class FarmAreas extends PersistentState {
 		});
 	}
 
+	public boolean removeInvite(UUID instanceId, UUID inviteId, UUID invitedPlayer) {
+		boolean[] removed = {false};
+		updateBuilt(instanceId, built -> {
+			FarmInvite invite = built.invites().get(inviteId);
+			if (invite == null || !invite.playerUuid().equals(invitedPlayer)) {
+				return built;
+			}
+			Map<UUID, FarmInvite> invites = new LinkedHashMap<>(built.invites());
+			invites.remove(inviteId);
+			removed[0] = true;
+			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
+					built.grants(), Map.copyOf(invites), built.finishedAt(), built.layout());
+		});
+		return removed[0];
+	}
+
+	public boolean removeGrant(UUID instanceId, UUID playerUuid) {
+		boolean[] removed = {false};
+		updateBuilt(instanceId, built -> {
+			if (!built.grants().containsKey(playerUuid)) {
+				return built;
+			}
+			Map<UUID, FarmGrant> grants = new LinkedHashMap<>(built.grants());
+			grants.remove(playerUuid);
+			removed[0] = true;
+			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
+					Map.copyOf(grants), built.invites(), built.finishedAt(), built.layout());
+		});
+		return removed[0];
+	}
+
 	int removeExpiredInvites(long now) {
 		int removed = 0;
 		for (Map.Entry<Key, Area> entry : areas.entrySet()) {

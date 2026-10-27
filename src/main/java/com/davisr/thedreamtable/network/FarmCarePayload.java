@@ -5,8 +5,9 @@ import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.FarmCare;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmAreas;
+import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmLoader;
-import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
+import com.davisr.thedreamtable.farm.FarmRole;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.RegistryByteBuf;
@@ -38,26 +39,38 @@ public record FarmCarePayload(BlockPos table, String key, Action action) impleme
 	}
 
 	private static void handle(ServerPlayerEntity player, FarmCarePayload payload) {
-		if (!(player.currentScreenHandler instanceof DreamTableScreenHandler handler)
-				|| !handler.getTablePos().equals(payload.table()) || !handler.canUse(player)) {
+		FarmAction action = switch (payload.action()) {
+			case REPAIR -> FarmAction.REPAIR;
+			case TAKE_DOWN -> FarmAction.TAKE_DOWN;
+			case FORGET -> FarmAction.FORGET;
+		};
+		FarmActionResultPayload.Action resultAction = switch (payload.action()) {
+			case REPAIR -> FarmActionResultPayload.Action.REPAIR;
+			case TAKE_DOWN -> FarmActionResultPayload.Action.TAKE_DOWN;
+			case FORGET -> FarmActionResultPayload.Action.FORGET;
+		};
+		FarmNetwork.Checked checked = FarmNetwork.authorize(player, payload.table(), payload.key(), action, resultAction);
+		if (checked == null) {
 			return;
 		}
-		if (!(player.getWorld().getBlockEntity(payload.table()) instanceof DreamTableBlockEntity table)) {
-			return;
-		}
+		DreamTableBlockEntity table = checked.table();
 		TableSession session = table.session(player);
-		FarmLoader.of(player.getServer()).byKey(player.getServer(), player.getUuid(), payload.key()).ifPresent(farm -> {
-			switch (payload.action()) {
-				case REPAIR -> FarmCare.repair(session, player, farm);
-				case TAKE_DOWN -> FarmCare.takeDown(session, player, farm);
-				case FORGET -> {
-					if (farm.farm().layout() == null) {
-						FarmAreas.of(farm.world()).release(farm.farm().key());
-					}
+		FarmLoader.Located farm = new FarmLoader.Located(payload.key(), checked.farm().located().world(), checked.farm().located().farm());
+		FarmActionResultPayload.Result result = switch (payload.action()) {
+			case REPAIR -> checked.farm().role() != FarmRole.OWNER ? FarmActionResultPayload.Result.BUSY
+					: FarmCare.repair(session, player, farm) ? FarmActionResultPayload.Result.SUCCESS : FarmActionResultPayload.Result.BUSY;
+			case TAKE_DOWN -> FarmCare.takeDown(session, player, farm)
+					? FarmActionResultPayload.Result.SUCCESS : FarmActionResultPayload.Result.BUSY;
+			case FORGET -> {
+				if (farm.farm().layout() != null) {
+					yield FarmActionResultPayload.Result.INVALID_INPUT;
 				}
+				FarmAreas.of(farm.world()).release(farm.farm().key());
+				yield FarmActionResultPayload.Result.SUCCESS;
 			}
-		});
-		LoadedFarmsPayload.send(player);
+		};
+		FarmNetwork.result(player, payload.key(), resultAction, result);
+		FarmNetwork.refresh(player);
 	}
 
 	@Override

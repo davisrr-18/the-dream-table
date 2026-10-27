@@ -51,6 +51,12 @@ class FarmSharingTest {
 	}
 
 	@Test
+	void inviteDisplayNameIsBoundedEvenWhenLoadedFromExternalData() {
+		assertThrows(IllegalArgumentException.class, () -> new FarmInvite(UUID.randomUUID(), PLAYER, "x".repeat(65),
+				FarmRole.VIEWER, NOW, NOW + FarmInvite.LIFETIME_MILLIS));
+	}
+
+	@Test
 	void rejectsSelfDuplicateAndOwnerRoles() {
 		FarmAreas areas = farm();
 		UUID farm = areas.finishedBy(OWNER).getFirst().instanceId();

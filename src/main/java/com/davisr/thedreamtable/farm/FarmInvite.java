@@ -11,14 +11,19 @@ import java.util.Objects;
 import java.util.UUID;
 
 /** A pending invitation whose authority comes from its stored player and role. */
-public record FarmInvite(UUID inviteId, UUID playerUuid, FarmRole role, long createdAt, long expiresAt) {
+public record FarmInvite(UUID inviteId, UUID playerUuid, String playerName, FarmRole role, long createdAt, long expiresAt) {
 	public static final long LIFETIME_MILLIS = Duration.ofDays(7).toMillis();
 	static final int MAX_SAVED_INVITES = 1024;
 
 	public FarmInvite {
 		Objects.requireNonNull(inviteId, "inviteId");
 		Objects.requireNonNull(playerUuid, "playerUuid");
+		Objects.requireNonNull(playerName, "playerName");
 		Objects.requireNonNull(role, "role");
+		if (playerName.codePointCount(0, playerName.length()) > 64 || playerName.codePoints().anyMatch(codePoint ->
+				Character.isISOControl(codePoint) || codePoint == '\u00a7' || codePoint <= Character.MAX_VALUE && Character.isSurrogate((char) codePoint))) {
+			throw new IllegalArgumentException("Invitation display name is invalid");
+		}
 		if (role == FarmRole.OWNER) {
 			throw new IllegalArgumentException("Ownership cannot be invited");
 		}
@@ -33,8 +38,16 @@ public record FarmInvite(UUID inviteId, UUID playerUuid, FarmRole role, long cre
 		}
 	}
 
+	public FarmInvite(UUID inviteId, UUID playerUuid, FarmRole role, long createdAt, long expiresAt) {
+		this(inviteId, playerUuid, "", role, createdAt, expiresAt);
+	}
+
 	public static FarmInvite create(UUID playerUuid, FarmRole role, long now) {
-		return new FarmInvite(UUID.randomUUID(), playerUuid, role, now, Math.addExact(now, LIFETIME_MILLIS));
+		return create(playerUuid, "", role, now);
+	}
+
+	public static FarmInvite create(UUID playerUuid, String playerName, FarmRole role, long now) {
+		return new FarmInvite(UUID.randomUUID(), playerUuid, playerName, role, now, Math.addExact(now, LIFETIME_MILLIS));
 	}
 
 	public boolean expired(long now) {
@@ -45,6 +58,9 @@ public record FarmInvite(UUID inviteId, UUID playerUuid, FarmRole role, long cre
 		NbtCompound nbt = new NbtCompound();
 		nbt.putUuid("InviteId", inviteId);
 		nbt.putUuid("Player", playerUuid);
+		if (!playerName.isEmpty()) {
+			nbt.putString("PlayerName", playerName);
+		}
 		nbt.putString("Role", role.name());
 		nbt.putLong("CreatedAt", createdAt);
 		nbt.putLong("ExpiresAt", expiresAt);
@@ -55,7 +71,7 @@ public record FarmInvite(UUID inviteId, UUID playerUuid, FarmRole role, long cre
 		if (!nbt.containsUuid("InviteId") || !nbt.containsUuid("Player")) {
 			throw new IllegalArgumentException("Invitation identity is missing");
 		}
-		return new FarmInvite(nbt.getUuid("InviteId"), nbt.getUuid("Player"), FarmRole.valueOf(nbt.getString("Role")),
+		return new FarmInvite(nbt.getUuid("InviteId"), nbt.getUuid("Player"), nbt.getString("PlayerName"), FarmRole.valueOf(nbt.getString("Role")),
 				nbt.getLong("CreatedAt"), nbt.getLong("ExpiresAt"));
 	}
 
