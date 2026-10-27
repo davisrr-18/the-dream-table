@@ -70,6 +70,15 @@ public final class FarmBuilder {
 		}
 		BlockState placed = placedState(table, site, step);
 		BlockState existing = placed == null ? null : world.getBlockState(target);
+		if (placed == null) {
+			FarmSpawns.Result entityStatus = FarmSpawns.status(world, target, step);
+			if (entityStatus == FarmSpawns.Result.BLOCKED) {
+				return BuildIssue.at(BuildIssue.Kind.ENTITY_BLOCKED, target);
+			}
+			if (entityStatus == FarmSpawns.Result.PRESENT) {
+				return null;
+			}
+		}
 		if (placed != null && (BlockMatch.sameBlock(existing, placed) || (table.build().repairing() && !existing.isReplaceable()))) {
 			return null;
 		}
@@ -133,9 +142,14 @@ public final class FarmBuilder {
 		BlockState placed = placedState(table, site, step);
 		BlockState existing = placed == null ? null : world.getBlockState(target);
 
-		if (placed == null ? FarmSpawns.present(world, target, step) : BlockMatch.sameBlock(existing, placed)) {
+		FarmSpawns.Result entityStatus = placed == null ? FarmSpawns.status(world, target, step) : null;
+		if (entityStatus == FarmSpawns.Result.PRESENT || (placed != null && BlockMatch.sameBlock(existing, placed))) {
 			advance(world, table, template, site);
 			return Outcome.SKIPPED;
+		}
+		if (entityStatus == FarmSpawns.Result.BLOCKED) {
+			table.build().stopFor(BuildIssue.at(BuildIssue.Kind.ENTITY_BLOCKED, target));
+			return Outcome.STOPPED;
 		}
 		if (placed != null && table.build().repairing() && !existing.isReplaceable()) {
 			if (!BlockMatch.stillFarm(existing, placed)) {
@@ -152,7 +166,16 @@ public final class FarmBuilder {
 		boolean free = owner.isCreative();
 		boolean costs = step.item() != null && !free;
 
-		boolean done = placed == null ? spawn(world, target, step) : place(world, target, placed, step, !free, sound);
+		FarmSpawns.Result spawnResult = placed == null ? spawn(world, target, step) : null;
+		boolean done = placed == null ? spawnResult == FarmSpawns.Result.PLACED : place(world, target, placed, step, !free, sound);
+		if (spawnResult == FarmSpawns.Result.PRESENT) {
+			advance(world, table, template, site);
+			return Outcome.SKIPPED;
+		}
+		if (spawnResult == FarmSpawns.Result.BLOCKED) {
+			table.build().stopFor(BuildIssue.at(BuildIssue.Kind.ENTITY_BLOCKED, target));
+			return Outcome.STOPPED;
+		}
 		if (!done) {
 			if (placed == null) {
 				table.build().failed(target);
@@ -185,12 +208,13 @@ public final class FarmBuilder {
 		return FarmAreas.of(world).reservedByOther(world, FarmAreas.Key.build(table.getPos(), table.getOwner()), target);
 	}
 
-	private static boolean spawn(ServerWorld world, BlockPos target, FarmStep step) {
-		if (!FarmSpawns.spawn(world, target, step)) {
-			return false;
+	private static FarmSpawns.Result spawn(ServerWorld world, BlockPos target, FarmStep step) {
+		FarmSpawns.Result result = FarmSpawns.spawn(world, target, step);
+		if (result != FarmSpawns.Result.PLACED) {
+			return result;
 		}
 		world.playSound(null, target, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 0.6F, 1.1F);
-		return true;
+		return result;
 	}
 
 	/** Sets the block, confirms it took, then settles the block it replaced. Drops items only in survival. */

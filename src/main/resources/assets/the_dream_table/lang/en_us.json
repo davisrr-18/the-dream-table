@@ -139,6 +139,8 @@
 	"gui.the_dream_table.issue.protected.fix": "Spawn protection, the world border or a land claim covers this spot. Get permission, then press Try Again",
 	"gui.the_dream_table.issue.material": "Needs %s",
 	"gui.the_dream_table.issue.material.fix": "Deliver it on the clipboard and the build continues by itself",
+	"gui.the_dream_table.issue.entity_blocked": "The entity spot at %s, %s, %s is occupied or ambiguous",
+	"gui.the_dream_table.issue.entity_blocked.fix": "Leave exactly one free passenger or one empty vanilla minecart there, then press Try Again",
 	"gui.the_dream_table.issue.unloaded": "Waiting for the area at %s, %s to load",
 	"gui.the_dream_table.issue.unloaded.fix": "The build continues by itself as soon as it loads",
 	"gui.the_dream_table.issue.unloaded.repeated": "The build continues by itself as soon as it loads",

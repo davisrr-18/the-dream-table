@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.block.entity.TableSession;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.vehicle.MinecartEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -12,47 +13,155 @@ import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Mobs and minecarts the builder places, and the empty bucket it hands back after pouring water. */
 final class FarmSpawns {
+	enum Result {
+		PLACED, PRESENT, BLOCKED, FAILED
+	}
+
+	interface PairingOperations<T> {
+		T createPassenger();
+
+		T createCart();
+
+		boolean spawn(T entity);
+
+		boolean mount(T passenger, T cart);
+
+		void discard(T entity);
+	}
+
 	private FarmSpawns() {
 	}
 
-	/** Returns false when nothing was spawned, so the build keeps the item and tries again. */
-	static boolean spawn(ServerWorld world, BlockPos pos, FarmStep step) {
-		Entity entity = step.entity().create(world);
-		if (entity == null) {
-			return false;
+	static Result spawn(ServerWorld world, BlockPos pos, FarmStep step) {
+		if (!step.minecart()) {
+			Entity entity = createPassenger(world, pos, step);
+			return entity != null && world.spawnEntity(entity) ? Result.PLACED : Result.FAILED;
 		}
-		double y = pos.getY() + (step.entity() == EntityType.HOPPER_MINECART || step.minecart() ? 0.0625 : 0.0);
-		entity.setPosition(pos.getX() + 0.5, y, pos.getZ() + 0.5);
-		if (entity instanceof MobEntity mob) {
-			mob.setPersistent();
-			mob.setAiDisabled(step.noAi());
-		}
-		Entity cart = step.minecart() ? EntityType.MINECART.create(world) : null;
-		if (cart == null) {
-			return world.spawnEntity(entity);
-		}
-		cart.setPosition(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-		if (!world.spawnEntity(cart)) {
-			return false;
-		}
-		if (!world.spawnEntity(entity)) {
-			cart.discard();
-			return false;
-		}
-		entity.startRiding(cart, true);
-		return true;
+		Pairing pairing = pairing(world, pos, step);
+		return spawnMinecart(pairing.action(), pairing.passenger(), pairing.cart(), new PairingOperations<>() {
+			@Override
+			public Entity createPassenger() {
+				return FarmSpawns.createPassenger(world, pos, step);
+			}
+
+			@Override
+			public Entity createCart() {
+				Entity cart = EntityType.MINECART.create(world);
+				if (cart != null) {
+					cart.setPosition(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+				}
+				return cart;
+			}
+
+			@Override
+			public boolean spawn(Entity entity) {
+				return world.spawnEntity(entity);
+			}
+
+			@Override
+			public boolean mount(Entity passenger, Entity cart) {
+				return passenger.startRiding(cart, true);
+			}
+
+			@Override
+			public void discard(Entity entity) {
+				entity.discard();
+			}
+		});
 	}
 
 	/**
-	 * True when a living entity of the step's kind already stands in the step's block, like the villagers and zombie of
-	 * a repaired iron farm, so it isn't spawned twice. Only the entity's own position counts, not its width, so one in
-	 * the next cell doesn't.
+	 * Reports whether an entity step is complete, repairable, or blocked. Only each entity's own position counts, not
+	 * its width, so one in the next cell doesn't satisfy or block this step.
 	 */
-	static boolean present(ServerWorld world, BlockPos pos, FarmStep step) {
-		Box cell = new Box(pos.getX() - 0.2, pos.getY() - 0.5, pos.getZ() - 0.2, pos.getX() + 1.2, pos.getY() + 1.5, pos.getZ() + 1.2);
-		return !world.getEntitiesByType(step.entity(), cell, entity -> entity.isAlive() && cell.contains(entity.getPos())).isEmpty();
+	static Result status(ServerWorld world, BlockPos pos, FarmStep step) {
+		if (step.minecart()) {
+			return switch (pairing(world, pos, step).action()) {
+				case COMPLETE -> Result.PRESENT;
+				case BLOCKED -> Result.BLOCKED;
+				default -> Result.FAILED;
+			};
+		}
+		return passengers(world, pos, step).isEmpty() ? Result.FAILED : Result.PRESENT;
+	}
+
+	static <T> Result spawnMinecart(MinecartPairing.Action action, T existingPassenger, T existingCart, PairingOperations<T> operations) {
+		if (action == MinecartPairing.Action.COMPLETE) {
+			return Result.PRESENT;
+		}
+		if (action == MinecartPairing.Action.BLOCKED) {
+			return Result.BLOCKED;
+		}
+
+		T createdPassenger = null;
+		T createdCart = null;
+		T passenger = existingPassenger;
+		T cart = existingCart;
+		if (action == MinecartPairing.Action.CREATE_PASSENGER_FOR_CART || action == MinecartPairing.Action.CREATE_PAIR) {
+			createdPassenger = operations.createPassenger();
+			passenger = createdPassenger;
+		}
+		if (action == MinecartPairing.Action.CREATE_CART_FOR_PASSENGER || action == MinecartPairing.Action.CREATE_PAIR) {
+			createdCart = operations.createCart();
+			cart = createdCart;
+		}
+		if (passenger == null || cart == null
+				|| (createdCart != null && !operations.spawn(createdCart))
+				|| (createdPassenger != null && !operations.spawn(createdPassenger))
+				|| !operations.mount(passenger, cart)) {
+			if (createdCart != null) {
+				operations.discard(createdCart);
+			}
+			if (createdPassenger != null) {
+				operations.discard(createdPassenger);
+			}
+			return Result.FAILED;
+		}
+		return Result.PLACED;
+	}
+
+	private static Pairing pairing(ServerWorld world, BlockPos pos, FarmStep step) {
+		List<Entity> passengers = passengers(world, pos, step);
+		Box search = new Box(pos).expand(0.5);
+		List<MinecartEntity> broadCarts = new ArrayList<>(world.getEntitiesByType(EntityType.MINECART, search, Entity::isAlive));
+		List<MinecartEntity> carts = MinecartPairing.inCell(pos, broadCarts, Entity::getPos);
+		int freePassengers = (int) passengers.stream().filter(passenger -> !passenger.hasVehicle()).count();
+		int emptyCarts = (int) carts.stream().filter(cart -> !cart.hasPassengers()).count();
+		int intactPairs = (int) passengers.stream().filter(passenger -> carts.stream().anyMatch(cart ->
+				passenger.getVehicle() == cart && cart.getPassengerList().size() == 1)).count();
+		MinecartPairing.Action action = MinecartPairing.decide(new MinecartPairing.Snapshot(
+				passengers.size(), freePassengers, carts.size(), emptyCarts, intactPairs));
+		Entity passenger = action == MinecartPairing.Action.CREATE_CART_FOR_PASSENGER ? passengers.getFirst() : null;
+		Entity cart = action == MinecartPairing.Action.CREATE_PASSENGER_FOR_CART ? carts.getFirst() : null;
+		return new Pairing(action, passenger, cart);
+	}
+
+	private static List<Entity> passengers(ServerWorld world, BlockPos pos, FarmStep step) {
+		Box search = new Box(pos).expand(0.5);
+		List<Entity> broad = new ArrayList<>(world.getEntitiesByType(step.entity(), search, Entity::isAlive));
+		return MinecartPairing.inCell(pos, broad, Entity::getPos);
+	}
+
+	private static Entity createPassenger(ServerWorld world, BlockPos pos, FarmStep step) {
+		Entity passenger = step.entity().create(world);
+		if (passenger == null) {
+			return null;
+		}
+		double y = pos.getY() + (step.entity() == EntityType.HOPPER_MINECART || step.minecart() ? 0.0625 : 0.0);
+		passenger.setPosition(pos.getX() + 0.5, y, pos.getZ() + 0.5);
+		if (passenger instanceof MobEntity mob) {
+			mob.setPersistent();
+			mob.setAiDisabled(step.noAi());
+		}
+		return passenger;
+	}
+
+	private record Pairing(MinecartPairing.Action action, Entity passenger, Entity cart) {
 	}
 
 	static void returnBucket(ServerWorld world, TableSession table) {
