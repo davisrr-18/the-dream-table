@@ -77,7 +77,7 @@ public final class FarmLoader extends PersistentState {
 
 	public static final int UNKNOWN = -1;
 	public enum ToggleResult {
-		CHANGED, LIMIT_REACHED, IGNORED
+		SELECTED, UNSELECTED, OWNER_QUOTA_FULL, NOT_FOUND, FORBIDDEN
 	}
 
 	/** A finished farm and the world it stands in. */
@@ -187,37 +187,67 @@ public final class FarmLoader extends PersistentState {
 	}
 
 	/** Picks or unpicks an existing farm. Client-provided keys are resolved again on the server. */
-	public ToggleResult toggle(MinecraftServer server, UUID player, String key) {
-		return toggleKnown(player, key, byKey(server, player, key).isPresent());
+	public ToggleResult toggle(MinecraftServer server, UUID actorUuid, FarmKey key) {
+		FarmDirectory.Located located = FarmDirectory.resolve(server, key).orElse(null);
+		if (located == null) {
+			return ToggleResult.NOT_FOUND;
+		}
+		FarmRole role = FarmAccess.role(located.record(), actorUuid, DreamTableConfig.farmSharingEnabled()).orElse(null);
+		if (role == null || !FarmAccess.allows(role, FarmAction.KEEP_LOADED)) {
+			return ToggleResult.FORBIDDEN;
+		}
+		return toggleKnown(located.farm().ownerUuid(), key.externalForm(), true, role);
 	}
 
-	ToggleResult toggleKnown(UUID player, String key, boolean known) {
-		Set<String> keys = picked.get(player);
+	ToggleResult toggleKnown(UUID ownerUuid, String key, boolean known, FarmRole actorRole) {
+		if (actorRole == FarmRole.VIEWER) {
+			return ToggleResult.FORBIDDEN;
+		}
+		Set<String> keys = picked.get(ownerUuid);
 		if (keys != null && keys.remove(key)) {
 			if (keys.isEmpty()) {
-				picked.remove(player);
+				picked.remove(ownerUuid);
 			}
 			markDirty();
-			return ToggleResult.CHANGED;
+			return ToggleResult.UNSELECTED;
 		}
 		if (!known) {
-			return ToggleResult.IGNORED;
+			return ToggleResult.NOT_FOUND;
 		}
-		keys = picked.computeIfAbsent(player, ignored -> new LinkedHashSet<>());
+		keys = picked.computeIfAbsent(ownerUuid, ignored -> new LinkedHashSet<>());
 		if (keys.size() >= DreamTableConfig.maxLoadedFarms()) {
-			return ToggleResult.LIMIT_REACHED;
+			if (keys.isEmpty()) {
+				picked.remove(ownerUuid);
+			}
+			return ToggleResult.OWNER_QUOTA_FULL;
 		}
 		keys.add(key);
 		markDirty();
-		return ToggleResult.CHANGED;
+		return ToggleResult.SELECTED;
+	}
+
+	static boolean authorizedPresence(boolean ownerOnline, Iterable<FarmRole> onlineCollaborators, boolean sharingEnabled) {
+		if (ownerOnline) {
+			return true;
+		}
+		if (!sharingEnabled) {
+			return false;
+		}
+		for (FarmRole role : onlineCollaborators) {
+			if (role == FarmRole.OPERATOR) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void keepLoaded(MinecraftServer server) {
 		loadedChunks.clear();
+		server.getWorlds().forEach(world -> FarmAreas.of(world).reconcileRepairs(world));
 		int limit = DreamTableConfig.maxLoadedFarms();
 		for (Map.Entry<UUID, Set<String>> entry : picked.entrySet()) {
 			Set<String> keys = entry.getValue();
-			if (keys.isEmpty() || limit <= 0 || (!DreamTableConfig.loadWhileOffline() && server.getPlayerManager().getPlayer(entry.getKey()) == null)) {
+			if (keys.isEmpty() || limit <= 0) {
 				continue;
 			}
 			Set<String> existing = new LinkedHashSet<>();
@@ -227,7 +257,7 @@ public final class FarmLoader extends PersistentState {
 				if (keys.contains(farm.key())) {
 					existing.add(farm.key());
 				}
-				if (keys.contains(farm.key()) && loaded < limit) {
+				if (keys.contains(farm.key()) && loaded < limit && (DreamTableConfig.loadWhileOffline() || authorizedPresence(server, farm.farm()))) {
 					loaded++;
 					load(farm.world(), farm.farm().box(), loadedChunks.computeIfAbsent(farm.world(), ignored -> new LongOpenHashSet()));
 					reportIfFull(owner, farm);
@@ -237,6 +267,15 @@ public final class FarmLoader extends PersistentState {
 				markDirty();
 			}
 		}
+	}
+
+	private static boolean authorizedPresence(MinecraftServer server, FarmAreas.Finished farm) {
+		boolean ownerOnline = server.getPlayerManager().getPlayer(farm.ownerUuid()) != null;
+		List<FarmRole> online = farm.grants().values().stream()
+				.filter(grant -> server.getPlayerManager().getPlayer(grant.playerUuid()) != null)
+				.map(FarmGrant::role)
+				.toList();
+		return authorizedPresence(ownerOnline, online, DreamTableConfig.farmSharingEnabled());
 	}
 
 	/** Blocks a repair would place, by the farm's own saved design, or {@link #UNKNOWN} while part of it is unloaded. */

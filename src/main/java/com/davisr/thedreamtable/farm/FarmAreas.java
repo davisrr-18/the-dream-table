@@ -36,6 +36,7 @@ import java.util.function.UnaryOperator;
 public final class FarmAreas extends PersistentState {
 	private static final Type<FarmAreas> TYPE = new Type<>(FarmAreas::new, FarmAreas::read, null);
 	private final Map<Key, Area> areas = new LinkedHashMap<>();
+	private final Map<UUID, RepairLease> repairLeases = new LinkedHashMap<>();
 
 	public enum Kind {
 		BUILD, DISMANTLE, FINISHED
@@ -78,7 +79,7 @@ public final class FarmAreas extends PersistentState {
 	 */
 	public record Finished(String id, Key key, UUID instanceId, UUID ownerUuid, String farmId, long signature, FarmSite site, Map<Item, Item> swaps,
 			@Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites, BlockPos where, Box box, long finishedAt,
-			@Nullable FarmTemplate layout) {
+			@Nullable FarmTemplate layout, FarmOperation operation, @Nullable RepairLease repairLease) {
 	}
 
 	private record Area(Box box, @Nullable Built built) {
@@ -126,6 +127,69 @@ public final class FarmAreas extends PersistentState {
 
 	public java.util.Optional<Finished> finished(UUID instanceId) {
 		return finished().stream().filter(farm -> farm.instanceId().equals(instanceId)).findFirst();
+	}
+
+	/** Atomically changes a READY farm to REPAIRING and returns the persisted lease. */
+	public java.util.Optional<RepairLease> beginRepair(UUID instanceId, UUID actorUuid, BlockPos tablePos, UUID operationId) {
+		if (repairLeases.containsKey(instanceId) || finished(instanceId).isEmpty()) {
+			return java.util.Optional.empty();
+		}
+		RepairLease lease = new RepairLease(operationId, actorUuid, tablePos);
+		repairLeases.put(instanceId, lease);
+		markDirty();
+		return java.util.Optional.of(lease);
+	}
+
+	public boolean completeRepair(UUID instanceId, UUID operationId) {
+		return endRepair(instanceId, operationId);
+	}
+
+	public boolean failRepair(UUID instanceId, UUID operationId) {
+		return endRepair(instanceId, operationId);
+	}
+
+	private boolean endRepair(UUID instanceId, UUID operationId) {
+		RepairLease lease = repairLeases.get(instanceId);
+		if (lease == null || !lease.operationId().equals(operationId)) {
+			return false;
+		}
+		repairLeases.remove(instanceId);
+		markDirty();
+		return true;
+	}
+
+	/** Fails only leases the caller has positively determined no longer have a live table session. */
+	public int failOrphanedRepairs(Predicate<RepairLease> active) {
+		int before = repairLeases.size();
+		repairLeases.values().removeIf(lease -> !active.test(lease));
+		int removed = before - repairLeases.size();
+		if (removed > 0) {
+			markDirty();
+		}
+		return removed;
+	}
+
+	/** An unloaded table is unknown, never orphaned; a loaded missing table or matching session proves the outcome. */
+	public int reconcileRepairs(ServerWorld world) {
+		int removed = 0;
+		Iterator<Map.Entry<UUID, RepairLease>> leases = repairLeases.entrySet().iterator();
+		while (leases.hasNext()) {
+			Map.Entry<UUID, RepairLease> entry = leases.next();
+			RepairLease lease = entry.getValue();
+			if (world.isChunkLoaded(lease.tablePos()) && (!(world.getBlockEntity(lease.tablePos()) instanceof DreamTableBlockEntity table)
+					|| !table.hasRepairLease(entry.getKey(), lease))) {
+				leases.remove();
+				removed++;
+			}
+		}
+		if (removed > 0) {
+			markDirty();
+		}
+		return removed;
+	}
+
+	public boolean repairActive(UUID instanceId, RepairLease expected) {
+		return expected.equals(repairLeases.get(instanceId));
 	}
 
 	void setCustomName(UUID instanceId, @Nullable String customName) {
@@ -250,7 +314,11 @@ public final class FarmAreas extends PersistentState {
 	}
 
 	public void release(Key key) {
-		if (areas.remove(key) != null) {
+		Area removed = areas.remove(key);
+		if (removed != null) {
+			if (removed.built() != null) {
+				repairLeases.remove(removed.built().instanceId());
+			}
 			markDirty();
 		}
 	}
@@ -264,11 +332,15 @@ public final class FarmAreas extends PersistentState {
 
 	/** What this area would overlap, other than the asker's own farm. Finished farms that were taken down are forgotten here. */
 	public Conflict conflict(ServerWorld world, Key asker, Box box) {
+		return conflict(world, asker, box, null);
+	}
+
+	public Conflict conflict(ServerWorld world, Key asker, Box box, @Nullable UUID ignoredFinished) {
 		Conflict found = Conflict.NONE;
 		Iterator<Map.Entry<Key, Area>> entries = areas.entrySet().iterator();
 		while (entries.hasNext()) {
 			Map.Entry<Key, Area> entry = entries.next();
-			if (entry.getKey().equals(asker) || !entry.getValue().box().intersects(box)) {
+			if (entry.getKey().equals(asker) || ignored(entry.getValue(), ignoredFinished) || !entry.getValue().box().intersects(box)) {
 				continue;
 			}
 			if (forgotten(world, entry.getKey(), entry.getValue())) {
@@ -295,8 +367,9 @@ public final class FarmAreas extends PersistentState {
 			if (built != null) {
 				Key key = entry.getKey();
 				BlockPos where = built.site().anchor() != null ? built.site().anchor() : built.site().table();
+				RepairLease lease = repairLeases.get(built.instanceId());
 				farms.add(new Finished(key.table() + "/" + key.spot(), key, built.instanceId(), key.player(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(), built.grants(), built.invites(), where,
-						entry.getValue().box(), built.finishedAt(), built.layout()));
+						entry.getValue().box(), built.finishedAt(), built.layout(), lease == null ? FarmOperation.READY : FarmOperation.REPAIRING, lease));
 			}
 		}
 		return farms;
@@ -321,14 +394,18 @@ public final class FarmAreas extends PersistentState {
 
 	/** True when the spot lies inside a farm other than the asker's own. Cheap enough to ask for every block. */
 	public boolean reservedByOther(ServerWorld world, Key asker, BlockPos pos) {
-		return find(world, asker, other -> other.contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5));
+		return reservedByOther(world, asker, pos, null);
 	}
 
-	private boolean find(ServerWorld world, Key asker, Predicate<Box> test) {
+	public boolean reservedByOther(ServerWorld world, Key asker, BlockPos pos, @Nullable UUID ignoredFinished) {
+		return find(world, asker, ignoredFinished, other -> other.contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5));
+	}
+
+	private boolean find(ServerWorld world, Key asker, @Nullable UUID ignoredFinished, Predicate<Box> test) {
 		Iterator<Map.Entry<Key, Area>> entries = areas.entrySet().iterator();
 		while (entries.hasNext()) {
 			Map.Entry<Key, Area> entry = entries.next();
-			if (entry.getKey().equals(asker)) {
+			if (entry.getKey().equals(asker) || ignored(entry.getValue(), ignoredFinished)) {
 				continue;
 			}
 			if (entry.getKey().kind() != Kind.FINISHED && tableGone(world, entry.getKey())) {
@@ -341,6 +418,10 @@ public final class FarmAreas extends PersistentState {
 			}
 		}
 		return false;
+	}
+
+	private static boolean ignored(Area area, @Nullable UUID ignoredFinished) {
+		return ignoredFinished != null && area.built() != null && area.built().instanceId().equals(ignoredFinished);
 	}
 
 	private static boolean forgotten(ServerWorld world, Key key, Area area) {
@@ -451,6 +532,10 @@ public final class FarmAreas extends PersistentState {
 				}
 				FarmGrant.writeAll(item, "Grants", built.grants());
 				FarmInvite.writeAll(item, "Invites", built.invites());
+				RepairLease lease = repairLeases.get(built.instanceId());
+				if (lease != null) {
+					lease.write(item);
+				}
 				item.putLong("FinishedAt", built.finishedAt());
 				if (built.layout() != null) {
 					item.putString("LayoutId", built.layout().id());
@@ -524,6 +609,10 @@ public final class FarmAreas extends PersistentState {
 			} else {
 				state.markDirty();
 			}
+		}
+		RepairLease lease = RepairLease.read(item);
+		if (lease != null) {
+			state.repairLeases.put(instanceId, lease);
 		}
 		return new Built(instanceId, farmId, signature, FarmSite.read(item.getCompound("Site")), MaterialLedger.readSwaps(item), customName,
 				Map.copyOf(grants), invites, item.getLong("FinishedAt"), layout);

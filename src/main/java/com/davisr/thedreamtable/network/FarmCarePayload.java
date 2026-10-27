@@ -7,7 +7,6 @@ import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmLoader;
-import com.davisr.thedreamtable.farm.FarmRole;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.RegistryByteBuf;
@@ -57,8 +56,8 @@ public record FarmCarePayload(BlockPos table, String key, Action action) impleme
 		TableSession session = table.session(player);
 		FarmLoader.Located farm = new FarmLoader.Located(payload.key(), checked.farm().located().world(), checked.farm().located().farm());
 		FarmActionResultPayload.Result result = switch (payload.action()) {
-			case REPAIR -> checked.farm().role() != FarmRole.OWNER ? FarmActionResultPayload.Result.BUSY
-					: FarmCare.repair(session, player, farm) ? FarmActionResultPayload.Result.SUCCESS : FarmActionResultPayload.Result.BUSY;
+			case REPAIR -> FarmCare.repair(session, player, farm)
+					? FarmActionResultPayload.Result.SUCCESS : FarmActionResultPayload.Result.BUSY;
 			case TAKE_DOWN -> FarmCare.takeDown(session, player, farm)
 					? FarmActionResultPayload.Result.SUCCESS : FarmActionResultPayload.Result.BUSY;
 			case FORGET -> {

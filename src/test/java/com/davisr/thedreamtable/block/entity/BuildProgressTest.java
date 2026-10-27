@@ -3,8 +3,10 @@ package com.davisr.thedreamtable.block.entity;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmGrant;
 import com.davisr.thedreamtable.farm.FarmInvite;
+import com.davisr.thedreamtable.farm.FarmKey;
 import com.davisr.thedreamtable.farm.FarmRole;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -191,5 +193,40 @@ class BuildProgressTest {
 		assertEquals(null, loaded.repairCustomName());
 		assertTrue(loaded.repairGrants().isEmpty());
 		assertTrue(loaded.repairInvites().isEmpty());
+	}
+
+	@Test
+	void repairContextKeepsOwnerActorAndOperationSeparateAcrossRestart() {
+		UUID owner = UUID.fromString("10000000-0000-0000-0000-000000000001");
+		UUID actor = UUID.fromString("20000000-0000-0000-0000-000000000002");
+		UUID operation = UUID.fromString("30000000-0000-0000-0000-000000000003");
+		FarmKey key = new FarmKey(Identifier.of("minecraft", "overworld"), UUID.randomUUID());
+		RepairContext context = new RepairContext(key, owner, actor, operation);
+		BuildProgress progress = new BuildProgress();
+		progress.start(actor, true, 42L);
+		progress.startRepair(context);
+
+		NbtCompound nbt = new NbtCompound();
+		progress.write(nbt);
+		BuildProgress restored = new BuildProgress();
+		restored.read(nbt);
+
+		assertEquals(actor, restored.actorUuid());
+		assertEquals(context, restored.repairContext());
+		assertEquals(key.instanceId(), restored.repairInstanceId());
+	}
+
+	@Test
+	void legacyOwnerFieldStillLoadsAsTheRepairActor() {
+		UUID actor = UUID.randomUUID();
+		NbtCompound nbt = new NbtCompound();
+		nbt.putBoolean("Repair", true);
+		nbt.putUuid("Owner", actor);
+
+		BuildProgress restored = new BuildProgress();
+		restored.read(nbt);
+
+		assertEquals(actor, restored.actorUuid());
+		assertEquals(null, restored.repairContext());
 	}
 }

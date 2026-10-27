@@ -6,6 +6,7 @@ import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmDismantler;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.farm.RepairLease;
 import com.davisr.thedreamtable.network.ServerSchematicsPayload;
 import com.davisr.thedreamtable.network.SessionSyncPayload;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
@@ -161,6 +162,18 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 
 	public TableSession session(PlayerEntity player) {
 		return session(player.getUuid());
+	}
+
+	/** Used only after this table's chunk is loaded to prove a persisted farm lease still has its session. */
+	public boolean hasRepairLease(UUID instanceId, RepairLease lease) {
+		for (TableSession session : sessions.values()) {
+			RepairContext context = session.repairContext();
+			if (context != null && context.farmKey().instanceId().equals(instanceId)
+					&& context.operationId().equals(lease.operationId()) && context.actorUuid().equals(lease.actorUuid())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

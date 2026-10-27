@@ -36,6 +36,10 @@ final class SessionAreas {
 	 * at any table, or touches land the player may not build in. Build and the hologram check both ask this.
 	 */
 	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template) {
+		return problemAt(world, asker, site, template, null);
+	}
+
+	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template, @Nullable UUID ignoredFinished) {
 		Box area = site.footprint(template);
 		if (!site.fits(world, template)) {
 			return "gui.the_dream_table.out_of_world";
@@ -43,7 +47,7 @@ final class SessionAreas {
 		if (session.table().overlapsOthers(session, area)) {
 			return "gui.the_dream_table.farm_overlaps";
 		}
-		FarmAreas.Conflict conflict = FarmAreas.of(world).conflict(world, key(), area);
+		FarmAreas.Conflict conflict = FarmAreas.of(world).conflict(world, key(), area, ignoredFinished);
 		if (conflict == FarmAreas.Conflict.ACTIVE) {
 			return "gui.the_dream_table.farm_overlaps";
 		}
@@ -82,11 +86,28 @@ final class SessionAreas {
 		areas.release(key());
 	}
 
+	void completeRepair(ServerWorld world, RepairContext context) {
+		finishedRecorded = true;
+		FarmAreas areas = FarmAreas.of(world);
+		areas.completeRepair(context.farmKey().instanceId(), context.operationId());
+		areas.release(key());
+	}
+
+	boolean repairActive(ServerWorld world, RepairContext context) {
+		return FarmAreas.of(world).repairActive(context.farmKey().instanceId(),
+				new com.davisr.thedreamtable.farm.RepairLease(context.operationId(), context.actorUuid(), session.getPos()));
+	}
+
 	boolean finishedRecorded() {
 		return finishedRecorded;
 	}
 
 	void release(ServerWorld world) {
-		FarmAreas.of(world).release(key());
+		FarmAreas areas = FarmAreas.of(world);
+		RepairContext context = session.repairContext();
+		if (context != null) {
+			areas.failRepair(context.farmKey().instanceId(), context.operationId());
+		}
+		areas.release(key());
 	}
 }

@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.BuildIssue;
+import com.davisr.thedreamtable.block.entity.RepairContext;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -205,7 +206,9 @@ public final class FarmBuilder {
 
 	/** Blocks inside another table's farm, or another player's, belong to that farm and are never cleared. */
 	private static boolean insideOtherFarm(ServerWorld world, TableSession table, BlockPos target) {
-		return FarmAreas.of(world).reservedByOther(world, FarmAreas.Key.build(table.getPos(), table.getOwner()), target);
+		RepairContext repair = table.build().repairContext();
+		return FarmAreas.of(world).reservedByOther(world, FarmAreas.Key.build(table.getPos(), table.getOwner()), target,
+				repair == null ? null : repair.farmKey().instanceId());
 	}
 
 	private static FarmSpawns.Result spawn(ServerWorld world, BlockPos target, FarmStep step) {

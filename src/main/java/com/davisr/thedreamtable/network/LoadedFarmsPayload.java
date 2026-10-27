@@ -80,13 +80,15 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 				FarmNetwork.Checked checked = FarmNetwork.authorize(player, payload.table(), payload.toggle(), FarmAction.KEEP_LOADED,
 						FarmActionResultPayload.Action.KEEP_LOADED);
 				if (checked != null) {
-					FarmLoader.ToggleResult result = checked.farm().role() == FarmRole.OWNER
-							? loader.toggle(context.server(), player.getUuid(), payload.toggle()) : FarmLoader.ToggleResult.IGNORED;
-					FarmActionResultPayload.Result response = result == FarmLoader.ToggleResult.LIMIT_REACHED
-							? FarmActionResultPayload.Result.LIMIT_REACHED
-							: result == FarmLoader.ToggleResult.IGNORED ? FarmActionResultPayload.Result.BUSY : FarmActionResultPayload.Result.SUCCESS;
+					FarmLoader.ToggleResult result = loader.toggle(context.server(), player.getUuid(), checked.farm().located().key());
+					FarmActionResultPayload.Result response = switch (result) {
+						case SELECTED, UNSELECTED -> FarmActionResultPayload.Result.SUCCESS;
+						case OWNER_QUOTA_FULL -> FarmActionResultPayload.Result.LIMIT_REACHED;
+						case NOT_FOUND -> FarmActionResultPayload.Result.NOT_FOUND;
+						case FORBIDDEN -> FarmActionResultPayload.Result.FORBIDDEN;
+					};
 					FarmNetwork.result(player, payload.toggle(), FarmActionResultPayload.Action.KEEP_LOADED, response);
-					if (result == FarmLoader.ToggleResult.LIMIT_REACHED) {
+					if (result == FarmLoader.ToggleResult.OWNER_QUOTA_FULL) {
 						player.sendMessage(Text.translatable("gui.the_dream_table.loaded_full", DreamTableConfig.maxLoadedFarms()), true);
 					}
 				}
