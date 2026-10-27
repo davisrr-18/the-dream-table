@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.screen.page.PageRoutes;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.List;
@@ -17,23 +18,23 @@ final class TableButtons {
 	}
 
 	static boolean press(TableSession table, ServerPlayerEntity player, int id) {
-		if (id >= 0 && id < FarmOptions.ALL.size()) {
+		if (id >= 0 && id < BUTTON_REQUIREMENTS && id < FarmOptions.ALL.size()) {
 			return openFarm(table, FarmOptions.ALL.get(id).id());
 		}
-		if (id >= BUTTON_CATEGORY && id < BUTTON_CATEGORY + FarmOptions.Category.values().length) {
+		if (id >= BUTTON_CATEGORY && id < BUTTON_CATEGORY + PageRoutes.CATEGORY_PAGE_COUNT) {
 			return page(table, PAGE_CATEGORY + id - BUTTON_CATEGORY);
 		}
-		if (id > BUTTON_PACE_CUSTOM && id <= BUTTON_PACE_CUSTOM + BuildPace.MAX_PERCENT) {
+		if (dynamicRange(id) == DynamicRange.CUSTOM_PACE) {
 			table.build().setPace(BuildPace.ofPercent(id - BUTTON_PACE_CUSTOM));
 			return true;
 		}
-		if (id >= BUTTON_SWAP_PICK) {
+		if (dynamicRange(id) == DynamicRange.SWAP_PICK) {
 			return pickSwap(table, id - BUTTON_SWAP_PICK);
 		}
-		if (id >= BUTTON_SWAP_OPEN) {
+		if (dynamicRange(id) == DynamicRange.SWAP_OPEN) {
 			return openSwap(table, id - BUTTON_SWAP_OPEN);
 		}
-		if (id >= BUTTON_SCHEME) {
+		if (dynamicRange(id) == DynamicRange.SCHEMATIC) {
 			List<FarmOptions.FarmOption> imported = FarmTemplates.imported();
 			int index = id - BUTTON_SCHEME;
 			return index < imported.size() && openFarm(table, imported.get(index).id());
@@ -63,6 +64,30 @@ final class TableButtons {
 			}
 			default -> false;
 		};
+	}
+
+	static DynamicRange dynamicRange(int id) {
+		if (id >= BUTTON_SCHEME && id < BUTTON_SWAP_OPEN) {
+			return DynamicRange.SCHEMATIC;
+		}
+		if (id >= BUTTON_SWAP_OPEN && id < BUTTON_SWAP_PICK) {
+			return DynamicRange.SWAP_OPEN;
+		}
+		if (id >= BUTTON_SWAP_PICK && id < BUTTON_PACE_CUSTOM) {
+			return DynamicRange.SWAP_PICK;
+		}
+		if (id > BUTTON_PACE_CUSTOM && id <= BUTTON_PACE_CUSTOM + BuildPace.MAX_PERCENT) {
+			return DynamicRange.CUSTOM_PACE;
+		}
+		return DynamicRange.NONE;
+	}
+
+	enum DynamicRange {
+		NONE,
+		SCHEMATIC,
+		SWAP_OPEN,
+		SWAP_PICK,
+		CUSTOM_PACE
 	}
 
 	private static boolean page(TableSession table, int page) {
