@@ -77,7 +77,6 @@ public final class LoadedFarmsPage implements TablePage {
 			}
 		}
 		note(context, Text.translatable("gui.the_dream_table.loaded_hint"), noteY());
-		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
 	}
 
 	private void drawControls(DrawContext context, int mouseX, int mouseY, int shown, int total) {
@@ -94,11 +93,7 @@ public final class LoadedFarmsPage implements TablePage {
 
 	private void chip(DrawContext context, Text label, int row, int mouseX, int mouseY) {
 		int y = chipY(row);
-		boolean hit = chipHit(mouseX, mouseY, row);
-		ui.painter().chip(context, label, ui.view().cardX(), y, CARD_WIDTH, CHIP_HEIGHT, hit);
-		if (hit && !ui.painter().fits(label, CARD_WIDTH - 12)) {
-			ui.tooltip(label);
-		}
+		ui.chip("filter." + row, context, label, y, CARD_WIDTH, CHIP_HEIGHT, mouseX, mouseY);
 	}
 
 	private boolean chipHit(double mouseX, double mouseY, int row) {
@@ -108,7 +103,7 @@ public final class LoadedFarmsPage implements TablePage {
 	static void card(PageContext ui, DrawContext context, FarmLoader.Entry farm, Text detail, int y, int mouseX, int mouseY) {
 		FarmOption option = FarmOptions.byId(farm.farmId()).orElse(null);
 		ItemStack icon = option == null ? new ItemStack(Items.STRUCTURE_BLOCK) : option.icon().getDefaultStack();
-		ui.card(context, icon, name(farm), detail, y, mouseX, mouseY, farm.loaded(), true);
+		ui.card(farm.key(), context, icon, name(farm), detail, y, mouseX, mouseY, farm.loaded(), true);
 	}
 
 	/** The farm's name, its schematic's file name, or "Removed Farm" for one the mod no longer has. */
@@ -192,16 +187,12 @@ public final class LoadedFarmsPage implements TablePage {
 				}
 			}
 		}
-		if (ui.buttonHit(mouseX, mouseY, backY())) {
-			ui.go(DreamTableScreenHandler.PAGE_OPTIONS, DreamTableScreenHandler.BUTTON_LOADED_BACK);
-			return true;
-		}
 		return false;
 	}
 
 	@Override
 	public int contentHeight() {
-		return PAD + listHeight() + 6 + NOTE_HEIGHT + BUTTON_HEIGHT + 4;
+		return PAD + listHeight() + 6 + NOTE_HEIGHT + 4;
 	}
 
 	@Override
@@ -229,7 +220,4 @@ public final class LoadedFarmsPage implements TablePage {
 		return ui.view().cardY(0) + listHeight() + 6;
 	}
 
-	private int backY() {
-		return noteY() + NOTE_HEIGHT;
-	}
 }

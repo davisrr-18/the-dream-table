@@ -29,7 +29,8 @@ public final class FarmPage implements TablePage {
 	private static final int LOADED = 0;
 	private static final int REPAIR = 1;
 	private static final int TAKE_DOWN = 2;
-	private static final int BACK = 3;
+	private static final int CONFIRM_TAKE_DOWN = 3;
+	private static final int BACK = 4;
 	private static final long CONFIRM_MS = 3000L;
 	private static final int ITEM_SPACING = 21;
 	private static final int LINE_HEIGHT = 10;
@@ -55,7 +56,7 @@ public final class FarmPage implements TablePage {
 		if (farm == null) {
 			context.drawText(ui.painter().text(), Text.translatable(LoadedFarmsView.received() ? "gui.the_dream_table.farm_gone" : "gui.the_dream_table.loaded_waiting"),
 					ui.view().cardX(), ui.view().cardY(0) + 8, HINT, false);
-			ui.button(context, Text.translatable("gui.the_dream_table.back"), rowY(BACK), mouseX, mouseY, true, false);
+			ui.button("back", context, Text.translatable("gui.the_dream_table.back"), rowY(backRow()), mouseX, mouseY, true, false);
 			return;
 		}
 		Text where = Text.translatable("gui.the_dream_table.farm_at", farm.where().getX(), farm.where().getY(), farm.where().getZ(),
@@ -64,23 +65,27 @@ public final class FarmPage implements TablePage {
 		drawWrapped(context, statusText(farm), statusY(), Integer.MAX_VALUE, HINT);
 		drawStorage(context);
 		drawCondition(context, farm);
-		ui.button(context, loadedLabel(farm), rowY(LOADED), mouseX, mouseY, canLoad(farm), farm.loaded());
+		ui.button("keep_loaded", context, loadedLabel(farm), rowY(LOADED), mouseX, mouseY, canLoad(farm), farm.loaded());
 		if (!farm.available()) {
-			ui.button(context, Text.translatable("gui.the_dream_table.forget"), rowY(REPAIR), mouseX, mouseY, true, false);
+			ui.button("forget", context, Text.translatable("gui.the_dream_table.forget"), rowY(REPAIR), mouseX, mouseY, true, false);
 		} else {
 			boolean busy = ProjectState.locked(ui.handler());
-			ui.button(context, busy ? Text.translatable("gui.the_dream_table.repair_table_busy") : repairLabel(farm), rowY(REPAIR), mouseX, mouseY,
+			ui.button("repair", context, busy ? Text.translatable("gui.the_dream_table.repair_table_busy") : repairLabel(farm), rowY(REPAIR), mouseX, mouseY,
 					farm.missing() != 0 && !busy, false);
-			Text takeDown = Text.translatable(confirming() ? "gui.the_dream_table.take_down_confirm" : "gui.the_dream_table.take_down");
-			ui.button(context, takeDown, rowY(TAKE_DOWN), mouseX, mouseY, true, confirming());
+			if (confirming()) {
+				ui.button("cancel_take_down", context, Text.translatable("gui.the_dream_table.cancel"), rowY(TAKE_DOWN), mouseX, mouseY, true, false);
+				ui.destructiveButton("confirm_take_down", context, Text.translatable("gui.the_dream_table.confirm_take_down"), rowY(CONFIRM_TAKE_DOWN), mouseX, mouseY, true);
+			} else {
+				ui.destructiveButton("take_down", context, Text.translatable("gui.the_dream_table.take_down"), rowY(TAKE_DOWN), mouseX, mouseY, true);
+			}
 		}
-		ui.button(context, Text.translatable("gui.the_dream_table.back"), rowY(BACK), mouseX, mouseY, true, false);
+		ui.button("back", context, Text.translatable("gui.the_dream_table.back"), rowY(backRow()), mouseX, mouseY, true, false);
 	}
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		FarmLoader.Entry farm = farm();
-		if (ui.buttonHit(mouseX, mouseY, rowY(BACK))) {
+		if (ui.buttonHit(mouseX, mouseY, rowY(backRow()))) {
 			confirmUntil = 0L;
 			ui.go(DreamTableScreenHandler.PAGE_LOADED, DreamTableScreenHandler.BUTTON_FARM_BACK);
 			return true;
@@ -117,12 +122,18 @@ public final class FarmPage implements TablePage {
 			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, rowY(TAKE_DOWN))) {
-			if (!confirming()) {
+			if (confirming()) {
+				confirmUntil = 0L;
+				ui.actions().click();
+				return true;
+			} else {
 				confirmUntil = Util.getMeasuringTimeMs() + CONFIRM_MS;
 				ui.actions().click();
 				ui.actions().message(Text.translatable("gui.the_dream_table.take_down_click", LoadedFarmsPage.name(farm)));
-				return true;
 			}
+			return true;
+		}
+		if (confirming() && ui.buttonHit(mouseX, mouseY, rowY(CONFIRM_TAKE_DOWN))) {
 			confirmUntil = 0L;
 			LoadedFarmsView.care(ui.handler().getTablePos(), farm.key(), FarmCarePayload.Action.TAKE_DOWN);
 			ui.actions().click();
@@ -275,7 +286,7 @@ public final class FarmPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		return rowY(BACK) - ui.view().cardY(0) + PAD + BUTTON_HEIGHT + 4;
+		return rowY(backRow()) - ui.view().cardY(0) + PAD + BUTTON_HEIGHT + 4;
 	}
 
 	@Override
@@ -313,5 +324,9 @@ public final class FarmPage implements TablePage {
 
 	private int rowY(int row) {
 		return needsY() + NEEDS_HEIGHT + 4 + row * (BUTTON_HEIGHT + BUTTON_GAP);
+	}
+
+	private int backRow() {
+		return confirming() ? BACK : CONFIRM_TAKE_DOWN;
 	}
 }

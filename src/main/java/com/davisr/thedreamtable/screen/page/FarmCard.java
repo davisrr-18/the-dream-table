@@ -18,10 +18,10 @@ final class FarmCard {
 	static void draw(PageContext ui, DrawContext context, FarmOption option, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
 		int steps = FarmTemplates.stepCount(option.id());
 		if (steps < 0) {
-			ui.card(context, option.icon().getDefaultStack(), option.title(), y, mouseX, mouseY, selected, enabled);
+			ui.card(option.id(), context, option.icon().getDefaultStack(), option.title(), y, mouseX, mouseY, selected, enabled);
 			return;
 		}
-		ui.card(context, option.icon().getDefaultStack(), option.title(), detail(ui.handler(), option.id(), steps), y, mouseX, mouseY, selected, enabled);
+		ui.card(option.id(), context, option.icon().getDefaultStack(), option.title(), detail(ui.handler(), option.id(), steps), y, mouseX, mouseY, selected, enabled);
 	}
 
 	private static Text detail(DreamTableScreenHandler handler, String id, int steps) {

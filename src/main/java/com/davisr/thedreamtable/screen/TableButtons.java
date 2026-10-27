@@ -6,6 +6,7 @@ import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.screen.page.PageRoutes;
+import com.davisr.thedreamtable.screen.page.PrimaryTab;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.List;
@@ -40,6 +41,10 @@ final class TableButtons {
 			return index < imported.size() && openFarm(table, imported.get(index).id());
 		}
 		return switch (id) {
+			case BUTTON_TAB_BUILD -> page(table, PageRoutes.rootFor(PrimaryTab.BUILD, !table.getSelectedFarm().isEmpty()));
+			case BUTTON_TAB_FARMS -> page(table, PageRoutes.rootFor(PrimaryTab.FARMS, false));
+			case BUTTON_TAB_SCHEMATICS -> page(table, PageRoutes.rootFor(PrimaryTab.SCHEMATICS, false));
+			case BUTTON_TAB_SETTINGS -> page(table, PageRoutes.rootFor(PrimaryTab.SETTINGS, false));
 			case BUTTON_MATERIALS, BUTTON_SWAP_BACK -> page(table, PAGE_MATERIALS);
 			case BUTTON_MATERIALS_BACK, BUTTON_BACK -> page(table, PAGE_WORK);
 			case BUTTON_MENU, BUTTON_SCHEMES_BACK, BUTTON_OPTIONS_BACK, BUTTON_CATEGORY_BACK -> page(table, PAGE_SELECT);

@@ -25,8 +25,8 @@ public final class RequirementsPage implements TablePage {
 	public void draw(DrawContext context, int mouseX, int mouseY) {
 		DreamTableScreenHandler handler = ui.handler();
 		TextRenderer text = ui.painter().text();
-		int left = ui.view().originX();
-		int top = ui.view().panelY();
+		int left = ui.view().slotOriginX();
+		int top = ui.view().slotOriginY();
 		FarmTemplate template = ui.template();
 		int rows = template == null ? 0 : template.materials().size();
 		for (int index = 0; index < rows; index++) {
@@ -74,6 +74,6 @@ public final class RequirementsPage implements TablePage {
 	}
 
 	private int backY() {
-		return ui.view().panelY() + DreamTableLayout.backY(ui.materialCount());
+		return ui.view().slotOriginY() + DreamTableLayout.backY(ui.materialCount());
 	}
 }

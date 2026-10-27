@@ -30,7 +30,7 @@ public final class WorkPage implements TablePage {
 	private static final int MATERIALS = 2;
 	private static final int BUILD = 3;
 	private static final int DISCARD = 4;
-	private static final int ROWS = 5;
+	private static final int CONFIRM_DISCARD = 5;
 	private static final long CONFIRM_MS = 3000L;
 	/** From this much, the spot already holds this farm, likely one finished before finished farms were protected. */
 	private static final int EXISTING_FARM_PERCENT = 50;
@@ -57,12 +57,16 @@ public final class WorkPage implements TablePage {
 		drawStatus(context);
 		ui.painter().progress(context, ui.view().cardX(), barY(), CARD_WIDTH, handler.getBuildIndex(), handler.getTotal());
 
-		ui.button(context, Text.translatable("gui.the_dream_table.menu"), rowY(MENU), mouseX, mouseY, true, false);
-		ui.button(context, Text.translatable("gui.the_dream_table.requirements"), rowY(REQUIREMENTS), mouseX, mouseY, true, false);
-		ui.button(context, Text.translatable("gui.the_dream_table.materials"), rowY(MATERIALS), mouseX, mouseY, true, false);
-		ui.button(context, buildLabel(), rowY(BUILD), mouseX, mouseY, ProjectState.canBuild(handler), true);
-		Text discard = confirming() ? Text.translatable("gui.the_dream_table.discard_confirm") : Text.translatable("gui.the_dream_table.discard");
-		ui.button(context, discard, rowY(DISCARD), mouseX, mouseY, true, confirming());
+		ui.button("menu", context, Text.translatable("gui.the_dream_table.menu"), rowY(MENU), mouseX, mouseY, true, false);
+		ui.button("requirements", context, Text.translatable("gui.the_dream_table.requirements"), rowY(REQUIREMENTS), mouseX, mouseY, true, false);
+		ui.button("materials", context, Text.translatable("gui.the_dream_table.materials"), rowY(MATERIALS), mouseX, mouseY, true, false);
+		ui.button("build", context, buildLabel(), rowY(BUILD), mouseX, mouseY, ProjectState.canBuild(handler), true);
+		if (confirming()) {
+			ui.button("cancel_discard", context, Text.translatable("gui.the_dream_table.cancel"), rowY(DISCARD), mouseX, mouseY, true, false);
+			ui.destructiveButton("confirm_discard", context, Text.translatable("gui.the_dream_table.confirm_discard"), rowY(CONFIRM_DISCARD), mouseX, mouseY, true);
+		} else {
+			ui.destructiveButton("discard", context, Text.translatable("gui.the_dream_table.discard"), rowY(DISCARD), mouseX, mouseY, true);
+		}
 	}
 
 	@Override
@@ -86,21 +90,34 @@ public final class WorkPage implements TablePage {
 			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, rowY(DISCARD))) {
-			discard();
+			if (confirming()) {
+				confirmUntil = 0L;
+				ui.actions().click();
+			} else {
+				requestDiscard();
+			}
+			return true;
+		}
+		if (confirming() && ui.buttonHit(mouseX, mouseY, rowY(CONFIRM_DISCARD))) {
+			discardNow();
 			return true;
 		}
 		return false;
 	}
 
 	/** Discarding a started build takes it apart, so that needs a second click within a few seconds. */
-	private void discard() {
+	private void requestDiscard() {
 		boolean started = ui.handler().getBuildIndex() > 0 && ui.handler().getPhase() != ProjectState.DONE;
-		if (started && !confirming()) {
+		if (started) {
 			confirmUntil = Util.getMeasuringTimeMs() + CONFIRM_MS;
 			ui.actions().click();
 			ui.message("gui.the_dream_table.discard_warning");
 			return;
 		}
+		discardNow();
+	}
+
+	private void discardNow() {
 		confirmUntil = 0L;
 		ui.handler().preview("", DreamTableScreenHandler.PAGE_SELECT);
 		DreamTableHologram.clear();
@@ -114,7 +131,8 @@ public final class WorkPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		return rowY(ROWS - 1) - ui.view().cardY(0) + PAD + BUTTON_HEIGHT + 8;
+		int lastRow = confirming() ? CONFIRM_DISCARD : DISCARD;
+		return rowY(lastRow) - ui.view().cardY(0) + PAD + BUTTON_HEIGHT + 8;
 	}
 
 	@Override

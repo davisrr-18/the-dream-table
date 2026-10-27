@@ -3,8 +3,6 @@ package com.davisr.thedreamtable.screen.page;
 import com.davisr.thedreamtable.farm.FarmOptions.Category;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
@@ -24,10 +22,9 @@ public final class SelectionPage implements TablePage {
 		Category current = Category.of(ui.farm()).orElse(null);
 		for (int index = 0; index < CATEGORIES.length; index++) {
 			Category category = CATEGORIES[index];
-			ui.card(context, category.icon().getDefaultStack(), category.title(), count(category), ui.view().cardY(index), mouseX, mouseY, category == current, true);
+			ui.cardAt("category." + category.name().toLowerCase(), context, category.icon().getDefaultStack(), category.title(), count(category),
+					ui.view().gridCardX(index), ui.view().gridCardY(index), mouseX, mouseY, category == current, true);
 		}
-		ui.card(context, new ItemStack(Items.BOOK), Text.translatable("gui.the_dream_table.schemes"), schemesY(), mouseX, mouseY, false, true);
-		ui.card(context, new ItemStack(Items.REPEATER), Text.translatable("gui.the_dream_table.options"), optionsY(), mouseX, mouseY, false, true);
 	}
 
 	private static Text count(Category category) {
@@ -38,26 +35,18 @@ public final class SelectionPage implements TablePage {
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		for (int index = 0; index < CATEGORIES.length; index++) {
-			if (ui.cardHit(mouseX, mouseY, ui.view().cardY(index))) {
+			if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(index), ui.view().gridCardY(index))) {
 				ui.go(DreamTableScreenHandler.PAGE_CATEGORY + index, DreamTableScreenHandler.BUTTON_CATEGORY + index);
 				return true;
 			}
-		}
-		if (ui.cardHit(mouseX, mouseY, schemesY())) {
-			ui.go(DreamTableScreenHandler.PAGE_SCHEMES, DreamTableScreenHandler.BUTTON_SCHEMES);
-			return true;
-		}
-		if (ui.cardHit(mouseX, mouseY, optionsY())) {
-			ui.go(DreamTableScreenHandler.PAGE_OPTIONS, DreamTableScreenHandler.BUTTON_OPTIONS);
-			return true;
 		}
 		return false;
 	}
 
 	@Override
 	public int contentHeight() {
-		int count = CATEGORIES.length + 2;
-		return PAD + count * CARD_HEIGHT + (count - 1) * CARD_GAP + 6;
+		int count = CATEGORIES.length;
+		return ui.view().gridContentHeight(count);
 	}
 
 	@Override
@@ -65,11 +54,4 @@ public final class SelectionPage implements TablePage {
 		return Text.translatable("gui.the_dream_table.choose");
 	}
 
-	private int schemesY() {
-		return ui.view().cardY(CATEGORIES.length);
-	}
-
-	private int optionsY() {
-		return ui.view().cardY(CATEGORIES.length + 1);
-	}
 }

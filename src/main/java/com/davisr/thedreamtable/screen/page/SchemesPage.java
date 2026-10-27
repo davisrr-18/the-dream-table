@@ -62,7 +62,6 @@ public final class SchemesPage implements TablePage {
 				}
 			}
 		}
-		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
 	}
 
 	private void note(DrawContext context, Text text, int y) {
@@ -86,16 +85,12 @@ public final class SchemesPage implements TablePage {
 				return true;
 			}
 		}
-		if (ui.buttonHit(mouseX, mouseY, backY())) {
-			ui.go(DreamTableScreenHandler.PAGE_SELECT, DreamTableScreenHandler.BUTTON_SCHEMES_BACK);
-			return true;
-		}
 		return false;
 	}
 
 	@Override
 	public int contentHeight() {
-		return PAD + listHeight() + 10 + BUTTON_HEIGHT + 8;
+		return PAD + listHeight() + 8;
 	}
 
 	@Override
@@ -129,7 +124,4 @@ public final class SchemesPage implements TablePage {
 		return rejectedNoteY() - 2 + REJECTED_NOTE + index * (CARD_HEIGHT + CARD_GAP);
 	}
 
-	private int backY() {
-		return ui.view().cardY(0) + listHeight() + 10;
-	}
 }

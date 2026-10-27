@@ -7,6 +7,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
+import net.minecraft.registry.Registries;
 
 import java.util.List;
 
@@ -30,11 +31,8 @@ public final class SwapPage implements TablePage {
 		Item current = ui.handler().materialItem(material);
 		for (int position = 0; position < shown.size(); position++) {
 			int y = ui.view().cardY(position);
-			if (!ui.view().cardVisible(y)) {
-				continue;
-			}
 			Item option = options.get(shown.get(position));
-			ui.card(context, new ItemStack(option), option.getName(), y, mouseX, mouseY, option == current, true);
+			ui.card("swap." + Registries.ITEM.getId(option), context, new ItemStack(option), option.getName(), y, mouseX, mouseY, option == current, true);
 		}
 		if (shown.isEmpty()) {
 			context.drawText(ui.painter().text(), Text.translatable("gui.the_dream_table.search_empty"), ui.view().cardX(), ui.view().cardY(0), HINT, false);

@@ -72,6 +72,10 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_SWAP_PICK = 2000;
 	/** Plus a percentage from 1 to 100, for the custom speed slider. */
 	public static final int BUTTON_PACE_CUSTOM = 3000;
+	public static final int BUTTON_TAB_BUILD = 3300;
+	public static final int BUTTON_TAB_FARMS = 3301;
+	public static final int BUTTON_TAB_SCHEMATICS = 3302;
+	public static final int BUTTON_TAB_SETTINGS = 3303;
 	private final ScreenHandlerContext context;
 	private final boolean client;
 	private final UUID playerId;

@@ -1,6 +1,8 @@
 package com.davisr.thedreamtable.screen.ui;
 
 import net.minecraft.client.gui.DrawContext;
+import com.davisr.thedreamtable.screen.ui.layout.ScreenGeometry;
+import com.davisr.thedreamtable.screen.ui.layout.UiRect;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
@@ -18,6 +20,7 @@ public final class Viewport {
 	private int searchSpace;
 	private int contentHeight;
 	private boolean clipped;
+	private ScreenGeometry geometry;
 
 	public void layout(int screenWidth, int screenHeight, int page, int searchSpace, int contentHeight) {
 		if (page != scrolledPage) {
@@ -31,6 +34,23 @@ public final class Viewport {
 		scroll = Math.max(0, Math.min(maxScroll(), scroll));
 		originX = (screenWidth - PANEL_WIDTH) / 2;
 		originY = Math.max(4, (screenHeight - visibleHeight()) / 2);
+		geometry = null;
+	}
+
+	/** Uses the adaptive screen geometry while keeping scrolling isolated to page content. */
+	public void layout(ScreenGeometry geometry, int page, int contentHeight) {
+		if (page != scrolledPage) {
+			scroll = 0;
+			scrolledPage = page;
+			dragging = false;
+		}
+		this.geometry = geometry;
+		this.screenHeight = geometry.panel().height() + ScreenGeometry.SCREEN_MARGIN * 2;
+		this.searchSpace = geometry.toolbar().height();
+		this.contentHeight = contentHeight;
+		this.originX = geometry.panel().x();
+		this.originY = geometry.panel().y();
+		scroll = Math.max(0, Math.min(maxScroll(), scroll));
 	}
 
 	public void resetScroll() {
@@ -81,23 +101,51 @@ public final class Viewport {
 	}
 
 	public int visibleHeight() {
-		return Math.min(HEADER + DESIGN_VIEW, Math.max(1, screenHeight - 8));
+		return geometry == null
+				? Math.min(HEADER + DESIGN_VIEW, Math.max(1, screenHeight - 8))
+				: geometry.panel().height();
 	}
 
 	public int panelY() {
-		return originY - scroll;
+		return geometry == null ? originY - scroll : originY;
 	}
 
 	public int cardX() {
-		return originX + CARD_X;
+		return geometry == null ? originX + CARD_X : geometry.contentOrigin().x();
+	}
+
+	public int slotOriginX() {
+		return geometry == null ? originX : geometry.slotOrigin().x();
+	}
+
+	public int slotOriginY() {
+		return geometry == null ? panelY() : geometry.slotOrigin().y() - scroll;
 	}
 
 	public int cardY(int index) {
-		return panelY() + HEADER + searchSpace + PAD + index * (CARD_HEIGHT + CARD_GAP);
+		return contentTop() + PAD - scroll + index * (CARD_HEIGHT + CARD_GAP);
+	}
+
+	public int gridCardX(int index) {
+		if (geometry == null) {
+			return cardX();
+		}
+		return geometry.columns().get(Math.floorMod(index, geometry.columns().size())).x();
+	}
+
+	public int gridCardY(int index) {
+		int columns = geometry == null ? 1 : geometry.columns().size();
+		return cardY(index / columns);
+	}
+
+	public int gridContentHeight(int count) {
+		int columns = geometry == null ? 1 : geometry.columns().size();
+		int rows = (Math.max(0, count) + columns - 1) / columns;
+		return PAD + listHeight(rows) + 6;
 	}
 
 	public int listBackY(int count) {
-		return panelY() + HEADER + searchSpace + PAD + listHeight(count) + 10;
+		return contentTop() + PAD - scroll + listHeight(count) + 10;
 	}
 
 	public boolean cardVisible(int y) {
@@ -105,19 +153,49 @@ public final class Viewport {
 	}
 
 	public int contentLeft() {
-		return originX + 2;
+		return geometry == null ? originX + 2 : geometry.viewport().x();
 	}
 
 	public int contentRight() {
-		return originX + PANEL_WIDTH - 17;
+		return geometry == null ? originX + PANEL_WIDTH - 17 : geometry.viewport().right() - 12;
 	}
 
 	public int contentTop() {
-		return originY + HEADER + searchSpace;
+		return geometry == null ? originY + HEADER + searchSpace : geometry.viewport().y();
 	}
 
 	public int contentBottom() {
-		return originY + visibleHeight() - 2;
+		return geometry == null ? originY + visibleHeight() - 2 : geometry.viewport().bottom();
+	}
+
+	public int scroll() {
+		return scroll;
+	}
+
+	/** Scrolls just enough to make the supplied screen-space control bounds visible. */
+	public boolean reveal(UiRect bounds) {
+		int delta = 0;
+		if (bounds.y() < contentTop()) {
+			delta = bounds.y() - contentTop();
+		} else if (bounds.bottom() > contentBottom()) {
+			delta = bounds.bottom() - contentBottom();
+		}
+		int next = Math.max(0, Math.min(maxScroll(), scroll + delta));
+		if (next == scroll) {
+			return false;
+		}
+		scroll = next;
+		return true;
+	}
+
+	/** Slots are safe only when the full 16x16 bounds are both visible and in the fixed slot region. */
+	public boolean fullyVisible(UiRect bounds) {
+		return visible(bounds) && (geometry == null || geometry.slotRegion().contains(bounds));
+	}
+
+	public boolean visible(UiRect bounds) {
+		UiRect visible = new UiRect(contentLeft(), contentTop(), contentRight() - contentLeft(), contentBottom() - contentTop());
+		return visible.contains(bounds);
 	}
 
 	public boolean inContent(double mouseX, double mouseY) {
@@ -129,7 +207,8 @@ public final class Viewport {
 	}
 
 	public boolean outsidePanel(double mouseX, double mouseY) {
-		return mouseX < originX || mouseY < originY || mouseX >= originX + PANEL_WIDTH || mouseY >= originY + visibleHeight();
+		int width = geometry == null ? PANEL_WIDTH : geometry.panel().width();
+		return mouseX < originX || mouseY < originY || mouseX >= originX + width || mouseY >= originY + visibleHeight();
 	}
 
 	public void clip(DrawContext context) {
@@ -194,19 +273,20 @@ public final class Viewport {
 	}
 
 	private int viewHeight() {
-		return Math.max(1, visibleHeight() - HEADER - searchSpace);
+		return Math.max(1, contentBottom() - contentTop());
 	}
 
 	private int trackX() {
-		return originX + PANEL_WIDTH - 15;
+		int width = geometry == null ? PANEL_WIDTH : geometry.panel().width();
+		return originX + width - 15;
 	}
 
 	private int trackY() {
-		return originY + HEADER + searchSpace + PAD;
+		return contentTop() + PAD;
 	}
 
 	private int trackHeight() {
-		return Math.max(12, visibleHeight() - HEADER - searchSpace - PAD - 10);
+		return Math.max(12, contentBottom() - contentTop() - PAD - 10);
 	}
 
 	private int thumbHeight() {

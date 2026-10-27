@@ -1,5 +1,8 @@
 package com.davisr.thedreamtable.screen.page;
 
+import com.davisr.thedreamtable.GameSetup;
+import com.davisr.thedreamtable.farm.FarmOptions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static com.davisr.thedreamtable.screen.DreamTableScreenHandler.*;
@@ -9,6 +12,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PageRoutesTest {
+	@BeforeAll
+	static void bootstrap() {
+		GameSetup.bootstrap();
+	}
+
+	@Test
+	void categoryRouteCountTracksTheFarmCategoryEnum() {
+		assertEquals(FarmOptions.Category.values().length, PageRoutes.CATEGORY_PAGE_COUNT);
+	}
+
 	@Test
 	void classifiesEveryExistingPage() {
 		assertEquals(PrimaryTab.BUILD, PageRoutes.tabFor(PAGE_SELECT));

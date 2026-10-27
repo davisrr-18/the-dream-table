@@ -4,6 +4,8 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
+import com.davisr.thedreamtable.screen.ui.layout.UiRect;
+import com.davisr.thedreamtable.screen.ui.layout.ScreenGeometry;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
@@ -19,33 +21,51 @@ public final class Painter {
 	}
 
 	public void panel(DrawContext context, int x, int y, int height, Text title, Text subtitle) {
-		int w = PANEL_WIDTH;
+		panel(context, x, y, PANEL_WIDTH, height, title, subtitle);
+	}
+
+	public void panel(DrawContext context, int x, int y, int w, int height, Text title, Text subtitle) {
+		int header = ScreenGeometry.HEADER_HEIGHT;
 		context.fill(x + 3, y + 4, x + w + 3, y + height + 4, 0x30000000);
 
-		fillTop(context, x - 1, y - 1, x + w + 1, y + HEADER, 0xFF0A2A4E);
-		fillTop(context, x, y, x + w, y + HEADER - 1, HEADER_COLOR);
+		fillTop(context, x - 1, y - 1, x + w + 1, y + header, 0xFF0A2A4E);
+		fillTop(context, x, y, x + w, y + header - 1, HEADER_COLOR);
 		context.fill(x + 2, y, x + w - 2, y + 1, 0xFF7FEBFD);
 		context.fill(x + 1, y + 1, x + w - 1, y + 2, 0xFF3FA6E0);
-		context.fill(x, y + 2, x + 1, y + HEADER - 4, 0xFF4FB8F0);
-		context.fill(x + 1, y + 2, x + 2, y + HEADER - 4, 0xFF3A8ED0);
-		context.fill(x + w - 2, y + 2, x + w - 1, y + HEADER - 4, 0xFF2160A0);
-		context.fill(x + w - 1, y + 2, x + w, y + HEADER - 1, 0xFF1D4F85);
-		context.fill(x + 2, y + HEADER - 5, x + w - 2, y + HEADER - 4, 0xFF3C88C8);
-		context.fill(x, y + HEADER - 4, x + w, y + HEADER - 1, 0xFF1B4E86);
-		context.fill(x, y + HEADER - 1, x + w, y + HEADER, 0xFF0A2A4E);
+		context.fill(x, y + 2, x + 1, y + header - 4, 0xFF4FB8F0);
+		context.fill(x + 1, y + 2, x + 2, y + header - 4, 0xFF3A8ED0);
+		context.fill(x + w - 2, y + 2, x + w - 1, y + header - 4, 0xFF2160A0);
+		context.fill(x + w - 1, y + 2, x + w, y + header - 1, 0xFF1D4F85);
+		context.fill(x + 2, y + header - 5, x + w - 2, y + header - 4, 0xFF3C88C8);
+		context.fill(x, y + header - 4, x + w, y + header - 1, 0xFF1B4E86);
+		context.fill(x, y + header - 1, x + w, y + header, 0xFF0A2A4E);
 
-		context.fill(x, y + HEADER, x + w, y + height, PANEL);
-		context.fill(x, y + HEADER, x + 1, y + height, 0xFFFFFAF0);
-		context.fill(x + w - 2, y + HEADER, x + w - 1, y + height, 0xFFE6DCC9);
-		context.fill(x + w - 1, y + HEADER, x + w, y + height, 0xFFC8BBA3);
+		context.fill(x, y + header, x + w, y + height, PANEL);
+		context.fill(x, y + header, x + 1, y + height, 0xFFFFFAF0);
+		context.fill(x + w - 2, y + header, x + w - 1, y + height, 0xFFE6DCC9);
+		context.fill(x + w - 1, y + header, x + w, y + height, 0xFFC8BBA3);
 		context.fill(x, y + height - 2, x + w, y + height - 1, 0xFFC9BDA8);
 		context.fill(x, y + height - 1, x + w, y + height, 0xFF948877);
-		context.drawBorder(x + 3, y + HEADER + 3, w - 6, height - HEADER - 7, 0xFFE3D8C6);
+		context.drawBorder(x + 3, y + header + 3, w - 6, height - header - 7, 0xFFE3D8C6);
 
 		mark(context, x + 12, y + 14);
 		int textLimit = w - 46;
 		context.drawText(text, trim(title, textLimit), x + 34, y + 10, TITLE, false);
 		context.drawText(text, trim(subtitle, textLimit), x + 34, y + 24, SUBTITLE, false);
+	}
+
+	public void tab(DrawContext context, ItemStack icon, Text label, UiRect bounds, boolean hovered, boolean selected, boolean compact) {
+		int fill = selected ? CARD_FILL_SELECTED : hovered ? CARD_FILL_HOVER : CARD_FILL;
+		int edge = selected ? CYAN : BLUE;
+		ring(context, bounds.x(), bounds.y(), bounds.width(), bounds.height(), NAVY);
+		ring(context, bounds.x() + 1, bounds.y() + 1, bounds.width() - 2, bounds.height() - 2, edge);
+		context.fill(bounds.x() + 2, bounds.y() + 2, bounds.right() - 2, bounds.bottom() - 2, fill);
+		int iconX = compact ? bounds.x() + (bounds.width() - 16) / 2 : bounds.x() + 7;
+		context.drawItem(icon, iconX, bounds.y() + 7);
+		if (!compact) {
+			String shown = trim(label, bounds.width() - 31);
+			context.drawText(text, shown, bounds.x() + 27, bounds.y() + 11, NAME, false);
+		}
 	}
 
 	public void card(DrawContext context, ItemStack icon, Text label, int x, int y, boolean hovered, boolean selected, boolean enabled) {
@@ -90,6 +110,18 @@ public final class Painter {
 		}
 		String shown = trim(label, w - 16);
 		context.drawText(text, shown, x + (w - text.getWidth(shown)) / 2, y + 10, color, false);
+	}
+
+	public void destructiveButton(DrawContext context, Text label, int x, int y, boolean hovered, boolean enabled) {
+		int color = enabled ? TITLE : MUTED;
+		if (!enabled) {
+			disabledFrame(context, x, y, CARD_WIDTH, BUTTON_HEIGHT);
+		} else {
+			frame(context, x, y, CARD_WIDTH, BUTTON_HEIGHT, 0xFF5B1714, hovered ? 0xFFD65A52 : ERROR,
+					0xFF5B1714, hovered ? 0xFFC64A43 : 0xFFA8322D, 0xFF76221E, 0xFFE97B74);
+		}
+		String shown = trim(label, CARD_WIDTH - 16);
+		context.drawText(text, shown, x + (CARD_WIDTH - text.getWidth(shown)) / 2, y + 10, color, false);
 	}
 
 	/** A small button, {@code height} pixels tall, for filters and sorting. */

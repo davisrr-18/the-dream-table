@@ -22,13 +22,10 @@ public final class MaterialsPage implements TablePage {
 		int count = ui.materialCount();
 		for (int index = 0; index < count; index++) {
 			int y = ui.view().cardY(index);
-			if (!ui.view().cardVisible(y)) {
-				continue;
-			}
 			Item original = template.materials().get(index).item();
 			Item replacement = ui.handler().materialItem(index);
 			Item shown = replacement == null ? original : replacement;
-			ui.card(context, new ItemStack(shown), shown.getName(), y, mouseX, mouseY, shown != original, ui.handler().canSwap(index));
+			ui.card("material." + index, context, new ItemStack(shown), shown.getName(), y, mouseX, mouseY, shown != original, ui.handler().canSwap(index));
 		}
 		ui.button(context, Text.translatable("gui.the_dream_table.back"), ui.view().listBackY(count), mouseX, mouseY, true, false);
 	}
