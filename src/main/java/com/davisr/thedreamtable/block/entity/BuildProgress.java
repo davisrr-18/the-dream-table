@@ -1,10 +1,12 @@
 package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.BuildPace;
+import com.davisr.thedreamtable.farm.FarmGrant;
 import net.minecraft.nbt.NbtCompound;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.BitSet;
+import java.util.Map;
 import java.util.UUID;
 
 import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
@@ -26,6 +28,8 @@ final class BuildProgress {
 	private long signature;
 	private @Nullable BuildIssue issue;
 	private boolean repair;
+	private @Nullable UUID repairInstanceId;
+	private Map<UUID, FarmGrant> repairGrants = Map.of();
 	private int kept;
 	/** Whether this run already told its player that a returned item was dropped. Not persisted. */
 	private boolean droppedNotified;
@@ -72,9 +76,19 @@ final class BuildProgress {
 		return repair;
 	}
 
-	void setRepair(boolean value) {
-		repair = value;
+	void startRepair(UUID instanceId, Map<UUID, FarmGrant> grants) {
+		repair = true;
+		repairInstanceId = instanceId;
+		repairGrants = Map.copyOf(grants);
 		kept = 0;
+	}
+
+	@Nullable UUID repairInstanceId() {
+		return repairInstanceId;
+	}
+
+	Map<UUID, FarmGrant> repairGrants() {
+		return repairGrants;
 	}
 
 	int kept() {
@@ -134,6 +148,8 @@ final class BuildProgress {
 			placed.clear();
 			paid.clear();
 			repair = false;
+			repairInstanceId = null;
+			repairGrants = Map.of();
 			kept = 0;
 			droppedNotified = false;
 		}
@@ -174,6 +190,8 @@ final class BuildProgress {
 		signature = 0;
 		issue = null;
 		repair = false;
+		repairInstanceId = null;
+		repairGrants = Map.of();
 		kept = 0;
 		droppedNotified = false;
 		if (forgetOwner) {
@@ -193,6 +211,10 @@ final class BuildProgress {
 		nbt.putLongArray("PlacedSteps", placed.toLongArray());
 		nbt.putLongArray("PaidSteps", paid.toLongArray());
 		nbt.putBoolean("Repair", repair);
+		if (repairInstanceId != null) {
+			nbt.putUuid("RepairInstanceId", repairInstanceId);
+		}
+		FarmGrant.writeAll(nbt, "RepairGrants", repairGrants);
 		nbt.putInt("Kept", kept);
 		if (issue != null) {
 			issue.write(nbt);
@@ -223,6 +245,8 @@ final class BuildProgress {
 		paid.clear();
 		paid.or(BitSet.valueOf(nbt.getLongArray("PaidSteps")));
 		repair = nbt.getBoolean("Repair");
+		repairInstanceId = nbt.containsUuid("RepairInstanceId") ? nbt.getUuid("RepairInstanceId") : repair ? UUID.randomUUID() : null;
+		repairGrants = FarmGrant.readAll(nbt, "RepairGrants");
 		kept = nbt.getInt("Kept");
 		issue = BuildIssue.read(nbt);
 	}

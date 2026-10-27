@@ -15,11 +15,14 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.PersistentState;
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 
@@ -64,14 +67,16 @@ public final class FarmAreas extends PersistentState {
 	 * outlives updates that change or remove the farm), the spot, swaps, and when it was finished. The layout is null
 	 * only for farms finished by an older version whose design has changed since.
 	 */
-	private record Built(String farmId, long signature, FarmSite site, Map<Item, Item> swaps, long finishedAt, @Nullable FarmTemplate layout) {
+	private record Built(UUID instanceId, String farmId, long signature, FarmSite site, Map<Item, Item> swaps,
+			Map<UUID, FarmGrant> grants, long finishedAt, @Nullable FarmTemplate layout) {
 	}
 
 	/**
 	 * A player's finished farm, for the My Farms list. {@code id} tells it apart from their other farms in this world;
 	 * the rest is what repairing or taking it down needs.
 	 */
-	public record Finished(String id, Key key, String farmId, long signature, FarmSite site, Map<Item, Item> swaps, BlockPos where, Box box, long finishedAt,
+	public record Finished(String id, Key key, UUID instanceId, UUID ownerUuid, String farmId, long signature, FarmSite site, Map<Item, Item> swaps,
+			Map<UUID, FarmGrant> grants, BlockPos where, Box box, long finishedAt,
 			@Nullable FarmTemplate layout) {
 	}
 
@@ -91,13 +96,21 @@ public final class FarmAreas extends PersistentState {
 
 	/** Keeps a finished farm's area after its build key is released. Recording the same farm twice changes nothing. */
 	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps) {
+		recordFinished(player, template, site, swaps, UUID.randomUUID(), Map.of());
+	}
+
+	/** Restores a finished record after Repair without changing its public identity or accepted collaborators. */
+	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps, UUID instanceId,
+			Map<UUID, FarmGrant> grants) {
 		Key key = Key.finished(player, site);
 		if (!areas.containsKey(key)) {
 			String farmId = FarmTemplates.baseId(template.id());
 			String layoutId = FarmTemplates.isSaved(template.id()) ? template.id() : FarmTemplates.newSavedId(farmId, template.signature());
 			FarmTemplate layout = saved(layoutId, template);
-			areas.put(key, new Area(site.footprint(template), new Built(FarmTemplates.baseId(template.id()), template.signature(), site, Map.copyOf(swaps),
-					System.currentTimeMillis(), layout)));
+			Map<UUID, FarmGrant> collaborators = new LinkedHashMap<>(grants);
+			collaborators.remove(player);
+			areas.put(key, new Area(site.footprint(template), new Built(instanceId, FarmTemplates.baseId(template.id()), template.signature(), site, Map.copyOf(swaps),
+					Map.copyOf(collaborators), System.currentTimeMillis(), layout)));
 			markDirty();
 		}
 	}
@@ -138,13 +151,17 @@ public final class FarmAreas extends PersistentState {
 	}
 
 	public List<Finished> finishedBy(UUID player) {
+		return finished().stream().filter(farm -> farm.ownerUuid().equals(player)).toList();
+	}
+
+	public List<Finished> finished() {
 		List<Finished> farms = new ArrayList<>();
 		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
 			Built built = entry.getValue().built();
-			if (built != null && entry.getKey().player().equals(player)) {
+			if (built != null) {
 				Key key = entry.getKey();
 				BlockPos where = built.site().anchor() != null ? built.site().anchor() : built.site().table();
-				farms.add(new Finished(key.table() + "/" + key.spot(), key, built.farmId(), built.signature(), built.site(), built.swaps(), where,
+				farms.add(new Finished(key.table() + "/" + key.spot(), key, built.instanceId(), key.player(), built.farmId(), built.signature(), built.site(), built.swaps(), built.grants(), where,
 						entry.getValue().box(), built.finishedAt(), built.layout()));
 			}
 		}
@@ -288,12 +305,14 @@ public final class FarmAreas extends PersistentState {
 			item.putIntArray("Box", new int[]{(int) box.minX, (int) box.minY, (int) box.minZ, (int) box.maxX, (int) box.maxY, (int) box.maxZ});
 			Built built = entry.getValue().built();
 			if (built != null) {
+				item.putUuid("InstanceId", built.instanceId());
 				item.putString("Farm", built.farmId());
 				item.putLong("FarmSignature", built.signature());
 				NbtCompound site = new NbtCompound();
 				built.site().write(site);
 				item.put("Site", site);
 				MaterialLedger.writeSwaps(item, built.swaps());
+				FarmGrant.writeAll(item, "Grants", built.grants());
 				item.putLong("FinishedAt", built.finishedAt());
 				if (built.layout() != null) {
 					item.putString("LayoutId", built.layout().id());
@@ -308,6 +327,7 @@ public final class FarmAreas extends PersistentState {
 
 	static FarmAreas read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		FarmAreas state = new FarmAreas();
+		Set<UUID> instanceIds = new HashSet<>();
 		NbtList list = nbt.getList("Areas", NbtElement.COMPOUND_TYPE);
 		for (int index = 0; index < list.size(); index++) {
 			NbtCompound item = list.getCompound(index);
@@ -316,7 +336,7 @@ public final class FarmAreas extends PersistentState {
 				continue;
 			}
 			Kind kind = kindOf(item);
-			Built built = kind == Kind.FINISHED ? readBuilt(state, item) : null;
+			Built built = kind == Kind.FINISHED ? readBuilt(state, item, instanceIds) : null;
 			Key key = new Key(item.getLong("Table"), item.getUuid("Player"), kind, item.getLong("Spot"));
 			state.areas.put(key, new Area(new Box(box[0], box[1], box[2], box[3], box[4], box[5]), built));
 		}
@@ -327,7 +347,16 @@ public final class FarmAreas extends PersistentState {
 	 * A finished farm's record. Farms saved before designs were kept get theirs from the current farm when it still
 	 * matches, and are saved again with it.
 	 */
-	private static Built readBuilt(FarmAreas state, NbtCompound item) {
+	private static Built readBuilt(FarmAreas state, NbtCompound item, Set<UUID> instanceIds) {
+		UUID instanceId = item.containsUuid("InstanceId") ? item.getUuid("InstanceId") : null;
+		if (instanceId == null || !instanceIds.add(instanceId)) {
+			int salt = 0;
+			do {
+				String seed = item.getUuid("Player") + ":" + item.getLong("Table") + ":" + item.getLong("Spot") + ":" + salt++;
+				instanceId = UUID.nameUUIDFromBytes(seed.getBytes(StandardCharsets.UTF_8));
+			} while (!instanceIds.add(instanceId));
+			state.markDirty();
+		}
 		String farmId = FarmTemplates.baseId(item.getString("Farm"));
 		long signature = item.getLong("FarmSignature");
 		FarmTemplate layout = null;
@@ -346,7 +375,10 @@ public final class FarmAreas extends PersistentState {
 				state.markDirty();
 			}
 		}
-		return new Built(farmId, signature, FarmSite.read(item.getCompound("Site")), MaterialLedger.readSwaps(item), item.getLong("FinishedAt"), layout);
+		Map<UUID, FarmGrant> grants = new LinkedHashMap<>(FarmGrant.readAll(item, "Grants"));
+		grants.remove(item.getUuid("Player"));
+		return new Built(instanceId, farmId, signature, FarmSite.read(item.getCompound("Site")), MaterialLedger.readSwaps(item), Map.copyOf(grants),
+				item.getLong("FinishedAt"), layout);
 	}
 
 	/** A copy of the design under its saved id, kept in {@link FarmTemplates} so builds and take-aparts can find it. */

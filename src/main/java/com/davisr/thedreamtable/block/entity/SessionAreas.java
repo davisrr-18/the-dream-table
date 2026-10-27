@@ -3,11 +3,16 @@ package com.davisr.thedreamtable.block.entity;
 import com.davisr.thedreamtable.farm.BuildPermission;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
+import com.davisr.thedreamtable.farm.FarmGrant;
 import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Box;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * A session's place in {@link FarmAreas}: whether its farm may start at a site, the area its build reserves,
@@ -64,10 +69,14 @@ final class SessionAreas {
 	 * A finished farm keeps its area after the session moves on, so no later farm is placed over it or clears its blocks.
 	 * Farms finished before areas existed are recorded the first time their table ticks.
 	 */
-	void recordFinished(ServerWorld world, FarmTemplate template) {
+	void recordFinished(ServerWorld world, FarmTemplate template, @Nullable UUID instanceId, Map<UUID, FarmGrant> grants) {
 		finishedRecorded = true;
 		FarmAreas areas = FarmAreas.of(world);
-		areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps());
+		if (instanceId == null) {
+			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps());
+		} else {
+			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps(), instanceId, grants);
+		}
 		areas.release(key());
 	}
 

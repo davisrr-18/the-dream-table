@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.ChunkKeeper;
 import com.davisr.thedreamtable.farm.FarmBuilder;
+import com.davisr.thedreamtable.farm.FarmGrant;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -12,6 +13,9 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Map;
+import java.util.UUID;
 
 import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
 
@@ -48,7 +52,7 @@ public final class SessionBuild {
 	void tick(ServerWorld world) {
 		FarmTemplate template = session.template();
 		if (progress.is(PHASE_DONE) && template != null && !areas.finishedRecorded()) {
-			areas.recordFinished(world, template);
+			areas.recordFinished(world, template, progress.repairInstanceId(), progress.repairGrants());
 		}
 		if (!progress.is(PHASE_BUILDING)) {
 			return;
@@ -150,11 +154,11 @@ public final class SessionBuild {
 	}
 
 	/** Starts a repair: a new build that leaves alone the blocks the player changed and counts them. */
-	public boolean beginRepair(ServerPlayerEntity starter) {
+	public boolean beginRepair(ServerPlayerEntity starter, UUID instanceId, Map<UUID, FarmGrant> grants) {
 		if (!begin(starter, true)) {
 			return false;
 		}
-		progress.setRepair(true);
+		progress.startRepair(instanceId, grants);
 		return true;
 	}
 
@@ -242,7 +246,7 @@ public final class SessionBuild {
 		progress.stop(PHASE_DONE);
 		FarmTemplate template = session.template();
 		if (template != null && session.table().getWorld() instanceof ServerWorld world) {
-			areas.recordFinished(world, template);
+			areas.recordFinished(world, template, progress.repairInstanceId(), progress.repairGrants());
 		}
 		session.sync();
 		Text done = !progress.repair() ? Text.translatable("gui.the_dream_table.done")

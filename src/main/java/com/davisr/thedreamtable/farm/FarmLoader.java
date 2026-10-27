@@ -71,6 +71,9 @@ public final class FarmLoader extends PersistentState {
 	}
 
 	public static final int UNKNOWN = -1;
+	public enum ToggleResult {
+		CHANGED, LIMIT_REACHED, IGNORED
+	}
 
 	/** A finished farm and the world it stands in. */
 	public record Located(String key, ServerWorld world, FarmAreas.Finished farm) {
@@ -167,19 +170,30 @@ public final class FarmLoader extends PersistentState {
 		return Math.min(picked.getOrDefault(player, Set.of()).size(), DreamTableConfig.maxLoadedFarms());
 	}
 
-	/** Picks or unpicks a farm. Returns false when picking it would go over the server's limit. */
-	public boolean toggle(UUID player, String key) {
-		Set<String> keys = picked.computeIfAbsent(player, ignored -> new LinkedHashSet<>());
-		if (keys.remove(key)) {
+	/** Picks or unpicks an existing farm. Client-provided keys are resolved again on the server. */
+	public ToggleResult toggle(MinecraftServer server, UUID player, String key) {
+		return toggleKnown(player, key, byKey(server, player, key).isPresent());
+	}
+
+	ToggleResult toggleKnown(UUID player, String key, boolean known) {
+		Set<String> keys = picked.get(player);
+		if (keys != null && keys.remove(key)) {
+			if (keys.isEmpty()) {
+				picked.remove(player);
+			}
 			markDirty();
-			return true;
+			return ToggleResult.CHANGED;
 		}
+		if (!known) {
+			return ToggleResult.IGNORED;
+		}
+		keys = picked.computeIfAbsent(player, ignored -> new LinkedHashSet<>());
 		if (keys.size() >= DreamTableConfig.maxLoadedFarms()) {
-			return false;
+			return ToggleResult.LIMIT_REACHED;
 		}
 		keys.add(key);
 		markDirty();
-		return true;
+		return ToggleResult.CHANGED;
 	}
 
 	private void keepLoaded(MinecraftServer server) {
@@ -190,16 +204,20 @@ public final class FarmLoader extends PersistentState {
 			if (keys.isEmpty() || limit <= 0 || (!DreamTableConfig.loadWhileOffline() && server.getPlayerManager().getPlayer(entry.getKey()) == null)) {
 				continue;
 			}
-			Set<String> found = new LinkedHashSet<>();
+			Set<String> existing = new LinkedHashSet<>();
+			int loaded = 0;
 			ServerPlayerEntity owner = server.getPlayerManager().getPlayer(entry.getKey());
 			for (Located farm : located(server, entry.getKey())) {
-				if (keys.contains(farm.key()) && found.size() < limit) {
-					found.add(farm.key());
+				if (keys.contains(farm.key())) {
+					existing.add(farm.key());
+				}
+				if (keys.contains(farm.key()) && loaded < limit) {
+					loaded++;
 					load(farm.world(), farm.farm().box(), loadedChunks.computeIfAbsent(farm.world(), ignored -> new LongOpenHashSet()));
 					reportIfFull(owner, farm);
 				}
 			}
-			if (keys.retainAll(found)) {
+			if (pruneMissing(keys, existing)) {
 				markDirty();
 			}
 		}
@@ -240,13 +258,53 @@ public final class FarmLoader extends PersistentState {
 	private static List<Located> located(MinecraftServer server, UUID player) {
 		List<Located> farms = new ArrayList<>();
 		for (ServerWorld world : server.getWorlds()) {
-			String dimension = world.getRegistryKey().getValue().toString();
 			for (FarmAreas.Finished farm : FarmAreas.of(world).finishedBy(player)) {
-				farms.add(new Located(dimension + "|" + farm.id(), world, farm));
+				farms.add(new Located(FarmKey.of(world, farm.instanceId()).externalForm(), world, farm));
 			}
 		}
 		farms.sort(Comparator.comparingLong((Located farm) -> farm.farm().finishedAt()).reversed());
 		return farms;
+	}
+
+	/** Replaces positional pre-2.2 selections after every dimension has loaded. */
+	public void migrateLegacyKeys(MinecraftServer server) {
+		boolean changed = false;
+		for (Map.Entry<UUID, Set<String>> entry : picked.entrySet()) {
+			Map<String, String> replacements = new HashMap<>();
+			for (Located farm : located(server, entry.getKey())) {
+				String dimension = farm.world().getRegistryKey().getValue().toString();
+				replacements.put(dimension + "|" + farm.farm().id(), farm.key());
+			}
+			changed |= migrateKeys(entry.getValue(), replacements);
+		}
+		if (changed) {
+			markDirty();
+		}
+	}
+
+	static boolean migrateKeys(Set<String> picked, Map<String, String> replacements) {
+		Set<String> migrated = new LinkedHashSet<>();
+		for (String key : picked) {
+			try {
+				FarmKey.parse(key);
+				migrated.add(key);
+			} catch (IllegalArgumentException legacy) {
+				String replacement = replacements.get(key);
+				if (replacement != null) {
+					migrated.add(replacement);
+				}
+			}
+		}
+		if (picked.equals(migrated)) {
+			return false;
+		}
+		picked.clear();
+		picked.addAll(migrated);
+		return true;
+	}
+
+	static boolean pruneMissing(Set<String> picked, Set<String> existing) {
+		return picked.retainAll(existing);
 	}
 
 	private static void load(ServerWorld world, Box box, LongSet chunks) {

@@ -36,7 +36,10 @@ public final class TheDreamTableMod implements ModInitializer {
 		ModScreenHandlers.register();
 		FarmTemplates.load();
 		DreamTableConfig.load();
-		ServerLifecycleEvents.SERVER_STARTED.register(server -> server.getWorlds().forEach(FarmAreas::of));
+		ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+			server.getWorlds().forEach(FarmAreas::of);
+			FarmLoader.of(server).migrateLegacyKeys(server);
+		});
 		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
 			DreamTableConfig.load();
 			FarmTemplates.reloadImports(server.getSavePath(WorldSavePath.ROOT));

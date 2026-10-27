@@ -47,8 +47,11 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, int limit) implem
 		ServerPlayNetworking.registerGlobalReceiver(Request.ID, (payload, context) -> context.server().execute(() -> {
 			ServerPlayerEntity player = context.player();
 			FarmLoader loader = FarmLoader.of(context.server());
-			if (!payload.toggle().isEmpty() && !loader.toggle(player.getUuid(), payload.toggle())) {
-				player.sendMessage(Text.translatable("gui.the_dream_table.loaded_full", DreamTableConfig.maxLoadedFarms()), true);
+			if (!payload.toggle().isEmpty()) {
+				FarmLoader.ToggleResult result = loader.toggle(context.server(), player.getUuid(), payload.toggle());
+				if (result == FarmLoader.ToggleResult.LIMIT_REACHED) {
+					player.sendMessage(Text.translatable("gui.the_dream_table.loaded_full", DreamTableConfig.maxLoadedFarms()), true);
+				}
 			}
 			send(player);
 		}));

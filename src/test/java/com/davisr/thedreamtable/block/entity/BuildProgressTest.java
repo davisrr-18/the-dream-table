@@ -1,14 +1,18 @@
 package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.BuildPace;
+import com.davisr.thedreamtable.farm.FarmGrant;
+import com.davisr.thedreamtable.farm.FarmRole;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BuildProgressTest {
@@ -114,8 +118,11 @@ class BuildProgressTest {
 	@Test
 	void aRepairAndWhyItStoppedAreSavedAndClearedOnRestart() {
 		BuildProgress progress = new BuildProgress();
+		UUID farm = UUID.randomUUID();
+		UUID operator = UUID.randomUUID();
+		Map<UUID, FarmGrant> grants = Map.of(operator, new FarmGrant(operator, FarmRole.OPERATOR, 123L));
 		progress.start(UUID.randomUUID(), true, 7L);
-		progress.setRepair(true);
+		progress.startRepair(farm, grants);
 		progress.keep();
 		progress.setIssue(BuildIssue.at(BuildIssue.Kind.PROTECTED, new BlockPos(1, 2, 3)));
 		progress.stop(DreamTableBlockEntity.PHASE_BLOCKED);
@@ -124,6 +131,8 @@ class BuildProgressTest {
 		BuildProgress loaded = new BuildProgress();
 		loaded.read(nbt);
 		assertTrue(loaded.repair());
+		assertEquals(farm, loaded.repairInstanceId());
+		assertEquals(grants, loaded.repairGrants());
 		assertEquals(1, loaded.kept());
 		assertEquals(progress.issue(), loaded.issue());
 		loaded.start(UUID.randomUUID(), false, 7L);
@@ -131,6 +140,8 @@ class BuildProgressTest {
 		assertTrue(loaded.repair());
 		loaded.start(UUID.randomUUID(), true, 7L);
 		assertFalse(loaded.repair());
+		assertEquals(null, loaded.repairInstanceId());
+		assertTrue(loaded.repairGrants().isEmpty());
 	}
 
 	@Test
@@ -144,5 +155,17 @@ class BuildProgressTest {
 
 		progress.start(UUID.randomUUID(), true, 7L);
 		assertTrue(progress.shouldNotifyDropped(true));
+	}
+
+	@Test
+	void aLegacyRepairWithoutPublicIdentityGetsOneWhenLoaded() {
+		NbtCompound nbt = new NbtCompound();
+		nbt.putBoolean("Repair", true);
+
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+
+		assertNotNull(loaded.repairInstanceId());
+		assertTrue(loaded.repairGrants().isEmpty());
 	}
 }
