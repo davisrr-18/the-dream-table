@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
+import com.davisr.thedreamtable.block.entity.BuildIssue;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -15,11 +16,14 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Places one build step per call, in this order: check everything, place, confirm the block is there,
  * and only then spend the material, record the step and advance. A step that stops at any point leaves the
  * counts untouched and is retried as is, so a retry never spends twice or drops an obstacle twice.
+ * Every stop carries a {@link BuildIssue} saying why. A repair leaves alone the blocks the player changed, and no build
+ * spawns a mob or minecart that is already in its spot.
  */
 public final class FarmBuilder {
 	private static final int FLAGS = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
@@ -41,9 +45,59 @@ public final class FarmBuilder {
 			return step(table, world, sound);
 		} catch (RuntimeException exception) {
 			TheDreamTableMod.LOGGER.error("Build step {} failed for {}", table.getBuildIndex(), table.getSelectedFarm(), exception);
-			table.build().placementFailed(table.getPos());
+			table.build().failed(table.getPos());
 			return Outcome.STOPPED;
 		}
+	}
+
+	/**
+	 * Why the next block can't be placed now, or null when nothing the player must fix is in the way. Used before
+	 * resuming, so a build stopped by a protected spot, a block the table won't clear or a missing item doesn't
+	 * start again only to stop at once.
+	 */
+	public static @Nullable BuildIssue check(TableSession table, ServerWorld world) {
+		FarmTemplate template = FarmTemplates.get(table.getSelectedFarm());
+		ServerPlayerEntity owner = table.onlineOwner(world);
+		int index = table.getBuildIndex();
+		if (template == null || owner == null || index >= template.steps().size() || FarmGrowth.isGrowth(template, index)) {
+			return null;
+		}
+		FarmStep step = template.steps().get(index);
+		FarmSite site = site(table);
+		BlockPos target = site.target(template, step);
+		if (!world.isChunkLoaded(target)) {
+			return null;
+		}
+		BlockState placed = placedState(table, site, step);
+		BlockState existing = placed == null ? null : world.getBlockState(target);
+		if (placed != null && (BlockMatch.sameBlock(existing, placed) || (table.build().repairing() && !existing.isReplaceable()))) {
+			return null;
+		}
+		return blocker(table, world, owner, step, target, placed, existing);
+	}
+
+	/** The cause that stops this step, checked in the order the build meets them, or null. */
+	private static @Nullable BuildIssue blocker(TableSession table, ServerWorld world, ServerPlayerEntity owner, FarmStep step, BlockPos target,
+			@Nullable BlockState placed, @Nullable BlockState existing) {
+		if (placed != null && !existing.isReplaceable()) {
+			if (insideOtherFarm(world, table, target)) {
+				return BuildIssue.of(BuildIssue.Kind.OTHER_FARM, target, existing.getBlock());
+			}
+			if (!ObstacleRules.clearable(world, table.getPos(), target, existing)) {
+				return BuildIssue.of(BuildIssue.Kind.OBSTACLE, target, existing.getBlock());
+			}
+		}
+		if (!permitted(world, owner, target, existing)) {
+			return BuildIssue.at(BuildIssue.Kind.PROTECTED, target);
+		}
+		if (step.item() != null && !owner.isCreative() && !table.hasMaterial(step.item())) {
+			return BuildIssue.of(BuildIssue.Kind.MATERIAL, target, table.resolve(step.item()));
+		}
+		return null;
+	}
+
+	private static @Nullable BlockState placedState(TableSession table, FarmSite site, FarmStep step) {
+		return step.isEntity() ? null : table.swapState(step.state()).rotate(FarmGeometry.rotation(site.facing()));
 	}
 
 	/** Where this session's farm sits: its anchor, or beside the table when it has none. */
@@ -73,35 +127,38 @@ public final class FarmBuilder {
 		BlockPos target = site.target(template, step);
 		ChunkKeeper.keepSpot(world, target);
 		if (!world.isChunkLoaded(target)) {
+			table.build().waitingFor(world, target);
 			return Outcome.STOPPED;
 		}
-		BlockState placed = step.isEntity() ? null : table.swapState(step.state()).rotate(FarmGeometry.rotation(site.facing()));
+		BlockState placed = placedState(table, site, step);
 		BlockState existing = placed == null ? null : world.getBlockState(target);
 
-		if (placed != null) {
-			if (BlockMatch.sameBlock(existing, placed)) {
-				advance(world, table, template, site);
-				return Outcome.SKIPPED;
-			}
-			if (!existing.isReplaceable() && (!ObstacleRules.clearable(world, table.getPos(), target, existing) || insideOtherFarm(world, table, target))) {
-				table.build().obstruct(target, existing);
-				return Outcome.STOPPED;
-			}
+		if (placed == null ? FarmSpawns.present(world, target, step) : BlockMatch.sameBlock(existing, placed)) {
+			advance(world, table, template, site);
+			return Outcome.SKIPPED;
 		}
-		if (!permitted(world, owner, target, existing)) {
-			table.build().protectedSpot(target);
+		if (placed != null && table.build().repairing() && !existing.isReplaceable()) {
+			if (!BlockMatch.stillFarm(existing, placed)) {
+				table.build().keepChanged();
+			}
+			advance(world, table, template, site);
+			return Outcome.SKIPPED;
+		}
+		BuildIssue issue = blocker(table, world, owner, step, target, placed, existing);
+		if (issue != null) {
+			table.build().stopFor(issue);
 			return Outcome.STOPPED;
 		}
 		boolean free = owner.isCreative();
 		boolean costs = step.item() != null && !free;
-		if (costs && !table.hasMaterial(step.item())) {
-			table.build().missingMaterial();
-			return Outcome.STOPPED;
-		}
 
 		boolean done = placed == null ? spawn(world, target, step) : place(world, target, placed, step, !free, sound);
 		if (!done) {
-			table.build().placementFailed(target);
+			if (placed == null) {
+				table.build().failed(target);
+			} else {
+				table.build().placementFailed(target, placed);
+			}
 			return Outcome.STOPPED;
 		}
 		boolean paid = costs && table.spendMaterial(step.item());

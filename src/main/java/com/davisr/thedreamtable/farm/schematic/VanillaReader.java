@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm.schematic;
 
+import net.minecraft.block.BlockState;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
@@ -23,7 +24,13 @@ final class VanillaReader {
 				continue;
 			}
 			NbtCompound nbt = entry.contains("nbt", NbtElement.COMPOUND_TYPE) ? entry.getCompound("nbt") : null;
-			steps.block(pos.getInt(0), pos.getInt(1), pos.getInt(2), NbtReading.state(palette.getCompound(entry.getInt("state"))), nbt);
+			NbtCompound paletteEntry = palette.getCompound(entry.getInt("state"));
+			BlockState state = NbtReading.state(paletteEntry);
+			if (state == null) {
+				steps.unknown(paletteEntry.getString("Name"));
+			} else {
+				steps.block(pos.getInt(0), pos.getInt(1), pos.getInt(2), state, nbt);
+			}
 		}
 		steps.entities(root.getList("entities", NbtElement.COMPOUND_TYPE));
 	}

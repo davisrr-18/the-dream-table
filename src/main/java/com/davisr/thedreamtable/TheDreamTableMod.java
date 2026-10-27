@@ -6,6 +6,7 @@ import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.network.CheckPlacementPayload;
 import com.davisr.thedreamtable.network.DepositMaterialPayload;
 import com.davisr.thedreamtable.network.FarmAreasPayload;
+import com.davisr.thedreamtable.network.FarmCarePayload;
 import com.davisr.thedreamtable.network.FarmDetailsPayload;
 import com.davisr.thedreamtable.network.LoadedFarmsPayload;
 import com.davisr.thedreamtable.network.PlaceFarmPayload;
@@ -47,6 +48,7 @@ public final class TheDreamTableMod implements ModInitializer {
 		SessionSyncPayload.register();
 		RequestSessionPayload.register();
 		FarmAreasPayload.register();
+		FarmCarePayload.register();
 		FarmLoader.register();
 		LoadedFarmsPayload.register();
 		ServerSchematicsPayload.register();

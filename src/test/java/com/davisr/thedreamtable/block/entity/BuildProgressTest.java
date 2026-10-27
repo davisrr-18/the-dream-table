@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.BuildPace;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
@@ -108,5 +109,40 @@ class BuildProgressTest {
 		loaded.read(nbt);
 		assertEquals(BuildPace.DEFAULT, loaded.pace());
 		assertEquals(DreamTableBlockEntity.PHASE_IDLE, loaded.phase());
+	}
+
+	@Test
+	void aRepairAndWhyItStoppedAreSavedAndClearedOnRestart() {
+		BuildProgress progress = new BuildProgress();
+		progress.start(UUID.randomUUID(), true, 7L);
+		progress.setRepair(true);
+		progress.keep();
+		progress.setIssue(BuildIssue.at(BuildIssue.Kind.PROTECTED, new BlockPos(1, 2, 3)));
+		progress.stop(DreamTableBlockEntity.PHASE_BLOCKED);
+		NbtCompound nbt = new NbtCompound();
+		progress.write(nbt);
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+		assertTrue(loaded.repair());
+		assertEquals(1, loaded.kept());
+		assertEquals(progress.issue(), loaded.issue());
+		loaded.start(UUID.randomUUID(), false, 7L);
+		assertEquals(null, loaded.issue());
+		assertTrue(loaded.repair());
+		loaded.start(UUID.randomUUID(), true, 7L);
+		assertFalse(loaded.repair());
+	}
+
+	@Test
+	void aBuildReportsDroppedHandoversOnlyOnce() {
+		BuildProgress progress = new BuildProgress();
+		progress.start(UUID.randomUUID(), true, 7L);
+
+		assertFalse(progress.shouldNotifyDropped(false));
+		assertTrue(progress.shouldNotifyDropped(true));
+		assertFalse(progress.shouldNotifyDropped(true));
+
+		progress.start(UUID.randomUUID(), true, 7L);
+		assertTrue(progress.shouldNotifyDropped(true));
 	}
 }

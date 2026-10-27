@@ -17,8 +17,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A farm as compact NBT, for sending a server's imported schematic to clients that don't have the file. Block states and
- * items are listed once and steps point into those lists; block entity data is left out, since clients only draw farms.
+ * A farm as compact NBT: for sending a server's imported schematic to clients that don't have the file, and for keeping
+ * a finished farm's design in the world. Block states and items are listed once and steps point into those lists.
+ * Block entity data, like a hopper's filter items, is kept only when asked, for the world copy; clients only draw farms.
  */
 public final class TemplateCodec {
 	private static final int NONE = -1;
@@ -29,11 +30,16 @@ public final class TemplateCodec {
 	}
 
 	public static NbtCompound encode(FarmTemplate template) {
+		return encode(template, false);
+	}
+
+	public static NbtCompound encode(FarmTemplate template, boolean withBlockData) {
 		Map<BlockState, Integer> states = new HashMap<>();
 		Map<Item, Integer> items = new HashMap<>();
 		NbtList palette = new NbtList();
 		NbtList itemIds = new NbtList();
 		NbtList entities = new NbtList();
+		NbtList blockData = new NbtList();
 		List<FarmStep> steps = template.steps();
 		int[] x = new int[steps.size()];
 		int[] y = new int[steps.size()];
@@ -60,6 +66,12 @@ public final class TemplateCodec {
 					palette.add(NbtHelper.fromBlockState(added));
 					return palette.size() - 1;
 				});
+				if (withBlockData && step.blockNbt() != null) {
+					NbtCompound data = new NbtCompound();
+					data.putInt("Step", index);
+					data.put("Nbt", step.blockNbt().copy());
+					blockData.add(data);
+				}
 			}
 		}
 		NbtCompound nbt = new NbtCompound();
@@ -71,6 +83,9 @@ public final class TemplateCodec {
 		nbt.putIntArray("Z", z);
 		nbt.putIntArray("State", state);
 		nbt.putIntArray("Item", item);
+		if (!blockData.isEmpty()) {
+			nbt.put("BlockData", blockData);
+		}
 		return nbt;
 	}
 
@@ -92,6 +107,12 @@ public final class TemplateCodec {
 		int[] z = nbt.getIntArray("Z");
 		int[] state = nbt.getIntArray("State");
 		int[] item = nbt.getIntArray("Item");
+		Map<Integer, NbtCompound> blockData = new HashMap<>();
+		NbtList dataList = nbt.getList("BlockData", NbtElement.COMPOUND_TYPE);
+		for (int index = 0; index < dataList.size(); index++) {
+			NbtCompound data = dataList.getCompound(index);
+			blockData.put(data.getInt("Step"), data.getCompound("Nbt"));
+		}
 		List<FarmStep> steps = new ArrayList<>();
 		int entity = 0;
 		for (int index = 0; index < x.length; index++) {
@@ -108,7 +129,10 @@ public final class TemplateCodec {
 						: FarmStep.entity(x[index], y[index], z[index], type, (flags & NO_AI) != 0);
 				steps.add(step.withItem(cost));
 			} else {
-				steps.add(FarmStep.block(x[index], y[index], z[index], states.get(state[index]), cost));
+				NbtCompound data = blockData.get(index);
+				steps.add(data == null
+						? FarmStep.block(x[index], y[index], z[index], states.get(state[index]), cost)
+						: FarmStep.block(x[index], y[index], z[index], states.get(state[index]), cost, data));
 			}
 		}
 		return FarmTemplate.of(id, steps);

@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -27,6 +29,8 @@ public final class FarmTemplates {
 	 * their block counts, and each farm once it arrives. Null while playing on this computer's files.
 	 */
 	private static volatile List<FarmOption> remoteOptions;
+	private static volatile Map<String, List<ImportNote>> remoteNotes = Map.of();
+	private static volatile List<ImportedStructures.Rejected> remoteRejected = List.of();
 	private static final Map<String, FarmTemplate> REMOTE = new ConcurrentHashMap<>();
 	private static final Map<String, Integer> REMOTE_STEPS = new ConcurrentHashMap<>();
 	private static volatile Consumer<String> missing = id -> {
@@ -37,6 +41,9 @@ public final class FarmTemplates {
 	 */
 	private static final Map<String, FarmTemplate> SAVED = new ConcurrentHashMap<>();
 	private static final String SAVED_PREFIX = "saved:";
+	private static final long RELOAD_MS = 1000L;
+	private static Path reloadedRoot;
+	private static long reloadedAt;
 
 	static {
 		register(FarmOptions.SUGAR_CANE, "sugar_cane_farm", () -> PlantFarms.pistonRow(FarmOptions.SUGAR_CANE.id(), true));
@@ -53,7 +60,18 @@ public final class FarmTemplates {
 		reloadImports(null);
 	}
 
-	public static void reloadImports(Path worldRoot) {
+	/**
+	 * Looks at the schematic folders again. Every table click asks, so for the same world this happens at most once
+	 * per {@link #RELOAD_MS}: a new file still shows up within a second, but many players clicking don't list and
+	 * check every file each time.
+	 */
+	public static synchronized void reloadImports(Path worldRoot) {
+		long now = System.currentTimeMillis();
+		if (Objects.equals(worldRoot, reloadedRoot) && now - reloadedAt < RELOAD_MS) {
+			return;
+		}
+		reloadedRoot = worldRoot;
+		reloadedAt = now;
 		imports = ImportedStructures.reload(worldRoot);
 	}
 
@@ -79,6 +97,11 @@ public final class FarmTemplates {
 	/** The id a finished farm's own design is kept under: its farm and the signature of the design it was built with. */
 	public static String savedId(String farmId, long signature) {
 		return SAVED_PREFIX + baseId(farmId) + "#" + Long.toHexString(signature);
+	}
+
+	/** A globally unique id for one persisted layout, including designs whose legacy signature is the same. */
+	public static String newSavedId(String farmId, long signature) {
+		return savedId(farmId, signature) + "@" + UUID.randomUUID();
 	}
 
 	public static boolean isSaved(String id) {
@@ -111,15 +134,20 @@ public final class FarmTemplates {
 	}
 
 	/** Switches this client to the server's schematic list. Farms that changed are fetched again when next needed. */
-	public static void useRemote(List<FarmOption> options, Map<String, Integer> steps) {
+	public static void useRemote(List<FarmOption> options, Map<String, Integer> steps, Map<String, List<ImportNote>> notes,
+			List<ImportedStructures.Rejected> rejected) {
 		REMOTE_STEPS.clear();
 		REMOTE_STEPS.putAll(steps);
 		REMOTE.keySet().removeIf(id -> isImported(id) && !steps.containsKey(id));
+		remoteNotes = Map.copyOf(notes);
+		remoteRejected = List.copyOf(rejected);
 		remoteOptions = List.copyOf(options);
 	}
 
 	public static void useLocal() {
 		remoteOptions = null;
+		remoteNotes = Map.of();
+		remoteRejected = List.of();
 		REMOTE.clear();
 		REMOTE_STEPS.clear();
 	}
@@ -148,6 +176,16 @@ public final class FarmTemplates {
 	public static List<FarmOption> imported() {
 		List<FarmOption> remote = remoteOptions;
 		return remote != null ? remote : imports.options();
+	}
+
+	/** What to know before building an imported farm, like blocks left out or only available in Creative. */
+	public static List<ImportNote> notes(String id) {
+		return (remoteOptions != null ? remoteNotes : imports.notes()).getOrDefault(id, List.of());
+	}
+
+	/** Schematic files that can't be used, with the reason, for My Schematics. */
+	public static List<ImportedStructures.Rejected> rejected() {
+		return remoteOptions != null ? remoteRejected : imports.rejected();
 	}
 
 	/** Uses the bundled schematic, or the code-built farm when the file is missing or unreadable. */

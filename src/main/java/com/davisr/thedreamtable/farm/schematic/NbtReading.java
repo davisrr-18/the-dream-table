@@ -15,9 +15,12 @@ final class NbtReading {
 	private NbtReading() {
 	}
 
-	/** Reads a vanilla or Litematica palette entry: {@code {Name: "...", Properties: {...}}}. */
+	/** Reads a vanilla or Litematica palette entry: {@code {Name: "...", Properties: {...}}}. Null when the block isn't in this game. */
 	static BlockState state(NbtCompound entry) {
-		Block block = Registries.BLOCK.get(Identifier.of(entry.getString("Name")));
+		Block block = block(entry.getString("Name"));
+		if (block == null) {
+			return null;
+		}
 		BlockState state = block.getDefaultState();
 		if (!entry.contains("Properties", NbtElement.COMPOUND_TYPE)) {
 			return state;
@@ -29,11 +32,13 @@ final class NbtReading {
 		return state;
 	}
 
-	/** Reads a Sponge palette key: {@code minecraft:stairs[facing=east,half=bottom]}. */
+	/** Reads a Sponge palette key: {@code minecraft:stairs[facing=east,half=bottom]}. Null when the block isn't in this game. */
 	static BlockState state(String raw) {
+		Block block = block(name(raw));
+		if (block == null) {
+			return null;
+		}
 		int bracket = raw.indexOf('[');
-		String name = bracket >= 0 ? raw.substring(0, bracket) : raw;
-		Block block = Registries.BLOCK.get(Identifier.of(name));
 		BlockState state = block.getDefaultState();
 		if (bracket < 0) {
 			return state;
@@ -46,6 +51,18 @@ final class NbtReading {
 			}
 		}
 		return state;
+	}
+
+	/** The block id of a Sponge palette key, without its properties. */
+	static String name(String raw) {
+		int bracket = raw.indexOf('[');
+		return bracket >= 0 ? raw.substring(0, bracket) : raw;
+	}
+
+	/** Null for a malformed id or a block this game doesn't have; air is a real block. */
+	private static Block block(String name) {
+		Identifier id = Identifier.tryParse(name);
+		return id == null || !Registries.BLOCK.containsId(id) ? null : Registries.BLOCK.get(id);
 	}
 
 	static int number(NbtCompound compound, String key) {

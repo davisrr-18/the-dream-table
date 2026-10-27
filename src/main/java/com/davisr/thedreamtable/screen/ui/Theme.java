@@ -12,6 +12,8 @@ public final class Theme {
 	public static final int BUTTON_GAP = 6;
 	public static final int CARD_X = 10;
 	public static final int CARD_WIDTH = 168;
+	/** Room for a card's name and detail, right of its icon. */
+	public static final int CARD_TEXT_WIDTH = CARD_WIDTH - 46;
 	public static final int TRACK_WIDTH = 8;
 	public static final int SEARCH_SPACE = 26;
 

@@ -1,10 +1,13 @@
 package com.davisr.thedreamtable.screen.page;
 
+import com.davisr.thedreamtable.block.entity.BuildIssue;
 import com.davisr.thedreamtable.client.DreamTableClipboard;
 import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
+import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.farm.ImportNote;
 import com.davisr.thedreamtable.network.PlaceFarmPayload;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -12,8 +15,12 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
@@ -27,6 +34,11 @@ public final class WorkPage implements TablePage {
 	private static final long CONFIRM_MS = 3000L;
 	/** From this much, the spot already holds this farm, likely one finished before finished farms were protected. */
 	private static final int EXISTING_FARM_PERCENT = 50;
+	private static final int LINE_HEIGHT = 10;
+	/** Room for why a build stopped and what to do about it. Kept even when the status is short, so buttons don't jump. */
+	private static final int STATUS_LINES = 4;
+	/** A farm with several warnings may need more, up to this. */
+	private static final int MAX_STATUS_LINES = 9;
 
 	private final PageContext ui;
 	private long confirmUntil;
@@ -42,7 +54,7 @@ public final class WorkPage implements TablePage {
 		ItemStack icon = option == null ? new ItemStack(Items.STRUCTURE_BLOCK) : option.icon().getDefaultStack();
 		Text name = option == null ? Text.literal(ui.farm()) : option.title();
 		ui.card(context, icon, name, ui.view().cardY(0), mouseX, mouseY, true, true);
-		context.drawText(ui.painter().text(), ui.painter().trim(status(), CARD_WIDTH), ui.view().cardX(), statusY(), HINT, false);
+		drawStatus(context);
 		ui.painter().progress(context, ui.view().cardX(), barY(), CARD_WIDTH, handler.getBuildIndex(), handler.getTotal());
 
 		ui.button(context, Text.translatable("gui.the_dream_table.menu"), rowY(MENU), mouseX, mouseY, true, false);
@@ -102,7 +114,7 @@ public final class WorkPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		return buttonsOffset() + (BUTTON_HEIGHT + BUTTON_GAP) * (ROWS - 1) + BUTTON_HEIGHT + 8;
+		return rowY(ROWS - 1) - ui.view().cardY(0) + PAD + BUTTON_HEIGHT + 8;
 	}
 
 	@Override
@@ -139,6 +151,54 @@ public final class WorkPage implements TablePage {
 			case ProjectState.PAUSED -> Text.translatable("gui.the_dream_table.resume");
 			default -> Text.translatable("gui.the_dream_table.build");
 		};
+	}
+
+	/**
+	 * The status, or, when the build stopped or waits for a reason, what happened in dark text and what to do in grey,
+	 * wrapped. Before an imported farm is started, its warnings come first, so nothing is found out halfway through.
+	 */
+	private void drawStatus(DrawContext context) {
+		List<Integer> colors = new ArrayList<>();
+		List<OrderedText> lines = statusLines(colors);
+		for (int line = 0; line < Math.min(MAX_STATUS_LINES, lines.size()); line++) {
+			context.drawText(ui.painter().text(), lines.get(line), ui.view().cardX(), statusY() + line * LINE_HEIGHT, colors.get(line), false);
+		}
+	}
+
+	/** The wrapped status lines, with each line's color added to {@code colors}. */
+	private List<OrderedText> statusLines(List<Integer> colors) {
+		BuildIssue issue = currentIssue();
+		List<OrderedText> lines = new ArrayList<>();
+		if (issue == null) {
+			if (ui.handler().getPhase() == ProjectState.IDLE) {
+				for (ImportNote note : FarmTemplates.notes(ui.farm())) {
+					addLines(lines, colors, note.text(), NAME);
+				}
+			}
+			addLines(lines, colors, status(), HINT);
+		} else {
+			addLines(lines, colors, issue.what(), NAME);
+			addLines(lines, colors, issue.fix(), HINT);
+		}
+		return lines;
+	}
+
+	private int statusHeight() {
+		int count = statusLines(new ArrayList<>()).size();
+		return Math.max(STATUS_LINES, Math.min(MAX_STATUS_LINES, count)) * LINE_HEIGHT;
+	}
+
+	private void addLines(List<OrderedText> lines, List<Integer> colors, Text text, int color) {
+		for (OrderedText line : ui.painter().text().wrapLines(text, CARD_WIDTH)) {
+			lines.add(line);
+			colors.add(color);
+		}
+	}
+
+	/** The issue matters while the build is stopped, or while it waits on a slow chunk; an old one from a finished step doesn't. */
+	private BuildIssue currentIssue() {
+		int phase = ui.handler().getPhase();
+		return phase == ProjectState.BLOCKED || phase == ProjectState.WAITING || phase == ProjectState.BUILDING ? ui.handler().getIssue() : null;
 	}
 
 	private Text status() {
@@ -195,14 +255,11 @@ public final class WorkPage implements TablePage {
 	}
 
 	private int barY() {
-		return statusY() + 14;
+		return statusY() + statusHeight() + 4;
 	}
 
 	private int rowY(int row) {
 		return barY() + 16 + row * (BUTTON_HEIGHT + BUTTON_GAP);
 	}
 
-	private static int buttonsOffset() {
-		return PAD + CARD_HEIGHT + 8 + 14 + 16;
-	}
 }

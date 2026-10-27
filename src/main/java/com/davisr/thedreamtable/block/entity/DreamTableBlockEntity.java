@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmDismantler;
@@ -121,7 +122,18 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 		Iterator<FarmDismantler> jobs = dismantling.iterator();
 		while (jobs.hasNext()) {
 			FarmDismantler job = jobs.next();
-			if (job.tick(world)) {
+			boolean over;
+			try {
+				over = job.tick(world);
+			} catch (RuntimeException exception) {
+				TheDreamTableMod.LOGGER.error("Taking a farm apart at {} failed", pos, exception);
+				ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(job.player());
+				if (player != null) {
+					player.sendMessage(Text.translatable("gui.the_dream_table.dismantle_failed"), false);
+				}
+				over = true;
+			}
+			if (over) {
 				FarmAreas.of(world).release(job.areaKey());
 				jobs.remove();
 			}

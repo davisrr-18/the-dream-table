@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.DreamTableConfig;
+import com.davisr.thedreamtable.TheDreamTableMod;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -57,10 +58,16 @@ public final class FarmLoader extends PersistentState {
 	private final Map<UUID, Set<String>> picked = new HashMap<>();
 
 	/**
-	 * One of a player's finished farms, as listed in My Farms, with its {@link FarmStorage} status and how many of its
-	 * blocks are missing, or {@link #UNKNOWN} when part of it is not loaded.
+	 * One of a player's finished farms, as listed in My Farms, with its {@link FarmStorage} status, how many of its
+	 * blocks are missing, and how full its chests and barrels are in percent. Missing and storage are {@link #UNKNOWN}
+	 * when part of the farm is not loaded; storage also when the farm has none.
 	 */
-	public record Entry(String key, String farmId, String dimension, BlockPos where, boolean loaded, int status, int missing, boolean available) {
+	public record Entry(String key, String farmId, String layoutId, String dimension, BlockPos where, boolean loaded, int status, int missing,
+			boolean available, int storage) {
+		/** The exact saved design when available, otherwise the base id for older list data and display fallbacks. */
+		public String designId() {
+			return layoutId.isEmpty() ? farmId : layoutId;
+		}
 	}
 
 	public static final int UNKNOWN = -1;
@@ -75,13 +82,24 @@ public final class FarmLoader extends PersistentState {
 	/** The chunks of the picked farms, per world, as of the last renewal. Not saved. */
 	private final Map<ServerWorld, LongSet> loadedChunks = new HashMap<>();
 
+	/** An error was already logged, so the same failure isn't logged every tick. */
+	private boolean failing;
+
 	public static void register() {
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
 			FarmLoader loader = of(server);
-			if (server.getTicks() % INTERVAL_TICKS == 0) {
-				loader.keepLoaded(server);
+			try {
+				if (server.getTicks() % INTERVAL_TICKS == 0) {
+					loader.keepLoaded(server);
+				}
+				loader.tickFarms();
+				loader.failing = false;
+			} catch (RuntimeException exception) {
+				if (!loader.failing) {
+					loader.failing = true;
+					TheDreamTableMod.LOGGER.error("Keeping farms loaded failed; it is tried again every tick and logged once until it works", exception);
+				}
 			}
-			loader.tickFarms();
 		});
 	}
 
@@ -130,10 +148,18 @@ public final class FarmLoader extends PersistentState {
 			String dimension = farm.world().getRegistryKey().getValue().toString();
 			FarmTemplate layout = farm.farm().layout();
 			int status = FarmStorage.status(farm.world(), layout, farm.farm().site());
-			entries.add(new Entry(farm.key(), farm.farm().farmId(), dimension, farm.farm().where(), keys.contains(farm.key()), status, missing(farm, layout),
-					layout != null));
+			entries.add(new Entry(farm.key(), farm.farm().farmId(), layout == null ? "" : layout.id(), dimension, farm.farm().where(), keys.contains(farm.key()),
+					status, missing(farm, layout), layout != null, storagePercent(farm, layout, status)));
 		}
 		return entries;
+	}
+
+	private static int storagePercent(Located farm, FarmTemplate layout, int status) {
+		if (layout == null || status == FarmStorage.UNLOADED) {
+			return UNKNOWN;
+		}
+		FarmStorage.Contents contents = FarmStorage.contents(farm.world(), layout, farm.farm().site());
+		return contents == null || contents.capacity() == 0 ? UNKNOWN : contents.stored() * 100 / contents.capacity();
 	}
 
 	/** How many farms the player picked, never above the server's current limit. */
@@ -203,13 +229,12 @@ public final class FarmLoader extends PersistentState {
 
 	/** The player's finished farm with this My Farms key. */
 	public Optional<Located> byKey(MinecraftServer server, UUID player, String key) {
-		return located(server, player).stream().filter(farm -> farm.key().equals(key)).findFirst();
+		return findByKey(located(server, player), key);
 	}
 
-	/** The player's finished farm at this place in the My Farms list, as last listed. */
-	public Optional<Located> at(MinecraftServer server, UUID player, int index) {
-		List<Located> farms = located(server, player);
-		return index >= 0 && index < farms.size() ? Optional.of(farms.get(index)) : Optional.empty();
+	/** Selects a listed farm by its stable world key, independent of the list's current order. */
+	static Optional<Located> findByKey(List<Located> farms, String key) {
+		return farms.stream().filter(farm -> farm.key().equals(key)).findFirst();
 	}
 
 	private static List<Located> located(MinecraftServer server, UUID player) {

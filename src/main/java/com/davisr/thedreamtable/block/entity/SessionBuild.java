@@ -11,6 +11,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.Nullable;
 
 import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
 
@@ -20,11 +21,18 @@ import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
  */
 public final class SessionBuild {
 	private static final int MAX_SKIPS_PER_TICK = 4096;
+	/** A chunk that takes longer than this to load is shown as the reason the build waits. */
+	private static final long CHUNK_WAIT_TICKS = 100;
 
 	private final TableSession session;
 	private final BuildProgress progress;
 	private final SessionAreas areas;
 	private int ticks;
+	private long waitingSince = -1;
+	private int failedStep = -1;
+	private int failures;
+	/** The build waited for its owner to come back online. Not saved: after a restart everyone rejoins anyway. */
+	private boolean ownerAway;
 
 	SessionBuild(TableSession session, BuildProgress progress, SessionAreas areas) {
 		this.session = session;
@@ -42,8 +50,16 @@ public final class SessionBuild {
 		if (progress.is(PHASE_DONE) && template != null && !areas.finishedRecorded()) {
 			areas.recordFinished(world, template);
 		}
-		if (!progress.is(PHASE_BUILDING) || session.onlineOwner(world) == null) {
+		if (!progress.is(PHASE_BUILDING)) {
 			return;
+		}
+		if (session.onlineOwner(world) == null) {
+			ownerAway = true;
+			return;
+		}
+		if (ownerAway) {
+			ownerAway = false;
+			session.tell(Text.translatable("gui.the_dream_table.build_continues", progress.index(), session.totalSteps()));
 		}
 		if (ticks++ % BuildPace.TICKS_PER_SECOND == 0) {
 			ChunkKeeper.keepTable(world, session.getPos());
@@ -93,6 +109,8 @@ public final class SessionBuild {
 	/**
 	 * Starts or resumes the build. It refuses, and tells the player why, when a new build can't start where it was placed,
 	 * or when a resumed build belongs to a farm file that has changed. A started build reserves its area.
+	 * Resuming after a cause the player must fix checks it first: if it is still there the build stays stopped and says
+	 * so, without trying again; if it is gone, the player hears that it was solved.
 	 */
 	public boolean begin(ServerPlayerEntity starter, boolean fromScratch) {
 		FarmTemplate template = session.template();
@@ -111,36 +129,102 @@ public final class SessionBuild {
 			starter.sendMessage(Text.translatable("gui.the_dream_table.farm_changed"), true);
 			return false;
 		}
+		BuildIssue previous = fromScratch ? null : progress.issue();
+		if (previous != null && !previous.temporary()) {
+			BuildIssue now = FarmBuilder.check(session, world);
+			if (now != null) {
+				progress.setIssue(now);
+				session.sync();
+				session.tell(Text.translatable("gui.the_dream_table.still_blocked", now.what()));
+				session.table().sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), now.where(), 0.8F, 0.5F);
+				return false;
+			}
+		}
 		areas.claim(world, template);
 		progress.start(session.player(), fromScratch, template.signature());
+		waitingSince = -1;
 		session.sync();
-		session.tell(Text.translatable("gui.the_dream_table.building", progress.index(), session.totalSteps()));
+		String started = previous != null && !previous.temporary() ? "gui.the_dream_table.issue_solved" : "gui.the_dream_table.building";
+		session.tell(Text.translatable(started, progress.index(), session.totalSteps()));
 		return true;
 	}
 
-	/** A block could not be placed, or the step failed unexpectedly. Nothing was spent; Try Again repeats the step. */
-	public void placementFailed(BlockPos where) {
-		stop(PHASE_BLOCKED, Text.translatable("gui.the_dream_table.place_failed", where.getX(), where.getY(), where.getZ()), where);
+	/** Starts a repair: a new build that leaves alone the blocks the player changed and counts them. */
+	public boolean beginRepair(ServerPlayerEntity starter) {
+		if (!begin(starter, true)) {
+			return false;
+		}
+		progress.setRepair(true);
+		return true;
 	}
 
-	/** The owner isn't allowed to build at this spot, by spawn protection, the border, or a claim. Try Again checks again. */
-	public void protectedSpot(BlockPos where) {
-		stop(PHASE_BLOCKED, Text.translatable("gui.the_dream_table.protected_spot", where.getX(), where.getY(), where.getZ()), where);
+	public boolean repairing() {
+		return progress.repair();
 	}
 
-	public void obstruct(BlockPos where, BlockState obstacle) {
-		stop(PHASE_BLOCKED, Text.translatable("gui.the_dream_table.blocked_at", obstacle.getBlock().getName()), where);
+	/** A repair found another block where the farm has one, and leaves it as the player made it. */
+	public void keepChanged() {
+		progress.keep();
 	}
 
-	public void missingMaterial() {
-		stop(PHASE_NEED, Text.translatable("gui.the_dream_table.paused"), session.getPos());
+	/** Whether a dropped handover should be reported, at most once during this build or repair. */
+	public boolean shouldNotifyDropped(boolean dropped) {
+		return progress.shouldNotifyDropped(dropped);
 	}
 
-	private void stop(String phase, Text message, BlockPos where) {
+	/** Why the build stopped or waits, or null. */
+	public @Nullable BuildIssue issue() {
+		return progress.issue();
+	}
+
+	/**
+	 * The game refused a block, or the step failed unexpectedly. Nothing was spent; Try Again repeats the step.
+	 * Failing again at the same step marks it as repeated, so the player is told to look at the spot.
+	 */
+	public void placementFailed(BlockPos where, BlockState block) {
+		stop(PHASE_BLOCKED, BuildIssue.of(BuildIssue.Kind.PLACE_FAILED, where, block.getBlock()).again(countFailure()));
+	}
+
+	/** An unexpected error at the current step. Its details are in the log. */
+	public void failed(BlockPos where) {
+		stop(PHASE_BLOCKED, new BuildIssue(BuildIssue.Kind.ERROR, where.toImmutable(), Integer.toString(progress.index() + 1), countFailure()));
+	}
+
+	private int countFailure() {
+		if (failedStep != progress.index()) {
+			failedStep = progress.index();
+			failures = 0;
+		}
+		return ++failures;
+	}
+
+	/** Something the player must deal with stands in the way: a protected spot, a block the table won't clear, or a missing item. */
+	public void stopFor(BuildIssue issue) {
+		stop(issue.kind() == BuildIssue.Kind.MATERIAL ? PHASE_NEED : PHASE_BLOCKED, issue);
+	}
+
+	/**
+	 * The next spot's chunk isn't loaded yet. The build keeps waiting there; when that takes long, the player is told
+	 * once where, and the message clears when the build moves on.
+	 */
+	public void waitingFor(ServerWorld world, BlockPos where) {
+		long now = world.getTime();
+		if (waitingSince < 0) {
+			waitingSince = now;
+		} else if (now - waitingSince >= CHUNK_WAIT_TICKS && progress.issue() == null) {
+			BuildIssue issue = BuildIssue.at(BuildIssue.Kind.UNLOADED, where);
+			progress.setIssue(issue);
+			session.sync();
+			session.tell(issue.what());
+		}
+	}
+
+	private void stop(String phase, BuildIssue issue) {
 		progress.stop(phase);
+		progress.setIssue(issue);
 		session.sync();
-		session.tell(message);
-		session.table().sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), where, 0.8F, 0.5F);
+		session.tell(issue.what());
+		session.table().sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), issue.where(), 0.8F, 0.5F);
 	}
 
 	/** Stops after the current step; nothing is undone and resuming continues from the next block. */
@@ -161,12 +245,17 @@ public final class SessionBuild {
 			areas.recordFinished(world, template);
 		}
 		session.sync();
-		session.tell(Text.translatable("gui.the_dream_table.done"));
+		Text done = !progress.repair() ? Text.translatable("gui.the_dream_table.done")
+				: progress.kept() > 0 ? Text.translatable("gui.the_dream_table.repair_done_kept", progress.kept())
+				: Text.translatable("gui.the_dream_table.repair_done");
+		session.tell(done);
 		session.table().sound(SoundEvents.BLOCK_BEACON_ACTIVATE, session.getPos(), 0.6F, 1.2F);
 	}
 
 	public void advance() {
 		progress.advance();
+		progress.setIssue(null);
+		waitingSince = -1;
 		session.sync();
 	}
 

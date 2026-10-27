@@ -16,7 +16,7 @@ import java.util.BitSet;
  * Repairing and taking down a player's finished farm from My Farms, at the table they are using.
  * Both use the design the farm was built with, saved with it, not the current one.
  * A repair is a new build of the same farm at the same spot, facing and swaps: blocks still in place are skipped,
- * so only the missing ones are placed and paid for. Taking down removes every block that still matches the farm and
+ * so only the missing ones are placed and paid for, and a spot where the player put another block is left as it is. Taking down removes every block that still matches the farm and
  * hands them back, as mining them would, a few per tick like any other take-apart.
  */
 public final class FarmCare {
@@ -47,7 +47,7 @@ public final class FarmCare {
 		session.setPlacement(site.anchor(), site.facing());
 		FarmAreas areas = FarmAreas.of(world);
 		areas.release(farm.farm().key());
-		if (!session.build().begin(player, true)) {
+		if (!session.build().beginRepair(player)) {
 			areas.recordFinished(player.getUuid(), template, site, farm.farm().swaps());
 			return false;
 		}

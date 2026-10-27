@@ -23,8 +23,10 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Finds the player's schematic files and lists them under My Schematics. A file is parsed again only when its
- * modification time or size changes; otherwise the parsed farm is reused, since the list is refreshed on every menu click.
+ * Finds the player's schematic files and lists them under My Schematics, with what to know about each: warnings for the
+ * farms, and the reason for files that can't be used, which are listed too so players see why. A file is parsed again
+ * only when its modification time or size changes; otherwise the result is reused, since the list is refreshed on every
+ * menu click.
  */
 public final class ImportedStructures {
 	public static final String ID_PREFIX = "nbt:";
@@ -33,12 +35,16 @@ public final class ImportedStructures {
 	private ImportedStructures() {
 	}
 
-	/** The imported farms by id, and their menu entries in file name order. */
-	public record Imports(Map<String, FarmTemplate> templates, List<FarmOption> options) {
-		static final Imports EMPTY = new Imports(Map.of(), List.of());
+	/** The imported farms by id, their menu entries in file name order, their warnings by id, and the files that can't be used. */
+	public record Imports(Map<String, FarmTemplate> templates, List<FarmOption> options, Map<String, List<ImportNote>> notes, List<Rejected> rejected) {
+		static final Imports EMPTY = new Imports(Map.of(), List.of(), Map.of(), List.of());
 	}
 
-	private record Parsed(long modified, long size, FarmTemplate template) {
+	/** A file that can't be used, by its name without the extension, and why. */
+	public record Rejected(String name, ImportNote reason) {
+	}
+
+	private record Parsed(long modified, long size, SchematicReader.Result result) {
 	}
 
 	public static FarmTemplate read(String id, InputStream stream) throws IOException {
@@ -49,6 +55,8 @@ public final class ImportedStructures {
 	public static synchronized Imports reload(Path worldRoot) {
 		Map<String, FarmTemplate> templates = new LinkedHashMap<>();
 		List<FarmOption> options = new ArrayList<>();
+		Map<String, List<ImportNote>> notes = new HashMap<>();
+		List<Rejected> rejected = new ArrayList<>();
 		List<Path> files = new ArrayList<>();
 		Set<String> names = new HashSet<>();
 		for (Path folder : folders(worldRoot)) {
@@ -68,9 +76,9 @@ public final class ImportedStructures {
 		files.sort(Comparator.comparing(path -> path.getFileName().toString().toLowerCase(Locale.ROOT)));
 		CACHE.keySet().retainAll(files);
 		for (Path path : files) {
-			load(path, templates, options);
+			load(path, templates, options, notes, rejected);
 		}
-		return new Imports(Map.copyOf(templates), List.copyOf(options));
+		return new Imports(Map.copyOf(templates), List.copyOf(options), Map.copyOf(notes), List.copyOf(rejected));
 	}
 
 	private static List<Path> folders(Path worldRoot) {
@@ -86,14 +94,23 @@ public final class ImportedStructures {
 		return folders;
 	}
 
-	private static void load(Path path, Map<String, FarmTemplate> templates, List<FarmOption> options) {
+	private static void load(Path path, Map<String, FarmTemplate> templates, List<FarmOption> options, Map<String, List<ImportNote>> notes,
+			List<Rejected> rejected) {
 		String fileName = path.getFileName().toString();
 		int dot = fileName.lastIndexOf('.');
 		String display = dot > 0 ? fileName.substring(0, dot) : fileName;
 		String id = uniqueId(display, templates);
-		FarmTemplate template = parsed(path, id, fileName);
-		if (template == null) {
+		SchematicReader.Result result = parsed(path, id, fileName);
+		if (result == null) {
 			return;
+		}
+		FarmTemplate template = result.template();
+		if (template == null) {
+			rejected.add(new Rejected(display, result.notes().isEmpty() ? ImportNote.of(ImportNote.Kind.UNREADABLE) : result.notes().get(0)));
+			return;
+		}
+		if (!result.notes().isEmpty()) {
+			notes.put(id, result.notes());
 		}
 		if (!template.id().equals(id)) {
 			template = new FarmTemplate(id, template.steps(), template.materials(), template.center());
@@ -102,8 +119,8 @@ public final class ImportedStructures {
 		options.add(new FarmOption(id, icon(template), "farm.the_dream_table.imported", display));
 	}
 
-	/** The parsed farm for a file, reusing the last parse while the file is unchanged. Unreadable files are remembered too. */
-	private static FarmTemplate parsed(Path path, String id, String fileName) {
+	/** The result for a file, reusing the last parse while the file is unchanged. Files that can't be used are remembered too. */
+	private static SchematicReader.Result parsed(Path path, String id, String fileName) {
 		long modified;
 		long size;
 		try {
@@ -115,19 +132,16 @@ public final class ImportedStructures {
 		}
 		Parsed cached = CACHE.get(path);
 		if (cached != null && cached.modified() == modified && cached.size() == size) {
-			return cached.template();
+			return cached.result();
 		}
-		FarmTemplate template = null;
-		try {
-			template = SchematicReader.read(id, path);
-			if (template != null) {
-				TheDreamTableMod.LOGGER.info("Imported structure {} as {}", fileName, id);
-			}
-		} catch (RuntimeException | IOException exception) {
-			TheDreamTableMod.LOGGER.warn("Skipped structure {}", fileName, exception);
+		SchematicReader.Result result = SchematicReader.read(id, path);
+		if (result.template() != null) {
+			TheDreamTableMod.LOGGER.info("Imported structure {} as {}", fileName, id);
+		} else {
+			TheDreamTableMod.LOGGER.warn("Skipped structure {}: {}", fileName, result.notes().isEmpty() ? "unreadable" : result.notes().get(0).kind());
 		}
-		CACHE.put(path, new Parsed(modified, size, template));
-		return template;
+		CACHE.put(path, new Parsed(modified, size, result));
+		return result;
 	}
 
 	private static boolean isStructureFile(Path path) {

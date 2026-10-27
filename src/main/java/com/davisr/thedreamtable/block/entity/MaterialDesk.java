@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.FarmTemplate;
+import com.davisr.thedreamtable.farm.Handover;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.SimpleInventory;
@@ -120,15 +121,16 @@ final class MaterialDesk {
 	void returnAll(World world, BlockPos table, PlayerEntity receiver) {
 		adjusting = true;
 		try {
+			boolean dropped = false;
 			for (ItemStack stack : ledger.drain(template.get())) {
-				if (receiver != null && receiver.getInventory().insertStack(stack) && stack.isEmpty()) {
-					continue;
-				}
 				if (receiver != null) {
-					receiver.dropItem(stack, false);
+					dropped |= Handover.give(receiver, stack);
 				} else if (world != null) {
 					ItemScatterer.spawn(world, table.getX() + 0.5, table.getY() + 0.5, table.getZ() + 0.5, stack);
 				}
+			}
+			if (dropped) {
+				Handover.tellDropped(receiver);
 			}
 			slots.clear();
 		} finally {

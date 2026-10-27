@@ -64,14 +64,14 @@ public final class Painter {
 		}
 		iconBox(context, x + 7, y + 6);
 		context.drawItem(icon, x + 9, y + 8);
-		context.drawText(text, trim(label, w - 46), x + 34, y + 12, enabled ? NAME : MUTED, false);
+		context.drawText(text, trim(label, CARD_TEXT_WIDTH), x + 34, y + 12, enabled ? NAME : MUTED, false);
 	}
 
 	/** A card with a second, smaller line under the name, such as what an option does. */
 	public void card(DrawContext context, ItemStack icon, Text label, Text detail, int x, int y, boolean hovered, boolean selected, boolean enabled) {
 		card(context, icon, Text.empty(), x, y, hovered, selected, enabled);
-		context.drawText(text, trim(label, CARD_WIDTH - 46), x + 34, y + 7, enabled ? NAME : MUTED, false);
-		context.drawText(text, trim(detail, CARD_WIDTH - 46), x + 34, y + 19, HINT, false);
+		context.drawText(text, trim(label, CARD_TEXT_WIDTH), x + 34, y + 7, enabled ? NAME : MUTED, false);
+		context.drawText(text, trim(detail, CARD_TEXT_WIDTH), x + 34, y + 19, HINT, false);
 	}
 
 	public void button(DrawContext context, Text label, int x, int y, boolean hovered, boolean enabled, boolean primary) {
@@ -90,6 +90,13 @@ public final class Painter {
 		}
 		String shown = trim(label, w - 16);
 		context.drawText(text, shown, x + (w - text.getWidth(shown)) / 2, y + 10, color, false);
+	}
+
+	/** A small button, {@code height} pixels tall, for filters and sorting. */
+	public void chip(DrawContext context, Text label, int x, int y, int width, int height, boolean hovered) {
+		frame(context, x, y, width, height, NAVY, hovered ? BLUE_HOVER : BLUE, NAVY, hovered ? CARD_FILL_HOVER : CARD_FILL, CARD_SHADE, 0xFFFFFFFF);
+		String shown = trim(label, width - 12);
+		context.drawText(text, shown, x + (width - text.getWidth(shown)) / 2, y + (height - 8) / 2, NAME, false);
 	}
 
 	public void field(DrawContext context, int x, int y, int width, int height, boolean focused) {
@@ -126,6 +133,10 @@ public final class Painter {
 		context.fill(x + 1, y + h - 1, x + w - 1, y + h, color);
 		context.fill(x, y + 1, x + 1, y + h - 1, color);
 		context.fill(x + w - 1, y + 1, x + w, y + h - 1, color);
+	}
+
+	public boolean fits(Text label, int width) {
+		return text.getWidth(label) <= width;
 	}
 
 	public String trim(Text label, int width) {

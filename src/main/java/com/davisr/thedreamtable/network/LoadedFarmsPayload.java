@@ -24,15 +24,17 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, int limit) implem
 			(entry, buf) -> {
 				buf.writeString(entry.key());
 				buf.writeString(entry.farmId());
+				buf.writeString(entry.layoutId());
 				buf.writeString(entry.dimension());
 				buf.writeBlockPos(entry.where());
 				buf.writeBoolean(entry.loaded());
 				buf.writeVarInt(entry.status());
 				buf.writeVarInt(entry.missing() + 1);
 				buf.writeBoolean(entry.available());
+				buf.writeVarInt(entry.storage() + 1);
 			},
-			buf -> new FarmLoader.Entry(buf.readString(), buf.readString(), buf.readString(), buf.readBlockPos(),
-					buf.readBoolean(), buf.readVarInt(), buf.readVarInt() - 1, buf.readBoolean()));
+			buf -> new FarmLoader.Entry(buf.readString(), buf.readString(), buf.readString(), buf.readString(), buf.readBlockPos(),
+					buf.readBoolean(), buf.readVarInt(), buf.readVarInt() - 1, buf.readBoolean(), buf.readVarInt() - 1));
 	public static final PacketCodec<RegistryByteBuf, LoadedFarmsPayload> CODEC = PacketCodec.tuple(
 			ENTRY.collect(PacketCodecs.toList(MAX_FARMS)), LoadedFarmsPayload::farms,
 			PacketCodecs.VAR_INT, LoadedFarmsPayload::limit,

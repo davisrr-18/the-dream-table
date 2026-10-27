@@ -9,6 +9,8 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 
+import java.util.List;
+
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /** Shared access for pages: the synced handler, the layout, the painter, and the screen actions. */
@@ -17,6 +19,7 @@ public final class PageContext {
 	private final Viewport view;
 	private final Painter painter;
 	private final ScreenActions actions;
+	private List<Text> tooltip;
 
 	public PageContext(DreamTableScreenHandler handler, Viewport view, Painter painter, ScreenActions actions) {
 		this.handler = handler;
@@ -55,15 +58,39 @@ public final class PageContext {
 	}
 
 	public void card(DrawContext context, ItemStack icon, Text label, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
-		painter.card(context, icon, label, view.cardX(), y, cardHit(mouseX, mouseY, y), selected, enabled);
+		boolean hit = cardHit(mouseX, mouseY, y);
+		painter.card(context, icon, label, view.cardX(), y, hit, selected, enabled);
+		if (hit && !painter.fits(label, CARD_TEXT_WIDTH)) {
+			tooltip(label);
+		}
 	}
 
 	public void card(DrawContext context, ItemStack icon, Text label, Text detail, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
-		painter.card(context, icon, label, detail, view.cardX(), y, cardHit(mouseX, mouseY, y), selected, enabled);
+		boolean hit = cardHit(mouseX, mouseY, y);
+		painter.card(context, icon, label, detail, view.cardX(), y, hit, selected, enabled);
+		if (hit && (!painter.fits(label, CARD_TEXT_WIDTH) || !painter.fits(detail, CARD_TEXT_WIDTH))) {
+			tooltip(label, detail);
+		}
 	}
 
 	public void button(DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
-		painter.button(context, label, view.cardX(), y, buttonHit(mouseX, mouseY, y), enabled, primary);
+		boolean hit = buttonHit(mouseX, mouseY, y);
+		painter.button(context, label, view.cardX(), y, hit, enabled, primary);
+		if (hit && !painter.fits(label, CARD_WIDTH - 16)) {
+			tooltip(label);
+		}
+	}
+
+	/** Text shown by the mouse after the page is drawn, for labels cut short with "...". The last one asked for wins. */
+	public void tooltip(Text... lines) {
+		tooltip = List.of(lines);
+	}
+
+	/** The tooltip asked for during this frame, once. */
+	public List<Text> takeTooltip() {
+		List<Text> lines = tooltip;
+		tooltip = null;
+		return lines;
 	}
 
 	public boolean cardHit(double mouseX, double mouseY, int y) {

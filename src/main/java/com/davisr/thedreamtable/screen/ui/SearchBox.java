@@ -11,6 +11,7 @@ import net.minecraft.util.Util;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.BiPredicate;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
@@ -46,13 +47,15 @@ public final class SearchBox {
 		return field.isVisible() && field.isFocused();
 	}
 
-	/** Shows the box on its page and clears it each time the page is entered. Returns true when it should take focus. */
-	public boolean sync(int currentPage, int searchPage) {
+	/**
+	 * Shows the box on pages that search and clears it each time one is entered, unless {@code keep} says to keep the
+	 * text from the page before. Returns true when it should take focus.
+	 */
+	public boolean sync(int currentPage, boolean shown, BiPredicate<Integer, Integer> keep) {
 		if (currentPage == page) {
 			return false;
 		}
-		boolean shown = currentPage == searchPage;
-		if (page >= 0 && shown) {
+		if (page >= 0 && shown && !keep.test(page, currentPage)) {
 			field.setText("");
 		}
 		page = currentPage;

@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm.schematic;
 
+import net.minecraft.block.BlockState;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
@@ -28,11 +29,10 @@ final class LitematicaReader {
 			}
 			regionList.add(region);
 		}
-		List<int[]> placed = new ArrayList<>();
 		for (NbtCompound region : regionList) {
-			readRegion(region, origin, steps, placed);
+			readRegion(region, origin, steps);
 			if (region.contains("TileEntities", NbtElement.LIST_TYPE)) {
-				attachTiles(steps, placed, region.getList("TileEntities", NbtElement.COMPOUND_TYPE));
+				attachTiles(steps, region, origin, region.getList("TileEntities", NbtElement.COMPOUND_TYPE));
 			}
 			if (region.contains("Entities", NbtElement.LIST_TYPE)) {
 				steps.entities(region.getList("Entities", NbtElement.COMPOUND_TYPE));
@@ -40,8 +40,8 @@ final class LitematicaReader {
 		}
 	}
 
-	/** Each placed cell is remembered as {local x, y, z, region x, y, z} so tile data can match either. */
-	private static void readRegion(NbtCompound region, int[] origin, StepCollector steps, List<int[]> placed) {
+	/** The palette is read once; each cell then only looks its id up. */
+	private static void readRegion(NbtCompound region, int[] origin, StepCollector steps) {
 		int[] min = minimumCorner(region);
 		int sizeX = Math.abs(NbtReading.numberAt(region, "Size", 0));
 		int sizeY = Math.abs(NbtReading.numberAt(region, "Size", 1));
@@ -50,6 +50,10 @@ final class LitematicaReader {
 		long[] packed = region.getLongArray("BlockStates");
 		int bits = Math.max(2, 32 - Integer.numberOfLeadingZeros(Math.max(1, palette.size()) - 1));
 		long mask = (1L << bits) - 1L;
+		BlockState[] states = new BlockState[palette.size()];
+		for (int id = 0; id < states.length; id++) {
+			states[id] = NbtReading.state(palette.getCompound(id));
+		}
 		for (int y = 0; y < sizeY; y++) {
 			for (int z = 0; z < sizeZ; z++) {
 				for (int x = 0; x < sizeX; x++) {
@@ -60,26 +64,29 @@ final class LitematicaReader {
 					int stepX = min[0] + x - origin[0];
 					int stepY = min[1] + y - origin[1];
 					int stepZ = min[2] + z - origin[2];
-					steps.block(stepX, stepY, stepZ, NbtReading.state(palette.getCompound(id)), null);
-					placed.add(new int[]{stepX, stepY, stepZ, min[0] + x, min[1] + y, min[2] + z});
+					if (states[id] == null) {
+						steps.unknown(palette.getCompound(id).getString("Name"));
+					} else {
+						steps.block(stepX, stepY, stepZ, states[id], null);
+					}
 				}
 			}
 		}
 	}
 
-	private static void attachTiles(StepCollector steps, List<int[]> placed, NbtList tiles) {
+	/**
+	 * Tile positions are written relative to the region in some files and in schematic coordinates in others, so each
+	 * reading is tried in turn: as a step position, as a schematic position, then from the region's lowest corner.
+	 */
+	private static void attachTiles(StepCollector steps, NbtCompound region, int[] origin, NbtList tiles) {
+		int[] min = minimumCorner(region);
 		for (int index = 0; index < tiles.size(); index++) {
 			NbtCompound data = tiles.getCompound(index);
 			int x = data.getInt("x");
 			int y = data.getInt("y");
 			int z = data.getInt("z");
-			for (int[] spot : placed) {
-				boolean local = spot[0] == x && spot[1] == y && spot[2] == z;
-				boolean world = spot[3] == x && spot[4] == y && spot[5] == z;
-				if (local || world) {
-					steps.blockData(spot[0], spot[1], spot[2], data);
-					break;
-				}
+			if (!steps.blockData(x, y, z, data) && !steps.blockData(x - origin[0], y - origin[1], z - origin[2], data)) {
+				steps.blockData(min[0] + x - origin[0], min[1] + y - origin[1], min[2] + z - origin[2], data);
 			}
 		}
 	}

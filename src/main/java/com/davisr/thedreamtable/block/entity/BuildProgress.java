@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.BuildPace;
 import net.minecraft.nbt.NbtCompound;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.BitSet;
 import java.util.UUID;
@@ -11,7 +12,8 @@ import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
 /**
  * Where the build is: its phase, the next step, the tick timer, who started it, and how fast it goes.
  * It also records which steps the table placed itself and which of those used a delivered item,
- * so a discard only takes apart and refunds its own work.
+ * so a discard only takes apart and refunds its own work. A stopped build keeps its {@link BuildIssue}; a repair keeps
+ * count of the blocks it left alone because the player had changed them.
  */
 final class BuildProgress {
 	private final BitSet placed = new BitSet();
@@ -22,6 +24,11 @@ final class BuildProgress {
 	private UUID owner;
 	private int pace = BuildPace.DEFAULT;
 	private long signature;
+	private @Nullable BuildIssue issue;
+	private boolean repair;
+	private int kept;
+	/** Whether this run already told its player that a returned item was dropped. Not persisted. */
+	private boolean droppedNotified;
 
 	/** False when the farm file no longer matches the one this build started with. An unknown signature, from an older save, matches. */
 	boolean matches(long current) {
@@ -51,6 +58,40 @@ final class BuildProgress {
 
 	long signature() {
 		return signature;
+	}
+
+	@Nullable BuildIssue issue() {
+		return issue;
+	}
+
+	void setIssue(@Nullable BuildIssue value) {
+		issue = value;
+	}
+
+	boolean repair() {
+		return repair;
+	}
+
+	void setRepair(boolean value) {
+		repair = value;
+		kept = 0;
+	}
+
+	int kept() {
+		return kept;
+	}
+
+	void keep() {
+		kept++;
+	}
+
+	/** True only for the first dropped handover in this build or repair. */
+	boolean shouldNotifyDropped(boolean dropped) {
+		if (!dropped || droppedNotified) {
+			return false;
+		}
+		droppedNotified = true;
+		return true;
 	}
 
 	String phase() {
@@ -92,7 +133,11 @@ final class BuildProgress {
 			index = 0;
 			placed.clear();
 			paid.clear();
+			repair = false;
+			kept = 0;
+			droppedNotified = false;
 		}
+		issue = null;
 		if (fromScratch || signature == 0) {
 			signature = currentSignature;
 		}
@@ -127,6 +172,10 @@ final class BuildProgress {
 		placed.clear();
 		paid.clear();
 		signature = 0;
+		issue = null;
+		repair = false;
+		kept = 0;
+		droppedNotified = false;
 		if (forgetOwner) {
 			owner = null;
 		}
@@ -143,13 +192,22 @@ final class BuildProgress {
 		nbt.putLong("FarmSignature", signature);
 		nbt.putLongArray("PlacedSteps", placed.toLongArray());
 		nbt.putLongArray("PaidSteps", paid.toLongArray());
+		nbt.putBoolean("Repair", repair);
+		nbt.putInt("Kept", kept);
+		if (issue != null) {
+			issue.write(nbt);
+		}
 	}
 
-	/** What clients need to draw the menu, hologram and clipboard. The step records, timer and signature stay on the server. */
+	/** What clients need to draw the menu, hologram and clipboard, and why the build stopped. The step records, timer and signature stay on the server. */
 	void writeForClient(NbtCompound nbt) {
 		nbt.putString("Phase", phase);
 		nbt.putInt("BuildIndex", index);
 		nbt.putInt("BlocksPerSecond", pace);
+		nbt.putBoolean("Repair", repair);
+		if (issue != null) {
+			issue.write(nbt);
+		}
 	}
 
 	void read(NbtCompound nbt) {
@@ -164,5 +222,8 @@ final class BuildProgress {
 		placed.or(BitSet.valueOf(nbt.getLongArray("PlacedSteps")));
 		paid.clear();
 		paid.or(BitSet.valueOf(nbt.getLongArray("PaidSteps")));
+		repair = nbt.getBoolean("Repair");
+		kept = nbt.getInt("Kept");
+		issue = BuildIssue.read(nbt);
 	}
 }

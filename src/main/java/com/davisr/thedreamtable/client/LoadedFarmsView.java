@@ -1,14 +1,22 @@
 package com.davisr.thedreamtable.client;
 
+import com.davisr.thedreamtable.farm.FarmListing;
 import com.davisr.thedreamtable.farm.FarmLoader;
+import com.davisr.thedreamtable.network.FarmCarePayload;
 import com.davisr.thedreamtable.network.FarmDetailsPayload;
 import com.davisr.thedreamtable.network.LoadedFarmsPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Util;
+import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.function.Function;
 
-/** The local player's finished farms as the server last sent them, for the My Farms pages. */
+/**
+ * The local player's finished farms as the server last sent them, for the My Farms pages, and how the list is
+ * filtered and sorted, which stays while the menu is open.
+ */
 public final class LoadedFarmsView {
 	private static final long DETAILS_EVERY_MS = 2000L;
 	private static List<FarmLoader.Entry> farms = List.of();
@@ -18,6 +26,9 @@ public final class LoadedFarmsView {
 	private static String selected = "";
 	private static FarmDetailsPayload details;
 	private static long detailsAskedAt;
+	private static FarmListing.Show show = FarmListing.Show.ALL;
+	private static FarmListing.Sort sort = FarmListing.Sort.NEWEST;
+	private static String dimension = "";
 
 	private LoadedFarmsView() {
 	}
@@ -47,6 +58,48 @@ public final class LoadedFarmsView {
 
 	public static List<FarmLoader.Entry> farms() {
 		return farms;
+	}
+
+	public static FarmListing.Show show() {
+		return show;
+	}
+
+	public static FarmListing.Sort sort() {
+		return sort;
+	}
+
+	/** The dimension shown, or empty for every dimension. */
+	public static String dimension() {
+		return dimension;
+	}
+
+	public static void nextShow() {
+		show = FarmListing.Show.values()[(show.ordinal() + 1) % FarmListing.Show.values().length];
+	}
+
+	public static void nextSort() {
+		sort = FarmListing.Sort.values()[(sort.ordinal() + 1) % FarmListing.Sort.values().length];
+	}
+
+	/** Every dimension, then each dimension the player has farms in. */
+	public static void nextDimension() {
+		List<String> dimensions = FarmListing.dimensions(farms);
+		int next = dimensions.indexOf(dimension) + 1;
+		dimension = next >= dimensions.size() ? "" : dimensions.get(next);
+	}
+
+	/** Where the local player stands, for distances. */
+	public static FarmListing.Viewer viewer() {
+		MinecraftClient client = MinecraftClient.getInstance();
+		return client.player == null ? null : new FarmListing.Viewer(client.player.getWorld().getRegistryKey().getValue().toString(), client.player.getBlockPos());
+	}
+
+	/** Places in {@link #farms()} to show for this search, with the current filters and sort. */
+	public static List<Integer> shown(String query, Function<FarmLoader.Entry, String> name) {
+		if (!dimension.isEmpty() && !FarmListing.dimensions(farms).contains(dimension)) {
+			dimension = "";
+		}
+		return FarmListing.shown(farms, name, query, show, dimension, sort, viewer());
 	}
 
 	public static int limit() {
@@ -94,6 +147,13 @@ public final class LoadedFarmsView {
 
 	public static void toggle(String key) {
 		send(key);
+	}
+
+	/** Repairs, takes down, or forgets exactly this farm even if the server's list changed since it was drawn. */
+	public static void care(BlockPos table, String key, FarmCarePayload.Action action) {
+		if (ClientPlayNetworking.canSend(FarmCarePayload.ID)) {
+			ClientPlayNetworking.send(new FarmCarePayload(table, key, action));
+		}
 	}
 
 	private static void send(String toggle) {

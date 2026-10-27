@@ -11,6 +11,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -46,10 +47,21 @@ public final class FarmDismantler {
 	private final Map<Item, Item> swaps;
 	private final BitSet placed;
 	private final BitSet paid;
+	/** Unique reservation for new jobs; zero keeps the reservation used by saves from before per-job keys. */
+	private final long areaSpot;
 	private int next;
 	private int removed;
+	/** Whether the player was already told their inventory was full during this job. Not saved. */
+	private boolean toldFull;
+	/** The job waited for the player to come back online. Not saved. */
+	private boolean playerAway;
 
 	public FarmDismantler(UUID player, String farmId, long signature, FarmSite site, Map<Item, Item> swaps, BitSet placed, BitSet paid, int buildIndex) {
+		this(player, farmId, signature, site, swaps, placed, paid, buildIndex, areaSpot(site));
+	}
+
+	private FarmDismantler(UUID player, String farmId, long signature, FarmSite site, Map<Item, Item> swaps, BitSet placed, BitSet paid, int buildIndex,
+			long areaSpot) {
 		this.player = player;
 		this.farmId = farmId;
 		this.signature = signature;
@@ -57,6 +69,7 @@ public final class FarmDismantler {
 		this.swaps = swaps;
 		this.placed = placed;
 		this.paid = paid;
+		this.areaSpot = areaSpot;
 		this.next = buildIndex - 1;
 	}
 
@@ -65,7 +78,11 @@ public final class FarmDismantler {
 	}
 
 	public FarmAreas.Key areaKey() {
-		return FarmAreas.Key.dismantle(site.table(), player);
+		return FarmAreas.Key.dismantle(site.table(), player, areaSpot);
+	}
+
+	private static long areaSpot(FarmSite site) {
+		return (site.anchor() != null ? site.anchor() : site.table()).asLong();
 	}
 
 	/** Removes the next batch. Returns true once the job is over and can be forgotten. */
@@ -79,7 +96,12 @@ public final class FarmDismantler {
 			return true;
 		}
 		if (online == null) {
+			playerAway = true;
 			return false;
+		}
+		if (playerAway) {
+			playerAway = false;
+			online.sendMessage(Text.translatable("gui.the_dream_table.dismantle_continues"), true);
 		}
 		ChunkKeeper.keepTable(world, site.table());
 		Batch batch = new Batch();
@@ -91,7 +113,10 @@ public final class FarmDismantler {
 			next--;
 		}
 		removed += batch.removed;
-		batch.hand(world, online);
+		if (batch.hand(world, online) && !toldFull) {
+			toldFull = true;
+			Handover.tellDropped(online);
+		}
 		if (next >= 0) {
 			return false;
 		}
@@ -143,15 +168,18 @@ public final class FarmDismantler {
 		private final List<BlockPos> cleared = new ArrayList<>();
 		private int removed;
 
-		private void hand(ServerWorld world, PlayerEntity player) {
+		/** Returns true when the player's inventory was full and something was dropped at their feet. */
+		private boolean hand(ServerWorld world, PlayerEntity player) {
 			drain(world, liquids);
 			settle(world, cleared);
+			boolean dropped = false;
 			for (Map.Entry<Item, Integer> refund : refunds.entrySet()) {
-				giveAll(player, refund.getKey(), refund.getValue());
+				dropped |= Handover.giveAll(player, refund.getKey(), refund.getValue());
 			}
 			for (ItemStack stack : contents) {
-				give(player, stack);
+				dropped |= Handover.give(player, stack);
 			}
+			return dropped;
 		}
 	}
 
@@ -198,21 +226,6 @@ public final class FarmDismantler {
 		inventory.clear();
 	}
 
-	private static void giveAll(PlayerEntity player, Item item, int count) {
-		int max = Math.max(1, item.getMaxCount());
-		while (count > 0) {
-			int amount = Math.min(count, max);
-			give(player, new ItemStack(item, amount));
-			count -= amount;
-		}
-	}
-
-	private static void give(PlayerEntity player, ItemStack stack) {
-		if (!player.getInventory().insertStack(stack) || !stack.isEmpty()) {
-			player.dropItem(stack, false);
-		}
-	}
-
 	public void write(NbtCompound nbt) {
 		nbt.putUuid("Player", player);
 		nbt.putString("Farm", farmId);
@@ -225,15 +238,17 @@ public final class FarmDismantler {
 		nbt.putLongArray("PaidSteps", paid.toLongArray());
 		nbt.putInt("Next", next);
 		nbt.putInt("Removed", removed);
+		nbt.putLong("AreaSpot", areaSpot);
 	}
 
 	public static FarmDismantler read(NbtCompound nbt) {
 		if (!nbt.containsUuid("Player")) {
 			return null;
 		}
+		long areaSpot = nbt.contains("AreaSpot", NbtElement.LONG_TYPE) ? nbt.getLong("AreaSpot") : 0L;
 		FarmDismantler job = new FarmDismantler(nbt.getUuid("Player"), nbt.getString("Farm"), nbt.getLong("FarmSignature"),
 				FarmSite.read(nbt.getCompound("Site")), MaterialLedger.readSwaps(nbt),
-				BitSet.valueOf(nbt.getLongArray("PlacedSteps")), BitSet.valueOf(nbt.getLongArray("PaidSteps")), nbt.getInt("Next") + 1);
+				BitSet.valueOf(nbt.getLongArray("PlacedSteps")), BitSet.valueOf(nbt.getLongArray("PaidSteps")), nbt.getInt("Next") + 1, areaSpot);
 		job.removed = nbt.getInt("Removed");
 		return job;
 	}

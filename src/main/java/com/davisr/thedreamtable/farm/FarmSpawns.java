@@ -10,6 +10,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 
 /** Mobs and minecarts the builder places, and the empty bucket it hands back after pouring water. */
 final class FarmSpawns {
@@ -44,14 +45,23 @@ final class FarmSpawns {
 		return true;
 	}
 
+	/**
+	 * True when a living entity of the step's kind already stands in the step's block, like the villagers and zombie of
+	 * a repaired iron farm, so it isn't spawned twice. Only the entity's own position counts, not its width, so one in
+	 * the next cell doesn't.
+	 */
+	static boolean present(ServerWorld world, BlockPos pos, FarmStep step) {
+		Box cell = new Box(pos.getX() - 0.2, pos.getY() - 0.5, pos.getZ() - 0.2, pos.getX() + 1.2, pos.getY() + 1.5, pos.getZ() + 1.2);
+		return !world.getEntitiesByType(step.entity(), cell, entity -> entity.isAlive() && cell.contains(entity.getPos())).isEmpty();
+	}
+
 	static void returnBucket(ServerWorld world, TableSession table) {
 		ItemStack bucket = new ItemStack(Items.BUCKET);
 		ServerPlayerEntity player = table.getOwner() == null ? null : world.getServer().getPlayerManager().getPlayer(table.getOwner());
-		if (player != null && player.getInventory().insertStack(bucket) && bucket.isEmpty()) {
-			return;
-		}
 		if (player != null) {
-			player.dropItem(bucket, false);
+			if (table.build().shouldNotifyDropped(Handover.give(player, bucket))) {
+				Handover.tellDropped(player);
+			}
 			return;
 		}
 		BlockPos pos = table.getPos();

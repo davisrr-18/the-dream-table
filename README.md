@@ -1,6 +1,6 @@
 # The Dream Table
 
-Beta `2.0.0-beta` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
+Beta `2.1.0-beta` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets how fast it builds.
 
@@ -39,19 +39,24 @@ When you anchor or turn the hologram, the table checks the spot right away: the 
 
 If a farm you finished before 1.1.4 has no protection, place the same farm exactly over it: the table says how much of it is already built. Press Build, and it only fills the gaps and protects the farm once done.
 
-The table builds with the permissions of the player who started the build. It won't start a farm that touches spawn protection, land outside the world border, or a claim that player can't build in, and it won't build in Adventure mode. If a spot becomes protected during the build, the build stops there until you press Try Again. Discard skips blocks the discarding player isn't allowed to break. Claim mods that use Fabric's block break event are respected. Modpacks can protect blocks from other mods by adding them to the block tag `the_dream_table:protected`.
+The table builds with the permissions of the player who started the build. It won't start a farm that touches spawn protection, land outside the world border, or a claim that player can't build in, and it won't build in Adventure mode. If a spot becomes protected during the build, the build stops there until you press Try Again.
+
+When a build stops, the menu says what happened and where (the block, its coordinates and the cause: protected land, a block the table won't clear, another farm, a missing item, or a block the game refused) and what you can do. A chunk that takes long to load is shown too, while the build waits for it. Pressing Try Again or Continue first checks whether the problem is gone: if it isn't, the build stays stopped and tells you, instead of starting and stopping again. Discard skips blocks the discarding player isn't allowed to break. Claim mods that use Fabric's block break event are respected. Modpacks can protect blocks from other mods by adding them to the block tag `the_dream_table:protected`.
 
 Each player's table data is sent only to that player.
 
 Server owners can set `max_blocks_per_second` (1 to 1024, default 256) in `config/the_dream_table.properties`. It caps every build, including Creative ones.
 
-**My Farms**, in Options, lists every farm you finished, in every dimension, with its size, coordinates and whether it is running, not loaded, or has full storage. Click one to open it:
+**My Farms**, in Options, lists every farm you finished, in every dimension. Each card shows whether the farm is running and how full its storage is, whether its storage is full or it is not loaded, how many blocks are missing, and how far away it is (or its dimension). Highlighted cards are the farms kept loaded. Type in the search box to find a farm by name, and use the filters above the list to show only farms that need attention (full storage, missing blocks, or a lost design), running, not loaded or full ones, or one dimension, and to sort by newest, name, attention first, fullest storage or nearest. Click one to open it:
 
 - Its page shows the storage in use, the items held, and the farm's block count.
 - Each farm keeps the exact design it was built with, so Repair and Take Down keep working after an update changes or removes that farm.
 - **Keep Loaded** keeps it loaded while you play, so plants grow, hoppers collect and iron golems spawn even when you are far away or in another dimension, up to the server's `max_loaded_farms_per_player` (0 to 16, default 3). When all its chests and barrels fill up, you get a chat message.
-- **Repair** rebuilds it from the table you are using, in the same dimension: blocks still in place are skipped, so only missing ones are placed and need materials. The button shows how many blocks are missing and is off when nothing is.
-- **Take Down**, after a second click, removes the whole farm a few blocks per tick and gives its blocks and the contents of its chests back, as mining it would. Set `load_farms_while_offline=true` to keep them loaded after you log off. Mob farms are the exception: the game only spawns mobs within 128 blocks of a player, loaded or not. Build them above sea level and away from caves; the table reminds you when you place one lower.
+- The page also shows how many blocks are missing and the items a repair needs for them, and how many blocks you changed.
+- **Repair** rebuilds it from the table you are using, in the same dimension: blocks still in place are skipped, so only missing ones are placed and need materials. A spot where you put another block is left as you made it, and mobs or minecarts still in place aren't spawned again. The button shows how many blocks are missing and is off when nothing is.
+- **Take Down**, after a second click that names the farm and its coordinates, removes the whole farm a few blocks per tick and gives its blocks and the contents of its chests back, as mining it would. Blocks you changed or added stay.
+- If you log off during a build or while a farm is being removed, it waits and tells you when it continues after you return. An unexpected error stops only that operation, with a message, and its details go to the game log.
+- Items handed back never get lost: when your inventory is full, the rest drops at your feet and you get a message. Set `load_farms_while_offline=true` to keep them loaded after you log off. Mob farms are the exception: the game only spawns mobs within 128 blocks of a player, loaded or not. Build them above sea level and away from caves; the table reminds you when you place one lower.
 
 On a server, My Schematics lists the server's files, and players see the hologram, clipboard and miniature of those farms without having the files themselves.
 
@@ -62,6 +67,10 @@ Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` file
 - `config/litematica`
 - `config/the_dream_table/structures`
 - `schematics` inside the world folder
+
+Each file is checked when the list is read, before anyone builds it. A file that can't be used is still listed, greyed out, with the reason: it can't be read or is damaged, it isn't in one of these formats, it has no blocks, more than 16,384 blocks, more than 64 MB of data, or it is taller than any world. A farm the table can build may come with warnings, shown on its card and on the farm screen before you press Build: blocks from mods that aren't installed, which are left out, and blocks a survival player can't get, like bedrock or spawners, so only Creative can finish it. On a server, players see the same reasons and warnings for the server's files. New or changed files show up within a second.
+
+A finished farm keeps everything its blocks held in the schematic, like a hopper's filter items, so a repair puts them back as they were.
 
 ## Requirements
 
@@ -78,4 +87,4 @@ From the project root, with Java 21:
 ./gradlew build
 ```
 
-The mod jar is `build/libs/the_dream_table-2.0.0-beta.jar`. Jars suffixed with `sources` or `dev` are for development only.
+The mod jar is `build/libs/the_dream_table-2.1.0-beta.jar`. Jars suffixed with `sources` or `dev` are for development only.

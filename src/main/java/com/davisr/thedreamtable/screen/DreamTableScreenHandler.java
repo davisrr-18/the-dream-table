@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.screen;
 
+import com.davisr.thedreamtable.block.entity.BuildIssue;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.BuildPace;
@@ -71,12 +72,6 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_SWAP_PICK = 2000;
 	/** Plus a percentage from 1 to 100, for the custom speed slider. */
 	public static final int BUTTON_PACE_CUSTOM = 3000;
-	/** Plus the farm's place in the My Farms list. */
-	public static final int BUTTON_FARM_REPAIR = 5000;
-	public static final int BUTTON_FARM_TAKE_DOWN = 6000;
-	public static final int BUTTON_FARM_FORGET = 7000;
-	public static final int FARM_BUTTONS = 1000;
-
 	private final ScreenHandlerContext context;
 	private final boolean client;
 	private final UUID playerId;
@@ -149,6 +144,12 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	public int getTotal() {
 		return total;
+	}
+
+	/** Why the build stopped or waits, from this player's synced session, or null. */
+	public BuildIssue getIssue() {
+		TableSession table = table();
+		return table == null ? null : table.build().issue();
 	}
 
 	public int getPace() {

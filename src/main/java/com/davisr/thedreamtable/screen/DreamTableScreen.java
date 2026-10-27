@@ -33,6 +33,7 @@ import net.minecraft.util.WorldSavePath;
 import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.Path;
+import java.util.List;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
@@ -52,6 +53,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private TablePage farm;
 	private TablePage materials;
 	private TablePage swap;
+	private PageContext ui;
 
 	public DreamTableScreen(DreamTableScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title);
@@ -73,7 +75,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			view.resetScroll();
 		});
 		addSelectableChild(search.widget());
-		PageContext ui = new PageContext(this.handler, view, painter, this);
+		ui = new PageContext(this.handler, view, painter, this);
 		selection = new SelectionPage(ui);
 		work = new WorkPage(ui);
 		requirements = new RequirementsPage(ui);
@@ -81,7 +83,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		options = new OptionsPage(ui);
 		speed = new SpeedPage(ui);
 		category = new CategoryPage(ui);
-		loaded = new LoadedFarmsPage(ui);
+		loaded = new LoadedFarmsPage(ui, search);
 		farm = new FarmPage(ui);
 		LoadedFarmsView.invalidate();
 		materials = new MaterialsPage(ui);
@@ -96,6 +98,10 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		super.render(context, mouseX, mouseY, delta);
 		view.release(context);
 		drawMouseoverTooltip(context, mouseX, mouseY);
+		List<Text> tooltip = ui.takeTooltip();
+		if (tooltip != null && view.inContent(mouseX, mouseY)) {
+			context.drawTooltip(this.textRenderer, tooltip, mouseX, mouseY);
+		}
 	}
 
 	@Override
@@ -239,7 +245,8 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 
 	private void layout() {
 		int current = this.handler.getPage();
-		if (search.sync(current, DreamTableScreenHandler.PAGE_SWAP)) {
+		boolean searches = current == DreamTableScreenHandler.PAGE_SWAP || current == DreamTableScreenHandler.PAGE_LOADED;
+		if (search.sync(current, searches, (from, to) -> from == DreamTableScreenHandler.PAGE_FARM && to == DreamTableScreenHandler.PAGE_LOADED)) {
 			setFocused(search.widget());
 		} else if (!search.visible() && getFocused() == search.widget()) {
 			setFocused(null);

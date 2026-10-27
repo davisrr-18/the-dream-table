@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.client;
 
 import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.farm.ImportNote;
 import com.davisr.thedreamtable.farm.TemplateCodec;
 import com.davisr.thedreamtable.network.ServerSchematicsPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -36,12 +37,16 @@ public final class ServerSchematics {
 			}
 			List<FarmOption> options = new ArrayList<>();
 			Map<String, Integer> steps = new HashMap<>();
+			Map<String, List<ImportNote>> notes = new HashMap<>();
 			for (ServerSchematicsPayload.Entry entry : payload.schematics()) {
 				options.add(new FarmOption(entry.id(), icon(entry.icon()), "farm.the_dream_table.imported", entry.name()));
 				steps.put(entry.id(), entry.steps());
+				if (!entry.notes().isEmpty()) {
+					notes.put(entry.id(), entry.notes());
+				}
 			}
 			REQUESTED.clear();
-			FarmTemplates.useRemote(options, steps);
+			FarmTemplates.useRemote(options, steps, notes, payload.rejected());
 		});
 		ClientPlayNetworking.registerGlobalReceiver(ServerSchematicsPayload.Farm.ID, (payload, context) -> {
 			if (!onThisComputer(context.client())) {
@@ -52,7 +57,7 @@ public final class ServerSchematics {
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			if (!onThisComputer(client)) {
 				REQUESTED.clear();
-				FarmTemplates.useRemote(List.of(), Map.of());
+				FarmTemplates.useRemote(List.of(), Map.of(), Map.of(), List.of());
 			}
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {

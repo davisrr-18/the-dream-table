@@ -49,8 +49,8 @@ public final class FarmAreas extends PersistentState {
 			return new Key(table.asLong(), player, Kind.BUILD, 0L);
 		}
 
-		public static Key dismantle(BlockPos table, UUID player) {
-			return new Key(table.asLong(), player, Kind.DISMANTLE, 0L);
+		public static Key dismantle(BlockPos table, UUID player, long spot) {
+			return new Key(table.asLong(), player, Kind.DISMANTLE, spot);
 		}
 
 		static Key finished(UUID player, FarmSite site) {
@@ -93,7 +93,9 @@ public final class FarmAreas extends PersistentState {
 	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps) {
 		Key key = Key.finished(player, site);
 		if (!areas.containsKey(key)) {
-			FarmTemplate layout = saved(FarmTemplates.baseId(template.id()), template);
+			String farmId = FarmTemplates.baseId(template.id());
+			String layoutId = FarmTemplates.isSaved(template.id()) ? template.id() : FarmTemplates.newSavedId(farmId, template.signature());
+			FarmTemplate layout = saved(layoutId, template);
 			areas.put(key, new Area(site.footprint(template), new Built(FarmTemplates.baseId(template.id()), template.signature(), site, Map.copyOf(swaps),
 					System.currentTimeMillis(), layout)));
 			markDirty();
@@ -213,15 +215,38 @@ public final class FarmAreas extends PersistentState {
 		return presence.unloaded() || presence.percent() >= 50;
 	}
 
-	/** How much of a farm already stands at a site, counting only loaded blocks, and how many of those are missing. */
-	public record Presence(int percent, int missing, boolean unloaded) {
+	/**
+	 * How much of a farm already stands at a site, counting only loaded blocks: the share still as built, the spots
+	 * left empty, which a repair fills, with the items that takes, and the spots where the player put another block,
+	 * which a repair leaves alone.
+	 */
+	public record Presence(int percent, int missing, int changed, boolean unloaded, Map<Item, Integer> needs) {
 	}
 
-	/** Compares every block of the farm with the world, the way Discard does ({@link BlockMatch#stillFarm}). */
+	/** What a farm spot holds compared with the farm's block. */
+	enum Spot {
+		/** Still the farm's block, as Discard sees it ({@link BlockMatch#stillFarm}). */
+		FARM,
+		/** Empty, or something any block replaces, like air, flowing water or grass. */
+		MISSING,
+		/** Another solid block, put there by the player or the world. */
+		CHANGED
+	}
+
+	static Spot spot(BlockState current, BlockState expected) {
+		if (BlockMatch.stillFarm(current, expected)) {
+			return Spot.FARM;
+		}
+		return current.isReplaceable() ? Spot.MISSING : Spot.CHANGED;
+	}
+
+	/** Compares every block of the farm with the world. */
 	public static Presence presence(ServerWorld world, FarmTemplate template, FarmSite site, Map<Item, Item> swaps) {
 		int blocks = 0;
 		int found = 0;
+		int missing = 0;
 		boolean unloaded = false;
+		Map<Item, Integer> needs = new LinkedHashMap<>();
 		for (int index = 0; index < template.steps().size(); index++) {
 			FarmStep step = template.steps().get(index);
 			if (step.isEntity() || step.state() == null || FarmGrowth.isGrowth(template, index)) {
@@ -234,11 +259,19 @@ public final class FarmAreas extends PersistentState {
 			}
 			BlockState expected = MaterialSwaps.apply(step.state(), swaps).rotate(FarmGeometry.rotation(site.facing()));
 			blocks++;
-			if (BlockMatch.stillFarm(world.getBlockState(pos), expected)) {
-				found++;
+			switch (spot(world.getBlockState(pos), expected)) {
+				case FARM -> found++;
+				case MISSING -> {
+					missing++;
+					if (step.item() != null) {
+						needs.merge(swaps.getOrDefault(step.item(), step.item()), 1, Integer::sum);
+					}
+				}
+				case CHANGED -> {
+				}
 			}
 		}
-		return new Presence(blocks == 0 ? 0 : found * 100 / blocks, blocks - found, unloaded);
+		return new Presence(blocks == 0 ? 0 : found * 100 / blocks, missing, blocks - found - missing, unloaded, needs);
 	}
 
 	@Override
@@ -263,7 +296,8 @@ public final class FarmAreas extends PersistentState {
 				MaterialLedger.writeSwaps(item, built.swaps());
 				item.putLong("FinishedAt", built.finishedAt());
 				if (built.layout() != null) {
-					item.put("Layout", TemplateCodec.encode(built.layout()));
+					item.putString("LayoutId", built.layout().id());
+					item.put("Layout", TemplateCodec.encode(built.layout(), true));
 				}
 			}
 			list.add(item);
@@ -272,7 +306,7 @@ public final class FarmAreas extends PersistentState {
 		return nbt;
 	}
 
-	private static FarmAreas read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+	static FarmAreas read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		FarmAreas state = new FarmAreas();
 		NbtList list = nbt.getList("Areas", NbtElement.COMPOUND_TYPE);
 		for (int index = 0; index < list.size(); index++) {
@@ -298,12 +332,17 @@ public final class FarmAreas extends PersistentState {
 		long signature = item.getLong("FarmSignature");
 		FarmTemplate layout = null;
 		if (item.contains("Layout", NbtElement.COMPOUND_TYPE)) {
-			layout = TemplateCodec.decode(FarmTemplates.savedId(farmId, signature), item.getCompound("Layout"));
+			String layoutId = item.contains("LayoutId", NbtElement.STRING_TYPE)
+					? item.getString("LayoutId") : FarmTemplates.newSavedId(farmId, signature);
+			layout = TemplateCodec.decode(layoutId, item.getCompound("Layout"));
 			FarmTemplates.keepSaved(layout);
+			if (!item.contains("LayoutId", NbtElement.STRING_TYPE)) {
+				state.markDirty();
+			}
 		} else {
 			FarmTemplate current = FarmTemplates.get(farmId);
 			if (current != null && current.signature() == signature) {
-				layout = saved(farmId, current);
+				layout = saved(FarmTemplates.newSavedId(farmId, signature), current);
 				state.markDirty();
 			}
 		}
@@ -311,8 +350,7 @@ public final class FarmAreas extends PersistentState {
 	}
 
 	/** A copy of the design under its saved id, kept in {@link FarmTemplates} so builds and take-aparts can find it. */
-	private static FarmTemplate saved(String farmId, FarmTemplate template) {
-		String id = FarmTemplates.savedId(farmId, template.signature());
+	private static FarmTemplate saved(String id, FarmTemplate template) {
 		FarmTemplate layout = template.id().equals(id) ? template : new FarmTemplate(id, template.steps(), template.materials(), template.center());
 		FarmTemplates.keepSaved(layout);
 		return layout;

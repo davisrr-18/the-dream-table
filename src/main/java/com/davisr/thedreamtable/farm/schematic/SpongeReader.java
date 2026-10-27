@@ -6,7 +6,6 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 
-import java.util.Arrays;
 
 /** WorldEdit Sponge schematics ({@code .schem}), version 2 with flat keys and version 3 under {@code Blocks}. */
 final class SpongeReader {
@@ -25,16 +24,21 @@ final class SpongeReader {
 		if (width <= 0 || height <= 0 || length <= 0) {
 			return;
 		}
-		BlockState[] palette = palette(blocks.contains("Palette", NbtElement.COMPOUND_TYPE) ? blocks.getCompound("Palette") : root.getCompound("Palette"));
+		NbtCompound paletteNbt = blocks.contains("Palette", NbtElement.COMPOUND_TYPE) ? blocks.getCompound("Palette") : root.getCompound("Palette");
+		String[] names = names(paletteNbt);
+		BlockState[] palette = new BlockState[names.length];
+		for (int id = 0; id < names.length; id++) {
+			palette[id] = names[id] == null ? Blocks.AIR.getDefaultState() : NbtReading.state(names[id]);
+		}
 		byte[] data = blocks.contains("Data", NbtElement.BYTE_ARRAY_TYPE) ? blocks.getByteArray("Data") : root.getByteArray("BlockData");
 		int[] cursor = {0};
-		readCells(steps, palette, data, cursor, width, height, length);
+		readCells(steps, palette, names, data, cursor, width, height, length);
 		steps.blockEntities(blockEntities(root, blocks));
 		steps.entities(root.getList("Entities", NbtElement.COMPOUND_TYPE));
 	}
 
-	/** Cells are stored y, then z, then x, each as a palette varint. */
-	private static void readCells(StepCollector steps, BlockState[] palette, byte[] data, int[] cursor, int width, int height, int length) {
+	/** Cells are stored y, then z, then x, each as a palette varint. A null palette state is a block this game doesn't have. */
+	private static void readCells(StepCollector steps, BlockState[] palette, String[] names, byte[] data, int[] cursor, int width, int height, int length) {
 		for (int y = 0; y < height; y++) {
 			for (int z = 0; z < length; z++) {
 				for (int x = 0; x < width; x++) {
@@ -43,7 +47,11 @@ final class SpongeReader {
 					}
 					int id = varInt(data, cursor);
 					if (id >= 0 && id < palette.length) {
-						steps.block(x, y, z, palette[id], null);
+						if (palette[id] == null) {
+							steps.unknown(NbtReading.name(names[id]));
+						} else {
+							steps.block(x, y, z, palette[id], null);
+						}
 					}
 				}
 			}
@@ -64,20 +72,20 @@ final class SpongeReader {
 		return root.getList("TileEntities", NbtElement.COMPOUND_TYPE);
 	}
 
-	private static BlockState[] palette(NbtCompound palette) {
+	/** The palette key for each id; ids nothing uses stay null and read as air. */
+	private static String[] names(NbtCompound palette) {
 		int size = 0;
 		for (String key : palette.getKeys()) {
 			size = Math.max(size, NbtReading.number(palette, key) + 1);
 		}
-		BlockState[] states = new BlockState[Math.max(1, size)];
-		Arrays.fill(states, Blocks.AIR.getDefaultState());
+		String[] names = new String[Math.max(1, Math.min(size, 1 << 20))];
 		for (String key : palette.getKeys()) {
 			int id = NbtReading.number(palette, key);
-			if (id >= 0 && id < states.length) {
-				states[id] = NbtReading.state(key);
+			if (id >= 0 && id < names.length) {
+				names[id] = key;
 			}
 		}
-		return states;
+		return names;
 	}
 
 	private static int varInt(byte[] data, int[] cursor) {
