@@ -8,8 +8,9 @@ alwaysApply: true
 ## Stack and build
 - Minecraft 1.21.1, Fabric Loader, Fabric API, Yarn `1.21.1+build.3`, Java 21.
 - Build: `./gradlew build`, then delete `build/libs/*sources*.jar`. Only the mod jar stays in `build/libs`. The system Java is 25, which Gradle 8.14 can't run on; `~/.gradle/gradle.properties` sets `org.gradle.java.home` to `/home/davisr/.jdks/jdk-21.0.12.1+1`, so plain `./gradlew` works in any terminal.
+- `./gradlew runClient` always plays as `Davi` (`loom.runs.client` in `build.gradle`), so the offline UUID, and with it My Farms and table sessions, stays the same between launches. Without it Fabric picks a random `PlayerNNN` each launch.
 - After every change run `./gradlew compileJava`. The game can't be launched here, so always say what was not tested in game.
-- Automated tests live in `src/test/java` (JUnit 5 with `fabric-loader-junit`; call `GameSetup.bootstrap()` before using blocks or items). Run `./gradlew test` after logic changes; `build` runs them too. The first run needs `full_network` to download test dependencies. Add a test when changing pace, ledger, block matching, schematic reading or farm geometry.
+- Automated tests live in `src/test/java` (JUnit 5 with `fabric-loader-junit`; call `GameSetup.bootstrap()` before using blocks or items). Run `./gradlew test` after logic changes; `build` runs them too. The first run needs `full_network` to download test dependencies. Add a test when changing pace, ledger, block matching, schematic reading or validation, farm geometry, My Farms listing, or how finished farms are saved.
 - Look up vanilla APIs with `javap` on `~/.gradle/caches/fabric-loom/minecraftMaven/net/minecraft/minecraft-merged/1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2/minecraft-merged-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar`. Don't guess method names.
 
 ## Versions and releases
