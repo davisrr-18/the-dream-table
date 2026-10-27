@@ -54,6 +54,16 @@ Keep rules focused, actionable, and scoped by precise globs when appropriate. Ag
 
 Start with this root file only. Add a nested `AGENTS.md` only when a subtree has durable agent workflow needs that differ from the root and cannot be expressed as a project-wide technical rule. A nested file must be concise, additive, and free of duplicated root/rule content.
 
+## Context continuity
+
+For multi-step, cross-package, high-risk, or likely multi-session work, create `docs/tasks/YYYY-MM-DD-<slug>.md` from `docs/tasks/TEMPLATE.md` before implementation. Simple answers, read-only investigations, and one-step mechanical edits do not need a task record.
+
+Keep the record concise and factual: objective, acceptance criteria, scope, decisions, affected files, verification evidence, current checkpoint, and the exact next action. Never paste chat transcripts, secrets, tokens, or large command output.
+
+Update the checkpoint after each meaningful phase, before pausing, before changing model or session, and when roughly two-thirds of the useful context has been consumed. When changing models, do so only after a durable checkpoint; a checkpoint does not itself require a model change. If the current model becomes unavailable or demonstrably incapable, record the state at the earliest safe opportunity.
+
+To resume, read the active task record, applicable instructions and rules, then verify `git status`, recent commits, and relevant diffs before acting. Trust repository evidence over remembered conversation state. Mark the record complete only after final verification and leave it as the durable handoff.
+
 ## Model and reasoning routing
 
 Choose the agent/model and reasoning effort independently for every demand after inspecting enough context to estimate its difficulty. There is no permanent project-wide default. A single demand may use different combinations for diagnosis, implementation, visual work, and review.
