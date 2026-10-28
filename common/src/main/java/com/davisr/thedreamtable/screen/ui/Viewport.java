@@ -320,12 +320,13 @@ public final class Viewport {
 		return contentRight() + 2;
 	}
 
+	/** The track starts under the tabs on every page, also alongside a toolbar, which never reaches the gutter. */
 	private int trackY() {
-		return contentTop() + PAD;
+		return (geometry == null ? contentTop() : geometry.toolbar().y()) + PAD;
 	}
 
 	private int trackHeight() {
-		return Math.max(12, contentBottom() - contentTop() - PAD - 10);
+		return Math.max(12, contentBottom() - trackY() - 10);
 	}
 
 	private int thumbHeight() {
