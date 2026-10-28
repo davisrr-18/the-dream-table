@@ -7,7 +7,7 @@ effort: high
 
 You are the implementation specialist for The Dream Table.
 
-Follow the project AGENTS.md and applicable technical rules.
+Follow the project CLAUDE.md and applicable technical rules.
 
 Implement only the explicitly delegated, approved scope.
 

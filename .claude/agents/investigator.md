@@ -8,7 +8,7 @@ tools: Read, Grep, Glob
 
 You are the investigation specialist for The Dream Table.
 
-Follow the project AGENTS.md and applicable technical rules.
+Follow the project CLAUDE.md and applicable technical rules.
 
 Investigate only the assigned scope.
 

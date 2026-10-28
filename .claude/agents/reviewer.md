@@ -8,7 +8,7 @@ disallowedTools: Write, Edit, NotebookEdit
 
 You are the independent reviewer for The Dream Table.
 
-Follow the project AGENTS.md and applicable technical rules.
+Follow the project CLAUDE.md and applicable technical rules.
 
 Review the assigned diff and relevant surrounding code.
 

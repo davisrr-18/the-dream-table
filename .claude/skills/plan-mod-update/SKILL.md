@@ -9,7 +9,7 @@ Quando solicitado, transformar os requisitos da atualização em um plano execut
 
 ## Procedimento
 
-1. Ler as regras do AGENTS.md.
+1. Ler as regras do CLAUDE.md.
 2. Identificar requisitos e dependências.
 3. Avaliar a complexidade e delegar investigações independentes somente quando houver benefício.
 4. Consolidar relatórios compactos.
@@ -56,14 +56,11 @@ Papéis, quando disponíveis e verificados no ambiente:
 - `reviewer`: revisão independente de alterações e riscos.
 - Escalonamento: modelo ou esforço superior em casos excepcionais, sujeito à aprovação do usuário.
 
-Os subagentes são definidos por ferramenta, com os mesmos nomes e responsabilidades:
-
-- Codex: `.codex/agents/*.toml`.
-- Claude Code: `.claude/agents/*.md`.
+Os subagentes são definidos em `.claude/agents/*.md`, com os mesmos nomes e responsabilidades.
 
 Antes de delegar, confirmar que o papel está carregado na sessão atual. Se não estiver, executar diretamente ou informar o usuário; não substituir silenciosamente por outro agente.
 
-O modelo e o esforço de cada papel vêm da definição da ferramenta em uso. Seguir as preferências de modelo do AGENTS.md somente quando os modelos citados existirem no ambiente.
+O modelo e o esforço de cada papel vêm da definição do agente em `.claude/agents/*.md`. Seguir as preferências de modelo do CLAUDE.md somente quando os modelos citados existirem no ambiente.
 
 Utilizar no máximo três subagentes simultâneos, conforme os limites efetivamente configurados.
 
