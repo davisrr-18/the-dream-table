@@ -89,6 +89,12 @@ final class MaterialDesk {
 		return farm == null || stack.isEmpty() ? 0 : ledger.accept(farm, stack, creative);
 	}
 
+	/** True when the farm still needs this stack's item, whatever its components. */
+	boolean wants(ItemStack stack) {
+		FarmTemplate farm = template.get();
+		return farm != null && !stack.isEmpty() && ledger.remaining(farm, stack.getItem()) > 0;
+	}
+
 	boolean complete() {
 		FarmTemplate farm = template.get();
 		return farm != null && ledger.complete(farm);

@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmDismantler;
@@ -8,6 +9,7 @@ import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -328,20 +330,95 @@ public final class TableSession {
 		reconcileMaterials(giver);
 		int accepted = desk.accept(stack, creative);
 		if (accepted <= 0) {
+			if (giver instanceof ServerPlayerEntity refused && !MaterialLedger.plain(stack) && desk.wants(stack)) {
+				refused.sendMessage(MaterialDelivery.summary(new MaterialDelivery.Tally(0, 1), false, 0), true);
+			}
 			return false;
 		}
 		if (!creative) {
 			stack.decrement(accepted);
 		}
+		giver.swingHand(hand);
+		finishDelivery(giver);
+		return true;
+	}
+
+	/** Moves everything the farm still needs from the player's inventory and offhand. */
+	public boolean deliverAll(ServerPlayerEntity giver) {
+		if (!canDeliver(giver)) {
+			return false;
+		}
+		MaterialDelivery.Tally tally = MaterialDelivery.pull(giver.getInventory(), MaterialDelivery.PLAYER_SLOTS, receiver());
+		return finishBulk(giver, tally, false, 0);
+	}
+
+	/**
+	 * Moves what the farm still needs from usable containers within a few blocks of the table. The server setting decides
+	 * whether it is available at all; the player's own switch only hides the button.
+	 */
+	public boolean deliverNearby(ServerPlayerEntity giver) {
+		if (!canDeliver(giver) || !(table.getWorld() instanceof ServerWorld world)) {
+			return false;
+		}
+		if (!DreamTableConfig.deliverFromNearby()) {
+			giver.sendMessage(Text.translatable("gui.the_dream_table.deliver_nearby_off_server"), true);
+			return false;
+		}
+		if (!MaterialDelivery.NEARBY_REQUESTS.allow(giver.getUuid(), world.getServer().getTicks())) {
+			return false;
+		}
+		NearbyContainers.Found found = NearbyContainers.find(world, giver, getPos());
+		MaterialDelivery.Receiver receiver = receiver();
+		MaterialDelivery.Tally tally = MaterialDelivery.Tally.NONE;
+		for (Inventory source : found.inventories()) {
+			tally = tally.plus(MaterialDelivery.pull(source, MaterialDelivery.ALL_SLOTS, receiver));
+		}
+		return finishBulk(giver, tally, true, found.skipped());
+	}
+
+	private boolean canDeliver(ServerPlayerEntity giver) {
+		if (template() == null || giver.isSpectator()) {
+			return false;
+		}
+		if (giver.getAbilities().creativeMode) {
+			giver.sendMessage(Text.translatable("gui.the_dream_table.deliver_creative"), true);
+			return false;
+		}
+		return true;
+	}
+
+	private MaterialDelivery.Receiver receiver() {
+		return new MaterialDelivery.Receiver() {
+			@Override
+			public int accept(ItemStack stack) {
+				return desk.accept(stack, false);
+			}
+
+			@Override
+			public boolean wants(ItemStack stack) {
+				return desk.wants(stack);
+			}
+		};
+	}
+
+	private boolean finishBulk(ServerPlayerEntity giver, MaterialDelivery.Tally tally, boolean nearby, int skippedContainers) {
+		giver.sendMessage(MaterialDelivery.summary(tally, nearby, skippedContainers), true);
+		if (tally.delivered() <= 0) {
+			return false;
+		}
+		finishDelivery(giver);
+		return true;
+	}
+
+	/** The shared end of every delivery: sync, sound, and continuing a build that waits for exactly what arrived. */
+	private void finishDelivery(PlayerEntity giver) {
 		sync();
 		if (table.getWorld() != null) {
 			table.getWorld().playSound(null, getPos(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 0.5F, 1.15F);
 		}
-		giver.swingHand(hand);
 		if (giver instanceof ServerPlayerEntity deliverer && progress.is(PHASE_NEED) && nextStepReady()) {
 			build.begin(deliverer, false);
 		}
-		return true;
 	}
 
 	private boolean nextStepReady() {

@@ -3,15 +3,34 @@ package com.davisr.thedreamtable.farm;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.text.Text;
+import net.minecraft.world.World;
 
 import java.util.List;
 import java.util.Optional;
 
 public final class FarmOptions {
-	public record FarmOption(String id, Item icon, String translationKey, String literalName) {
+	/**
+	 * A farm in the menu. {@code intendedDimension} is the dimension the farm is designed for, or null when it works
+	 * anywhere; it only drives a warning on the placement page, never a restriction, and is never saved.
+	 */
+	public record FarmOption(String id, Item icon, String translationKey, String literalName, RegistryKey<World> intendedDimension) {
 		public FarmOption(String id, Item icon, String translationKey) {
-			this(id, icon, translationKey, null);
+			this(id, icon, translationKey, null, null);
+		}
+
+		public FarmOption(String id, Item icon, String translationKey, String literalName) {
+			this(id, icon, translationKey, literalName, null);
+		}
+
+		public FarmOption intendedIn(RegistryKey<World> dimension) {
+			return new FarmOption(id, icon, translationKey, literalName, dimension);
+		}
+
+		/** True when the farm names a dimension and the player is placing it in another one. */
+		public boolean outsideIntendedDimension(RegistryKey<World> current) {
+			return intendedDimension != null && !intendedDimension.equals(current);
 		}
 
 		public Text title() {

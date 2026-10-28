@@ -51,6 +51,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_BACK = 103;
 	public static final int BUTTON_MENU = 104;
 	public static final int BUTTON_PAUSE = 105;
+	public static final int BUTTON_DELIVER_ALL = 106;
+	public static final int BUTTON_DELIVER_NEARBY = 107;
 	public static final int BUTTON_SCHEMES = 110;
 	public static final int BUTTON_SCHEMES_BACK = 111;
 	public static final int BUTTON_OPTIONS = 120;
@@ -94,6 +96,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private int loadedFarms;
 	private int loadedLimit;
 	private int previewSwap = -1;
+	private int nearbyDelivery;
 
 	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, TableSession session) {
 		this(syncId, inventory, session.getPos(), session.getMaterials(), session.getSelectedFarm(), session.getPage(), phaseOf(session.getPhase()), session.getBuildIndex());
@@ -179,6 +182,11 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	public int getLoadedLimit() {
 		return loadedLimit;
+	}
+
+	/** Whether the server lets players deliver from containers near the table; synced so the button can say why it is off. */
+	public boolean nearbyDeliveryAllowed() {
+		return nearbyDelivery != 0;
 	}
 
 	/** The rate a speed level gives under the server's limit, for the estimates on the Options cards. */
@@ -344,7 +352,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		return template == null ? 0 : template.steps().size();
 	}
 
-	/** Page, build index, phase, step total, speed level, actual rate, server limit and loaded farms, read from the table on the server and stored on the client. */
+	/** Page, build index, phase, step total, speed level, actual rate, server limit, loaded farms and whether nearby delivery is on, read from the table on the server and stored on the client. */
 	private final class Properties implements PropertyDelegate {
 		@Override
 		public int get(int index) {
@@ -360,6 +368,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 					case 6 -> DreamTableConfig.maxBlocksPerSecond();
 					case 7 -> loadedFarmsOnServer();
 					case 8 -> DreamTableConfig.maxLoadedFarms();
+					case 9 -> DreamTableConfig.deliverFromNearby() ? 1 : 0;
 					default -> 0;
 				};
 			}
@@ -373,6 +382,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 				case 6 -> maxRate;
 				case 7 -> loadedFarms;
 				case 8 -> loadedLimit;
+				case 9 -> nearbyDelivery;
 				default -> 0;
 			};
 		}
@@ -389,6 +399,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 				case 6 -> maxRate = value;
 				case 7 -> loadedFarms = value;
 				case 8 -> loadedLimit = value;
+				case 9 -> nearbyDelivery = value;
 				default -> {
 				}
 			}
@@ -396,7 +407,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 		@Override
 		public int size() {
-			return 9;
+			return 10;
 		}
 	}
 

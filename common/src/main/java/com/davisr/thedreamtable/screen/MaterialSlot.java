@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.screen;
 
+import com.davisr.thedreamtable.block.entity.MaterialLedger;
 import com.davisr.thedreamtable.farm.MaterialSpec;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.Item;
@@ -19,7 +20,7 @@ public class MaterialSlot extends Slot {
 	@Override
 	public boolean canInsert(ItemStack stack) {
 		Item item = handler.materialItem(materialIndex);
-		return item != null && stack.isOf(item);
+		return item != null && stack.isOf(item) && MaterialLedger.plain(stack);
 	}
 
 	@Override

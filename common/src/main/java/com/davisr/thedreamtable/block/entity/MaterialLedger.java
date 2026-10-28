@@ -130,18 +130,35 @@ public final class MaterialLedger {
 		return true;
 	}
 
-	/** Takes up to what the farm still needs of this stack's item and returns how many were taken. */
-	public int accept(FarmTemplate template, ItemStack stack, boolean creative) {
+	/**
+	 * True for a stack with no data components beyond its item's defaults. A refund hands back a default stack of the
+	 * delivered item, so anything renamed, enchanted, damaged or holding contents (a shulker box) is never delivered:
+	 * it would lose that data.
+	 */
+	public static boolean plain(ItemStack stack) {
+		return stack.getComponentChanges().isEmpty();
+	}
+
+	/** How many more of this item the farm still takes, whatever its components. */
+	public int remaining(FarmTemplate template, Item item) {
 		int needed = 0;
 		int have = 0;
 		for (int index = 0; index < template.materials().size(); index++) {
 			MaterialSpec spec = template.materials().get(index);
-			if (stack.isOf(resolve(spec.item())) && compatible(index, stack.getItem())) {
+			if (item == resolve(spec.item()) && compatible(index, item)) {
 				needed += spec.count();
 				have += deposited[index] + consumed[index];
 			}
 		}
-		int take = Math.min(stack.getCount(), needed - have);
+		return Math.max(0, needed - have);
+	}
+
+	/** Takes up to what the farm still needs of this stack's item and returns how many were taken. Stacks that are not {@link #plain} are refused. */
+	public int accept(FarmTemplate template, ItemStack stack, boolean creative) {
+		if (stack.isEmpty() || !plain(stack)) {
+			return 0;
+		}
+		int take = Math.min(stack.getCount(), remaining(template, stack.getItem()));
 		int accepted = 0;
 		for (int index = 0; index < template.materials().size() && accepted < take; index++) {
 			MaterialSpec spec = template.materials().get(index);
@@ -165,7 +182,7 @@ public final class MaterialLedger {
 		for (int index = 0; index < template.materials().size() && index < slots.size(); index++) {
 			ItemStack stack = slots.getStack(index);
 			MaterialSpec spec = template.materials().get(index);
-			if (stack.isEmpty() || !stack.isOf(resolve(spec.item())) || !compatible(index, stack.getItem())) {
+			if (stack.isEmpty() || !plain(stack) || !stack.isOf(resolve(spec.item())) || !compatible(index, stack.getItem())) {
 				continue;
 			}
 			int moved = Math.min(stack.getCount(), spec.count() - deposited[index] - consumed[index]);

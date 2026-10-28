@@ -13,13 +13,14 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /**
  * The options: Build Speed, which opens {@link SpeedPage}; Keep Farms Loaded, which opens {@link LoadedFarmsPage} to pick
- * which finished farms stay loaded; and the "Show Other Farms" switch, kept on this player's computer.
+ * which finished farms stay loaded; and the "Show Other Farms", tracker and "Deliver from Nearby" switches, kept on this player's computer.
  */
 public final class OptionsPage implements TablePage {
 	private static final int SPEED = 0;
 	private static final int OTHERS = 1;
 	private static final int TRACKER = 2;
-	private static final int CARDS = 3;
+	private static final int NEARBY = 3;
+	private static final int CARDS = 4;
 
 	private final PageContext ui;
 
@@ -42,6 +43,12 @@ public final class OptionsPage implements TablePage {
 		ui.cardAt("show_tracked_farm", context, new ItemStack(Items.COMPASS),
 				Text.translatable(tracker ? "gui.the_dream_table.show_tracker_on" : "gui.the_dream_table.show_tracker_off"),
 				ui.view().gridCardX(TRACKER), ui.view().gridCardY(TRACKER), mouseX, mouseY, tracker, true);
+		boolean serverAllows = handler.nearbyDeliveryAllowed();
+		boolean nearby = serverAllows && ClientSettings.deliverFromNearby();
+		ui.cardAt("deliver_nearby", context, new ItemStack(Items.CHEST),
+				Text.translatable(nearby ? "gui.the_dream_table.deliver_nearby_on" : "gui.the_dream_table.deliver_nearby_off"),
+				Text.translatable(serverAllows ? "gui.the_dream_table.deliver_nearby_hint" : "gui.the_dream_table.deliver_nearby_off_server"),
+				ui.view().gridCardX(NEARBY), ui.view().gridCardY(NEARBY), mouseX, mouseY, nearby, serverAllows);
 	}
 
 	@Override
@@ -57,6 +64,15 @@ public final class OptionsPage implements TablePage {
 		}
 		if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(TRACKER), ui.view().gridCardY(TRACKER))) {
 			ClientSettings.setShowTrackedFarm(!ClientSettings.showTrackedFarm());
+			ui.actions().click();
+			return true;
+		}
+		if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(NEARBY), ui.view().gridCardY(NEARBY))) {
+			if (!ui.handler().nearbyDeliveryAllowed()) {
+				ui.message("gui.the_dream_table.deliver_nearby_off_server");
+				return true;
+			}
+			ClientSettings.setDeliverFromNearby(!ClientSettings.deliverFromNearby());
 			ui.actions().click();
 			return true;
 		}

@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable;
 
+import com.davisr.thedreamtable.block.entity.MaterialDelivery;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmPreferences;
@@ -60,6 +61,7 @@ public final class TheDreamTableMod {
 		});
 		Platform.serverEvents().onServerStopped(server -> FarmTemplates.clearSaved());
 		DepositMaterialPayload.register();
+		MaterialDelivery.register();
 		PlaceFarmPayload.register();
 		CheckPlacementPayload.register();
 		PlacementResultPayload.register();
