@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.block.entity.MaterialDelivery;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmPreferences;
+import com.davisr.thedreamtable.farm.FarmProtection;
 import com.davisr.thedreamtable.farm.FarmSharing;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.alert.FarmAlertMonitor;
@@ -80,6 +81,7 @@ public final class TheDreamTableMod {
 		TrackedFarmPayload.register();
 		FarmLoader.register();
 		FarmPreferences.register();
+		FarmProtection.register();
 		FarmSharing.register();
 		FarmAlertMonitor.register();
 		LoadedFarmsPayload.register();

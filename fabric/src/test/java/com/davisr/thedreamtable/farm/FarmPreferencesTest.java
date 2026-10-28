@@ -42,6 +42,53 @@ class FarmPreferencesTest {
 	}
 
 	@Test
+	void protectMyFarmsIsOffByDefaultAndWorldsWithoutItReadAsOff() {
+		FarmPreferences preferences = new FarmPreferences();
+		assertFalse(preferences.protectsFarms(ALICE));
+		NbtCompound untouched = preferences.writeNbt(new NbtCompound(), null);
+		assertFalse(untouched.contains("Protecting"));
+		assertFalse(FarmPreferences.read(untouched, null).protectsFarms(ALICE));
+		assertFalse(FarmPreferences.read(new NbtCompound(), null).protectsFarms(ALICE));
+	}
+
+	@Test
+	void protectMyFarmsRoundTripsPerPlayerAndAddsToOtherPreferences() {
+		FarmPreferences preferences = new FarmPreferences();
+		preferences.setFavorite(BOB, FIRST, true);
+		preferences.setDirty(false);
+		assertTrue(preferences.setProtectsFarms(ALICE, true));
+		assertTrue(preferences.isDirty());
+		preferences.setDirty(false);
+		assertTrue(preferences.setProtectsFarms(ALICE, true));
+		assertFalse(preferences.isDirty());
+
+		FarmPreferences restored = FarmPreferences.read(preferences.writeNbt(new NbtCompound(), null), null);
+
+		assertTrue(restored.protectsFarms(ALICE));
+		assertFalse(restored.protectsFarms(BOB));
+		assertTrue(restored.isFavorite(BOB, FIRST));
+	}
+
+	@Test
+	void turningProtectMyFarmsOffForgetsIt() {
+		FarmPreferences preferences = new FarmPreferences();
+		preferences.setProtectsFarms(ALICE, true);
+		preferences.setDirty(false);
+		assertTrue(preferences.setProtectsFarms(ALICE, false));
+		assertTrue(preferences.isDirty());
+		assertFalse(FarmPreferences.read(preferences.writeNbt(new NbtCompound(), null), null).protectsFarms(ALICE));
+	}
+
+	@Test
+	void protectMyFarmsSurvivesPruningOfFarmRelationships() {
+		FarmPreferences preferences = new FarmPreferences();
+		preferences.setProtectsFarms(ALICE, true);
+		preferences.setFavorite(ALICE, FIRST, true);
+		preferences.prune((player, key) -> false);
+		assertTrue(preferences.protectsFarms(ALICE));
+	}
+
+	@Test
 	void revocationRemovesOnlyThatPlayersRelationshipToTheFarm() {
 		FarmPreferences preferences = new FarmPreferences();
 		preferences.setFavorite(ALICE, FIRST, true);

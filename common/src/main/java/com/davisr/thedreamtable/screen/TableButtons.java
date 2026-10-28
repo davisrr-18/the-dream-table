@@ -2,8 +2,10 @@ package com.davisr.thedreamtable.screen;
 
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
+import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmOptions;
+import com.davisr.thedreamtable.farm.FarmPreferences;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.screen.page.PageRoutes;
 import com.davisr.thedreamtable.screen.page.PrimaryTab;
@@ -67,6 +69,7 @@ final class TableButtons {
 			case BUTTON_PAUSE -> table.build().pause();
 			case BUTTON_DELIVER_ALL -> table.deliverAll(player);
 			case BUTTON_DELIVER_NEARBY -> table.deliverNearby(player);
+			case BUTTON_PROTECT_FARMS -> toggleFarmProtection(player);
 			case BUTTON_DISCARD -> {
 				table.discard(player);
 				yield true;
@@ -97,6 +100,15 @@ final class TableButtons {
 		SWAP_OPEN,
 		SWAP_PICK,
 		CUSTOM_PACE
+	}
+
+	/** The player's own "Protect My Farms" switch, stored on the server because the server enforces it. */
+	private static boolean toggleFarmProtection(ServerPlayerEntity player) {
+		if (!DreamTableConfig.farmProtectionEnabled()) {
+			return false;
+		}
+		FarmPreferences preferences = FarmPreferences.of(player.getServer());
+		return preferences.setProtectsFarms(player.getUuid(), !preferences.protectsFarms(player.getUuid()));
 	}
 
 	private static boolean page(TableSession table, int page) {

@@ -1,7 +1,10 @@
 package com.davisr.thedreamtable.platform;
 
+import net.minecraft.block.BlockState;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -25,4 +28,16 @@ public interface ServerEvents {
 
 	/** When a player leaves the server; the player is still readable. */
 	void onPlayerDisconnect(BiConsumer<ServerPlayerEntity, MinecraftServer> listener);
+
+	/**
+	 * Before a player breaks a block on the server; returning false cancels the break. It also runs when
+	 * {@link BlockBreakGuard} asks the loader whether a player may break a block, so it must be side-effect free
+	 * apart from telling the player.
+	 */
+	void onBlockBreak(BlockBreakCheck check);
+
+	@FunctionalInterface
+	interface BlockBreakCheck {
+		boolean allows(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state);
+	}
 }

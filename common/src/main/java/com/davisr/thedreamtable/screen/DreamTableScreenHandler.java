@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmLoader;
+import com.davisr.thedreamtable.farm.FarmPreferences;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
@@ -53,6 +54,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_PAUSE = 105;
 	public static final int BUTTON_DELIVER_ALL = 106;
 	public static final int BUTTON_DELIVER_NEARBY = 107;
+	public static final int BUTTON_PROTECT_FARMS = 108;
 	public static final int BUTTON_SCHEMES = 110;
 	public static final int BUTTON_SCHEMES_BACK = 111;
 	public static final int BUTTON_OPTIONS = 120;
@@ -97,6 +99,12 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private int loadedLimit;
 	private int previewSwap = -1;
 	private int nearbyDelivery;
+	private int farmProtection;
+
+	/** Protect My Farms for this player, as synced from the server: off, on, or {@link #PROTECTION_OFF_SERVER}. */
+	public static final int PROTECTION_OFF = 0;
+	public static final int PROTECTION_ON = 1;
+	public static final int PROTECTION_OFF_SERVER = 2;
 
 	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, TableSession session) {
 		this(syncId, inventory, session.getPos(), session.getMaterials(), session.getSelectedFarm(), session.getPage(), phaseOf(session.getPhase()), session.getBuildIndex());
@@ -187,6 +195,24 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	/** Whether the server lets players deliver from containers near the table; synced so the button can say why it is off. */
 	public boolean nearbyDeliveryAllowed() {
 		return nearbyDelivery != 0;
+	}
+
+	/** This player's "Protect My Farms" as the server holds it; {@link #PROTECTION_OFF_SERVER} when the server turned the feature off. */
+	public int farmProtection() {
+		return farmProtection;
+	}
+
+	private int farmProtectionOnServer() {
+		if (!DreamTableConfig.farmProtectionEnabled()) {
+			return PROTECTION_OFF_SERVER;
+		}
+		int[] state = {PROTECTION_OFF};
+		context.run((world, pos) -> {
+			if (world.getServer() != null && FarmPreferences.of(world.getServer()).protectsFarms(playerId)) {
+				state[0] = PROTECTION_ON;
+			}
+		});
+		return state[0];
 	}
 
 	/** The rate a speed level gives under the server's limit, for the estimates on the Options cards. */
@@ -352,7 +378,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		return template == null ? 0 : template.steps().size();
 	}
 
-	/** Page, build index, phase, step total, speed level, actual rate, server limit, loaded farms and whether nearby delivery is on, read from the table on the server and stored on the client. */
+	/** Page, build index, phase, step total, speed level, actual rate, server limit, loaded farms, whether nearby delivery is on and this player's Protect My Farms state, read from the table on the server and stored on the client. */
 	private final class Properties implements PropertyDelegate {
 		@Override
 		public int get(int index) {
@@ -369,6 +395,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 					case 7 -> loadedFarmsOnServer();
 					case 8 -> DreamTableConfig.maxLoadedFarms();
 					case 9 -> DreamTableConfig.deliverFromNearby() ? 1 : 0;
+					case 10 -> farmProtectionOnServer();
 					default -> 0;
 				};
 			}
@@ -383,6 +410,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 				case 7 -> loadedFarms;
 				case 8 -> loadedLimit;
 				case 9 -> nearbyDelivery;
+				case 10 -> farmProtection;
 				default -> 0;
 			};
 		}
@@ -400,6 +428,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 				case 7 -> loadedFarms = value;
 				case 8 -> loadedLimit = value;
 				case 9 -> nearbyDelivery = value;
+				case 10 -> farmProtection = value;
 				default -> {
 				}
 			}
@@ -407,7 +436,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 		@Override
 		public int size() {
-			return 10;
+			return 11;
 		}
 	}
 
