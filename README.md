@@ -19,7 +19,7 @@ Lapis lazuli on the top row and in the center, paper on the sides, and oak plank
 1. Place the table, pick a category (Plant Farms, Mob Farms or Resource Farms), then a farm. Each farm shows its block count and how long it takes at your build speed. My Schematics shows the same for your own files.
 2. A small turning model of the chosen farm floats above the table. Close the menu. A yellow marker follows the crosshair.
 3. Right-click the ground to anchor the hologram. Right-click again to move it.
-4. **R** rotates the farm. While it builds, the hologram shows only the layer being built and the one above; **H** switches to the whole farm and back. Both keys can be changed in Controls, under The Dream Table.
+4. **R** rotates the farm and **M** mirrors it. While it builds, the hologram shows only the layer being built and the one above; **H** switches to the whole farm and back. Both keys can be changed in Controls, under The Dream Table.
 5. Hold the material and right-click the clipboard to deliver it. The line is struck through when the count is met.
 6. Return to the table and click Build. The position locks. The build can start before every material is on the clipboard, and it waits at the next missing block instead of skipping it. In Creative mode, the build needs no materials and runs at the server's fastest rate. While it builds, the same button reads **Pause**; press it to stop after the current block, and **Resume** to pick up from the next one.
 

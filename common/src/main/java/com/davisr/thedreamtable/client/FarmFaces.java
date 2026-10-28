@@ -60,12 +60,12 @@ public final class FarmFaces {
 	}
 
 	/**
-	 * The parts in build order. With a facing, positions and states are turned as the hologram places them around an
+	 * The parts in build order. With a facing (and optionally mirrored), positions and states are turned as the hologram places them around an
 	 * anchor at the origin; without one, they stay in the farm's own layout, as the spinning miniature needs.
 	 */
-	public static List<Part> of(FarmTemplate template, String swapKey, UnaryOperator<BlockState> swap, Direction facing) {
-		String key = template.id() + "#" + template.signature() + "#" + swapKey + "#" + (facing == null ? "-" : facing.asString());
-		return CACHE.computeIfAbsent(key, ignored -> build(template, swap, facing));
+	public static List<Part> of(FarmTemplate template, String swapKey, UnaryOperator<BlockState> swap, Direction facing, boolean mirrored) {
+		String key = template.id() + "#" + template.signature() + "#" + swapKey + "#" + (facing == null ? "-" : facing.asString() + (mirrored ? "m" : ""));
+		return CACHE.computeIfAbsent(key, ignored -> build(template, swap, facing, mirrored));
 	}
 
 	/** Only the faces nothing in the farm covers, for the miniature, which always shows the whole farm. */
@@ -75,7 +75,7 @@ public final class FarmFaces {
 		if (cached != null) {
 			return cached;
 		}
-		List<Part> all = of(template, swapKey, swap, null);
+		List<Part> all = of(template, swapKey, swap, null, false);
 		return CACHE.computeIfAbsent(key, ignored -> {
 			List<Part> outside = new ArrayList<>();
 			for (Part part : all) {
@@ -101,7 +101,7 @@ public final class FarmFaces {
 		});
 	}
 
-	private static List<Part> build(FarmTemplate template, UnaryOperator<BlockState> swap, Direction facing) {
+	private static List<Part> build(FarmTemplate template, UnaryOperator<BlockState> swap, Direction facing, boolean mirrored) {
 		Map<Long, BlockState> states = new HashMap<>();
 		List<FarmStep> steps = template.steps();
 		BlockPos[] positions = new BlockPos[steps.size()];
@@ -116,8 +116,8 @@ public final class FarmFaces {
 			if (facing == null) {
 				pos = new BlockPos(step.x(), step.y(), step.z());
 			} else {
-				state = state.rotate(FarmGeometry.rotation(facing));
-				pos = FarmGeometry.toAimed(BlockPos.ORIGIN, facing, template, step);
+				state = FarmGeometry.orient(state, facing, mirrored);
+				pos = FarmGeometry.toAimed(BlockPos.ORIGIN, facing, mirrored, template, step);
 			}
 			positions[index] = pos;
 			states.put(pos.asLong(), state);

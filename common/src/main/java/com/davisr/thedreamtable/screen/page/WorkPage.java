@@ -3,6 +3,7 @@ package com.davisr.thedreamtable.screen.page;
 import com.davisr.thedreamtable.block.entity.BuildIssue;
 import com.davisr.thedreamtable.client.DreamTableClipboard;
 import com.davisr.thedreamtable.client.DreamTableHologram;
+import com.davisr.thedreamtable.client.DreamTableKeys;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
@@ -138,7 +139,7 @@ public final class WorkPage implements TablePage {
 	@Override
 	public Text subtitle() {
 		return ui.handler().getPhase() == ProjectState.IDLE
-				? Text.translatable("gui.the_dream_table.aim")
+				? Text.translatable("gui.the_dream_table.aim", DreamTableKeys.ROTATE.getBoundKeyLocalizedText(), DreamTableKeys.MIRROR.getBoundKeyLocalizedText())
 				: Text.translatable("gui.the_dream_table.project");
 	}
 
@@ -156,7 +157,7 @@ public final class WorkPage implements TablePage {
 			ui.message("gui.the_dream_table.place_then_build");
 			return;
 		}
-		Platform.clientNetwork().send(new PlaceFarmPayload(ui.handler().getTablePos(), DreamTableHologram.anchorForBuild(), DreamTableHologram.previewFacing()));
+		Platform.clientNetwork().send(new PlaceFarmPayload(ui.handler().getTablePos(), DreamTableHologram.anchorForBuild(), DreamTableHologram.previewFacing(), DreamTableHologram.previewMirrored()));
 		ui.actions().click();
 	}
 

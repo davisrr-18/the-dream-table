@@ -55,7 +55,7 @@ public final class FarmCare {
 		}
 		session.setSelectedFarm(template.id(), player);
 		session.restoreSwaps(farm.farm().swaps());
-		session.setPlacement(site.anchor(), site.facing());
+		session.setPlacement(site.anchor(), site.facing(), site.mirrored());
 		RepairContext context = new RepairContext(FarmKey.of(world, farm.farm().instanceId()), farm.farm().ownerUuid(), player.getUuid(), operationId);
 		if (!session.build().beginRepair(player, context)) {
 			areas.failRepair(farm.farm().instanceId(), operationId);

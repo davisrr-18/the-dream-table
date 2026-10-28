@@ -106,12 +106,12 @@ public final class FarmBuilder {
 	}
 
 	private static @Nullable BlockState placedState(TableSession table, FarmSite site, FarmStep step) {
-		return step.isEntity() ? null : table.swapState(step.state()).rotate(FarmGeometry.rotation(site.facing()));
+		return step.isEntity() ? null : site.orient(table.swapState(step.state()));
 	}
 
 	/** Where this session's farm sits: its anchor, or beside the table when it has none. */
 	public static FarmSite site(TableSession table) {
-		return new FarmSite(table.getPos(), table.hasAnchor() ? table.getFarmAnchor() : null, facing(table));
+		return new FarmSite(table.getPos(), table.hasAnchor() ? table.getFarmAnchor() : null, facing(table), table.hasAnchor() && table.getFarmMirrored());
 	}
 
 	private static Outcome step(TableSession table, ServerWorld world, boolean sound) {

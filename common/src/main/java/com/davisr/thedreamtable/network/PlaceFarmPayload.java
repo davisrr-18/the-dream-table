@@ -7,6 +7,7 @@ import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
@@ -14,12 +15,13 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
-public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing) implements CustomPayload {
+public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing, boolean mirrored) implements CustomPayload {
 	public static final Id<PlaceFarmPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "place_farm"));
 	public static final PacketCodec<RegistryByteBuf, PlaceFarmPayload> CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC, PlaceFarmPayload::table,
 			BlockPos.PACKET_CODEC, PlaceFarmPayload::anchor,
 			Direction.PACKET_CODEC, PlaceFarmPayload::facing,
+			PacketCodecs.BOOL, PlaceFarmPayload::mirrored,
 			PlaceFarmPayload::new
 	);
 
@@ -53,7 +55,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 				player.sendMessage(Text.translatable("gui.the_dream_table.place_first"), true);
 				return;
 			}
-			table.setPlacement(anchor, facing);
+			table.setPlacement(anchor, facing, payload.mirrored());
 			table.build().begin(player, true);
 		});
 	}
