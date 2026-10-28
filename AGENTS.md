@@ -215,6 +215,15 @@ For multi-step, cross-package, high-risk, or likely multi-session work, maintain
 - Reuse existing records; avoid duplicate plans and ledgers.
 - Never store secrets, credentials, personal data, or large logs in task records.
 
+### 6.1. Session per milestone
+
+For performance and cost, each milestone (and each large phase or task inside one) runs in its own chat session.
+
+- At the end of every phase, milestone, or task, record explicitly in the task record what changed in the plan: scope moved in or out, re-ordered steps, narrowed or adjusted exit criteria, and new decisions, each with its reason.
+- Then record the exact next action, so a fresh session can resume from the record and Git state alone.
+- After closing a milestone, do not start the next one in the same chat. Recommend opening a new chat and give the user a short resume phrase (e.g. "retomar o Marco 4 da v1.0.0").
+- Inside a milestone, recommend a new chat at a phase boundary when the conversation has grown long or changed topic several times.
+
 ## 7. Model and reasoning selection
 
 Select the least expensive capable model and reasoning effort for each task, based on actual complexity and risk.
