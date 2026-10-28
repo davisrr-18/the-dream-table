@@ -196,6 +196,7 @@ Agents may improve code, tests, architecture, documentation, and rules when chan
 - Explain structural changes and provide regression coverage where applicable.
 - Request direction for product-scope expansion, unresolved user-facing decisions, destructive actions, or external-system changes.
 - Commits, pushes, releases, publishing, and external artifact copies require an explicit user request.
+- Commits and pushes always land directly on `main` (standing user decision, 2026-10-28). Work may happen in a worktree branch, but integrate it by fast-forwarding `main` and pushing `main`; never force-push or rewrite history. If `main` cannot fast-forward, rebase the unpushed work onto `origin/main` and stop for direction on conflicts.
 
 Do not confuse implementation completion with release readiness.
 
