@@ -168,4 +168,6 @@ Ao final de cada marco, registrar:
 - Problemas e riscos restantes.
 - Próximo passo aprovado.
 
+Depois de registrar e verificar, commitar tudo e dar push direto na `main` (automático, CLAUDE.md seção 5), sem esperar pedido.
+
 Não duplicar informações já registradas no ledger existente.
