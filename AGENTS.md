@@ -1,3 +1,4 @@
+
 # The Dream Table — Agent Guide
 
 This file defines permanent AI-agent working rules. Technical invariants belong to `.cursor/rules/*.mdc`; detailed update planning belongs to `.agents/skills/plan-mod-update/SKILL.md`.
@@ -40,23 +41,118 @@ The canonical technical rules are:
 
 Do not duplicate their implementation details here.
 
-## 3. Adaptive delegation
+## 3. Permanent multi-agent engineering policy
 
-Use complexity-adaptive delegated engineering.
+Multi-agent delegation is the default strategy for substantial software engineering tasks whenever supported by the active environment.
 
-The primary agent owns orchestration, integration, verification, and delivery. Delegate independent work when it improves efficiency or quality.
+Apply this policy automatically in every development session, including new conversations and resumed milestones. The user does not need to repeat a global delegation prompt.
 
-- Prefer direct execution for trivial tasks.
-- Use `investigator` for bounded exploration.
-- Use `implementer` for isolated, approved changes.
-- Use `reviewer` for independent correctness and regression review.
-- Use at most three concurrent subagents, subject to the actual configuration.
-- Do not require a fixed number of agents.
-- Avoid duplicated investigations, unnecessary reports, and overlapping parallel edits.
-- Require clear scope, deliverables, evidence, and stopping conditions for delegation.
-- Keep the primary agent accountable for integration and final verification.
+### 3.1. Delegation requirements
 
-Specialized agent behavior is defined per tool: `.codex/agents/*.toml` for Codex and `.claude/agents/*.md` for Claude Code.
+The primary agent acts as orchestrator and remains responsible for architecture, integration, verification, and final delivery.
+
+Before executing a relevant task:
+
+1. Assess complexity, risks, dependencies, and available agent capabilities.
+2. Identify investigation, implementation, and review activities suitable for delegation.
+3. Select the smallest capable combination of specialized agents.
+4. Invoke the selected subagents through actual delegation tools.
+5. Consolidate their evidence and verify the integrated result.
+
+For medium, high, or critical complexity tasks, actively prefer real subagent delegation when meaningful independent work exists.
+
+Do not perform all substantial work in the orchestrator merely for convenience when useful and safe delegation is available.
+
+For significant investigations, prefer delegating a bounded investigation to an `investigator`.
+
+For isolated implementation work, prefer an `implementer` when the task can be safely separated.
+
+For significant behavior changes or regression risks, prefer an independent `reviewer`.
+
+Delegation is adaptive, not unconditional:
+
+- Trivial tasks may be completed directly.
+- Do not spawn agents merely to reach a fixed count.
+- Do not delegate work whose coordination overhead exceeds its likely benefit.
+- Use at most three concurrent subagents, subject to the actual environment configuration.
+- Parallelize independent tasks only.
+- Execute dependent activities sequentially.
+- Avoid overlapping parallel edits and duplicated investigations.
+- Do not repeat completed investigations without a concrete verification need.
+
+### 3.2. Specialized agents
+
+Use the configured agents or their available equivalents:
+
+**Investigator**
+- Performs bounded, read-only investigation.
+- Identifies relevant code, dependencies, invariants, and risks.
+- Returns concise findings with evidence and file references.
+- Does not modify files.
+
+**Implementer**
+- Performs isolated implementation within approved scope.
+- Preserves existing code, compatibility, and user changes.
+- Adds or adjusts appropriate regression tests.
+- Reports modified files, verification results, and limitations.
+
+**Reviewer**
+- Independently reviews changes and affected behavior.
+- Prioritizes correctness, regressions, compatibility, and missing tests.
+- Reports concrete findings with severity and evidence.
+- Does not modify files during independent review.
+
+Each delegated task must define:
+
+- Objective and bounded scope.
+- Relevant files or subsystems.
+- Read-only or editing responsibility.
+- Dependencies and possible conflicts.
+- Acceptance criteria and expected verification.
+- Required deliverables and stopping condition.
+
+The reviewer should be different from the implementer whenever practical.
+
+Specialized agent behavior is defined per tool:
+
+- Codex: `.codex/agents/*.toml`
+- Claude Code: `.claude/agents/*.md`
+- Other environments: equivalent supported agent configuration.
+
+### 3.3. Real execution and transparency
+
+Delegation must be real, not simulated.
+
+- Use actual subagent tools when delegation is selected.
+- Never claim a subagent was invoked unless it actually ran.
+- If delegation is unsupported or fails, report the limitation.
+- Do not silently replace a planned independent review with self-review.
+- Do not assume an agent is available merely because its configuration file exists.
+- Verify subagent outputs before integrating their conclusions.
+
+At each meaningful stage, report briefly:
+
+- Which agents actually ran.
+- Their assigned responsibilities.
+- Important findings or changes.
+- Verification evidence and remaining risks.
+
+The orchestrator is accountable for the final integrated result.
+
+### 3.4. Resource efficiency
+
+Optimize for validated work per unit of available resources, without sacrificing correctness.
+
+- Prefer the least expensive capable model and reasoning effort.
+- Preserve configured agent models and effort levels.
+- Keep subagent context focused and reports concise.
+- Reuse existing discoveries and checkpoints.
+- Avoid unnecessary repeated tool calls and redundant reviews.
+- Do not bypass essential tests to reduce usage.
+- Do not claim token or quota savings without actual measurements.
+- Request explicit approval before exceptional model escalation.
+
+The detailed procedure belongs to the applicable project skill. Do not duplicate its full contents here.
 
 ## 4. Milestones and approvals
 
@@ -65,14 +161,16 @@ For relevant features and updates, follow `plan-mod-update`.
 Use three sequential milestones:
 
 1. Investigation and planning.
-2. Incremental implementation.
-3. Verification and closure.
+2. Incremental implementation and integration.
+3. Independent review, verification, and closure.
 
 Present the initial scope and obtain explicit approval before Milestone 1.
 
 Obtain explicit approval before starting each subsequent milestone and before declaring the update complete.
 
 Approval covers only the agreed scope. In-scope corrections and tests do not require repeated approval.
+
+Do not use delegation to bypass milestone approvals or expand the approved scope.
 
 Trivial changes and read-only questions may use a simplified workflow.
 
@@ -97,9 +195,12 @@ Do not confuse implementation completion with release readiness.
 For multi-step, cross-package, high-risk, or likely multi-session work, maintain one record under `docs/tasks/` using `docs/tasks/TEMPLATE.md`.
 
 - Record decisions, acceptance criteria, affected files, verification, blockers, and exact next action.
-- Record significant delegation results without copying full transcripts.
+- Record actual delegated agents and significant results without copying full transcripts.
+- Record milestone approval state explicitly.
 - Checkpoint after meaningful phases, at milestone boundaries, before pauses or model changes, and near two-thirds of useful context consumption.
 - On resume, read the record and verify Git state and relevant diffs.
+- Recover the next pending milestone without relying on previous chat history.
+- Reapply this permanent multi-agent policy when resuming.
 - Reuse existing records; avoid duplicate plans and ledgers.
 - Never store secrets, credentials, personal data, or large logs in task records.
 
@@ -131,6 +232,6 @@ Keep in-game text, README, release notes, changelogs, and code comments in Engli
 
 Use the official CurseForge page and official changelogs as the source of truth for released features. Use repository evidence for current implementation details.
 
-Keep this file concise. Put technical invariants in `.cursor/rules/`, update procedures in the skill, specialized behavior in agent TOML files, and execution history in task records.
+Keep this file concise. Put technical invariants in `.cursor/rules/`, update procedures in the skill, specialized behavior in agent configuration files, and execution history in task records.
 
 Create nested `AGENTS.md` files only for genuinely different, durable subtree workflows.
