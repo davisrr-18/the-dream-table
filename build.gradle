@@ -52,4 +52,13 @@ subprojects {
 			it.standardInput = System.in
 		}
 	}
+
+	if (project.name != 'common') {
+		// One folder per loader holding only its publishable jar (build/release/<loader>/), for separate CurseForge uploads.
+		def releaseJar = tasks.register('releaseJar', Sync) {
+			from tasks.named('remapJar')
+			into rootProject.layout.buildDirectory.dir("release/$project.name")
+		}
+		tasks.named('assemble') { dependsOn releaseJar }
+	}
 }
