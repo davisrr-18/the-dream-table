@@ -103,6 +103,30 @@ class ViewportTest {
 	}
 
 	@Test
+	void scrollbarTrackStartsUnderTheTabsWithOrWithoutAToolbar() throws ReflectiveOperationException {
+		Method trackY = Viewport.class.getDeclaredMethod("trackY");
+		trackY.setAccessible(true);
+		Method trackHeight = Viewport.class.getDeclaredMethod("trackHeight");
+		trackHeight.setAccessible(true);
+		for (int[] screen : new int[][] {{320, 240}, {420, 240}, {640, 360}, {854, 480}}) {
+			int plainTop = 0;
+			for (int toolbar : new int[] {0, 26, 52}) {
+				ScreenGeometry geometry = ScreenGeometry.calculate(screen[0], screen[1], toolbar, false);
+				Viewport viewport = new Viewport();
+				viewport.layout(geometry, 0, 900);
+
+				int top = (int) trackY.invoke(viewport);
+				if (toolbar == 0) {
+					plainTop = top;
+				}
+				assertEquals(plainTop, top);
+				assertEquals(geometry.tabs().bottom() + Theme.PAD, top);
+				assertEquals(geometry.viewport().bottom() - 10, top + (int) trackHeight.invoke(viewport));
+			}
+		}
+	}
+
+	@Test
 	void scrollbarStaysOutsideTheLastContentColumn() throws ReflectiveOperationException {
 		Method trackX = Viewport.class.getDeclaredMethod("trackX");
 		trackX.setAccessible(true);
