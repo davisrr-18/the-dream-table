@@ -1,103 +1,55 @@
 plugins {
-	id 'fabric-loom' version '1.11.8'
-	id 'maven-publish'
+	id 'dev.architectury.loom' version '1.17.493' apply false
+	id 'architectury-plugin' version '3.5.170'
+	id 'com.gradleup.shadow' version '9.2.2' apply false
 }
 
-version = project.mod_version
-group = project.maven_group
-
-base {
-	archivesName = project.archives_base_name
+architectury {
+	minecraft = project.minecraft_version
 }
 
-repositories {
-	mavenCentral()
+allprojects {
+	group = rootProject.maven_group
+	version = rootProject.mod_version
 }
 
-dependencies {
-	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-	testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
-}
+subprojects {
+	apply plugin: 'dev.architectury.loom'
+	apply plugin: 'architectury-plugin'
 
-loom {
-	runs {
-		client {
-			// A fixed name keeps the same offline UUID between launches, so farms and table sessions stay with the player.
-			programArgs "--username", "Davi"
+	base {
+		archivesName = "$rootProject.archives_base_name-$project.name"
+	}
+
+	repositories {
+		mavenCentral()
+		maven { url = 'https://maven.neoforged.net/releases/' }
+	}
+
+	dependencies {
+		minecraft "com.mojang:minecraft:$rootProject.minecraft_version"
+		// Yarn stays the source of truth; the patch fills in the NeoForge-only names.
+		mappings loom.layered {
+			it.mappings("net.fabricmc:yarn:$rootProject.yarn_mappings:v2")
+			it.mappings("dev.architectury:yarn-mappings-patch-neoforge:$rootProject.yarn_mappings_patch_neoforge_version")
+		}
+	}
+
+	java {
+		withSourcesJar()
+		toolchain {
+			languageVersion = JavaLanguageVersion.of(21)
+		}
+	}
+
+	tasks.withType(JavaCompile).configureEach {
+		it.options.release = 21
+	}
+
+	// Lets smoke runs feed console commands to the dev server.
+	tasks.withType(JavaExec).configureEach {
+		if (it.name == 'runServer') {
+			it.standardInput = System.in
 		}
 	}
 }
-
-test {
-	useJUnitPlatform()
-	workingDir = layout.buildDirectory.dir("test-run").get().asFile
-	doFirst { workingDir.mkdirs() }
-}
-
-processResources {
-	inputs.property 'version', project.version
-
-	filesMatching('fabric.mod.json') {
-		expand 'version': project.version
-	}
-}
-
-tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
-}
-
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
-	withSourcesJar()
-}
-
-jar {
-	from('LICENSE') {
-		rename { "${it}_${project.base.archivesName.get()}" }
-	}
-}
-
-// Keeps every package except the Fabric adapters loader-neutral, so they can move to a shared module unchanged.
-// The server-safe seams must also stay free of client classes, so a dedicated server can load them.
-tasks.register('verifyNoLoaderImports') {
-	def sources = fileTree('src/main/java') {
-		include '**/*.java'
-		exclude 'com/davisr/thedreamtable/fabric/**'
-	}
-	def serverSafeSeams = [
-			'Platform', 'PlatformPaths', 'BlockBreakGuard', 'ServerNetwork', 'ClientNetwork',
-			'ServerEvents', 'Menus', 'ExtendedMenuProvider', 'Content'
-	].collect { "com/davisr/thedreamtable/platform/${it}.java".toString() }
-	inputs.files(sources)
-	doLast {
-		def loaderApis = /\bnet\.(fabricmc|neoforged|minecraftforge)\./
-		def adapters = /\bcom\.davisr\.thedreamtable\.fabric\./
-		def clientClasses = /\bnet\.minecraft\.client\./
-		def offenders = []
-		def sourceRoot = file('src/main/java').toPath()
-		sources.each { file ->
-			def serverSafe = serverSafeSeams.contains(sourceRoot.relativize(file.toPath()).toString().replace('\\', '/'))
-			file.eachLine { line, number ->
-				def code = line.trim()
-				if (code.startsWith('//') || code.startsWith('*') || code.startsWith('/*')) {
-					return
-				}
-				if (code =~ loaderApis || code =~ adapters) {
-					offenders << "${file}:${number}: ${code}"
-				} else if (serverSafe && code =~ clientClasses) {
-					offenders << "${file}:${number}: (client class in a server-safe seam) ${code}"
-				}
-			}
-		}
-		if (offenders) {
-			throw new GradleException("Only com.davisr.thedreamtable.fabric may reference loader APIs or be referenced by name, and the server-safe seams must not use client classes:\n" + offenders.join('\n'))
-		}
-	}
-}
-
-check.dependsOn 'verifyNoLoaderImports'

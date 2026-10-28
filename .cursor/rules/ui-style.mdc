@@ -1,6 +1,6 @@
 ---
 description: Look and behavior of the table menu, clipboard and hologram
-globs: src/main/java/com/davisr/thedreamtable/screen/**/*.java,src/main/java/com/davisr/thedreamtable/client/**/*.java
+globs: common/src/main/java/com/davisr/thedreamtable/screen/**/*.java,common/src/main/java/com/davisr/thedreamtable/client/**/*.java
 alwaysApply: false
 ---
 
