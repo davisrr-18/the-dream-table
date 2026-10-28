@@ -1,6 +1,6 @@
 # The Dream Table
 
-Beta `2.2.0-beta` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
+Version `1.0.0` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets how fast it builds.
 
@@ -89,4 +89,4 @@ From the project root, with Java 21:
 ./gradlew build
 ```
 
-The mod jar is `build/libs/the_dream_table-2.2.0-beta.jar`. Jars suffixed with `sources` or `dev` are for development only.
+The mod jar is `build/libs/the_dream_table-1.0.0.jar`. Jars suffixed with `sources` or `dev` are for development only.
