@@ -59,6 +59,8 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	private final Map<UUID, TableSession> sessions = new LinkedHashMap<>();
 	/** Discarded builds still being taken apart. Server only; never sent to clients. */
 	private final List<FarmDismantler> dismantling = new ArrayList<>();
+	/** Area claims of saved Take Down jobs that could not be read, freed on the next tick. Server only. */
+	private final List<FarmAreas.Key> staleClaims = new ArrayList<>();
 	private boolean ownSessionReceived;
 
 	public DreamTableBlockEntity(BlockPos pos, BlockState state) {
@@ -81,11 +83,11 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	 */
 	private void sendSessions(ServerWorld world) {
 		for (TableSession session : sessions.values()) {
-			if (session.takeClientDirty()) {
-				ServerPlayerEntity owner = session.onlineOwner(world);
-				if (owner != null && owner.getServerWorld() == world && owner.squaredDistanceTo(pos.toCenterPos()) < SEND_DISTANCE * SEND_DISTANCE) {
-					Platform.network().send(owner, new SessionSyncPayload(pos, session.writeForClient()));
-				}
+			ServerPlayerEntity owner = session.onlineOwner(world);
+			// The change is consumed only when it can be delivered, so an owner who is away or dead still gets it later.
+			if (owner != null && owner.getServerWorld() == world && owner.squaredDistanceTo(pos.toCenterPos()) < SEND_DISTANCE * SEND_DISTANCE
+					&& session.takeClientDirty()) {
+				Platform.network().send(owner, new SessionSyncPayload(pos, session.writeForClient()));
 			}
 		}
 	}
@@ -117,6 +119,11 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	}
 
 	private void tickDismantling(ServerWorld world) {
+		if (!staleClaims.isEmpty()) {
+			FarmAreas areas = FarmAreas.of(world);
+			staleClaims.forEach(areas::release);
+			staleClaims.clear();
+		}
 		if (dismantling.isEmpty()) {
 			return;
 		}
@@ -135,6 +142,11 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 				over = true;
 			}
 			if (over) {
+				try {
+					job.restoreRecord(world);
+				} catch (RuntimeException exception) {
+					TheDreamTableMod.LOGGER.error("Restoring a farm record at {} failed", pos, exception);
+				}
 				FarmAreas.of(world).release(job.areaKey());
 				jobs.remove();
 			}
@@ -195,10 +207,18 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		for (TableSession session : sessions.values()) {
 			session.dropMaterials(world);
 		}
-		dismantling.clear();
 		if (world instanceof ServerWorld serverWorld) {
-			FarmAreas.of(serverWorld).releaseTable(pos);
+			FarmAreas areas = FarmAreas.of(serverWorld);
+			// Jobs saved before they were keyed to their own table may hold a claim under another table.
+			dismantling.forEach(job -> {
+				job.restoreRecord(serverWorld);
+				areas.release(job.areaKey());
+			});
+			staleClaims.forEach(areas::release);
+			areas.releaseTable(pos);
 		}
+		dismantling.clear();
+		staleClaims.clear();
 	}
 
 	@Override
@@ -276,11 +296,17 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 			readSharedState(nbt, registries);
 		}
 		dismantling.clear();
+		staleClaims.clear();
 		NbtList jobs = nbt.getList("Dismantling", NbtElement.COMPOUND_TYPE);
 		for (int index = 0; index < jobs.size(); index++) {
 			FarmDismantler job = FarmDismantler.read(jobs.getCompound(index));
 			if (job != null) {
 				dismantling.add(job);
+			} else {
+				FarmAreas.Key claim = FarmDismantler.claimOf(jobs.getCompound(index));
+				if (claim != null) {
+					staleClaims.add(claim);
+				}
 			}
 		}
 	}

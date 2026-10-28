@@ -16,6 +16,7 @@ public record RequestSessionPayload(BlockPos table) implements CustomPayload {
 			BlockPos.PACKET_CODEC, RequestSessionPayload::table,
 			RequestSessionPayload::new
 	);
+	/** The client asks for tracked and pinned tables far beyond aiming range, so the reach covers them. */
 	private static final double MAX_DISTANCE = 256.0;
 
 	public static void register() {

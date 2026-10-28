@@ -19,8 +19,8 @@ import java.util.UUID;
  * Repairing and taking down a player's finished farm from My Farms, at the table they are using.
  * Both use the design the farm was built with, saved with it, not the current one.
  * A repair is a new build of the same farm at the same spot, facing and swaps: blocks still in place are skipped,
- * so only the missing ones are placed and paid for, and a spot where the player put another block is left as it is. Taking down removes every block that still matches the farm and
- * hands them back, as mining them would, a few per tick like any other take-apart.
+ * so only the missing ones are placed and paid for, and a spot where the player put another block is left as it is. Taking down removes the blocks the table
+ * placed that still match the farm and hands back the ones it was paid for, a few per tick like any other take-apart.
  */
 public final class FarmCare {
 	private FarmCare() {
@@ -45,15 +45,16 @@ public final class FarmCare {
 			return false;
 		}
 		ServerWorld world = farm.world();
-		session.setSelectedFarm(template.id());
-		session.restoreSwaps(farm.farm().swaps());
-		session.setPlacement(site.anchor(), site.facing());
 		FarmAreas areas = FarmAreas.of(world);
 		UUID operationId = UUID.randomUUID();
+		// The lease comes first: a refused Repair must leave the player's current selection and placement alone.
 		if (areas.beginRepair(farm.farm().instanceId(), player.getUuid(), session.getPos(), operationId).isEmpty()) {
 			player.sendMessage(Text.translatable("gui.the_dream_table.repair_busy"), true);
 			return false;
 		}
+		session.setSelectedFarm(template.id(), player);
+		session.restoreSwaps(farm.farm().swaps());
+		session.setPlacement(site.anchor(), site.facing());
 		RepairContext context = new RepairContext(FarmKey.of(world, farm.farm().instanceId()), farm.farm().ownerUuid(), player.getUuid(), operationId);
 		if (!session.build().beginRepair(player, context)) {
 			areas.failRepair(farm.farm().instanceId(), operationId);
@@ -73,12 +74,17 @@ public final class FarmCare {
 		if (template == null) {
 			return false;
 		}
-		int steps = template.steps().size();
-		BitSet every = new BitSet(steps);
-		every.set(0, steps);
 		FarmSite site = farm.farm().site();
-		FarmDismantler job = new FarmDismantler(player.getUuid(), template.id(), template.signature(), site,
-				farm.farm().swaps(), every, (BitSet) every.clone(), steps);
+		BitSet placed = farm.farm().placed();
+		// Refused before the record is released: a farm that can't be taken apart must stay listed and protected.
+		if (!FarmDismantler.mayTakeDown(farm.world(), player, template, site, farm.farm().swaps(), placed)) {
+			player.sendMessage(Text.translatable("gui.the_dream_table.take_down_denied"), true);
+			return false;
+		}
+		// The job and its area claim belong to this table, which ticks and keeps them, not to the table the farm came from.
+		FarmDismantler job = new FarmDismantler(player.getUuid(), template, site, farm.farm().swaps(), placed, farm.farm().paid(),
+				session.table().getPos(), new FarmDismantler.Identity(farm.farm().instanceId(), farm.farm().ownerUuid(), farm.farm().customName(),
+						farm.farm().grants(), farm.farm().invites()));
 		FarmAreas areas = FarmAreas.of(farm.world());
 		areas.release(farm.farm().key());
 		areas.claim(job.areaKey(), site.footprint(template));

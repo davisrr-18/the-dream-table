@@ -24,6 +24,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
@@ -44,7 +45,7 @@ public final class TableSession {
 	private final MaterialDesk desk;
 	private final BuildProgress progress = new BuildProgress();
 	private final FarmPlacement placement = new FarmPlacement();
-	private final SessionAreas areas = new SessionAreas(this);
+	private final SessionAreas areas = new SessionAreas(this, progress);
 	private final SessionBuild build = new SessionBuild(this, progress, areas);
 	private UUID player;
 	private String selectedFarm = "";
@@ -91,9 +92,10 @@ public final class TableSession {
 		return player;
 	}
 
-	/** The player, when online. Builds wait while they are away, since their permissions and game mode decide every step. */
+	/** The player, when online and alive: refunds to a dead player are lost on respawn. Builds wait while they are away, since their permissions and game mode decide every step. */
 	public ServerPlayerEntity onlineOwner(ServerWorld world) {
-		return world.getServer().getPlayerManager().getPlayer(player);
+		ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(player);
+		return owner != null && owner.isAlive() ? owner : null;
 	}
 
 	void tick(ServerWorld world) {
@@ -123,8 +125,15 @@ public final class TableSession {
 		return FarmTemplates.get(selectedFarm);
 	}
 
-	public void setSelectedFarm(String farm) {
+	/**
+	 * Chooses another farm. Items still delivered, left over when a finished build skipped steps, go back to the receiver
+	 * first, or drop at the table when there is none; the farm they were delivered for is still the selected one.
+	 */
+	public void setSelectedFarm(String farm, @Nullable PlayerEntity receiver) {
 		releaseArea();
+		if (desk.anyDelivered() && table.getWorld() != null) {
+			desk.returnAll(table.getWorld(), getPos(), receiver);
+		}
 		selectedFarm = farm == null ? "" : farm;
 		requirementsBoard = false;
 		desk.reset();

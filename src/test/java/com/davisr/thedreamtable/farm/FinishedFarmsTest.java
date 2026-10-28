@@ -12,11 +12,13 @@ import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -109,6 +111,23 @@ class FinishedFarmsTest {
 		UUID second = FarmAreas.read(nbt, null).finishedBy(PLAYER).getFirst().instanceId();
 
 		assertEquals(first, second);
+	}
+
+	@Test
+	void oneCorruptFinishedRecordIsSkippedWithoutLosingTheOthers() {
+		FarmTemplate template = FarmTemplates.get(FarmOptions.CROP.id());
+		FarmAreas areas = new FarmAreas();
+		FarmSite otherSite = new FarmSite(SITE.table(), new BlockPos(30, 64, 30), Direction.NORTH);
+		areas.recordFinished(PLAYER, template, SITE, Map.of());
+		areas.recordFinished(PLAYER, template, otherSite, Map.of());
+		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
+		NbtCompound layout = nbt.getList("Areas", 10).getCompound(0).getCompound("Layout");
+		layout.putIntArray("State", new int[0]);
+
+		FarmAreas restored = FarmAreas.read(nbt, null);
+
+		assertEquals(1, restored.finishedBy(PLAYER).size());
+		assertTrue(restored.isDirty());
 	}
 
 	@Test
@@ -246,5 +265,64 @@ class FinishedFarmsTest {
 		assertNotEquals(firstFarm.layout().id(), secondFarm.layout().id());
 		assertEquals("first", FarmTemplates.get(firstFarm.layout().id()).steps().get(0).blockNbt().getString("Lock"));
 		assertEquals("second", FarmTemplates.get(secondFarm.layout().id()).steps().get(0).blockNbt().getString("Lock"));
+	}
+
+	@Test
+	void placedAndPaidStepsSurviveASaveAndLegacyRecordsHaveEveryStepSet() {
+		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
+		BitSet placed = new BitSet();
+		placed.set(1);
+		placed.set(3);
+		BitSet paid = new BitSet();
+		paid.set(3);
+		FarmAreas areas = new FarmAreas();
+		areas.recordFinished(PLAYER, cane, SITE, Map.of(), UUID.randomUUID(), null, Map.of(), Map.of(), placed, paid);
+		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
+
+		FarmAreas.Finished farm = FarmAreas.read(nbt, null).finishedBy(PLAYER).getFirst();
+		assertEquals(placed, farm.placed());
+		assertEquals(paid, farm.paid());
+
+		NbtCompound item = nbt.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0);
+		item.remove("PlacedSteps");
+		item.remove("PaidSteps");
+		FarmAreas.Finished legacy = FarmAreas.read(nbt, null).finishedBy(PLAYER).getFirst();
+		BitSet every = new BitSet();
+		every.set(0, cane.steps().size());
+		assertEquals(every, legacy.placed());
+		assertEquals(every, legacy.paid());
+	}
+
+	@Test
+	void aRepairAddsItsPlacementsAndTheirPaymentToTheRecord() {
+		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
+		UUID instanceId = UUID.randomUUID();
+		BitSet placed = new BitSet();
+		placed.set(0);
+		placed.set(1);
+		BitSet paid = new BitSet();
+		paid.set(0);
+		paid.set(1);
+		FarmAreas areas = new FarmAreas();
+		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null, Map.of(), Map.of(), placed, paid);
+		UUID operationId = UUID.randomUUID();
+		areas.beginRepair(instanceId, PLAYER, SITE.table(), operationId).orElseThrow();
+		BitSet repaired = new BitSet();
+		repaired.set(1);
+		repaired.set(2);
+		BitSet repairPaid = new BitSet();
+		repairPaid.set(2);
+
+		assertTrue(areas.completeRepair(instanceId, operationId, repaired, repairPaid));
+
+		FarmAreas.Finished after = areas.finished(instanceId).orElseThrow();
+		BitSet expectedPlaced = new BitSet();
+		expectedPlaced.set(0, 3);
+		BitSet expectedPaid = new BitSet();
+		expectedPaid.set(0);
+		expectedPaid.set(2);
+		assertEquals(expectedPlaced, after.placed());
+		assertEquals(expectedPaid, after.paid());
+		assertFalse(areas.completeRepair(instanceId, operationId, repaired, repairPaid));
 	}
 }

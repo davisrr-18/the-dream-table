@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
@@ -190,5 +191,35 @@ class SchematicValidationTest {
 			blocks.add(entry);
 		}
 		assertTimeoutPreemptively(Duration.ofSeconds(5), () -> assertEquals(count, read(root).template().steps().size()));
+	}
+
+	private static NbtCompound chestStructure() {
+		NbtCompound root = structure(List.of("minecraft:chest"), new int[]{0, 0, 0, 0});
+		NbtCompound data = new NbtCompound();
+		NbtList items = new NbtList();
+		NbtCompound stack = new NbtCompound();
+		stack.putString("id", "minecraft:diamond");
+		stack.putInt("count", 64);
+		items.add(stack);
+		data.put("Items", items);
+		data.putString("CustomName", "Loot");
+		root.getList("blocks", 10).getCompound(0).put("nbt", data);
+		return root;
+	}
+
+	@Test
+	void aPlayersFileLosesTheItemsHeldByItsBlockEntities() throws IOException {
+		NbtCompound kept = read(chestStructure()).template().steps().get(0).blockNbt();
+		assertNotNull(kept);
+		assertFalse(kept.contains("Items"));
+		assertEquals("Loot", kept.getString("CustomName"));
+	}
+
+	@Test
+	void bundledFarmsKeepTheItemsTheirDesignerPutIn() throws IOException {
+		java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+		NbtIo.writeCompressed(chestStructure(), bytes);
+		NbtCompound kept = SchematicReader.read("nbt:farm", new java.io.ByteArrayInputStream(bytes.toByteArray())).steps().get(0).blockNbt();
+		assertTrue(kept.contains("Items"));
 	}
 }

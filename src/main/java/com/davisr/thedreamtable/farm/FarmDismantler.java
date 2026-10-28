@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.MaterialLedger;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -20,6 +21,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -49,6 +51,14 @@ public final class FarmDismantler {
 	private final BitSet paid;
 	/** Unique reservation for new jobs; zero keeps the reservation used by saves from before per-job keys. */
 	private final long areaSpot;
+	/** The table running the job, which holds its area claim and chunk. Differs from the site's table when a farm is taken down at another table. */
+	private final BlockPos host;
+	/** The design a Take Down runs on, saved with the job because its saved id is registered only while the farm's record exists. */
+	private final @Nullable FarmTemplate layout;
+	/** What a finished farm's record needs to come back with the same identity when the job leaves blocks standing; null for a discard. */
+	private final @Nullable Identity identity;
+	/** Steps whose blocks the player may not break, so they stay standing and the farm stays on record. */
+	private final BitSet standing = new BitSet();
 	private int next;
 	private int removed;
 	/** Whether the player was already told their inventory was full during this job. Not saved. */
@@ -56,12 +66,23 @@ public final class FarmDismantler {
 	/** The job waited for the player to come back online. Not saved. */
 	private boolean playerAway;
 
+	/** The owner-managed data of a finished farm, kept so its record can be restored if Take Down leaves part of it standing. */
+	public record Identity(UUID instanceId, UUID owner, @Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites) {
+	}
+
 	public FarmDismantler(UUID player, String farmId, long signature, FarmSite site, Map<Item, Item> swaps, BitSet placed, BitSet paid, int buildIndex) {
-		this(player, farmId, signature, site, swaps, placed, paid, buildIndex, areaSpot(site));
+		this(player, farmId, signature, site, swaps, placed, paid, buildIndex, areaSpot(site), site.table(), null, null);
+	}
+
+	/** Takes a finished farm down from {@code host}, with the design it was built with. */
+	public FarmDismantler(UUID player, FarmTemplate layout, FarmSite site, Map<Item, Item> swaps, BitSet placed, BitSet paid, BlockPos host,
+			Identity identity) {
+		this(player, layout.id(), layout.signature(), site, swaps, placed, paid, layout.steps().size(), areaSpot(site), host, layout, identity);
 	}
 
 	private FarmDismantler(UUID player, String farmId, long signature, FarmSite site, Map<Item, Item> swaps, BitSet placed, BitSet paid, int buildIndex,
-			long areaSpot) {
+			long areaSpot, BlockPos host, @Nullable FarmTemplate layout, @Nullable Identity identity) {
+		this.identity = identity;
 		this.player = player;
 		this.farmId = farmId;
 		this.signature = signature;
@@ -70,7 +91,13 @@ public final class FarmDismantler {
 		this.placed = placed;
 		this.paid = paid;
 		this.areaSpot = areaSpot;
+		this.host = host;
+		this.layout = layout;
 		this.next = buildIndex - 1;
+	}
+
+	@Nullable Identity identity() {
+		return identity;
 	}
 
 	public UUID player() {
@@ -78,7 +105,7 @@ public final class FarmDismantler {
 	}
 
 	public FarmAreas.Key areaKey() {
-		return FarmAreas.Key.dismantle(site.table(), player, areaSpot);
+		return FarmAreas.Key.dismantle(host, player, areaSpot);
 	}
 
 	private static long areaSpot(FarmSite site) {
@@ -95,7 +122,7 @@ public final class FarmDismantler {
 			}
 			return true;
 		}
-		if (online == null) {
+		if (online == null || !online.isAlive()) {
 			playerAway = true;
 			return false;
 		}
@@ -103,19 +130,23 @@ public final class FarmDismantler {
 			playerAway = false;
 			online.sendMessage(Text.translatable("gui.the_dream_table.dismantle_continues"), true);
 		}
-		ChunkKeeper.keepTable(world, site.table());
+		ChunkKeeper.keepTable(world, host);
 		Batch batch = new Batch();
 		next = Math.min(next, template.steps().size() - 1);
-		for (int checked = 0; next >= 0 && checked < STEPS_PER_TICK && batch.removed < BLOCKS_PER_TICK; checked++) {
-			if (!removeStep(world, online, template, next, batch)) {
-				break;
+		try {
+			for (int checked = 0; next >= 0 && checked < STEPS_PER_TICK && batch.removed < BLOCKS_PER_TICK; checked++) {
+				if (!removeStep(world, online, template, next, batch)) {
+					break;
+				}
+				next--;
 			}
-			next--;
-		}
-		removed += batch.removed;
-		if (batch.hand(world, online) && !toldFull) {
-			toldFull = true;
-			Handover.tellDropped(online);
+		} finally {
+			// What was already taken out of the world reaches the player even if a later step fails.
+			removed += batch.removed;
+			if (batch.hand(world, online) && !toldFull) {
+				toldFull = true;
+				Handover.tellDropped(online);
+			}
 		}
 		if (next >= 0) {
 			return false;
@@ -124,7 +155,59 @@ public final class FarmDismantler {
 			online.sendMessage(Text.translatable("gui.the_dream_table.dismantled", removed), true);
 			world.playSound(null, online.getBlockPos(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS, 0.8F, 0.8F);
 		}
+		if (!standing.isEmpty()) {
+			online.sendMessage(Text.translatable(identity != null ? "gui.the_dream_table.dismantle_kept" : "gui.the_dream_table.dismantle_protected",
+					standing.cardinality()), false);
+		}
 		return true;
+	}
+
+	/**
+	 * Called once when the job is over, however it ended. A farm that still has blocks the job could not remove, or has
+	 * not reached yet, goes back on record with its original identity, name, collaborators and invitations, and only
+	 * those steps as placed and paid, so it stays listed and protected instead of being orphaned.
+	 */
+	public void restoreRecord(ServerWorld world) {
+		if (identity == null || layout == null) {
+			return;
+		}
+		BitSet left = (BitSet) standing.clone();
+		for (int index = placed.nextSetBit(0); index >= 0 && index <= next; index = placed.nextSetBit(index + 1)) {
+			left.set(index);
+		}
+		if (left.isEmpty()) {
+			return;
+		}
+		BitSet leftPaid = (BitSet) paid.clone();
+		leftPaid.and(left);
+		FarmAreas.of(world).recordFinished(identity.owner(), layout, site, swaps, identity.instanceId(), identity.customName(),
+				identity.grants(), identity.invites(), left, leftPaid);
+	}
+
+	/**
+	 * Whether the player may break the blocks a Take Down would remove. Parts in unloaded chunks can't be asked and
+	 * are left to the job, which tells the player about anything it still finds protected.
+	 */
+	public static boolean mayTakeDown(ServerWorld world, PlayerEntity player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps, BitSet placed) {
+		if (!player.getAbilities().allowModifyWorld) {
+			return false;
+		}
+		for (int index = placed.nextSetBit(0); index >= 0 && index < template.steps().size(); index = placed.nextSetBit(index + 1)) {
+			FarmStep step = template.steps().get(index);
+			BlockPos pos = site.target(template, step);
+			if (step.isEntity() || step.state() == null || !world.isChunkLoaded(pos)) {
+				continue;
+			}
+			BlockState current = world.getBlockState(pos);
+			if (BlockMatch.stillFarm(current, expected(step, swaps, site)) && !BuildPermission.canBreak(world, player, pos, current)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static BlockState expected(FarmStep step, Map<Item, Item> swaps, FarmSite site) {
+		return MaterialSwaps.apply(step.state(), swaps).rotate(FarmGeometry.rotation(site.facing()));
 	}
 
 	/** Returns false when the step's chunk isn't loaded, so the job waits there instead of skipping it. */
@@ -138,9 +221,12 @@ public final class FarmDismantler {
 		if (!world.isChunkLoaded(pos)) {
 			return false;
 		}
-		BlockState expected = MaterialSwaps.apply(step.state(), swaps).rotate(FarmGeometry.rotation(site.facing()));
 		BlockState current = world.getBlockState(pos);
-		if (!BlockMatch.stillFarm(current, expected) || !BuildPermission.canBreak(world, player, pos, current)) {
+		if (!BlockMatch.stillFarm(current, expected(step, swaps, site))) {
+			return true;
+		}
+		if (!BuildPermission.canBreak(world, player, pos, current)) {
+			standing.set(index);
 			return true;
 		}
 		if (!current.getFluidState().isEmpty()) {
@@ -239,17 +325,70 @@ public final class FarmDismantler {
 		nbt.putInt("Next", next);
 		nbt.putInt("Removed", removed);
 		nbt.putLong("AreaSpot", areaSpot);
+		nbt.putLong("Host", host.asLong());
+		if (layout != null) {
+			nbt.put("Layout", TemplateCodec.encode(layout, true));
+		}
+		nbt.putLongArray("Standing", standing.toLongArray());
+		if (identity != null) {
+			nbt.putUuid("Instance", identity.instanceId());
+			nbt.putUuid("Owner", identity.owner());
+			if (identity.customName() != null) {
+				nbt.putString("CustomName", identity.customName());
+			}
+			FarmGrant.writeAll(nbt, "Grants", identity.grants());
+			FarmInvite.writeAll(nbt, "Invites", identity.invites());
+		}
 	}
 
-	public static FarmDismantler read(NbtCompound nbt) {
+	/** A saved job, or null when it is unreadable; a job that can't be read is dropped so it can't take the table's other data with it. */
+	public static @Nullable FarmDismantler read(NbtCompound nbt) {
+		try {
+			return readJob(nbt);
+		} catch (RuntimeException corrupt) {
+			TheDreamTableMod.LOGGER.error("Skipping unreadable Take Down job", corrupt);
+			return null;
+		}
+	}
+
+	/** The area claim a saved job holds, read without its layout, so the claim of a job that can't be read is still freed. Null when even that is unreadable. */
+	public static FarmAreas.@Nullable Key claimOf(NbtCompound nbt) {
+		try {
+			if (!nbt.containsUuid("Player")) {
+				return null;
+			}
+			long areaSpot = nbt.contains("AreaSpot", NbtElement.LONG_TYPE) ? nbt.getLong("AreaSpot") : 0L;
+			BlockPos host = nbt.contains("Host", NbtElement.LONG_TYPE) ? BlockPos.fromLong(nbt.getLong("Host")) : FarmSite.read(nbt.getCompound("Site")).table();
+			return FarmAreas.Key.dismantle(host, nbt.getUuid("Player"), areaSpot);
+		} catch (RuntimeException unreadable) {
+			return null;
+		}
+	}
+
+	private static @Nullable FarmDismantler readJob(NbtCompound nbt) {
 		if (!nbt.containsUuid("Player")) {
 			return null;
 		}
 		long areaSpot = nbt.contains("AreaSpot", NbtElement.LONG_TYPE) ? nbt.getLong("AreaSpot") : 0L;
-		FarmDismantler job = new FarmDismantler(nbt.getUuid("Player"), nbt.getString("Farm"), nbt.getLong("FarmSignature"),
-				FarmSite.read(nbt.getCompound("Site")), MaterialLedger.readSwaps(nbt),
-				BitSet.valueOf(nbt.getLongArray("PlacedSteps")), BitSet.valueOf(nbt.getLongArray("PaidSteps")), nbt.getInt("Next") + 1, areaSpot);
+		String farmId = nbt.getString("Farm");
+		FarmSite site = FarmSite.read(nbt.getCompound("Site"));
+		FarmTemplate layout = null;
+		if (nbt.contains("Layout", NbtElement.COMPOUND_TYPE)) {
+			layout = TemplateCodec.decode(farmId, nbt.getCompound("Layout"));
+			FarmTemplates.keepSaved(layout);
+		}
+		BlockPos host = nbt.contains("Host", NbtElement.LONG_TYPE) ? BlockPos.fromLong(nbt.getLong("Host")) : site.table();
+		Identity identity = null;
+		if (nbt.containsUuid("Instance") && nbt.containsUuid("Owner")) {
+			String name = nbt.contains("CustomName", NbtElement.STRING_TYPE) ? nbt.getString("CustomName") : null;
+			identity = new Identity(nbt.getUuid("Instance"), nbt.getUuid("Owner"), name,
+					FarmGrant.readAll(nbt, "Grants"), FarmInvite.readAll(nbt, "Invites"));
+		}
+		FarmDismantler job = new FarmDismantler(nbt.getUuid("Player"), farmId, nbt.getLong("FarmSignature"), site, MaterialLedger.readSwaps(nbt),
+				BitSet.valueOf(nbt.getLongArray("PlacedSteps")), BitSet.valueOf(nbt.getLongArray("PaidSteps")), nbt.getInt("Next") + 1, areaSpot, host, layout,
+				identity);
 		job.removed = nbt.getInt("Removed");
+		job.standing.or(BitSet.valueOf(nbt.getLongArray("Standing")));
 		return job;
 	}
 }

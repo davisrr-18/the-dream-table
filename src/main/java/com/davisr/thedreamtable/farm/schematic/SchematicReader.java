@@ -55,7 +55,7 @@ public final class SchematicReader {
 
 	/** A bundled farm; null when it can't be used. */
 	public static FarmTemplate read(String id, InputStream stream) throws IOException {
-		return fromRoot(id, NbtIo.readCompressed(stream, NbtSizeTracker.ofUnlimitedBytes())).template();
+		return fromRoot(id, NbtIo.readCompressed(stream, NbtSizeTracker.ofUnlimitedBytes()), false).template();
 	}
 
 	/** A player's file. Never throws: a file that can't be read becomes an {@link ImportNote.Kind#UNREADABLE} result, logged with its cause. */
@@ -72,7 +72,7 @@ public final class SchematicReader {
 					root = NbtIo.readCompound(input, NbtSizeTracker.of(MAX_BYTES));
 				}
 			}
-			return fromRoot(id, root);
+			return fromRoot(id, root, true);
 		} catch (NbtSizeValidationException tooLarge) {
 			TheDreamTableMod.LOGGER.warn("Schematic {} holds more than {} bytes of data", path.getFileName(), MAX_BYTES);
 			return Result.rejected(ImportNote.Kind.TOO_LARGE, 0);
@@ -82,11 +82,12 @@ public final class SchematicReader {
 		}
 	}
 
-	static Result fromRoot(String id, NbtCompound root) {
+	/** @param stripContents drops the items held by block entities, true for a player's file and false for bundled farms. */
+	static Result fromRoot(String id, NbtCompound root, boolean stripContents) {
 		if (root.contains("Schematic", NbtElement.COMPOUND_TYPE)) {
 			root = root.getCompound("Schematic");
 		}
-		StepCollector collector = new StepCollector();
+		StepCollector collector = new StepCollector(stripContents);
 		if (LitematicaReader.accepts(root)) {
 			LitematicaReader.read(root, collector);
 		} else if (SpongeReader.accepts(root)) {

@@ -27,13 +27,16 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 	public static final Id<LoadedFarmsPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "loaded_farms"));
 	private static final int MAX_FARMS = 512;
 	private static final int MAX_INVITES = 512;
+	/** Farm and layout ids embed imported file names; the limit is far above any real one and encodes the same below 256. */
+	static final int MAX_ID = 1024;
+	private static final RequestThrottle THROTTLE = new RequestThrottle();
 	public record InviteEntry(String key, UUID inviteId, String farmName, FarmRole role, long expiresAt) {
 	}
 	private static final PacketCodec<RegistryByteBuf, FarmLoader.Entry> ENTRY = PacketCodec.of(
 			(entry, buf) -> {
 				buf.writeString(entry.key(), 256);
-				buf.writeString(entry.farmId(), 256);
-				buf.writeString(entry.layoutId(), 256);
+				buf.writeString(entry.farmId(), MAX_ID);
+				buf.writeString(entry.layoutId(), MAX_ID);
 				buf.writeString(entry.customName(), 128);
 				buf.writeString(entry.dimension(), 256);
 				buf.writeBlockPos(entry.where());
@@ -47,18 +50,18 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 				buf.writeBoolean(entry.available());
 				buf.writeVarInt(entry.storage() + 1);
 			},
-			buf -> new FarmLoader.Entry(buf.readString(256), buf.readString(256), buf.readString(256), buf.readString(128), buf.readString(256), buf.readBlockPos(),
+			buf -> new FarmLoader.Entry(buf.readString(256), buf.readString(MAX_ID), buf.readString(MAX_ID), buf.readString(128), buf.readString(256), buf.readBlockPos(),
 					buf.readEnumConstant(com.davisr.thedreamtable.farm.FarmRole.class), buf.readBoolean(), buf.readBoolean(), buf.readBoolean(), buf.readBoolean(),
 					buf.readVarInt(), buf.readVarInt() - 1, buf.readBoolean(), buf.readVarInt() - 1));
 	private static final PacketCodec<RegistryByteBuf, InviteEntry> INVITE = PacketCodec.of(
 			(invite, buf) -> {
 				buf.writeString(invite.key(), 256);
 				buf.writeUuid(invite.inviteId());
-				buf.writeString(invite.farmName(), 256);
+				buf.writeString(invite.farmName(), MAX_ID);
 				buf.writeEnumConstant(invite.role());
 				buf.writeLong(invite.expiresAt());
 			},
-			buf -> new InviteEntry(buf.readString(256), buf.readUuid(), buf.readString(256), buf.readEnumConstant(FarmRole.class), buf.readLong()));
+			buf -> new InviteEntry(buf.readString(256), buf.readUuid(), buf.readString(MAX_ID), buf.readEnumConstant(FarmRole.class), buf.readLong()));
 	public static final PacketCodec<RegistryByteBuf, LoadedFarmsPayload> CODEC = PacketCodec.tuple(
 			ENTRY.collect(PacketCodecs.toList(MAX_FARMS)), LoadedFarmsPayload::farms,
 			INVITE.collect(PacketCodecs.toList(MAX_INVITES)), LoadedFarmsPayload::invites,
@@ -68,7 +71,12 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 
 	public static void register() {
 		Platform.network().registerServerToClient(ID, CODEC);
+		THROTTLE.forgetOnDisconnect();
 		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
+			// A toggle changes state and gets a reply the client waits for, so only plain list reads are budgeted.
+			if (payload.toggle().isEmpty() && !THROTTLE.allow(player.getUuid(), player.getServer().getTicks())) {
+				return;
+			}
 			FarmLoader loader = FarmLoader.of(player.getServer());
 			if (FarmNetwork.table(player, payload.table()) == null) {
 				return;

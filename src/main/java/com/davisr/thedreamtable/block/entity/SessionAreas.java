@@ -1,6 +1,10 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.BuildPermission;
+import com.davisr.thedreamtable.farm.FarmAccess;
+import com.davisr.thedreamtable.farm.FarmAction;
+import com.davisr.thedreamtable.farm.FarmDirectory;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmGrant;
@@ -12,6 +16,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Box;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.BitSet;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,10 +26,11 @@ import java.util.UUID;
  */
 final class SessionAreas {
 	private final TableSession session;
-	private boolean finishedRecorded;
+	private final BuildProgress progress;
 
-	SessionAreas(TableSession session) {
+	SessionAreas(TableSession session, BuildProgress progress) {
 		this.session = session;
+		this.progress = progress;
 	}
 
 	FarmAreas.Key key() {
@@ -65,31 +71,44 @@ final class SessionAreas {
 		return FarmAreas.presence(world, template, site, session.swaps()).percent();
 	}
 
+	/** Whether this session's farm already has a finished record at its spot. */
+	boolean recordedAtSite(ServerWorld world) {
+		return FarmAreas.of(world).recordedAt(session.player(), FarmBuilder.site(session));
+	}
+
+	/** What stands at this session's site now. */
+	FarmAreas.Presence presenceAtSite(ServerWorld world, FarmTemplate template) {
+		return FarmAreas.presence(world, template, FarmBuilder.site(session), session.swaps());
+	}
+
 	void claim(ServerWorld world, FarmTemplate template) {
-		finishedRecorded = false;
+		progress.setFinishedRecorded(false);
 		FarmAreas.of(world).claim(key(), FarmBuilder.site(session).footprint(template));
 	}
 
 	/**
 	 * A finished farm keeps its area after the session moves on, so no later farm is placed over it or clears its blocks.
-	 * Farms finished before areas existed are recorded the first time their table ticks.
+	 * The session remembers it has recorded, so a farm released since is not recorded again after a reload. Farms finished
+	 * before areas existed are recorded the first time their table ticks, when the session was saved by a version that never did.
 	 */
 	void recordFinished(ServerWorld world, FarmTemplate template, @Nullable UUID instanceId, @Nullable String customName,
-			Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites) {
-		finishedRecorded = true;
+			Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites, BitSet placed, BitSet paid) {
+		progress.setFinishedRecorded(true);
 		FarmAreas areas = FarmAreas.of(world);
 		if (instanceId == null) {
-			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps());
+			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps(), UUID.randomUUID(), null, Map.of(), Map.of(),
+					placed, paid);
 		} else {
-			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps(), instanceId, customName, grants, invites);
+			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps(), instanceId, customName, grants, invites,
+					placed, paid);
 		}
 		areas.release(key());
 	}
 
-	void completeRepair(ServerWorld world, RepairContext context) {
-		finishedRecorded = true;
+	void completeRepair(ServerWorld world, RepairContext context, BitSet placed, BitSet paid) {
+		progress.setFinishedRecorded(true);
 		FarmAreas areas = FarmAreas.of(world);
-		areas.completeRepair(context.farmKey().instanceId(), context.operationId());
+		areas.completeRepair(context.farmKey().instanceId(), context.operationId(), placed, paid);
 		areas.release(key());
 	}
 
@@ -98,8 +117,15 @@ final class SessionAreas {
 				new com.davisr.thedreamtable.farm.RepairLease(context.operationId(), context.actorUuid(), session.getPos()));
 	}
 
+	/** Whether the repair's actor still holds a role that may repair the farm, so a revoked operator's repair stops. */
+	boolean repairPermitted(ServerWorld world, RepairContext context) {
+		return FarmDirectory.resolve(world.getServer(), context.farmKey())
+				.map(located -> FarmAccess.allows(located.record(), context.actorUuid(), FarmAction.REPAIR, DreamTableConfig.farmSharingEnabled()))
+				.orElse(false);
+	}
+
 	boolean finishedRecorded() {
-		return finishedRecorded;
+		return progress.finishedRecorded();
 	}
 
 	void release(ServerWorld world) {
