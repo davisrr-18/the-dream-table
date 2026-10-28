@@ -117,6 +117,7 @@
 	"gui.the_dream_table.farm_changed": "The farm file changed since this build started. Discard it and start again",
 	"gui.the_dream_table.farm_design_lost": "This farm was finished by an older version and its design is gone",
 	"gui.the_dream_table.discard_changed": "The farm file changed, so its blocks were left in place",
+	"gui.the_dream_table.break_warning": "A build is still running at this table. Breaking it drops the delivered materials and ends the build; the blocks already placed stay",
 	"gui.the_dream_table.discard_warning": "Discard takes the build apart and returns its blocks",
 	"gui.the_dream_table.dismantled": "Took apart %s blocks and returned them",
 	"gui.the_dream_table.back": "Back",

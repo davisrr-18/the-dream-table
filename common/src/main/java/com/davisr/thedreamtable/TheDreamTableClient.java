@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable;
 
+import com.davisr.thedreamtable.client.ClientLifecycle;
 import com.davisr.thedreamtable.client.ClientSettings;
 import com.davisr.thedreamtable.client.DreamTableClipboard;
 import com.davisr.thedreamtable.client.DreamTableHologram;
@@ -30,6 +31,7 @@ public final class TheDreamTableClient {
 		DreamTableHologram.registerClicks();
 		DreamTableHologram.registerChecks();
 		ClientSettings.load();
+		ClientLifecycle.register();
 		OwnSessions.register();
 		OtherFarms.register();
 		TrackedFarmHud.register();

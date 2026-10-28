@@ -278,6 +278,11 @@ public final class TableSession {
 		return progress.busy();
 	}
 
+	/** A started build that isn't finished, running or stopped partway; a repair counts too. */
+	boolean buildInProgress() {
+		return !selectedFarm.isEmpty() && (progress.busy() || (progress.index() > 0 && !progress.is(PHASE_DONE)));
+	}
+
 	/** Starting, resuming, pacing and stopping the build. */
 	public SessionBuild build() {
 		return build;

@@ -15,6 +15,7 @@ import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.world.World;
@@ -122,10 +123,19 @@ public class DreamTableBlock extends BlockWithEntity {
 
 	@Override
 	protected void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
-		if (!state.isOf(newState.getBlock()) && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table) {
+		// Only the server owns the sessions: the client's copy gets this call too when the server's block change arrives.
+		if (!world.isClient() && !state.isOf(newState.getBlock()) && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table) {
 			table.dropMaterials(world);
 		}
 		super.onStateReplaced(state, world, pos, newState, moved);
+	}
+
+	/** Breaking is not stopped, but whoever starts to is told what it costs when someone's build is still running. */
+	@Override
+	protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
+		if (!world.isClient() && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table && table.hasBuildInProgress()) {
+			player.sendMessage(Text.translatable("gui.the_dream_table.break_warning"), true);
+		}
 	}
 
 	@Override

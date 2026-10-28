@@ -34,6 +34,10 @@ public final class OtherFarms {
 		Platform.clientRendering().onWorldRender(RenderStage.AFTER_ENTITIES, OtherFarms::render);
 	}
 
+	static void clear() {
+		areas = List.of();
+	}
+
 	public static void setShown(boolean shown) {
 		ClientSettings.setShowOtherFarms(shown);
 		if (!shown) {

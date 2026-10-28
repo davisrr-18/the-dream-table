@@ -232,7 +232,7 @@ public final class DreamTableHologram {
 
 	private static boolean locked() {
 		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.world == null || tablePos == null) {
+		if (client.world == null || tablePos == null || !client.world.isChunkLoaded(tablePos)) {
 			return true;
 		}
 		TableSession table = localSession(client.world.getBlockEntity(tablePos));
@@ -242,14 +242,22 @@ public final class DreamTableHologram {
 		return table.hasAnchor() && !DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase());
 	}
 
+	/**
+	 * Whether the followed table stands. While its chunk is not loaded on the client (the player walked away) it reads as
+	 * air, so the choice is kept and nothing is drawn; only a table seen gone from a loaded chunk forgets the farm.
+	 */
 	private static boolean tableStillThere(World world) {
-		if (tablePos != null && world.getBlockState(tablePos).getBlock() instanceof DreamTableBlock) {
+		if (tablePos == null) {
+			return false;
+		}
+		if (!world.isChunkLoaded(tablePos)) {
+			return false;
+		}
+		if (world.getBlockState(tablePos).getBlock() instanceof DreamTableBlock) {
 			return true;
 		}
-		if (tablePos != null) {
-			clear();
-			DreamTableClipboard.close();
-		}
+		clear();
+		DreamTableClipboard.close();
 		return false;
 	}
 

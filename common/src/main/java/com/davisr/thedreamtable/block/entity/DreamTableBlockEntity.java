@@ -206,6 +206,11 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		return false;
 	}
 
+	/** Whether anyone's build here has started and is not finished, or a take-down is still running; breaking the table ends them. */
+	public boolean hasBuildInProgress() {
+		return !dismantling.isEmpty() || sessions.values().stream().anyMatch(TableSession::buildInProgress);
+	}
+
 	/** When the table is broken, everyone's delivered materials drop and its farm areas are freed. Built blocks stay, even half-dismantled ones. */
 	public void dropMaterials(World world) {
 		for (TableSession session : sessions.values()) {
