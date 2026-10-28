@@ -38,6 +38,8 @@ public final class SessionBuild {
 	private int failures;
 	/** The build waited for its owner to come back online. Not saved: after a restart everyone rejoins anyway. */
 	private boolean ownerAway;
+	/** The design instance last found to match the signature this build started with, so the signature isn't recomputed every tick. */
+	private @Nullable FarmTemplate verified;
 
 	SessionBuild(TableSession session, BuildProgress progress, SessionAreas areas) {
 		this.session = session;
@@ -59,13 +61,10 @@ public final class SessionBuild {
 				settleLegacy(world, template);
 			}
 		}
-		if (!progress.is(PHASE_BUILDING)) {
+		if (endRepairIfInvalid(world, world.getTime() % BuildPace.TICKS_PER_SECOND == 0) || !progress.is(PHASE_BUILDING)) {
 			return;
 		}
-		RepairContext repair = progress.repairContext();
-		// The role is rechecked once a second: a revoked operator or disabled sharing ends the repair.
-		if (repair != null && (!areas.repairActive(world, repair) || world.getTime() % BuildPace.TICKS_PER_SECOND == 0 && !areas.repairPermitted(world, repair))) {
-			stop(PHASE_BLOCKED, new BuildIssue(BuildIssue.Kind.ERROR, session.getPos(), "repair_lease", 1));
+		if (!stillSameFarm(template)) {
 			return;
 		}
 		if (session.onlineOwner(world) == null) {
@@ -93,6 +92,81 @@ public final class SessionBuild {
 				skipped++;
 			}
 		}
+	}
+
+	/**
+	 * Whether the farm this build started with is still the one it would place. A farm file that was deleted or changed
+	 * since stops the build with a message, instead of placing the new design from the old step with the old records;
+	 * resuming then goes through {@link #begin}, which checks again.
+	 */
+	private boolean stillSameFarm(@Nullable FarmTemplate template) {
+		boolean matches = template != null && (template == verified || progress.matches(template.signature()));
+		if (continueDecision(template != null, matches) == ContinueDecision.CONTINUE) {
+			verified = template;
+			return true;
+		}
+		verified = null;
+		stop(PHASE_BLOCKED, BuildIssue.at(BuildIssue.Kind.FARM_CHANGED, session.getPos()));
+		return false;
+	}
+
+	/** Whether a build in motion may go on. */
+	enum ContinueDecision {
+		CONTINUE, STOP
+	}
+
+	/** A build goes on only while its farm exists and still matches the signature it started with. */
+	static ContinueDecision continueDecision(boolean templatePresent, boolean signatureMatches) {
+		return templatePresent && signatureMatches ? ContinueDecision.CONTINUE : ContinueDecision.STOP;
+	}
+
+	/** What a repair's role and lease check decides. */
+	enum RepairCheck {
+		/** No repair, or one that holds no lease in this phase. */
+		NONE,
+		KEEP,
+		/** The persisted lease is gone: it was reconciled away or released elsewhere. */
+		END_LOST,
+		/** The actor no longer holds a role that may repair the farm. */
+		END_REVOKED
+	}
+
+	/**
+	 * A repair holds its farm's lease while it builds and while it is paused, blocked or waiting for materials, so all of
+	 * those phases are checked, not only the one that places blocks. {@code permitted} only matters on the ticks that look
+	 * at the role; the caller passes true on the others.
+	 */
+	static RepairCheck repairCheck(String phase, boolean hasRepair, boolean leaseActive, boolean permitted) {
+		boolean holdsLease = PHASE_BUILDING.equals(phase) || PHASE_PAUSED.equals(phase) || PHASE_BLOCKED.equals(phase) || PHASE_NEED.equals(phase);
+		if (!hasRepair || !holdsLease) {
+			return RepairCheck.NONE;
+		}
+		if (!leaseActive) {
+			return RepairCheck.END_LOST;
+		}
+		return permitted ? RepairCheck.KEEP : RepairCheck.END_REVOKED;
+	}
+
+	/**
+	 * Ends the session's repair when its lease is gone or its actor may no longer repair the farm. The lease is checked
+	 * every tick while building; the other phases, and the role, are checked when {@code roleDue} (once a second, and on
+	 * resume). Returns true when the repair ended.
+	 */
+	private boolean endRepairIfInvalid(ServerWorld world, boolean roleDue) {
+		RepairContext repair = progress.repairContext();
+		if (repair == null || !progress.busy() || !roleDue && !progress.is(PHASE_BUILDING)) {
+			return false;
+		}
+		RepairCheck check = repairCheck(progress.phase(), true, areas.repairActive(world, repair), !roleDue || areas.repairPermitted(world, repair));
+		if (check == RepairCheck.END_LOST) {
+			session.cancelRepair(world, "gui.the_dream_table.repair_ended_lost");
+			return true;
+		}
+		if (check == RepairCheck.END_REVOKED) {
+			session.cancelRepair(world, "gui.the_dream_table.repair_ended_revoked");
+			return true;
+		}
+		return false;
 	}
 
 	public boolean canResume() {
@@ -133,7 +207,16 @@ public final class SessionBuild {
 
 	private boolean begin(ServerPlayerEntity starter, boolean fromScratch, @Nullable RepairContext repair) {
 		FarmTemplate template = session.template();
-		if (template == null || !(session.table().getWorld() instanceof ServerWorld world)) {
+		if (!(session.table().getWorld() instanceof ServerWorld world) || session.returnPending(starter)) {
+			return false;
+		}
+		if (template == null) {
+			if (!fromScratch) {
+				starter.sendMessage(Text.translatable("gui.the_dream_table.farm_changed"), true);
+			}
+			return false;
+		}
+		if (!fromScratch && endRepairIfInvalid(world, true)) {
 			return false;
 		}
 		if (fromScratch) {
@@ -160,7 +243,9 @@ public final class SessionBuild {
 				return false;
 			}
 		}
+		session.reconcileMaterials(starter);
 		areas.claim(world, template);
+		verified = null;
 		progress.start(session.player(), fromScratch, template.signature());
 		if (repair != null) {
 			progress.startRepair(repair);

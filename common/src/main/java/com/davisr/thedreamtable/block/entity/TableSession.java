@@ -75,7 +75,7 @@ public final class TableSession {
 
 	/** An unused session is not saved. */
 	boolean isEmpty() {
-		return selectedFarm.isEmpty() && !desk.anyDelivered();
+		return selectedFarm.isEmpty() && !desk.holdsItems();
 	}
 
 	// Table access, so farm code can treat a session like the table it belongs to.
@@ -99,6 +99,12 @@ public final class TableSession {
 	}
 
 	void tick(ServerWorld world) {
+		if (!progress.returnNotice().isEmpty()) {
+			ServerPlayerEntity online = onlineOwner(world);
+			if (online != null && returnPending(online)) {
+				return;
+			}
+		}
 		if (retired()) {
 			ServerPlayerEntity owner = onlineOwner(world);
 			if (owner != null) {
@@ -131,7 +137,7 @@ public final class TableSession {
 	 */
 	public void setSelectedFarm(String farm, @Nullable PlayerEntity receiver) {
 		releaseArea();
-		if (desk.anyDelivered() && table.getWorld() != null) {
+		if (desk.holdsItems() && table.getWorld() != null) {
 			desk.returnAll(table.getWorld(), getPos(), receiver);
 		}
 		selectedFarm = farm == null ? "" : farm;
@@ -292,6 +298,20 @@ public final class TableSession {
 
 	// Delivered materials
 
+	/**
+	 * Hands back deliveries made for a design this farm no longer has (the farm file changed under them), to the receiver
+	 * or at the table, so they can't block new deliveries or make the materials look complete. Checked whenever the player
+	 * acts on the table, since nothing else notices the file changing.
+	 */
+	public void reconcileMaterials(@Nullable PlayerEntity receiver) {
+		if (receiver instanceof ServerPlayerEntity returning && returnPending(returning)) {
+			return;
+		}
+		if (table.getWorld() != null && desk.returnIncompatible(table.getWorld(), getPos(), receiver)) {
+			sync();
+		}
+	}
+
 	/** Delivers the held stack on the clipboard. When the build waits for exactly this block, it continues right away. */
 	public boolean offerFromHand(PlayerEntity giver) {
 		if (!requirementsBoard || template() == null) {
@@ -300,6 +320,7 @@ public final class TableSession {
 		Hand hand = giver.getStackInHand(Hand.MAIN_HAND).isEmpty() ? Hand.OFF_HAND : Hand.MAIN_HAND;
 		ItemStack stack = giver.getStackInHand(hand);
 		boolean creative = giver.getAbilities().creativeMode;
+		reconcileMaterials(giver);
 		int accepted = desk.accept(stack, creative);
 		if (accepted <= 0) {
 			return false;
@@ -359,21 +380,69 @@ public final class TableSession {
 	 * {@link FarmDismantler}, which takes it apart over the next ticks; a finished farm stays standing.
 	 */
 	public void discard(PlayerEntity discarder) {
+		discard(discarder.getWorld(), discarder, true);
+	}
+
+	/**
+	 * Ends a repair that can't go on, its actor's access gone or its lease lost. Unlike a discard it takes nothing apart:
+	 * what the repair placed stays in the farm and is added to the farm's record when that still exists, the lease is
+	 * released, and only the delivered items it did not spend come back. A player who is away gets them when they return.
+	 */
+	void cancelRepair(ServerWorld world, String messageKey) {
+		ServerPlayerEntity actor = onlineOwner(world);
+		RepairContext context = progress.repairContext();
+		if (context != null) {
+			FarmAreas.of(world).mergePlacement(context.farmKey().instanceId(), progress.placedSteps(), progress.paidSteps());
+		}
+		if (actor != null) {
+			actor.sendMessage(Text.translatable(messageKey), false);
+			discard(world, actor, false);
+			return;
+		}
+		// The actor is away: the repair ends now, so the owner can take the farm down, but the materials stay with the actor.
+		// Their farm stays selected, so the ledger still matches it, and they are handed back when the actor returns.
+		// The anchor is cleared so the waiting session doesn't hold the farm's footprint against other repairs here.
+		releaseArea();
+		placement.clear();
+		progress.reset(true);
+		progress.setReturnNotice(messageKey);
+		sync();
+	}
+
+	/**
+	 * Hands back what a repair that ended while this player was away left in their session, and tells them why.
+	 * Returns true when it did, which also frees the session. Checked on every tick the player is online and before they act.
+	 */
+	boolean returnPending(ServerPlayerEntity returning) {
+		String notice = progress.returnNotice();
+		if (notice.isEmpty()) {
+			return false;
+		}
+		returning.sendMessage(Text.translatable(notice), false);
+		discard(returning.getWorld(), returning, false);
+		return true;
+	}
+
+	private void discard(World world, @Nullable PlayerEntity discarder, boolean takeApart) {
 		FarmTemplate template = template();
-		if (table.getWorld() instanceof ServerWorld world && template != null && !progress.is(PHASE_DONE) && progress.index() > 0) {
+		if (takeApart && table.getWorld() instanceof ServerWorld serverWorld && template != null && !progress.is(PHASE_DONE) && progress.index() > 0) {
 			if (!progress.matches(template.signature())) {
-				discarder.sendMessage(Text.translatable("gui.the_dream_table.discard_changed"), true);
+				if (discarder != null) {
+					discarder.sendMessage(Text.translatable("gui.the_dream_table.discard_changed"), true);
+				}
 			} else {
 				FarmSite site = FarmBuilder.site(this);
 				FarmDismantler job = new FarmDismantler(player, selectedFarm, template.signature(), site, desk.swaps(),
 						progress.placedSteps(), progress.paidSteps(), progress.index());
-				FarmAreas.of(world).claim(job.areaKey(), site.footprint(template));
+				FarmAreas.of(serverWorld).claim(job.areaKey(), site.footprint(template));
 				table.startDismantling(job);
-				discarder.sendMessage(Text.translatable("gui.the_dream_table.dismantling"), true);
+				if (discarder != null) {
+					discarder.sendMessage(Text.translatable("gui.the_dream_table.dismantling"), true);
+				}
 			}
 		}
 		releaseArea();
-		desk.returnAll(discarder.getWorld(), getPos(), discarder);
+		desk.returnAll(world, getPos(), discarder);
 		progress.reset(true);
 		page = 0;
 		selectedFarm = "";

@@ -65,4 +65,17 @@ class BuildIssueTest {
 		assertEquals("gui.the_dream_table.issue.entity_blocked", ((TranslatableTextContent) issue.what().getContent()).getKey());
 		assertEquals("gui.the_dream_table.issue.entity_blocked.fix", ((TranslatableTextContent) issue.fix().getContent()).getKey());
 	}
+
+	@Test
+	void aChangedFarmNeedsThePlayerAndSurvivesSaving() {
+		BuildIssue issue = BuildIssue.at(BuildIssue.Kind.FARM_CHANGED, new BlockPos(4, 70, -2));
+		NbtCompound nbt = new NbtCompound();
+
+		issue.write(nbt);
+
+		assertEquals(issue, BuildIssue.read(nbt));
+		assertFalse(issue.temporary());
+		assertEquals("gui.the_dream_table.issue.farm_changed", ((TranslatableTextContent) issue.what().getContent()).getKey());
+		assertEquals("gui.the_dream_table.issue.farm_changed.fix", ((TranslatableTextContent) issue.fix().getContent()).getKey());
+	}
 }

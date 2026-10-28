@@ -8,8 +8,8 @@ public final class FabricPlatform {
 	}
 
 	public static void install() {
-		Platform.install(new FabricPaths(), new FabricBlockBreakGuard(), new FabricServerNetwork(),
-				new FabricServerEvents(), new FabricMenus(), new FabricContent());
+		Platform.install(new FabricPaths(), new FabricBlockBreakGuard(), new FabricBlockPlaceGuard(),
+				new FabricServerNetwork(), new FabricServerEvents(), new FabricMenus(), new FabricContent());
 	}
 
 	public static void installClient() {

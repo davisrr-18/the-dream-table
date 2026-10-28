@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmGrant;
 import com.davisr.thedreamtable.farm.FarmInvite;
 import com.davisr.thedreamtable.farm.FarmNames;
+import com.davisr.thedreamtable.farm.schematic.SchematicReader;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import org.jetbrains.annotations.Nullable;
@@ -43,6 +44,11 @@ final class BuildProgress {
 	private boolean legacyDone;
 	/** Whether this run already told its player that a returned item was dropped. Not persisted. */
 	private boolean droppedNotified;
+	/**
+	 * Set when a repair ended while its actor was away: the lang key of the message they get on return, when their delivered
+	 * materials are handed back. Empty when nothing waits. Saved, so a restart can't strand the materials.
+	 */
+	private String returnNotice = "";
 
 	/** False when the farm file no longer matches the one this build started with. An unknown signature, from an older save, matches. */
 	boolean matches(long current) {
@@ -151,6 +157,14 @@ final class BuildProgress {
 		kept++;
 	}
 
+	String returnNotice() {
+		return returnNotice;
+	}
+
+	void setReturnNotice(String key) {
+		returnNotice = key;
+	}
+
 	/** True only for the first dropped handover in this build or repair. */
 	boolean shouldNotifyDropped(boolean dropped) {
 		if (!dropped || droppedNotified) {
@@ -213,6 +227,7 @@ final class BuildProgress {
 			droppedNotified = false;
 			finishedRecorded = false;
 			legacyDone = false;
+			returnNotice = "";
 		}
 		issue = null;
 		if (fromScratch || signature == 0) {
@@ -260,9 +275,15 @@ final class BuildProgress {
 		droppedNotified = false;
 		finishedRecorded = false;
 		legacyDone = false;
+		returnNotice = "";
 		if (forgetOwner) {
 			owner = null;
 		}
+	}
+
+	/** A saved step number is kept within what any farm can have, so a corrupt value can't size the legacy step set into gigabytes. */
+	static int clampIndex(int saved) {
+		return Math.max(0, Math.min(SchematicReader.MAX_BLOCKS, saved));
 	}
 
 	void write(NbtCompound nbt) {
@@ -290,6 +311,9 @@ final class BuildProgress {
 		FarmInvite.writeAll(nbt, "RepairInvites", repairInvites);
 		nbt.putInt("Kept", kept);
 		nbt.putBoolean("FinishedRecorded", finishedRecorded);
+		if (!returnNotice.isEmpty()) {
+			nbt.putString("ReturnNotice", returnNotice);
+		}
 		if (issue != null) {
 			issue.write(nbt);
 		}
@@ -309,7 +333,7 @@ final class BuildProgress {
 	void read(NbtCompound nbt) {
 		String stored = nbt.getString("Phase");
 		phase = stored.isEmpty() ? PHASE_IDLE : stored;
-		index = Math.max(0, nbt.getInt("BuildIndex"));
+		index = clampIndex(nbt.getInt("BuildIndex"));
 		credit = Math.max(0, Math.min(1, nbt.getFloat("Credit")));
 		pace = BuildPace.valid(nbt.getInt("BlocksPerSecond"));
 		owner = nbt.containsUuid("Owner") ? nbt.getUuid("Owner") : null;
@@ -346,6 +370,7 @@ final class BuildProgress {
 		boolean flagged = nbt.contains("FinishedRecorded", NbtElement.BYTE_TYPE);
 		finishedRecorded = flagged ? nbt.getBoolean("FinishedRecorded") : is(PHASE_DONE);
 		legacyDone = !flagged && is(PHASE_DONE);
+		returnNotice = nbt.getString("ReturnNotice");
 		issue = BuildIssue.read(nbt);
 	}
 }

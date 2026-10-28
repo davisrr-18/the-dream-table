@@ -272,4 +272,39 @@ class BuildProgressTest {
 		progress.reset(false);
 		assertFalse(progress.finishedRecorded());
 	}
+
+	@Test
+	void aCorruptStepNumberIsClampedInsteadOfSizingTheLegacyStepSet() {
+		assertEquals(0, BuildProgress.clampIndex(-5));
+		assertEquals(40, BuildProgress.clampIndex(40));
+		assertEquals(com.davisr.thedreamtable.farm.schematic.SchematicReader.MAX_BLOCKS, BuildProgress.clampIndex(Integer.MAX_VALUE));
+
+		NbtCompound nbt = new NbtCompound();
+		nbt.putString("Phase", DreamTableBlockEntity.PHASE_DONE);
+		nbt.putInt("BuildIndex", Integer.MAX_VALUE);
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+
+		assertEquals(com.davisr.thedreamtable.farm.schematic.SchematicReader.MAX_BLOCKS, loaded.index());
+		assertTrue(loaded.placedSteps().length() <= com.davisr.thedreamtable.farm.schematic.SchematicReader.MAX_BLOCKS);
+	}
+
+	@Test
+	void theNoticeOfARepairEndedWhileAwaySurvivesSavingAndIsClearedByAnyNewStart() {
+		BuildProgress progress = new BuildProgress();
+		progress.setReturnNotice("gui.the_dream_table.repair_ended_revoked");
+		NbtCompound nbt = new NbtCompound();
+		progress.write(nbt);
+
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+		assertEquals("gui.the_dream_table.repair_ended_revoked", loaded.returnNotice());
+
+		loaded.start(UUID.randomUUID(), true, 7L);
+		assertEquals("", loaded.returnNotice());
+		loaded.setReturnNotice("x");
+		loaded.reset(false);
+		assertEquals("", loaded.returnNotice());
+		assertEquals("", new BuildProgress().returnNotice());
+	}
 }

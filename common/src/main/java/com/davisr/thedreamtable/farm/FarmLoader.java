@@ -54,6 +54,15 @@ public final class FarmLoader extends PersistentState {
 	private static final int RADIUS = 2;
 	/** Blocks from a player within which the game gives random ticks by itself. */
 	private static final double RANDOM_TICK_RANGE = 128.0;
+	/**
+	 * Most chunks one farm may cover and still be kept loaded. Each covered chunk gets its own radius-2 ticket and its own
+	 * random ticks, and a farm's footprint is bounded only by its block count, so a sparse imported schematic could otherwise
+	 * span a huge area. The biggest built-in farm covers 25 chunks at worst (the iron farm, 5 by 5); 64 is an 8 by 8 square,
+	 * 128 blocks wide, leaving room for large imported farms.
+	 */
+	public static final int MAX_CHUNKS_PER_FARM = 64;
+	/** Set when a farm was unpicked, taken down or lost a collaborator, so the next tick renews at once instead of up to 100 ticks later. */
+	private static volatile boolean renewalRequested;
 
 	/** Per player, the picked farms as "dimension|farm id within that world". */
 	private final Map<UUID, Set<String>> picked = new HashMap<>();
@@ -78,7 +87,7 @@ public final class FarmLoader extends PersistentState {
 
 	public static final int UNKNOWN = -1;
 	public enum ToggleResult {
-		SELECTED, UNSELECTED, OWNER_QUOTA_FULL, NOT_FOUND, FORBIDDEN
+		SELECTED, UNSELECTED, OWNER_QUOTA_FULL, TOO_LARGE, NOT_FOUND, FORBIDDEN
 	}
 
 	/** A finished farm and the world it stands in. */
@@ -88,7 +97,10 @@ public final class FarmLoader extends PersistentState {
 	/** Farms already reported full, so the owner hears about it once, until it has room again. */
 	private final Set<String> reportedFull = new HashSet<>();
 
-	/** The chunks of the picked farms, per world, as of the last renewal. Not saved. */
+	/** Farms already logged as too large to keep loaded, so the same farm isn't logged at every renewal. */
+	private final Set<String> reportedTooLarge = new HashSet<>();
+
+	/** The chunks of the picked farms, per world, as of the last renewal; only these get the loader's random ticks. Not saved. */
 	private final Map<ServerWorld, LongSet> loadedChunks = new HashMap<>();
 
 	/** An error was already logged, so the same failure isn't logged every tick. */
@@ -98,7 +110,7 @@ public final class FarmLoader extends PersistentState {
 		Platform.serverEvents().onTickEnd(server -> {
 			FarmLoader loader = of(server);
 			try {
-				if (server.getTicks() % INTERVAL_TICKS == 0) {
+				if (renewalDue(server.getTicks(), consumeRenewalRequest())) {
 					loader.keepLoaded(server);
 				}
 				loader.tickFarms();
@@ -106,10 +118,38 @@ public final class FarmLoader extends PersistentState {
 			} catch (RuntimeException exception) {
 				if (!loader.failing) {
 					loader.failing = true;
-					TheDreamTableMod.LOGGER.error("Keeping farms loaded failed; it is tried again every tick and logged once until it works", exception);
+					TheDreamTableMod.LOGGER.error("Keeping farms loaded failed; the random ticks are retried every tick, the renewal at the next interval, and it is logged once until it works", exception);
 				}
 			}
 		});
+	}
+
+	/** Whether the tickets and the ticked chunks are renewed this tick: every interval, or sooner when a change asked for it. */
+	static boolean renewalDue(long serverTicks, boolean requested) {
+		return requested || serverTicks % INTERVAL_TICKS == 0;
+	}
+
+	/** Asks for a renewal on the next tick, so a farm that stopped being kept loaded stops getting random ticks at once. */
+	public static void requestRenewal() {
+		renewalRequested = true;
+	}
+
+	static boolean consumeRenewalRequest() {
+		boolean requested = renewalRequested;
+		renewalRequested = false;
+		return requested;
+	}
+
+	/** How many chunks the box covers, counting every chunk it touches. */
+	static long chunkCount(Box box) {
+		long chunksX = (long) (((int) Math.floor(box.maxX - 1)) >> 4) - ((int) Math.floor(box.minX) >> 4) + 1;
+		long chunksZ = (long) (((int) Math.floor(box.maxZ - 1)) >> 4) - ((int) Math.floor(box.minZ) >> 4) + 1;
+		return chunksX * chunksZ;
+	}
+
+	/** Whether a farm covering this box is small enough to keep loaded. */
+	static boolean withinChunkCap(Box box) {
+		return chunkCount(box) <= MAX_CHUNKS_PER_FARM;
 	}
 
 	private void tickFarms() {
@@ -197,7 +237,12 @@ public final class FarmLoader extends PersistentState {
 		if (role == null || !FarmAccess.allows(role, FarmAction.KEEP_LOADED)) {
 			return ToggleResult.FORBIDDEN;
 		}
-		return toggleKnown(located.farm().ownerUuid(), key.externalForm(), true, role);
+		UUID owner = located.farm().ownerUuid();
+		String externalKey = key.externalForm();
+		if (!picked.getOrDefault(owner, Set.of()).contains(externalKey) && !withinChunkCap(located.farm().box())) {
+			return ToggleResult.TOO_LARGE;
+		}
+		return toggleKnown(owner, externalKey, true, role);
 	}
 
 	ToggleResult toggleKnown(UUID ownerUuid, String key, boolean known, FarmRole actorRole) {
@@ -210,6 +255,7 @@ public final class FarmLoader extends PersistentState {
 				picked.remove(ownerUuid);
 			}
 			markDirty();
+			requestRenewal();
 			return ToggleResult.UNSELECTED;
 		}
 		if (!known) {
@@ -258,7 +304,9 @@ public final class FarmLoader extends PersistentState {
 				if (keys.contains(farm.key())) {
 					existing.add(farm.key());
 				}
-				if (keys.contains(farm.key()) && loaded < limit && (DreamTableConfig.loadWhileOffline() || authorizedPresence(server, farm.farm()))) {
+				if (keys.contains(farm.key()) && !withinChunkCap(farm.farm().box())) {
+					reportTooLarge(farm);
+				} else if (keys.contains(farm.key()) && loaded < limit && (DreamTableConfig.loadWhileOffline() || authorizedPresence(server, farm.farm()))) {
 					loaded++;
 					load(farm.world(), farm.farm().box(), loadedChunks.computeIfAbsent(farm.world(), ignored -> new LongOpenHashSet()));
 					reportIfFull(owner, farm);
@@ -267,6 +315,14 @@ public final class FarmLoader extends PersistentState {
 			if (pruneMissing(keys, existing)) {
 				markDirty();
 			}
+		}
+	}
+
+	/** A farm picked before the cap, or grown past it, is skipped; logged once so the server owner can see why it isn't kept loaded. */
+	private void reportTooLarge(Located farm) {
+		if (reportedTooLarge.add(farm.key())) {
+			TheDreamTableMod.LOGGER.warn("Farm {} covers {} chunks, over the Keep Loaded limit of {}, so it is not kept loaded",
+					farm.key(), chunkCount(farm.farm().box()), MAX_CHUNKS_PER_FARM);
 		}
 	}
 

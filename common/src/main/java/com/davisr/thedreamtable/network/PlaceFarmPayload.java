@@ -23,9 +23,16 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 			PlaceFarmPayload::new
 	);
 
+	/**
+	 * Beginning a farm checks every step of the template. A person places once and the phase then leaves idle, or re-aims
+	 * after a refusal, so three requests a second leave normal use untouched.
+	 */
+	private static final RequestThrottle THROTTLE = new RequestThrottle(3, RequestThrottle.DEFAULT_WINDOW_TICKS);
+
 	public static void register() {
+		THROTTLE.forgetOnDisconnect();
 		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> {
-			if (player.isSpectator() || player.squaredDistanceTo(payload.table().toCenterPos()) > 64.0) {
+			if (!THROTTLE.allow(player.getUuid(), player.getServer().getTicks()) || player.isSpectator() || player.squaredDistanceTo(payload.table().toCenterPos()) > 64.0) {
 				return;
 			}
 			DreamTableBlockEntity blockEntity = FarmNetwork.table(player, payload.table());

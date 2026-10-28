@@ -1,8 +1,10 @@
 package com.davisr.thedreamtable.neoforge;
 
+import com.davisr.thedreamtable.TheDreamTableMod;
 import net.minecraft.network.packet.CustomPayload;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -12,6 +14,7 @@ import java.util.function.Consumer;
  */
 final class ClientReceivers {
 	private static final Map<CustomPayload.Id<?>, Consumer<CustomPayload>> RECEIVERS = new ConcurrentHashMap<>();
+	private static final Set<CustomPayload.Id<?>> WARNED = ConcurrentHashMap.newKeySet();
 
 	private ClientReceivers() {
 	}
@@ -25,6 +28,9 @@ final class ClientReceivers {
 		Consumer<CustomPayload> receiver = RECEIVERS.get(payload.getId());
 		if (receiver != null) {
 			receiver.accept(payload);
+		} else if (WARNED.add(payload.getId())) {
+			// A payload nobody listens for means a missing registration in the client setup; say so once instead of dropping it silently.
+			TheDreamTableMod.LOGGER.warn("Dropping server payload {}: the client registered no receiver for it", payload.getId().id());
 		}
 	}
 }

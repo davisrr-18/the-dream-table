@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.DreamTableConfig;
+import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.BuildPermission;
 import com.davisr.thedreamtable.farm.FarmAccess;
 import com.davisr.thedreamtable.farm.FarmAction;
@@ -108,7 +109,11 @@ final class SessionAreas {
 	void completeRepair(ServerWorld world, RepairContext context, BitSet placed, BitSet paid) {
 		progress.setFinishedRecorded(true);
 		FarmAreas areas = FarmAreas.of(world);
-		areas.completeRepair(context.farmKey().instanceId(), context.operationId(), placed, paid);
+		if (!areas.completeRepair(context.farmKey().instanceId(), context.operationId(), placed, paid)) {
+			// The lease was reconciled away while the repair ran. The blocks it placed stand, so the record still gets them.
+			TheDreamTableMod.LOGGER.warn("Repair lease of farm {} was gone at completion; merging its placed steps directly", context.farmKey().instanceId());
+			areas.mergePlacement(context.farmKey().instanceId(), placed, paid);
+		}
 		areas.release(key());
 	}
 

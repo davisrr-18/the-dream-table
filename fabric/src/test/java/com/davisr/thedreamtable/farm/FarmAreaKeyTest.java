@@ -142,4 +142,24 @@ class FarmAreaKeyTest {
 	private static FarmDismantler job(UUID player, FarmSite site) {
 		return new FarmDismantler(player, "test:farm", 1L, site, Map.of(), new BitSet(), new BitSet(), 0);
 	}
+
+	@Test
+	void aTakeDownJobKeepsTheFarmsAlertStateForItsRestoredRecord() {
+		UUID player = UUID.nameUUIDFromBytes("OfflinePlayer:Davi".getBytes());
+		FarmSite site = new FarmSite(new BlockPos(0, 64, 0), new BlockPos(10, 64, 10), Direction.NORTH);
+		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
+		FarmTemplate layout = new FarmTemplate(FarmTemplates.newSavedId(cane.id(), cane.signature()), cane.steps(), cane.materials(), cane.center());
+		NbtCompound alerts = new com.davisr.thedreamtable.farm.alert.FarmAlerts().write(new NbtCompound());
+		alerts.putLong("NextAlertEvent", 7L);
+		FarmDismantler.Identity identity = new FarmDismantler.Identity(UUID.nameUUIDFromBytes("farm".getBytes()), player, null, Map.of(), Map.of(), alerts);
+		FarmDismantler job = new FarmDismantler(player, layout, site, Map.of(), new BitSet(), new BitSet(), site.table(), identity);
+		NbtCompound saved = new NbtCompound();
+		job.write(saved);
+
+		FarmDismantler restored = FarmDismantler.read(saved);
+
+		assertNotNull(restored);
+		assertEquals(identity, restored.identity());
+		assertEquals(7L, restored.identity().alerts().getLong("NextAlertEvent"));
+	}
 }

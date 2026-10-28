@@ -1,6 +1,14 @@
 package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.GameSetup;
+import com.davisr.thedreamtable.client.DreamTableHologram;
+import com.davisr.thedreamtable.client.LoadedFarmsView;
+import com.davisr.thedreamtable.client.OtherFarms;
+import com.davisr.thedreamtable.client.OwnSessions;
+import com.davisr.thedreamtable.client.ServerSchematics;
+import com.davisr.thedreamtable.platform.ClientEvents;
+import com.davisr.thedreamtable.platform.ClientNetwork;
+import com.davisr.thedreamtable.platform.ClientRendering;
 import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.platform.ServerEvents;
 import com.davisr.thedreamtable.platform.ServerNetwork;
@@ -18,6 +26,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -34,11 +43,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class PayloadRegistrationTest {
 	private static final List<String> SERVER_TO_CLIENT = new ArrayList<>();
 	private static final List<String> CLIENT_TO_SERVER = new ArrayList<>();
+	private static final List<String> CLIENT_RECEIVERS = new ArrayList<>();
 
 	@BeforeAll
 	static void registerPayloads() {
 		GameSetup.bootstrap();
-		Platform.install(null, null, new RecordingNetwork(), new IgnoringServerEvents(), null, null);
+		Platform.install(null, null, null, new RecordingNetwork(), new IgnoringServerEvents(), null, null);
 		// The payload registrations of TheDreamTableMod.init(), in its order.
 		DepositMaterialPayload.register();
 		PlaceFarmPayload.register();
@@ -59,11 +69,19 @@ class PayloadRegistrationTest {
 		LoadedFarmsPayload.register();
 		ServerSchematicsPayload.register();
 		FarmDetailsPayload.register();
+		// The client registrations of TheDreamTableClient.init() that add payload receivers.
+		Platform.installClient(new RecordingClientNetwork(), stub(ClientEvents.class), stub(ClientRendering.class));
+		DreamTableHologram.registerChecks();
+		OwnSessions.register();
+		OtherFarms.register();
+		LoadedFarmsView.register();
+		ServerSchematics.register();
 	}
 
 	@AfterAll
 	static void uninstall() {
-		Platform.install(null, null, null, null, null, null);
+		Platform.install(null, null, null, null, null, null, null);
+		Platform.installClient(null, null, null);
 	}
 
 	@Test
@@ -99,6 +117,13 @@ class PayloadRegistrationTest {
 				"the_dream_table:session_sync")), new TreeSet<>(SERVER_TO_CLIENT));
 	}
 
+	/** NeoForge drops a payload with no client receiver, so each server-to-client id needs exactly one. */
+	@Test
+	void everyServerToClientPayloadHasOneClientReceiver() {
+		assertEquals(Set.copyOf(CLIENT_RECEIVERS).size(), CLIENT_RECEIVERS.size(), "Client receivers must be unique: " + CLIENT_RECEIVERS);
+		assertEquals(new TreeSet<>(SERVER_TO_CLIENT), new TreeSet<>(CLIENT_RECEIVERS));
+	}
+
 	@Test
 	void directionsHoldTheExpectedCounts() {
 		assertEquals(16, CLIENT_TO_SERVER.size());
@@ -112,6 +137,27 @@ class PayloadRegistrationTest {
 		OpenData.CODEC.encode(out, data);
 		assertEquals("00000040000030020178010203", ByteBufUtil.hexDump(ByteBufUtil.getBytes(out)));
 		assertEquals(data, OpenData.CODEC.decode(new RegistryByteBuf(Unpooled.wrappedBuffer(ByteBufUtil.getBytes(out)), DynamicRegistryManager.EMPTY)));
+	}
+
+	/** A seam whose methods do nothing and return defaults, for the client hooks this test does not exercise. */
+	private static <T> T stub(Class<T> seam) {
+		return seam.cast(Proxy.newProxyInstance(seam.getClassLoader(), new Class<?>[] {seam}, (proxy, method, args) -> null));
+	}
+
+	private static final class RecordingClientNetwork implements ClientNetwork {
+		@Override
+		public <T extends CustomPayload> void registerReceiver(CustomPayload.Id<T> id, Consumer<T> receiver) {
+			CLIENT_RECEIVERS.add(id.id().toString());
+		}
+
+		@Override
+		public boolean canSend(CustomPayload.Id<?> id) {
+			return false;
+		}
+
+		@Override
+		public void send(CustomPayload payload) {
+		}
 	}
 
 	private static final class RecordingNetwork implements ServerNetwork {

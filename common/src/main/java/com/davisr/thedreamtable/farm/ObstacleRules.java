@@ -18,6 +18,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldEvents;
 
 import java.util.Set;
@@ -39,7 +40,7 @@ final class ObstacleRules {
 	 * Only plain blocks are cleared. Anything that stores data, can't be broken, drives or listens to redstone,
 	 * spawns something when broken, or can't be gotten back stays put and stops the build instead.
 	 */
-	static boolean clearable(ServerWorld world, BlockPos tablePos, BlockPos pos, BlockState state) {
+	static boolean clearable(BlockView world, BlockPos tablePos, BlockPos pos, BlockState state) {
 		Block block = state.getBlock();
 		if (pos.equals(tablePos) || block instanceof DreamTableBlock || KEEP.contains(block) || state.isIn(PROTECTED)) {
 			return false;

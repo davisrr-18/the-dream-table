@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmAreas;
+import com.davisr.thedreamtable.farm.FarmDirectory;
 import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.farm.FarmSharing;
 import com.davisr.thedreamtable.platform.Platform;
@@ -31,7 +32,14 @@ public record FarmInvitePayload(BlockPos table, String key, String playerName, F
 			},
 			buf -> new FarmInvitePayload(buf.readBlockPos(), buf.readString(256), buf.readString(64), buf.readEnumConstant(FarmRole.class)));
 
+	/**
+	 * A name lookup can reach Mojang's profile service on an online-mode server, which rate-limits the whole server:
+	 * four invitations per player in ten seconds is far more than anyone sends by hand.
+	 */
+	private static final RequestThrottle LOOKUPS = new RequestThrottle(4, 200);
+
 	public static void register() {
+		LOOKUPS.forgetOnDisconnect();
 		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> begin(player, payload));
 	}
 
@@ -48,6 +56,10 @@ public record FarmInvitePayload(BlockPos table, String key, String playerName, F
 			FarmNetwork.result(player, payload.key(), FarmActionResultPayload.Action.INVITE, FarmActionResultPayload.Result.NOT_FOUND);
 			return;
 		}
+		if (!LOOKUPS.allow(player.getUuid(), player.getServer().getTicks())) {
+			FarmNetwork.result(player, payload.key(), FarmActionResultPayload.Action.INVITE, FarmActionResultPayload.Result.BUSY);
+			return;
+		}
 		cache.findByNameAsync(payload.playerName().trim()).thenAccept(profile -> player.getServer().execute(() -> {
 			if (profile.isEmpty()) {
 				FarmNetwork.result(player, payload.key(), FarmActionResultPayload.Action.INVITE, FarmActionResultPayload.Result.NOT_FOUND);
@@ -58,16 +70,21 @@ public record FarmInvitePayload(BlockPos table, String key, String playerName, F
 	}
 
 	private static void complete(ServerPlayerEntity player, FarmInvitePayload payload, GameProfile profile) {
-		FarmNetwork.Checked checked = FarmNetwork.authorize(player, payload.table(), payload.key(), FarmAction.SHARE, FarmActionResultPayload.Action.INVITE);
-		if (checked == null) {
+		if (player.getServer().getPlayerManager().getPlayer(player.getUuid()) != player) {
+			return;
+		}
+		// The lookup is asynchronous, so the player may have closed the screen by now: the invitation depends on the
+		// requester's role for this farm at this moment, not on a menu, and a refusal always reaches the player.
+		FarmDirectory.Authorized authorized = FarmNetwork.authorizeFarm(player, payload.key(), FarmAction.SHARE, FarmActionResultPayload.Action.INVITE);
+		if (authorized == null) {
 			return;
 		}
 		List<FarmAreas> states = new ArrayList<>();
 		player.getServer().getWorlds().forEach(world -> states.add(FarmAreas.of(world)));
 		long now = System.currentTimeMillis();
 		int pending = FarmSharing.pendingInvites(states, profile.getId(), now);
-		FarmSharing.InviteOutcome outcome = FarmSharing.invite(FarmAreas.of(checked.farm().located().world()),
-				checked.farm().located().key().instanceId(), player.getUuid(), profile.getId(), profile.getName(), payload.role(), now,
+		FarmSharing.InviteOutcome outcome = FarmSharing.invite(FarmAreas.of(authorized.located().world()),
+				authorized.located().key().instanceId(), player.getUuid(), profile.getId(), profile.getName(), payload.role(), now,
 				DreamTableConfig.maxCollaboratorsPerFarm(), DreamTableConfig.maxPendingInvitesPerPlayer(), pending);
 		FarmActionResultPayload.Result result = switch (outcome.result()) {
 			case SUCCESS -> FarmActionResultPayload.Result.SUCCESS;

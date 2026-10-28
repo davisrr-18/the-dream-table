@@ -43,6 +43,11 @@ public final class FarmAreas extends PersistentState {
 	private final Map<Key, Area> areas = new LinkedHashMap<>();
 	private final Map<UUID, RepairLease> repairLeases = new LinkedHashMap<>();
 	private final Map<UUID, FarmAlerts> alerts = new LinkedHashMap<>();
+	/**
+	 * Records that could not be read, kept as they were saved and written back unchanged, so a farm and its grants are not
+	 * lost for good to a bug or a missing mod: a later version that can read them gets them back.
+	 */
+	private final List<NbtCompound> unreadable = new ArrayList<>();
 
 	public enum Kind {
 		BUILD, DISMANTLE, FINISHED
@@ -140,6 +145,11 @@ public final class FarmAreas extends PersistentState {
 		}
 	}
 
+	/** How many saved records could not be read and are being kept as they were. */
+	public int unreadableCount() {
+		return unreadable.size();
+	}
+
 	/** Whether the player has a finished record at this site, in any state. */
 	public boolean recordedAt(UUID player, FarmSite site) {
 		return areas.containsKey(Key.finished(player, site));
@@ -152,6 +162,14 @@ public final class FarmAreas extends PersistentState {
 	/** Persisted alert state belongs to the immutable finished-farm identity, not a table position. */
 	public java.util.Optional<FarmAlerts> alerts(UUID instanceId) {
 		return finished(instanceId).map(ignored -> alerts.computeIfAbsent(instanceId, key -> new FarmAlerts()));
+	}
+
+	/** Puts back the alert state of a record that was released and restored, so a partial Take Down doesn't erase it. */
+	public void restoreAlerts(UUID instanceId, FarmAlerts restored) {
+		if (finished(instanceId).isPresent()) {
+			alerts.put(instanceId, restored);
+			markDirty();
+		}
 	}
 
 	/** Records a fresh loaded-world observation and marks the per-world state only when it changed. */
@@ -196,6 +214,15 @@ public final class FarmAreas extends PersistentState {
 		if (!endRepair(instanceId, operationId)) {
 			return false;
 		}
+		mergePlacement(instanceId, placed, paid);
+		return true;
+	}
+
+	/**
+	 * Adds what a repair placed to the farm's record, whether or not its lease is still held: the blocks stand either way.
+	 * Does nothing when the farm has no record any more.
+	 */
+	public void mergePlacement(UUID instanceId, BitSet placed, BitSet paid) {
 		updateBuilt(instanceId, built -> {
 			BitSet allPlaced = (BitSet) built.placed().clone();
 			allPlaced.or(placed);
@@ -206,7 +233,6 @@ public final class FarmAreas extends PersistentState {
 			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
 					built.grants(), built.invites(), built.finishedAt(), built.layout(), allPlaced, allPaid);
 		});
-		return true;
 	}
 
 	/** Every step of the design set, the record of a farm whose placed and paid steps were never saved. */
@@ -331,6 +357,9 @@ public final class FarmAreas extends PersistentState {
 			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
 					Map.copyOf(grants), built.invites(), built.finishedAt(), built.layout(), built.placed(), built.paid());
 		});
+		if (removed[0]) {
+			FarmLoader.requestRenewal();
+		}
 		return removed[0];
 	}
 
@@ -390,6 +419,9 @@ public final class FarmAreas extends PersistentState {
 	public void release(Key key) {
 		Area removed = areas.remove(key);
 		if (removed != null) {
+			if (removed.built() != null) {
+				FarmLoader.requestRenewal();
+			}
 			if (removed.built() != null) {
 				repairLeases.remove(removed.built().instanceId());
 				alerts.remove(removed.built().instanceId());
@@ -630,6 +662,9 @@ public final class FarmAreas extends PersistentState {
 			}
 			list.add(item);
 		}
+		for (NbtCompound raw : unreadable) {
+			list.add(raw.copy());
+		}
 		nbt.put("Areas", list);
 		return nbt;
 	}
@@ -642,6 +677,8 @@ public final class FarmAreas extends PersistentState {
 			NbtCompound item = list.getCompound(index);
 			int[] box = item.getIntArray("Box");
 			if (box.length != 6 || !item.containsUuid("Player")) {
+				TheDreamTableMod.LOGGER.error("Keeping farm area record #{} unchanged: it has no box or player", index);
+				state.unreadable.add(item.copy());
 				continue;
 			}
 			try {
@@ -650,8 +687,9 @@ public final class FarmAreas extends PersistentState {
 				Key key = new Key(item.getLong("Table"), item.getUuid("Player"), kind, item.getLong("Spot"));
 				state.areas.put(key, new Area(new Box(box[0], box[1], box[2], box[3], box[4], box[5]), built));
 			} catch (RuntimeException corrupt) {
-				// One malformed record must not discard the dimension's other farms.
-				TheDreamTableMod.LOGGER.error("Skipping unreadable farm area record #{}", index, corrupt);
+				// One malformed record must not discard the dimension's other farms, nor be deleted by the next save.
+				TheDreamTableMod.LOGGER.error("Keeping unreadable farm area record #{} unchanged", index, corrupt);
+				state.unreadable.add(item.copy());
 				state.markDirty();
 			}
 		}
