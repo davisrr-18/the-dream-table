@@ -1,6 +1,6 @@
 # The Dream Table
 
-Version `1.0.0` for Minecraft **1.21.1**, on Fabric (with Fabric API) and NeoForge.
+Version `1.1.0` for Minecraft **1.21.1**, on Fabric (with Fabric API) and NeoForge.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets how fast it builds.
 
@@ -103,7 +103,7 @@ From the project root, with Java 21:
 
 The build places one jar per loader in its own folder:
 
-- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-1.0.0.jar`
-- NeoForge: `build/release/neoforge/the_dream_table-neoforge-1.0.0.jar`
+- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-1.1.0.jar`
+- NeoForge: `build/release/neoforge/the_dream_table-neoforge-1.1.0.jar`
 
 The `sources` and `dev-shadow` jars under `fabric/build/libs/` and `neoforge/build/libs/` are for development only.

@@ -44,6 +44,11 @@ final class StepCollector {
 	private final Map<Long, Integer> blockAt = new HashMap<>();
 	private final Set<String> unknownNames = new LinkedHashSet<>();
 	private int unknownBlocks;
+	/** Every step the file asked for, kept or not: only the first {@link SchematicReader#MAX_BLOCKS} are stored, so a crafted file can't fill memory. */
+	private long requested;
+	/** The cells the file's regions declare to hold, summed, checked before any of them is walked. */
+	private long cells;
+	private boolean oversized;
 	private final Set<String> creativeNames = new LinkedHashSet<>();
 
 	/** @param stripContents true for a player's file; bundled farms keep the items their designer put in. */
@@ -62,6 +67,45 @@ final class StepCollector {
 
 	List<FarmStep> steps() {
 		return steps;
+	}
+
+	/** How many steps the file holds, for the block limit; a file that is too big to walk reports more than the limit. */
+	int total() {
+		long count = oversized ? Math.max(Math.max(requested, cells), SchematicReader.MAX_BLOCKS + 1L) : requested;
+		return (int) Math.min(Integer.MAX_VALUE, count);
+	}
+
+	/** True once the file declared more than the readers will walk; they stop at once. */
+	boolean oversized() {
+		return oversized;
+	}
+
+	/** Declares a region's cells before they are walked. Returns false, and marks the file too big, when the file's total passes the limit. */
+	boolean reserve(long sizeX, long sizeY, long sizeZ) {
+		long limit = SchematicReader.MAX_CELLS;
+		// Each step stays far below overflow because every factor is checked against the limit first.
+		if (sizeX > limit || sizeY > limit || sizeZ > limit || sizeX * sizeY > limit) {
+			oversized = true;
+			cells = Math.max(cells, limit + 1);
+		} else {
+			cells += sizeX * sizeY * sizeZ;
+			oversized |= cells > limit;
+		}
+		return !oversized;
+	}
+
+	/** Marks the file too big for a limit other than its cells, like regions or palette entries. */
+	void overflow() {
+		oversized = true;
+	}
+
+	private boolean store(FarmStep step) {
+		requested++;
+		if (steps.size() >= SchematicReader.MAX_BLOCKS) {
+			return false;
+		}
+		steps.add(step);
+		return true;
 	}
 
 	int unknownBlocks() {
@@ -95,8 +139,10 @@ final class StepCollector {
 		if (CREATIVE_ONLY.contains(state.getBlock()) || state.getBlock() instanceof InfestedBlock) {
 			creativeNames.add(Registries.BLOCK.getId(state.getBlock()).toString());
 		}
-		blockAt.put(BlockPos.asLong(x, y, z), steps.size());
-		steps.add(FarmStep.block(x, y, z, state, BlockItems.itemFor(state), blockNbt == null ? null : copyOf(blockNbt)));
+		int index = steps.size();
+		if (store(FarmStep.block(x, y, z, state, BlockItems.itemFor(state), blockNbt == null ? null : copyOf(blockNbt)))) {
+			blockAt.put(BlockPos.asLong(x, y, z), index);
+		}
 	}
 
 	/** Attaches block entity data to the block at that spot. Returns false when no block is there. */
@@ -122,22 +168,27 @@ final class StepCollector {
 	}
 
 	void entities(NbtList entities) {
+		entities(entities, 0, 0, 0);
+	}
+
+	/** Entities whose positions are relative to a corner that sits at this offset in the farm. */
+	void entities(NbtList entities, int offsetX, int offsetY, int offsetZ) {
 		for (int index = 0; index < entities.size(); index++) {
-			FarmStep step = entity(entities.getCompound(index));
+			FarmStep step = entity(entities.getCompound(index), offsetX, offsetY, offsetZ);
 			if (step != null) {
-				steps.add(step);
+				store(step);
 			}
 		}
 	}
 
-	private static FarmStep entity(NbtCompound entry) {
+	private static FarmStep entity(NbtCompound entry, int offsetX, int offsetY, int offsetZ) {
 		NbtCompound data = entry.contains("nbt", NbtElement.COMPOUND_TYPE) ? entry.getCompound("nbt") : entry;
 		Optional<EntityType<?>> type = EntityType.get(data.contains("id") ? data.getString("id") : entry.getString("Id"));
 		int[] pos = entityPos(entry);
 		if (type.isEmpty() || pos == null) {
 			return null;
 		}
-		return FarmStep.entity(pos[0], pos[1], pos[2], type.get(), false).withItem(BlockItems.cost(type.get()));
+		return FarmStep.entity(pos[0] + offsetX, pos[1] + offsetY, pos[2] + offsetZ, type.get(), false).withItem(BlockItems.cost(type.get()));
 	}
 
 	private static int[] entityPos(NbtCompound entry) {

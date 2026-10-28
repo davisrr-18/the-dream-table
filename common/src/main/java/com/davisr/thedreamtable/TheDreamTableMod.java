@@ -57,6 +57,7 @@ public final class TheDreamTableMod {
 			DreamTableConfig.load();
 			FarmTemplates.reloadImports(server.getSavePath(WorldSavePath.ROOT));
 		});
+		Platform.serverEvents().onServerStopped(server -> FarmTemplates.clearSaved());
 		DepositMaterialPayload.register();
 		PlaceFarmPayload.register();
 		CheckPlacementPayload.register();

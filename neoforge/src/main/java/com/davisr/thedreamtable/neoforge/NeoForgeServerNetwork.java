@@ -20,7 +20,7 @@ import java.util.function.Consumer;
  */
 final class NeoForgeServerNetwork implements ServerNetwork {
 	/** Bumped when a payload's id or codec changes, so mismatched installs refuse to connect. */
-	private static final String PROTOCOL = "1";
+	private static final String PROTOCOL = "2";
 
 	private final List<Consumer<PayloadRegistrar>> registrations = new ArrayList<>();
 

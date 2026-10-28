@@ -21,11 +21,15 @@ final class SpongeReader {
 		int width = NbtReading.number(root, "Width");
 		int height = NbtReading.number(root, "Height");
 		int length = NbtReading.number(root, "Length");
-		if (width <= 0 || height <= 0 || length <= 0) {
+		if (width <= 0 || height <= 0 || length <= 0 || !steps.reserve(width, height, length)) {
 			return;
 		}
 		NbtCompound paletteNbt = blocks.contains("Palette", NbtElement.COMPOUND_TYPE) ? blocks.getCompound("Palette") : root.getCompound("Palette");
 		String[] names = names(paletteNbt);
+		if (names == null) {
+			steps.overflow();
+			return;
+		}
 		BlockState[] palette = new BlockState[names.length];
 		for (int id = 0; id < names.length; id++) {
 			palette[id] = names[id] == null ? Blocks.AIR.getDefaultState() : NbtReading.state(names[id]);
@@ -72,13 +76,16 @@ final class SpongeReader {
 		return root.getList("TileEntities", NbtElement.COMPOUND_TYPE);
 	}
 
-	/** The palette key for each id; ids nothing uses stay null and read as air. */
+	/** The palette key for each id; ids nothing uses stay null and read as air. Null when an id passes {@link SchematicReader#MAX_PALETTE}. */
 	private static String[] names(NbtCompound palette) {
 		int size = 0;
 		for (String key : palette.getKeys()) {
 			size = Math.max(size, NbtReading.number(palette, key) + 1);
 		}
-		String[] names = new String[Math.max(1, Math.min(size, 1 << 20))];
+		if (size > SchematicReader.MAX_PALETTE) {
+			return null;
+		}
+		String[] names = new String[Math.max(1, size)];
 		for (String key : palette.getKeys()) {
 			int id = NbtReading.number(palette, key);
 			if (id >= 0 && id < names.length) {

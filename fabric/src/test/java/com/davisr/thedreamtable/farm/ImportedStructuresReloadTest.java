@@ -20,6 +20,7 @@ import java.nio.file.attribute.FileTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -139,5 +140,17 @@ class ImportedStructuresReloadTest {
 
 		Files.setLastModifiedTime(file, FileTime.fromMillis(Files.getLastModifiedTime(file).toMillis() + 5_000));
 		assertNotSame(first, ImportedStructures.reload(null).templates().get("nbt:cached"));
+	}
+
+	@Test
+	void aFilesVersionChangesOnlyWhenTheFileDoes() throws IOException {
+		write(schematics, "versioned.nbt");
+		Path file = schematics.resolve("versioned.nbt");
+		long first = ImportedStructures.reload(null).versions().get("nbt:versioned");
+
+		assertEquals(first, ImportedStructures.reload(null).versions().get("nbt:versioned"));
+
+		Files.setLastModifiedTime(file, FileTime.fromMillis(Files.getLastModifiedTime(file).toMillis() + 5_000));
+		assertNotEquals(first, ImportedStructures.reload(null).versions().get("nbt:versioned"));
 	}
 }

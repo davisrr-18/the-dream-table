@@ -23,6 +23,11 @@ final class FabricServerEvents implements ServerEvents {
 	}
 
 	@Override
+	public void onServerStopped(Consumer<MinecraftServer> listener) {
+		ServerLifecycleEvents.SERVER_STOPPED.register(listener::accept);
+	}
+
+	@Override
 	public void onTickEnd(Consumer<MinecraftServer> listener) {
 		ServerTickEvents.END_SERVER_TICK.register(listener::accept);
 	}

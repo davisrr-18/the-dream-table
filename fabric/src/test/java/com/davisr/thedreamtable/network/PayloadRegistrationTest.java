@@ -186,6 +186,10 @@ class PayloadRegistrationTest {
 		}
 
 		@Override
+		public void onServerStopped(Consumer<MinecraftServer> listener) {
+		}
+
+		@Override
 		public void onTickEnd(Consumer<MinecraftServer> listener) {
 		}
 

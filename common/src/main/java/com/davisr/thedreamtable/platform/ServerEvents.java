@@ -14,6 +14,9 @@ public interface ServerEvents {
 	/** After the server finished starting and its worlds are loaded. */
 	void onServerStarted(Consumer<MinecraftServer> listener);
 
+	/** After the server shut down and saved its worlds; per-server static state is cleared here. */
+	void onServerStopped(Consumer<MinecraftServer> listener);
+
 	/** At the end of every server tick. */
 	void onTickEnd(Consumer<MinecraftServer> listener);
 

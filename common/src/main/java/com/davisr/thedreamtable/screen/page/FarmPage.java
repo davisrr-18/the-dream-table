@@ -367,6 +367,9 @@ public final class FarmPage implements TablePage {
 		if (farm.loaded()) {
 			return Text.translatable("gui.the_dream_table.keep_loaded_on");
 		}
+		if (LoadedFarmsView.limit() <= 0) {
+			return Text.translatable("gui.the_dream_table.keep_loaded_disabled");
+		}
 		return Text.translatable(canLoad(farm) ? "gui.the_dream_table.keep_loaded_off" : "gui.the_dream_table.keep_loaded_limit");
 	}
 

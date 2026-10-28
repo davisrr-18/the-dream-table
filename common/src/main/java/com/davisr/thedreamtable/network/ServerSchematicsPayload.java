@@ -30,14 +30,17 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 	private static final int MAX_SCHEMATICS = 1024;
 
 	private static final int MAX_NOTES = 8;
+	/** Each request encodes a whole farm; a client fetches one per farm it draws, so this is far above a person's use. */
+	private static final RequestThrottle REQUESTS = new RequestThrottle(20, RequestThrottle.DEFAULT_WINDOW_TICKS);
 
-	/** One schematic: its id, icon, display name, block count and warnings. */
-	public record Entry(String id, String icon, String name, int steps, List<ImportNote> notes) {
+	/** One schematic: its id, icon, display name, block count, file version and warnings. */
+	public record Entry(String id, String icon, String name, int steps, long version, List<ImportNote> notes) {
 		private static final PacketCodec<RegistryByteBuf, Entry> CODEC = PacketCodec.tuple(
 				PacketCodecs.STRING, Entry::id,
 				PacketCodecs.STRING, Entry::icon,
 				PacketCodecs.STRING, Entry::name,
 				PacketCodecs.VAR_INT, Entry::steps,
+				PacketCodecs.VAR_LONG, Entry::version,
 				ImportNote.CODEC.collect(PacketCodecs.toList(MAX_NOTES)), Entry::notes,
 				Entry::new
 		);
@@ -58,7 +61,11 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 	public static void register() {
 		Platform.network().registerServerToClient(ID, CODEC);
 		Platform.network().registerServerToClient(Farm.ID, Farm.CODEC);
+		REQUESTS.forgetOnDisconnect();
 		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
+			if (!REQUESTS.allow(player.getUuid(), player.getServer().getTicks())) {
+				return;
+			}
 			if (!FarmTemplates.isImported(payload.id()) && !FarmTemplates.isSaved(payload.id())) {
 				return;
 			}
@@ -77,7 +84,7 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 			}
 			String name = option.literalName() == null ? option.id() : option.literalName();
 			List<ImportNote> notes = FarmTemplates.notes(option.id());
-			entries.add(new Entry(option.id(), Registries.ITEM.getId(option.icon()).toString(), name, Math.max(0, FarmTemplates.stepCount(option.id())),
+			entries.add(new Entry(option.id(), Registries.ITEM.getId(option.icon()).toString(), name, Math.max(0, FarmTemplates.stepCount(option.id())), FarmTemplates.version(option.id()),
 					notes.subList(0, Math.min(MAX_NOTES, notes.size()))));
 		}
 		List<ImportedStructures.Rejected> rejected = FarmTemplates.rejected();
