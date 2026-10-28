@@ -48,7 +48,9 @@ public final class FarmTemplates {
 	static {
 		register(FarmOptions.SUGAR_CANE, "sugar_cane_farm", () -> PlantFarms.pistonRow(FarmOptions.SUGAR_CANE.id(), true));
 		register(FarmOptions.BAMBOO, "bamboo_farm", () -> PlantFarms.pistonRow(FarmOptions.BAMBOO.id(), false));
+		register(FarmOptions.CACTUS, "cactus_farm");
 		register(FarmOptions.CROP, "crop_farm", () -> PlantFarms.crop(FarmOptions.CROP.id()));
+		register(FarmOptions.HONEY, "honey_farm");
 		register(FarmOptions.MOB_DARK_ROOM, "mob_farm", () -> MobFarms.darkRoom(FarmOptions.MOB_DARK_ROOM.id()));
 		register(FarmOptions.IRON_GOLEM, "iron_farm", () -> MobFarms.iron(FarmOptions.IRON_GOLEM.id()));
 	}
@@ -190,6 +192,22 @@ public final class FarmTemplates {
 
 	/** Uses the bundled schematic, or the code-built farm when the file is missing or unreadable. */
 	private static void register(FarmOption option, String file, Supplier<FarmTemplate> fallback) {
+		FarmTemplate template = readBundled(option, file);
+		if (template == null) {
+			template = fallback.get();
+		}
+		TEMPLATES.put(template.id(), template);
+	}
+
+	/** Registers a farm whose supplied schematic is its only design. */
+	private static void register(FarmOption option, String file) {
+		FarmTemplate template = readBundled(option, file);
+		if (template != null) {
+			TEMPLATES.put(template.id(), template);
+		}
+	}
+
+	private static FarmTemplate readBundled(FarmOption option, String file) {
 		FarmTemplate template = null;
 		try (InputStream stream = FarmTemplates.class.getResourceAsStream(STRUCTURES + file + ".schem")) {
 			if (stream != null) {
@@ -198,9 +216,6 @@ public final class FarmTemplates {
 		} catch (IOException | RuntimeException exception) {
 			TheDreamTableMod.LOGGER.error("Could not load the {} schematic", file, exception);
 		}
-		if (template == null) {
-			template = fallback.get();
-		}
-		TEMPLATES.put(template.id(), template);
+		return template;
 	}
 }

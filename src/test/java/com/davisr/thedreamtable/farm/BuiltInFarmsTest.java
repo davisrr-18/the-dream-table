@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Reads every bundled farm schematic and checks what the build relies on. */
 class BuiltInFarmsTest {
-	private static final String[] FILES = {"sugar_cane_farm", "bamboo_farm", "crop_farm", "mob_farm", "iron_farm"};
+	private static final String[] FILES = {"sugar_cane_farm", "bamboo_farm", "cactus_farm", "crop_farm", "honey_farm", "mob_farm", "iron_farm"};
 
 	@BeforeAll
 	static void setUp() {
@@ -104,6 +104,15 @@ class BuiltInFarmsTest {
 	void everyFarmHasItsTemplate() {
 		for (FarmOptions.FarmOption option : FarmOptions.ALL) {
 			assertNotNull(FarmTemplates.get(option.id()), option.id());
+		}
+	}
+
+	@Test
+	void cactusAndHoneyAreBuiltInPlantFarms() {
+		for (String id : java.util.List.of("cactus", "honey")) {
+			FarmOptions.FarmOption option = FarmOptions.byId(id).orElseThrow();
+			assertTrue(FarmOptions.Category.PLANTS.farms().contains(option), id);
+			assertNotNull(FarmTemplates.get(id), id);
 		}
 	}
 
