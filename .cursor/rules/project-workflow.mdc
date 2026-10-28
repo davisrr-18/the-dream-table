@@ -5,6 +5,10 @@ alwaysApply: true
 
 # Project workflow
 
+## Roadmap
+- Before starting work, always read the `roadmap/` directory and use the roadmap document for the version currently being worked on as the authoritative planning source for scope, priorities and acceptance criteria.
+- Do not infer the current version's status, prerequisites or scope from task records for earlier versions. Consult them only when the current roadmap explicitly requires historical evidence.
+
 ## Stack and build
 - Minecraft 1.21.1, Fabric Loader, Fabric API, Yarn `1.21.1+build.3`, Java 21.
 - Multi-step, cross-package, high-risk, or likely multi-session work must keep a concise durable record under `docs/tasks/`; simple answers and one-step mechanical edits are exempt.
