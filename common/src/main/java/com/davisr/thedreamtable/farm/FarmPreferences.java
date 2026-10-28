@@ -39,6 +39,8 @@ public final class FarmPreferences extends PersistentState {
 	}
 
 	private final Map<UUID, FarmKey> tracked = new HashMap<>();
+	/** Players who turned on "Protect My Farms". Absent means off, so worlds saved before the option read as off. */
+	private final Set<UUID> protecting = new LinkedHashSet<>();
 
 	public static FarmPreferences of(MinecraftServer server) {
 		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
@@ -78,6 +80,26 @@ public final class FarmPreferences extends PersistentState {
 		if (changed) {
 			markDirty();
 			removeEmpty(playerUuid, preferences);
+		}
+		return true;
+	}
+
+	/** Whether the player asked other players to be kept from breaking the structure of their finished farms. Default off. */
+	public boolean protectsFarms(UUID playerUuid) {
+		return protecting.contains(playerUuid);
+	}
+
+	/** Turns "Protect My Farms" on or off; refuses only to add a player beyond the saved-player limit. */
+	public boolean setProtectsFarms(UUID playerUuid, boolean protect) {
+		if (protect) {
+			if (!protecting.contains(playerUuid) && protecting.size() >= MAX_SAVED_PLAYERS) {
+				return false;
+			}
+			if (protecting.add(playerUuid)) {
+				markDirty();
+			}
+		} else if (protecting.remove(playerUuid)) {
+			markDirty();
 		}
 		return true;
 	}
@@ -258,6 +280,15 @@ public final class FarmPreferences extends PersistentState {
 			list.add(item);
 		}
 		nbt.put("Players", list);
+		if (!protecting.isEmpty()) {
+			NbtList protectors = new NbtList();
+			for (UUID playerUuid : protecting) {
+				NbtCompound item = new NbtCompound();
+				item.putUuid("Player", playerUuid);
+				protectors.add(item);
+			}
+			nbt.put("Protecting", protectors);
+		}
 		return nbt;
 	}
 
@@ -297,6 +328,13 @@ public final class FarmPreferences extends PersistentState {
 					state.tracked.put(playerUuid, key);
 				}
 			});
+		}
+		NbtList protectors = nbt.getList("Protecting", NbtElement.COMPOUND_TYPE);
+		for (int index = 0; index < Math.min(protectors.size(), MAX_SAVED_PLAYERS); index++) {
+			NbtCompound item = protectors.getCompound(index);
+			if (item.containsUuid("Player")) {
+				state.protecting.add(item.getUuid("Player"));
+			}
 		}
 		return state;
 	}

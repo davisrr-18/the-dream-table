@@ -13,14 +13,16 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /**
  * The options: Build Speed, which opens {@link SpeedPage}; Keep Farms Loaded, which opens {@link LoadedFarmsPage} to pick
- * which finished farms stay loaded; and the "Show Other Farms", tracker and "Deliver from Nearby" switches, kept on this player's computer.
+ * which finished farms stay loaded; and the "Show Other Farms", tracker and "Deliver from Nearby" switches, kept on this player's computer, and the "Protect My Farms" switch, which the
+ * server keeps because it enforces it.
  */
 public final class OptionsPage implements TablePage {
 	private static final int SPEED = 0;
 	private static final int OTHERS = 1;
 	private static final int TRACKER = 2;
 	private static final int NEARBY = 3;
-	private static final int CARDS = 4;
+	private static final int PROTECT = 4;
+	private static final int CARDS = 5;
 
 	private final PageContext ui;
 
@@ -49,6 +51,13 @@ public final class OptionsPage implements TablePage {
 				Text.translatable(nearby ? "gui.the_dream_table.deliver_nearby_on" : "gui.the_dream_table.deliver_nearby_off"),
 				Text.translatable(serverAllows ? "gui.the_dream_table.deliver_nearby_hint" : "gui.the_dream_table.deliver_nearby_off_server"),
 				ui.view().gridCardX(NEARBY), ui.view().gridCardY(NEARBY), mouseX, mouseY, nearby, serverAllows);
+		int protection = handler.farmProtection();
+		boolean protecting = protection == DreamTableScreenHandler.PROTECTION_ON;
+		boolean protectionAllowed = protection != DreamTableScreenHandler.PROTECTION_OFF_SERVER;
+		ui.cardAt("protect_farms", context, new ItemStack(Items.SHIELD),
+				Text.translatable(protecting ? "gui.the_dream_table.protect_farms_on" : "gui.the_dream_table.protect_farms_off"),
+				Text.translatable(protectionAllowed ? "gui.the_dream_table.protect_farms_hint" : "gui.the_dream_table.protect_farms_off_server"),
+				ui.view().gridCardX(PROTECT), ui.view().gridCardY(PROTECT), mouseX, mouseY, protecting, protectionAllowed);
 	}
 
 	@Override
@@ -74,6 +83,14 @@ public final class OptionsPage implements TablePage {
 			}
 			ClientSettings.setDeliverFromNearby(!ClientSettings.deliverFromNearby());
 			ui.actions().click();
+			return true;
+		}
+		if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(PROTECT), ui.view().gridCardY(PROTECT))) {
+			if (ui.handler().farmProtection() == DreamTableScreenHandler.PROTECTION_OFF_SERVER) {
+				ui.message("gui.the_dream_table.protect_farms_off_server");
+				return true;
+			}
+			ui.actions().press(DreamTableScreenHandler.BUTTON_PROTECT_FARMS);
 			return true;
 		}
 		return false;

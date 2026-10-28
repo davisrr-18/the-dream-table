@@ -483,6 +483,30 @@ public final class FarmAreas extends PersistentState {
 		return farms;
 	}
 
+	/** What block protection needs from a finished farm: who may break it and its design at its site. */
+	public record Guard(UUID instanceId, UUID ownerUuid, Map<UUID, FarmGrant> grants, FarmTemplate layout, FarmSite site) {
+	}
+
+	/**
+	 * The finished farms with a saved design whose area holds the position. One box test per area and nothing is copied
+	 * for the farms that don't match, so it is cheap enough to ask for every block a player breaks.
+	 */
+	public List<Guard> guardsAt(BlockPos pos) {
+		List<Guard> guards = List.of();
+		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
+			Area area = entry.getValue();
+			Built built = area.built();
+			if (built == null || built.layout() == null || !area.box().contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5)) {
+				continue;
+			}
+			if (guards.isEmpty()) {
+				guards = new ArrayList<>(1);
+			}
+			guards.add(new Guard(built.instanceId(), entry.getKey().player(), built.grants(), built.layout(), built.site()));
+		}
+		return guards;
+	}
+
 	/** An area as shown to players who turned on "Show Other Farms". */
 	public record View(Box box, Kind kind) {
 	}

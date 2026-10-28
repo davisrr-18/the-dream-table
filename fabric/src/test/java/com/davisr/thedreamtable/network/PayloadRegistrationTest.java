@@ -204,5 +204,9 @@ class PayloadRegistrationTest {
 		@Override
 		public void onPlayerDisconnect(BiConsumer<ServerPlayerEntity, MinecraftServer> listener) {
 		}
+
+		@Override
+		public void onBlockBreak(BlockBreakCheck check) {
+		}
 	}
 }

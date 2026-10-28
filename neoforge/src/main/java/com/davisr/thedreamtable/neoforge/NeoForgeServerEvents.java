@@ -3,8 +3,10 @@ package com.davisr.thedreamtable.neoforge;
 import com.davisr.thedreamtable.platform.ServerEvents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
@@ -41,6 +43,16 @@ final class NeoForgeServerEvents implements ServerEvents {
 		NeoForge.EVENT_BUS.addListener(PlayerEvent.PlayerLoggedInEvent.class, event -> {
 			if (event.getEntity() instanceof ServerPlayerEntity player) {
 				listener.accept(player, player.server);
+			}
+		});
+	}
+
+	@Override
+	public void onBlockBreak(BlockBreakCheck check) {
+		NeoForge.EVENT_BUS.addListener(BlockEvent.BreakEvent.class, event -> {
+			if (event.getLevel() instanceof ServerWorld world && event.getPlayer() instanceof ServerPlayerEntity player
+					&& !check.allows(world, player, event.getPos(), event.getState())) {
+				event.setCanceled(true);
 			}
 		});
 	}
