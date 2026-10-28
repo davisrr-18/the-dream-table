@@ -1,0 +1,84 @@
+plugins {
+	id 'com.gradleup.shadow'
+}
+
+architectury {
+	platformSetupLoomIde()
+	fabric()
+}
+
+configurations {
+	common {
+		canBeResolved = true
+		canBeConsumed = false
+	}
+	compileClasspath.extendsFrom common
+	runtimeClasspath.extendsFrom common
+	developmentFabric.extendsFrom common
+	testCompileClasspath.extendsFrom common
+	testRuntimeClasspath.extendsFrom common
+
+	// Common classes are bundled into the loader jar after remapping.
+	shadowBundle {
+		canBeResolved = true
+		canBeConsumed = false
+	}
+}
+
+dependencies {
+	modImplementation "net.fabricmc:fabric-loader:$rootProject.loader_version"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_version"
+
+	common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
+	shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
+
+	// The shared code's tests live here: fabric-loader-junit lets them bootstrap Minecraft's registries.
+	testImplementation "net.fabricmc:fabric-loader-junit:$rootProject.loader_version"
+}
+
+loom {
+	runs {
+		client {
+			// A fixed name keeps the same offline UUID between launches, so farms and table sessions stay with the player.
+			programArgs "--username", "Davi"
+		}
+	}
+}
+
+test {
+	useJUnitPlatform()
+	workingDir = layout.buildDirectory.dir("test-run").get().asFile
+	doFirst { workingDir.mkdirs() }
+}
+
+processResources {
+	inputs.property 'version', project.version
+
+	filesMatching('fabric.mod.json') {
+		expand 'version': project.version
+	}
+}
+
+shadowJar {
+	configurations = [project.configurations.shadowBundle]
+	archiveClassifier = 'dev-shadow'
+}
+
+remapJar {
+	input.set shadowJar.archiveFile
+}
+
+evaluationDependsOn(':common')
+
+// Ship the shared sources next to the loader sources so IDE and debugging work from the published jar.
+sourcesJar {
+	from project(':common').sourceSets.main.allSource
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+shadowJar {
+	from(rootProject.file('LICENSE')) {
+		rename { "${it}_${rootProject.archives_base_name}" }
+	}
+}
+

@@ -1,6 +1,6 @@
 ---
 description: Rules that keep farm building, clearing and dismantling safe
-globs: src/main/java/com/davisr/thedreamtable/farm/**/*.java,src/main/java/com/davisr/thedreamtable/block/**/*.java
+globs: common/src/main/java/com/davisr/thedreamtable/farm/**/*.java,common/src/main/java/com/davisr/thedreamtable/block/**/*.java
 alwaysApply: false
 ---
 

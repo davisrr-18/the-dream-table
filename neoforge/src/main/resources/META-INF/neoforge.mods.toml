@@ -1,0 +1,24 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "MIT"
+
+[[mods]]
+modId = "the_dream_table"
+version = "${version}"
+displayName = "The Dream Table"
+authors = "Davi"
+description = "Blueprint table that builds classic redstone farms, one block at a time."
+
+[[dependencies.the_dream_table]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.the_dream_table]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.21.2)"
+ordering = "NONE"
+side = "BOTH"

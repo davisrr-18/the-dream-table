@@ -1,0 +1,45 @@
+architectury {
+	common rootProject.enabled_platforms.split(',')
+}
+
+dependencies {
+	// Provides the Mixin dependencies the Architectury toolchain expects; no fabric-loader class may be used here.
+	modImplementation "net.fabricmc:fabric-loader:$rootProject.loader_version"
+}
+
+// Keeps the shared code loader-neutral, so every loader module can bundle it unchanged.
+// The server-safe seams must also stay free of client classes, so a dedicated server can load them.
+tasks.register('verifyNoLoaderImports') {
+	def sources = fileTree('src/main/java') { include '**/*.java' }
+	def serverSafeSeams = [
+			'Platform', 'PlatformPaths', 'BlockBreakGuard', 'ServerNetwork', 'ClientNetwork',
+			'ServerEvents', 'Menus', 'ExtendedMenuProvider', 'Content'
+	].collect { "com/davisr/thedreamtable/platform/${it}.java".toString() }
+	inputs.files(sources)
+	doLast {
+		def loaderApis = /\bnet\.(fabricmc|neoforged|minecraftforge)\./
+		def adapters = /\bcom\.davisr\.thedreamtable\.(fabric|neoforge)\./
+		def clientClasses = /\bnet\.minecraft\.client\./
+		def offenders = []
+		def sourceRoot = file('src/main/java').toPath()
+		sources.each { file ->
+			def serverSafe = serverSafeSeams.contains(sourceRoot.relativize(file.toPath()).toString().replace('\\', '/'))
+			file.eachLine { line, number ->
+				def code = line.trim()
+				if (code.startsWith('//') || code.startsWith('*') || code.startsWith('/*')) {
+					return
+				}
+				if (code =~ loaderApis || code =~ adapters) {
+					offenders << "${file}:${number}: ${code}"
+				} else if (serverSafe && code =~ clientClasses) {
+					offenders << "${file}:${number}: (client class in a server-safe seam) ${code}"
+				}
+			}
+		}
+		if (offenders) {
+			throw new GradleException("Common code must not reference loader APIs or the loader adapters, and the server-safe seams must not use client classes:\n" + offenders.join('\n'))
+		}
+	}
+}
+
+check.dependsOn 'verifyNoLoaderImports'

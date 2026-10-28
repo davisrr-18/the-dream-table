@@ -12,3 +12,9 @@ out/
 bin/
 
 __pycache__/
+*/build/
+*/run/
+logs/
+*/logs/
+.architectury-transformer/
+*/.architectury-transformer/
