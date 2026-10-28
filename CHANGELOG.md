@@ -1,50 +1,59 @@
-# The Dream Table 2.2.0-beta
+# The Dream Table 1.0.0
 
 Release date: 2026-10-28
 
-This beta improves multiplayer farm management, repair safety, and the table interface while preserving existing worlds and farm layouts.
+The first stable release of The Dream Table. It follows 2.2.0-beta; the lower number is intentional and marks the start of stable versions. Worlds, finished farms, builds in progress and shared farms from the betas carry over.
 
-## Built-in farms
+## NeoForge support
 
-- Added bundled Cactus Farm and Honey Farm designs to the built-in farm catalogue.
-- Moved Honey Farm from Plants to Resources so its category matches the resources it produces.
+- The mod now runs on NeoForge 21.1 for Minecraft 1.21.1, alongside Fabric. Each loader has its own jar.
+- On NeoForge the mod must be installed on both the client and the server. On Fabric it is also needed on both sides, because it adds a block and a menu.
+- Claim and protection mods are respected on both loaders: on Fabric through Fabric API's block break event, on NeoForge through the block break and place events.
 
-## Interface and accessibility
+## Take Down
 
-- Rebuilt the table menu around persistent Build, Farms, Schematics, and Settings tabs.
-- Added compact and wide layouts that keep handled inventory slots safe, reachable, and stable while the window changes size.
-- Fixed responsive HUD placement at every supported interface size: cards, filters, buttons, search fields, and the scrollbar stay inside the table instead of overlapping or leaking outside the panel.
-- Wide collections now use their available space as two balanced columns, while focused farm workflows stay centered. Informational text also centers and wraps within its visible area.
-- Improved keyboard focus, narration, clipping, scrolling, and menu routes for custom controls.
+- Take Down now removes and gives back only the blocks the farm placed and was paid for. Blocks you added yourself, or that were already there, stay where they are.
+- A farm built in Creative gives back no blocks on Take Down, even in Survival, so nothing can be created out of thin air. Chest contents still come back.
+- A Take Down in progress now survives a server restart instead of being lost.
+- A Take Down that can't break a protected block no longer leaves the farm without an owner; the farm and its name, sharing and alerts stay as they were.
+- A farm that was taken down is no longer recorded again after the world reloads.
+- Lava and powder snow steps now hand back the empty bucket while building, and Take Down no longer refunds those fluids, so buckets can't be duplicated. Iron farms built with an earlier beta still refund their lava buckets.
 
-## Shared farms
+## Materials
 
-- Finished farms now have permanent identities that keep their custom name, saved layout, sharing data, alerts, and preferences through Repair and restarts.
-- Owners can invite players as Viewers or Operators. Invitations expire, must be accepted, and never make a farm public.
-- Viewers can inspect authorized farms; Operators can start Repair and manage the owner's Keep Loaded selection without taking ownership.
-- Added favorites, farm tracking, a direction-and-distance HUD, and private Farm alerts. My Farms now has a dedicated favorites-only filter and a Favorites First sort option.
-- Expanded the selected farm view with the player's role, running or unavailable state, Keep Loaded state, and distance or dimension alongside storage, condition, repair, and collaborator information.
+- Materials you delivered are now remembered item by item. If a design is removed or a schematic changes, Discard gives back exactly what you put in, instead of losing or swapping items.
+- Delivered items that no longer fit a changed design come back to you automatically the next time you use the table.
+- Shift-click and drag on the material slots only take what the farm still needs; the rest stays in your inventory.
+- Leftover materials are no longer destroyed when you pick another farm after finishing one, or when items were left in the slots.
 
-## Alerts and repair safety
+## Builds, Repair and saved worlds
 
-- Added persistent alerts for missing blocks, full storage, unavailable designs, and Repair outcomes, with acknowledged history for each authorized player.
-- Active problems remain visible to authorized collaborators, while past alert history stays private to events after access was accepted.
-- Alert requests are issued once per farm page so rendering cannot invalidate an acknowledgement token.
-- Repair now retains the finished farm record during concurrent overlap checks, preserving its identity, name, grants, and alerts.
-- Resuming or completing Repair resolves earlier Repair-blocked and Repair-failed alerts while keeping their history.
-- Repair now handles partial minecart/passenger pairs safely and rolls back only entities created by a failed attempt.
+- If an imported schematic is changed or deleted while its farm is being built, the build stops with a clear "farm changed" message instead of building the wrong design or getting stuck.
+- A Repair started by a collaborator ends cleanly when their access is revoked or they lose the repair: the blocks already placed stay, the owner can take the farm down again, and unspent materials are returned. If that player is offline, the materials wait in the table and come back when they return.
+- A refused Repair no longer leaves the table changed.
+- One damaged save entry no longer wipes the other sessions, farms or Take Down jobs around it; unreadable entries are kept untouched so nothing is lost.
+- Very large or broken numbers in saved data are clamped to safe values on load.
 
-## Compatibility and safety
+## Keep Loaded
 
-- Existing finished farms, legacy Repair progress, page ids, layouts, and Keep Loaded selections migrate with safe defaults.
-- Network actions revalidate the authenticated player, open table, distance, stable farm key, role, request token, and bounded input.
-- Reduced server limits reject new oversized changes without deleting already accepted saves.
+- Keep Loaded now holds at most 64 chunks per farm; a larger imported farm shows "too large" instead of loading a huge area.
+- Unpicking, removing or revoking a kept farm stops its chunks from ticking right away.
 
-## Verification
+## Multiplayer and server performance
 
-- Automated regression coverage includes legacy migration, authorization, concurrent Repair leases, invitation expiry and limits, alert privacy and acknowledgement, and menu layout safety.
-- `./gradlew clean build --console=plain` completed successfully for the local release artifact.
+- Repeated clicks (Keep Loaded toggles, invitations, placing, depositing, farm list refreshes) are rate-limited per player, so spam can't lag the server; normal use is unaffected.
+- Farm list updates sent to a player are combined into one update per half second.
+- Invitations are now checked against the farm's roles, not against whichever menu is open.
 
-## Known limitation
+## Interface
 
-- Manual in-game screenshots are still required at 320x240, 416x240, 420x240, 640x360, and 854x480 because Minecraft cannot be launched in this environment.
+- The table menu now has a fixed size that only changes with the GUI scale. It no longer stretches with the window, and it shrinks to fit short windows.
+- The scrollbar track now starts right under the tabs on every page.
+- Fixed raw text keys showing instead of names when the game runs in a Turkish locale.
+- The mod now has an icon and links to its source and issue tracker in the mod list.
+
+## Known limitations
+
+- Fabric and NeoForge only; there is no Forge build.
+- Claim mods that use hooks other than the block break event (Fabric) or block break and place events (NeoForge) are not seen.
+- Only English text is included.

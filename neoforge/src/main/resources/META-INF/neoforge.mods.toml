@@ -1,6 +1,7 @@
 modLoader = "javafml"
 loaderVersion = "[4,)"
 license = "MIT"
+issueTrackerURL = "https://github.com/davisrr-18/the-dream-table/issues"
 
 [[mods]]
 modId = "the_dream_table"
@@ -8,11 +9,13 @@ version = "${version}"
 displayName = "The Dream Table"
 authors = "Davi"
 description = "Blueprint table that builds classic redstone farms, one block at a time."
+displayURL = "https://github.com/davisrr-18/the-dream-table"
+logoFile = "assets/the_dream_table/icon.png"
 
 [[dependencies.the_dream_table]]
 modId = "neoforge"
 type = "required"
-versionRange = "[21.1,)"
+versionRange = "[21.1,21.2)"
 ordering = "NONE"
 side = "BOTH"
 
