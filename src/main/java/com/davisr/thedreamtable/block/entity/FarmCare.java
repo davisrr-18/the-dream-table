@@ -2,7 +2,9 @@ package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmDismantler;
+import com.davisr.thedreamtable.farm.FarmKey;
 import com.davisr.thedreamtable.farm.FarmLoader;
+import com.davisr.thedreamtable.farm.FarmOperation;
 import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
@@ -11,6 +13,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 
 import java.util.BitSet;
+import java.util.UUID;
 
 /**
  * Repairing and taking down a player's finished farm from My Farms, at the table they are using.
@@ -46,9 +49,14 @@ public final class FarmCare {
 		session.restoreSwaps(farm.farm().swaps());
 		session.setPlacement(site.anchor(), site.facing());
 		FarmAreas areas = FarmAreas.of(world);
-		areas.release(farm.farm().key());
-		if (!session.build().beginRepair(player)) {
-			areas.recordFinished(player.getUuid(), template, site, farm.farm().swaps());
+		UUID operationId = UUID.randomUUID();
+		if (areas.beginRepair(farm.farm().instanceId(), player.getUuid(), session.getPos(), operationId).isEmpty()) {
+			player.sendMessage(Text.translatable("gui.the_dream_table.repair_busy"), true);
+			return false;
+		}
+		RepairContext context = new RepairContext(FarmKey.of(world, farm.farm().instanceId()), farm.farm().ownerUuid(), player.getUuid(), operationId);
+		if (!session.build().beginRepair(player, context)) {
+			areas.failRepair(farm.farm().instanceId(), operationId);
 			return false;
 		}
 		session.setPage(DreamTableScreenHandler.PAGE_WORK);
@@ -57,6 +65,10 @@ public final class FarmCare {
 	}
 
 	public static boolean takeDown(TableSession session, ServerPlayerEntity player, FarmLoader.Located farm) {
+		if (farm.farm().operation() != FarmOperation.READY) {
+			player.sendMessage(Text.translatable("gui.the_dream_table.repair_busy"), true);
+			return false;
+		}
 		FarmTemplate template = checked(session, player, farm);
 		if (template == null) {
 			return false;

@@ -2,10 +2,13 @@ package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.farm.FarmLoader;
+import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.network.FarmCarePayload;
 import com.davisr.thedreamtable.network.FarmDetailsPayload;
+import com.davisr.thedreamtable.network.FarmPreferencePayload;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
+import com.davisr.thedreamtable.screen.ui.SearchBox;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
@@ -26,10 +29,15 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
  * can only be forgotten.
  */
 public final class FarmPage implements TablePage {
-	private static final int LOADED = 0;
-	private static final int REPAIR = 1;
-	private static final int TAKE_DOWN = 2;
-	private static final int BACK = 3;
+	private static final int ALERTS = 0;
+	private static final int FAVORITE = 1;
+	private static final int TRACK = 2;
+	private static final int LOADED = 3;
+	private static final int REPAIR = 4;
+	private static final int RENAME = 5;
+	private static final int INVITE_VIEWER = 6;
+	private static final int INVITE_OPERATOR = 7;
+	private static final int COLLABORATORS = 8;
 	private static final long CONFIRM_MS = 3000L;
 	private static final int ITEM_SPACING = 21;
 	private static final int LINE_HEIGHT = 10;
@@ -37,10 +45,12 @@ public final class FarmPage implements TablePage {
 	private static final int NEEDS_HEIGHT = 40;
 
 	private final PageContext ui;
+	private final SearchBox input;
 	private long confirmUntil;
 
-	public FarmPage(PageContext ui) {
+	public FarmPage(PageContext ui, SearchBox input) {
 		this.ui = ui;
+		this.input = input;
 	}
 
 	private FarmLoader.Entry farm() {
@@ -51,11 +61,12 @@ public final class FarmPage implements TablePage {
 	@Override
 	public void draw(DrawContext context, int mouseX, int mouseY) {
 		LoadedFarmsView.ensure();
+		LoadedFarmsView.ensureDetails();
 		FarmLoader.Entry farm = farm();
 		if (farm == null) {
 			context.drawText(ui.painter().text(), Text.translatable(LoadedFarmsView.received() ? "gui.the_dream_table.farm_gone" : "gui.the_dream_table.loaded_waiting"),
 					ui.view().cardX(), ui.view().cardY(0) + 8, HINT, false);
-			ui.button(context, Text.translatable("gui.the_dream_table.back"), rowY(BACK), mouseX, mouseY, true, false);
+			ui.button("back", context, Text.translatable("gui.the_dream_table.back"), rowY(backRow()), mouseX, mouseY, true, false);
 			return;
 		}
 		Text where = Text.translatable("gui.the_dream_table.farm_at", farm.where().getX(), farm.where().getY(), farm.where().getZ(),
@@ -64,23 +75,48 @@ public final class FarmPage implements TablePage {
 		drawWrapped(context, statusText(farm), statusY(), Integer.MAX_VALUE, HINT);
 		drawStorage(context);
 		drawCondition(context, farm);
-		ui.button(context, loadedLabel(farm), rowY(LOADED), mouseX, mouseY, canLoad(farm), farm.loaded());
-		if (!farm.available()) {
-			ui.button(context, Text.translatable("gui.the_dream_table.forget"), rowY(REPAIR), mouseX, mouseY, true, false);
-		} else {
+		ui.button("alerts", context, Text.translatable("gui.the_dream_table.alerts"), rowY(ALERTS), mouseX, mouseY, true, false);
+		ui.button("favorite", context, Text.translatable(farm.favorite() ? "gui.the_dream_table.unfavorite" : "gui.the_dream_table.favorite"),
+				rowY(FAVORITE), mouseX, mouseY, true, farm.favorite());
+		ui.button("track", context, Text.translatable(farm.tracked() ? "gui.the_dream_table.untrack" : "gui.the_dream_table.track"),
+				rowY(TRACK), mouseX, mouseY, true, farm.tracked());
+		boolean operates = farm.role() != FarmRole.VIEWER;
+		ui.button("keep_loaded", context, loadedLabel(farm), rowY(LOADED), mouseX, mouseY, operates && canLoad(farm), farm.loaded());
+		if (farm.available()) {
 			boolean busy = ProjectState.locked(ui.handler());
-			ui.button(context, busy ? Text.translatable("gui.the_dream_table.repair_table_busy") : repairLabel(farm), rowY(REPAIR), mouseX, mouseY,
-					farm.missing() != 0 && !busy, false);
-			Text takeDown = Text.translatable(confirming() ? "gui.the_dream_table.take_down_confirm" : "gui.the_dream_table.take_down");
-			ui.button(context, takeDown, rowY(TAKE_DOWN), mouseX, mouseY, true, confirming());
+			ui.button("repair", context, busy ? Text.translatable("gui.the_dream_table.repair_table_busy") : repairLabel(farm), rowY(REPAIR), mouseX, mouseY,
+					operates && farm.missing() != 0 && !busy, false);
 		}
-		ui.button(context, Text.translatable("gui.the_dream_table.back"), rowY(BACK), mouseX, mouseY, true, false);
+		if (farm.role() == FarmRole.OWNER) {
+			ui.button("rename", context, Text.translatable("gui.the_dream_table.rename_from_field"), rowY(RENAME), mouseX, mouseY, true, false);
+			ui.button("invite_viewer", context, Text.translatable("gui.the_dream_table.invite_viewer"), rowY(INVITE_VIEWER), mouseX, mouseY,
+					!input.text().isBlank(), false);
+			ui.button("invite_operator", context, Text.translatable("gui.the_dream_table.invite_operator"), rowY(INVITE_OPERATOR), mouseX, mouseY,
+					!input.text().isBlank(), false);
+			List<FarmDetailsPayload.CollaboratorEntry> collaborators = collaborators();
+			for (int index = 0; index < collaborators.size(); index++) {
+				FarmDetailsPayload.CollaboratorEntry collaborator = collaborators.get(index);
+				Text role = Text.translatable("gui.the_dream_table.role." + collaborator.role().name().toLowerCase(Locale.ROOT));
+				ui.destructiveButton("remove." + collaborator.playerUuid(), context,
+						Text.translatable("gui.the_dream_table.remove_collaborator", collaborator.playerName(), role),
+						rowY(COLLABORATORS + index), mouseX, mouseY, true);
+			}
+			if (!farm.available()) {
+				ui.destructiveButton("forget", context, Text.translatable("gui.the_dream_table.forget"), rowY(takeDownRow()), mouseX, mouseY, true);
+			} else if (confirming()) {
+				ui.button("cancel_take_down", context, Text.translatable("gui.the_dream_table.cancel"), rowY(takeDownRow()), mouseX, mouseY, true, false);
+				ui.destructiveButton("confirm_take_down", context, Text.translatable("gui.the_dream_table.confirm_take_down"), rowY(confirmRow()), mouseX, mouseY, true);
+			} else {
+				ui.destructiveButton("take_down", context, Text.translatable("gui.the_dream_table.take_down"), rowY(takeDownRow()), mouseX, mouseY, true);
+			}
+		}
+		ui.button("back", context, Text.translatable("gui.the_dream_table.back"), rowY(backRow()), mouseX, mouseY, true, false);
 	}
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		FarmLoader.Entry farm = farm();
-		if (ui.buttonHit(mouseX, mouseY, rowY(BACK))) {
+		if (ui.buttonHit(mouseX, mouseY, rowY(backRow()))) {
 			confirmUntil = 0L;
 			ui.go(DreamTableScreenHandler.PAGE_LOADED, DreamTableScreenHandler.BUTTON_FARM_BACK);
 			return true;
@@ -88,7 +124,22 @@ public final class FarmPage implements TablePage {
 		if (farm == null) {
 			return false;
 		}
+		if (ui.buttonHit(mouseX, mouseY, rowY(ALERTS))) {
+			ui.go(DreamTableScreenHandler.PAGE_ALERTS, DreamTableScreenHandler.BUTTON_ALERTS);
+			return true;
+		}
+		if (ui.buttonHit(mouseX, mouseY, rowY(FAVORITE))) {
+			LoadedFarmsView.preference(farm.key(), farm.favorite() ? FarmPreferencePayload.Operation.UNFAVORITE : FarmPreferencePayload.Operation.FAVORITE);
+			return true;
+		}
+		if (ui.buttonHit(mouseX, mouseY, rowY(TRACK))) {
+			LoadedFarmsView.preference(farm.key(), farm.tracked() ? FarmPreferencePayload.Operation.UNTRACK : FarmPreferencePayload.Operation.TRACK);
+			return true;
+		}
 		if (ui.buttonHit(mouseX, mouseY, rowY(LOADED)) && LoadedFarmsView.limit() > 0) {
+			if (farm.role() == FarmRole.VIEWER) {
+				return true;
+			}
 			if (!canLoad(farm)) {
 				ui.actions().message(Text.translatable("gui.the_dream_table.loaded_full", LoadedFarmsView.limit()));
 				return true;
@@ -97,16 +148,7 @@ public final class FarmPage implements TablePage {
 			ui.actions().click();
 			return true;
 		}
-		if (!farm.available()) {
-			if (ui.buttonHit(mouseX, mouseY, rowY(REPAIR))) {
-				LoadedFarmsView.care(ui.handler().getTablePos(), farm.key(), FarmCarePayload.Action.FORGET);
-				ui.actions().click();
-				ui.go(DreamTableScreenHandler.PAGE_LOADED, DreamTableScreenHandler.BUTTON_FARM_BACK);
-				return true;
-			}
-			return false;
-		}
-		if (ui.buttonHit(mouseX, mouseY, rowY(REPAIR)) && farm.missing() != 0) {
+		if (farm.available() && farm.role() != FarmRole.VIEWER && ui.buttonHit(mouseX, mouseY, rowY(REPAIR)) && farm.missing() != 0) {
 			if (ProjectState.locked(ui.handler())) {
 				ui.message("gui.the_dream_table.repair_busy");
 				return true;
@@ -116,13 +158,50 @@ public final class FarmPage implements TablePage {
 			ui.actions().click();
 			return true;
 		}
-		if (ui.buttonHit(mouseX, mouseY, rowY(TAKE_DOWN))) {
-			if (!confirming()) {
+		if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, rowY(RENAME))) {
+			LoadedFarmsView.rename(farm.key(), input.text());
+			return true;
+		}
+		if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, rowY(INVITE_VIEWER)) && !input.text().isBlank()) {
+			LoadedFarmsView.invite(farm.key(), input.text(), FarmRole.VIEWER);
+			return true;
+		}
+		if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, rowY(INVITE_OPERATOR)) && !input.text().isBlank()) {
+			LoadedFarmsView.invite(farm.key(), input.text(), FarmRole.OPERATOR);
+			return true;
+		}
+		if (farm.role() == FarmRole.OWNER) {
+			List<FarmDetailsPayload.CollaboratorEntry> collaborators = collaborators();
+			for (int index = 0; index < collaborators.size(); index++) {
+				if (ui.buttonHit(mouseX, mouseY, rowY(COLLABORATORS + index))) {
+					LoadedFarmsView.removeCollaborator(farm.key(), collaborators.get(index).playerUuid());
+					ui.actions().click();
+					return true;
+				}
+			}
+		}
+		if (!farm.available()) {
+			if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, rowY(takeDownRow()))) {
+				LoadedFarmsView.care(ui.handler().getTablePos(), farm.key(), FarmCarePayload.Action.FORGET);
+				ui.actions().click();
+				ui.go(DreamTableScreenHandler.PAGE_LOADED, DreamTableScreenHandler.BUTTON_FARM_BACK);
+				return true;
+			}
+			return false;
+		}
+		if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, rowY(takeDownRow()))) {
+			if (confirming()) {
+				confirmUntil = 0L;
+				ui.actions().click();
+				return true;
+			} else {
 				confirmUntil = Util.getMeasuringTimeMs() + CONFIRM_MS;
 				ui.actions().click();
 				ui.actions().message(Text.translatable("gui.the_dream_table.take_down_click", LoadedFarmsPage.name(farm)));
-				return true;
 			}
+			return true;
+		}
+		if (farm.role() == FarmRole.OWNER && confirming() && ui.buttonHit(mouseX, mouseY, rowY(confirmRow()))) {
 			confirmUntil = 0L;
 			LoadedFarmsView.care(ui.handler().getTablePos(), farm.key(), FarmCarePayload.Action.TAKE_DOWN);
 			ui.actions().click();
@@ -248,7 +327,7 @@ public final class FarmPage implements TablePage {
 
 	/** Off when the server turned keeping farms loaded off, or when the limit is reached and this farm isn't one of them. */
 	private static boolean canLoad(FarmLoader.Entry farm) {
-		return LoadedFarmsView.limit() > 0 && (farm.loaded() || LoadedFarmsView.loaded() < LoadedFarmsView.limit());
+		return LoadedFarmsView.limit() > 0 && (farm.loaded() || !farm.ownerQuotaFull());
 	}
 
 	private static Text loadedLabel(FarmLoader.Entry farm) {
@@ -275,7 +354,7 @@ public final class FarmPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		return rowY(BACK) - ui.view().cardY(0) + PAD + BUTTON_HEIGHT + 4;
+		return rowY(backRow()) - ui.view().cardY(0) + PAD + BUTTON_HEIGHT + 4;
 	}
 
 	@Override
@@ -314,4 +393,22 @@ public final class FarmPage implements TablePage {
 	private int rowY(int row) {
 		return needsY() + NEEDS_HEIGHT + 4 + row * (BUTTON_HEIGHT + BUTTON_GAP);
 	}
+
+	private List<FarmDetailsPayload.CollaboratorEntry> collaborators() {
+		FarmDetailsPayload details = LoadedFarmsView.details();
+		return details == null ? List.of() : details.collaborators();
+	}
+
+	private int takeDownRow() {
+		return COLLABORATORS + collaborators().size();
+	}
+
+	private int confirmRow() {
+		return takeDownRow() + 1;
+	}
+
+	private int backRow() {
+		return takeDownRow() + 2;
+	}
+
 }

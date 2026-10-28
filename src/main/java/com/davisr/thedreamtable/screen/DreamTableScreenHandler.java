@@ -40,6 +40,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int PAGE_SPEED = 7;
 	public static final int PAGE_LOADED = 8;
 	public static final int PAGE_FARM = 9;
+	public static final int PAGE_INVITES = 20;
+	public static final int PAGE_ALERTS = 21;
 	/** Plus the category index, so a reopened menu returns to the same category. */
 	public static final int PAGE_CATEGORY = 10;
 
@@ -59,6 +61,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_LOADED_BACK = 146;
 	public static final int BUTTON_FARM_OPEN = 147;
 	public static final int BUTTON_FARM_BACK = 148;
+	public static final int BUTTON_INVITES = 149;
+	public static final int BUTTON_ALERTS = 180;
 	/** Plus the category index. */
 	public static final int BUTTON_CATEGORY = 160;
 	public static final int BUTTON_CATEGORY_BACK = 170;
@@ -72,6 +76,10 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_SWAP_PICK = 2000;
 	/** Plus a percentage from 1 to 100, for the custom speed slider. */
 	public static final int BUTTON_PACE_CUSTOM = 3000;
+	public static final int BUTTON_TAB_BUILD = 3300;
+	public static final int BUTTON_TAB_FARMS = 3301;
+	public static final int BUTTON_TAB_SCHEMATICS = 3302;
+	public static final int BUTTON_TAB_SETTINGS = 3303;
 	private final ScreenHandlerContext context;
 	private final boolean client;
 	private final UUID playerId;

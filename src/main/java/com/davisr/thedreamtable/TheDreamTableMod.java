@@ -2,12 +2,23 @@ package com.davisr.thedreamtable;
 
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmLoader;
+import com.davisr.thedreamtable.farm.FarmPreferences;
+import com.davisr.thedreamtable.farm.FarmSharing;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.farm.alert.FarmAlertMonitor;
 import com.davisr.thedreamtable.network.CheckPlacementPayload;
 import com.davisr.thedreamtable.network.DepositMaterialPayload;
 import com.davisr.thedreamtable.network.FarmAreasPayload;
+import com.davisr.thedreamtable.network.FarmActionResultPayload;
+import com.davisr.thedreamtable.network.FarmAlertAckPayload;
+import com.davisr.thedreamtable.network.FarmAlertsPayload;
+import com.davisr.thedreamtable.network.FarmCollaboratorPayload;
 import com.davisr.thedreamtable.network.FarmCarePayload;
 import com.davisr.thedreamtable.network.FarmDetailsPayload;
+import com.davisr.thedreamtable.network.FarmInvitePayload;
+import com.davisr.thedreamtable.network.FarmInviteResponsePayload;
+import com.davisr.thedreamtable.network.FarmPreferencePayload;
+import com.davisr.thedreamtable.network.FarmRenamePayload;
 import com.davisr.thedreamtable.network.LoadedFarmsPayload;
 import com.davisr.thedreamtable.network.PlaceFarmPayload;
 import com.davisr.thedreamtable.network.PlacementResultPayload;
@@ -36,7 +47,10 @@ public final class TheDreamTableMod implements ModInitializer {
 		ModScreenHandlers.register();
 		FarmTemplates.load();
 		DreamTableConfig.load();
-		ServerLifecycleEvents.SERVER_STARTED.register(server -> server.getWorlds().forEach(FarmAreas::of));
+		ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+			server.getWorlds().forEach(FarmAreas::of);
+			FarmLoader.of(server).migrateLegacyKeys(server);
+		});
 		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
 			DreamTableConfig.load();
 			FarmTemplates.reloadImports(server.getSavePath(WorldSavePath.ROOT));
@@ -48,8 +62,19 @@ public final class TheDreamTableMod implements ModInitializer {
 		SessionSyncPayload.register();
 		RequestSessionPayload.register();
 		FarmAreasPayload.register();
+		FarmActionResultPayload.register();
+		FarmAlertsPayload.register();
+		FarmAlertAckPayload.register();
+		FarmRenamePayload.register();
+		FarmInvitePayload.register();
+		FarmInviteResponsePayload.register();
+		FarmCollaboratorPayload.register();
+		FarmPreferencePayload.register();
 		FarmCarePayload.register();
 		FarmLoader.register();
+		FarmPreferences.register();
+		FarmSharing.register();
+		FarmAlertMonitor.register();
 		LoadedFarmsPayload.register();
 		ServerSchematicsPayload.register();
 		FarmDetailsPayload.register();

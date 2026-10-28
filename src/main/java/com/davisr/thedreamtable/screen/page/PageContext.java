@@ -5,11 +5,18 @@ import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import com.davisr.thedreamtable.screen.ui.Painter;
 import com.davisr.thedreamtable.screen.ui.Viewport;
+import com.davisr.thedreamtable.screen.ui.ControlGroup;
+import com.davisr.thedreamtable.screen.ui.ControlId;
+import com.davisr.thedreamtable.screen.ui.ControlSpec;
+import com.davisr.thedreamtable.screen.ui.layout.UiRect;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
@@ -20,6 +27,11 @@ public final class PageContext {
 	private final Painter painter;
 	private final ScreenActions actions;
 	private List<Text> tooltip;
+	private final List<ControlSpec> controls = new ArrayList<>();
+	private final Map<ControlId, Runnable> controlActions = new LinkedHashMap<>();
+	private TablePage page;
+	private int pageId;
+	private int controlIndex;
 
 	public PageContext(DreamTableScreenHandler handler, Viewport view, Painter painter, ScreenActions actions) {
 		this.handler = handler;
@@ -57,26 +69,88 @@ public final class PageContext {
 		return template == null ? 0 : template.materials().size();
 	}
 
+	public void beginControls(int pageId, TablePage page) {
+		this.pageId = pageId;
+		this.page = page;
+		this.controlIndex = 0;
+		controls.clear();
+		controlActions.clear();
+	}
+
+	public List<ControlSpec> controls() {
+		return List.copyOf(controls);
+	}
+
+	public Runnable action(ControlId id) {
+		return controlActions.getOrDefault(id, () -> { });
+	}
+
 	public void card(DrawContext context, ItemStack icon, Text label, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
-		boolean hit = cardHit(mouseX, mouseY, y);
-		painter.card(context, icon, label, view.cardX(), y, hit, selected, enabled);
+		card(null, context, icon, label, y, mouseX, mouseY, selected, enabled);
+	}
+
+	public void card(String stableKey, DrawContext context, ItemStack icon, Text label, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
+		cardAt(stableKey, context, icon, label, view.cardX(), y, mouseX, mouseY, selected, enabled);
+	}
+
+	public void cardAt(String stableKey, DrawContext context, ItemStack icon, Text label, int x, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
+		register(stableKey, label, Text.empty(), x, y, CARD_HEIGHT, selected, enabled);
+		boolean hit = cardHit(mouseX, mouseY, x, y);
+		painter.card(context, icon, label, x, y, hit, selected, enabled);
 		if (hit && !painter.fits(label, CARD_TEXT_WIDTH)) {
 			tooltip(label);
 		}
 	}
 
 	public void card(DrawContext context, ItemStack icon, Text label, Text detail, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
-		boolean hit = cardHit(mouseX, mouseY, y);
-		painter.card(context, icon, label, detail, view.cardX(), y, hit, selected, enabled);
+		card(null, context, icon, label, detail, y, mouseX, mouseY, selected, enabled);
+	}
+
+	public void card(String stableKey, DrawContext context, ItemStack icon, Text label, Text detail, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
+		cardAt(stableKey, context, icon, label, detail, view.cardX(), y, mouseX, mouseY, selected, enabled);
+	}
+
+	public void cardAt(String stableKey, DrawContext context, ItemStack icon, Text label, Text detail, int x, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
+		register(stableKey, label, detail, x, y, CARD_HEIGHT, selected, enabled);
+		boolean hit = cardHit(mouseX, mouseY, x, y);
+		painter.card(context, icon, label, detail, x, y, hit, selected, enabled);
 		if (hit && (!painter.fits(label, CARD_TEXT_WIDTH) || !painter.fits(detail, CARD_TEXT_WIDTH))) {
 			tooltip(label, detail);
 		}
 	}
 
 	public void button(DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
+		button(null, context, label, y, mouseX, mouseY, enabled, primary);
+	}
+
+	public void button(String stableKey, DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
+		register(stableKey, label, Text.empty(), view.cardX(), y, BUTTON_HEIGHT, false, enabled);
 		boolean hit = buttonHit(mouseX, mouseY, y);
 		painter.button(context, label, view.cardX(), y, hit, enabled, primary);
 		if (hit && !painter.fits(label, CARD_WIDTH - 16)) {
+			tooltip(label);
+		}
+	}
+
+	public void destructiveButton(DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled) {
+		destructiveButton(null, context, label, y, mouseX, mouseY, enabled);
+	}
+
+	public void destructiveButton(String stableKey, DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled) {
+		register(stableKey, label, Text.empty(), view.cardX(), y, BUTTON_HEIGHT, false, enabled);
+		boolean hit = buttonHit(mouseX, mouseY, y);
+		painter.destructiveButton(context, label, view.cardX(), y, hit, enabled);
+	}
+
+	public void chip(String stableKey, DrawContext context, Text label, int y, int width, int height, int mouseX, int mouseY) {
+		int index = controlIndex++;
+		ControlId id = ControlId.of("page." + pageId, stableKey == null ? Integer.toString(index) : stableKey);
+		UiRect bounds = new UiRect(view.cardX(), y, width, height);
+		controls.add(new ControlSpec(id, ControlGroup.CONTENT, bounds, label, Text.empty(), true, false, Text.empty(), y, bounds.x()));
+		controlActions.put(id, () -> page.click(bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0));
+		boolean hit = view.hit(mouseX, mouseY, bounds.x(), bounds.y(), bounds.width(), bounds.height());
+		painter.chip(context, label, bounds.x(), bounds.y(), bounds.width(), bounds.height(), hit);
+		if (hit && !painter.fits(label, width - 12)) {
 			tooltip(label);
 		}
 	}
@@ -94,7 +168,11 @@ public final class PageContext {
 	}
 
 	public boolean cardHit(double mouseX, double mouseY, int y) {
-		return view.hit(mouseX, mouseY, view.cardX(), y, CARD_WIDTH, CARD_HEIGHT);
+		return cardHit(mouseX, mouseY, view.cardX(), y);
+	}
+
+	public boolean cardHit(double mouseX, double mouseY, int x, int y) {
+		return view.hit(mouseX, mouseY, x, y, CARD_WIDTH, CARD_HEIGHT);
 	}
 
 	public boolean buttonHit(double mouseX, double mouseY, int y) {
@@ -113,5 +191,15 @@ public final class PageContext {
 
 	public void message(String key) {
 		actions.message(Text.translatable(key));
+	}
+
+	private void register(String stableKey, Text label, Text state, int x, int y, int height, boolean selected, boolean enabled) {
+		int index = controlIndex++;
+		ControlId id = ControlId.of("page." + pageId, stableKey == null ? Integer.toString(index) : stableKey);
+		UiRect bounds = new UiRect(x, y, CARD_WIDTH, height);
+		ControlSpec spec = new ControlSpec(id, ControlGroup.CONTENT, bounds, label, state, enabled, selected,
+				enabled ? Text.empty() : Text.translatable("gui.the_dream_table.narration.disabled"), y, x);
+		controls.add(spec);
+		controlActions.put(id, () -> page.click(bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0));
 	}
 }

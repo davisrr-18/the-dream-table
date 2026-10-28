@@ -22,6 +22,7 @@ public final class SearchBox {
 
 	private final TextFieldWidget field;
 	private int page = -1;
+	private Text hint = Text.translatable("gui.the_dream_table.search");
 
 	public SearchBox(TextRenderer text, String initial, Runnable onChange) {
 		field = new TextFieldWidget(text, 0, 0, CARD_WIDTH - INSET * 2, 12, Text.translatable("gui.the_dream_table.search"));
@@ -45,6 +46,10 @@ public final class SearchBox {
 
 	public boolean focused() {
 		return field.isVisible() && field.isFocused();
+	}
+
+	public void setHint(Text hint) {
+		this.hint = hint;
 	}
 
 	/**
@@ -91,7 +96,7 @@ public final class SearchBox {
 		int room = CARD_WIDTH - INSET * 2;
 		String value = field.getText();
 		if (value.isEmpty()) {
-			context.drawText(text, painter.trim(Text.translatable("gui.the_dream_table.search"), room), left, top, MUTED, false);
+			context.drawText(text, painter.trim(hint, room), left, top, MUTED, false);
 		}
 		int cursor = Math.max(0, Math.min(value.length(), field.getCursor()));
 		String before = value.substring(0, cursor);

@@ -1,53 +1,42 @@
-# The Dream Table 2.1.0-beta
+# The Dream Table 2.2.0-beta
 
-Release date: 2026-10-26
+Release date: 2026-10-27
 
-This release focuses on reliability, usability, schematic compatibility, and safe multiplayer behavior. It does not add a new farm mechanic; it makes the existing build workflow easier to understand and safer to resume, repair, dismantle, and share.
+This beta improves multiplayer farm management, repair safety, and the table interface while preserving existing worlds and farm layouts.
 
-## Added
+## Interface and accessibility
 
-- Construction diagnostics with typed `BuildIssue` records for missing materials, protected areas, obstacles, unloaded chunks, placement failures, repeated failures, and unexpected errors.
-- Issue details synchronized to the owner's client and shown in the Work page with the affected location, block or item, attempt count, and recovery guidance.
-- My Farms filtering by text, status, dimension, and loaded state, with deterministic sorting and distance-aware ordering.
-- My Farms storage details for containers, capacity, stored item counts, block count, missing blocks, and changed blocks.
-- Repair survey showing what is missing, what the player changed, and which materials Repair will use.
-- Explicit Take Down confirmation naming the farm and its coordinates before removal.
-- Safe item handover through a shared `Handover` path; overflow drops at the player's feet and is reported once per operation.
-- Imported schematic validation for Vanilla Structure NBT, Sponge, and Litematica formats.
-- Import diagnostics for unsupported blocks, missing palettes, malformed data, size limits, step limits, height limits, and Creative-only content.
-- Server schematic notes and rejected-file information for dedicated-server clients.
-- Exact finished-farm layouts, including block-entity NBT, persisted under unique `LayoutId` values.
-- Stable-key My Farms actions through an authenticated `FarmCarePayload` protocol.
-- Independent area reservations for simultaneous dismantle jobs, with compatibility for legacy saved jobs.
-- Regression coverage for diagnostics, filtering, finished-layout persistence, repair surveys, schematic validation, stable farm selection, dismantle reservations, and one-time handover notices.
+- Rebuilt the table menu around persistent Build, Farms, Schematics, and Settings tabs.
+- Added compact and wide layouts that keep handled inventory slots safe, reachable, and stable while the window changes size.
+- Improved keyboard focus, narration, clipping, scrolling, and menu routes for custom controls.
 
-## Changed
+## Shared farms
 
-- Farm building now reports and preserves the reason a step stopped instead of exposing only a generic blocked state.
-- Repair rebuilds only missing or replaceable farm spots; solid blocks changed by the player are left in place and counted separately.
-- Repair and Take Down always use the exact design saved with the finished farm, even when the current farm schematic changed or disappeared.
-- My Farms actions no longer address a farm by its mutable list index. The server resolves the submitted stable key again for the authenticated owner and open table.
-- Repair previews now use the exact saved layout ID sent in the My Farms list.
-- Finished farm storage and condition information is refreshed while the farm page is open.
-- Imported structures are reloaded at most once per second for the same world, avoiding repeated filesystem work from menu clicks.
-- Network payloads cap list and string sizes at their protocol boundaries.
-- UI text and spacing were unified across Work, My Farms, My Schematics, filters, cards, warnings, and confirmation states.
-- The project now has explicit agent governance in `AGENTS.md`, scoped technical rules under `.cursor/rules/`, and durable architecture/build-safety guidance.
+- Finished farms now have permanent identities that keep their custom name, saved layout, sharing data, alerts, and preferences through Repair and restarts.
+- Owners can invite players as Viewers or Operators. Invitations expire, must be accepted, and never make a farm public.
+- Viewers can inspect authorized farms; Operators can start Repair and manage the owner's Keep Loaded selection without taking ownership.
+- Added favorites, farm tracking, a direction-and-distance HUD, and private Farm alerts.
+
+## Alerts and repair safety
+
+- Added persistent alerts for missing blocks, full storage, unavailable designs, and Repair outcomes, with acknowledged history for each authorized player.
+- Active problems remain visible to authorized collaborators, while past alert history stays private to events after access was accepted.
+- Alert requests are issued once per farm page so rendering cannot invalidate an acknowledgement token.
+- Repair now retains the finished farm record during concurrent overlap checks, preserving its identity, name, grants, and alerts.
+- Resuming or completing Repair resolves earlier Repair-blocked and Repair-failed alerts while keeping their history.
+- Repair now handles partial minecart/passenger pairs safely and rolls back only entities created by a failed attempt.
 
 ## Compatibility and safety
 
-- Existing finished-farm saves without `LayoutId` are migrated on load with safe unique IDs.
-- Existing dismantle saves without `AreaSpot` continue releasing their legacy reservation key.
-- Existing session, material, speed, farm-area, and schematic data keeps its previous NBT keys and defaults.
-- Server-side ownership, table distance, open-screen validation, build permissions, and per-step break/place checks remain authoritative.
-- No block is removed during Repair when a solid replacement belongs to the player or world.
+- Existing finished farms, legacy Repair progress, page ids, layouts, and Keep Loaded selections migrate with safe defaults.
+- Network actions revalidate the authenticated player, open table, distance, stable farm key, role, request token, and bounded input.
+- Reduced server limits reject new oversized changes without deleting already accepted saves.
 
 ## Verification
 
-- `./gradlew clean build`
-- 73 automated tests passed with zero failures.
-- Build, test, jar, remap, source-jar, and access-widener checks completed successfully.
+- Automated regression coverage includes legacy migration, authorization, concurrent Repair leases, invitation expiry and limits, alert privacy and acknowledgement, and menu layout safety.
+- `./gradlew clean build --console=plain` completed successfully for the local release artifact.
 
 ## Known limitation
 
-- If a minecart is destroyed while its passenger remains, Repair currently does not reconstruct only the missing vehicle. This is isolated for a follow-up because fixing it safely requires remounting the existing entity rather than spawning a duplicate.
+- Manual in-game screenshots are still required at 320x240, 416x240, 420x240, 640x360, and 854x480 because Minecraft cannot be launched in this environment.

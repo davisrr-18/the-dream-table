@@ -3,11 +3,17 @@ package com.davisr.thedreamtable.block.entity;
 import com.davisr.thedreamtable.farm.BuildPermission;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
+import com.davisr.thedreamtable.farm.FarmGrant;
+import com.davisr.thedreamtable.farm.FarmInvite;
 import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Box;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * A session's place in {@link FarmAreas}: whether its farm may start at a site, the area its build reserves,
@@ -30,6 +36,10 @@ final class SessionAreas {
 	 * at any table, or touches land the player may not build in. Build and the hologram check both ask this.
 	 */
 	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template) {
+		return problemAt(world, asker, site, template, null);
+	}
+
+	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template, @Nullable UUID ignoredFinished) {
 		Box area = site.footprint(template);
 		if (!site.fits(world, template)) {
 			return "gui.the_dream_table.out_of_world";
@@ -37,7 +47,7 @@ final class SessionAreas {
 		if (session.table().overlapsOthers(session, area)) {
 			return "gui.the_dream_table.farm_overlaps";
 		}
-		FarmAreas.Conflict conflict = FarmAreas.of(world).conflict(world, key(), area);
+		FarmAreas.Conflict conflict = FarmAreas.of(world).conflict(world, key(), area, ignoredFinished);
 		if (conflict == FarmAreas.Conflict.ACTIVE) {
 			return "gui.the_dream_table.farm_overlaps";
 		}
@@ -64,11 +74,28 @@ final class SessionAreas {
 	 * A finished farm keeps its area after the session moves on, so no later farm is placed over it or clears its blocks.
 	 * Farms finished before areas existed are recorded the first time their table ticks.
 	 */
-	void recordFinished(ServerWorld world, FarmTemplate template) {
+	void recordFinished(ServerWorld world, FarmTemplate template, @Nullable UUID instanceId, @Nullable String customName,
+			Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites) {
 		finishedRecorded = true;
 		FarmAreas areas = FarmAreas.of(world);
-		areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps());
+		if (instanceId == null) {
+			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps());
+		} else {
+			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps(), instanceId, customName, grants, invites);
+		}
 		areas.release(key());
+	}
+
+	void completeRepair(ServerWorld world, RepairContext context) {
+		finishedRecorded = true;
+		FarmAreas areas = FarmAreas.of(world);
+		areas.completeRepair(context.farmKey().instanceId(), context.operationId());
+		areas.release(key());
+	}
+
+	boolean repairActive(ServerWorld world, RepairContext context) {
+		return FarmAreas.of(world).repairActive(context.farmKey().instanceId(),
+				new com.davisr.thedreamtable.farm.RepairLease(context.operationId(), context.actorUuid(), session.getPos()));
 	}
 
 	boolean finishedRecorded() {
@@ -76,6 +103,11 @@ final class SessionAreas {
 	}
 
 	void release(ServerWorld world) {
-		FarmAreas.of(world).release(key());
+		FarmAreas areas = FarmAreas.of(world);
+		RepairContext context = session.repairContext();
+		if (context != null) {
+			areas.failRepair(context.farmKey().instanceId(), context.operationId());
+		}
+		areas.release(key());
 	}
 }

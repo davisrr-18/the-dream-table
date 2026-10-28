@@ -1,7 +1,6 @@
 package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.client.ClientSettings;
-import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.client.OtherFarms;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
@@ -18,8 +17,8 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
  */
 public final class OptionsPage implements TablePage {
 	private static final int SPEED = 0;
-	private static final int LOADED = 1;
-	private static final int OTHERS = 2;
+	private static final int OTHERS = 1;
+	private static final int TRACKER = 2;
 	private static final int CARDS = 3;
 
 	private final PageContext ui;
@@ -33,36 +32,32 @@ public final class OptionsPage implements TablePage {
 		DreamTableScreenHandler handler = ui.handler();
 		Text speed = Text.translatable("gui.the_dream_table.with_eta", SpeedPage.chosen(handler),
 				Text.translatable("gui.the_dream_table.pace_share", BuildPace.percent(handler.getPace())));
-		ui.card(context, new ItemStack(Items.CLOCK), Text.translatable("gui.the_dream_table.speed"), speed, ui.view().cardY(SPEED), mouseX, mouseY, false, true);
-		Text loaded = handler.getLoadedLimit() <= 0
-				? Text.translatable("gui.the_dream_table.loaded_off_short")
-				: Text.translatable("gui.the_dream_table.loaded_count", handler.getLoadedFarms(), handler.getLoadedLimit());
-		ui.card(context, new ItemStack(Items.LODESTONE), Text.translatable("gui.the_dream_table.loaded"), loaded, ui.view().cardY(LOADED), mouseX, mouseY,
-				handler.getLoadedFarms() > 0, true);
+		ui.cardAt("speed", context, new ItemStack(Items.CLOCK), Text.translatable("gui.the_dream_table.speed"), speed,
+				ui.view().gridCardX(SPEED), ui.view().gridCardY(SPEED), mouseX, mouseY, false, true);
 		boolean shown = ClientSettings.showOtherFarms();
 		Text others = Text.translatable(shown ? "gui.the_dream_table.show_others_on" : "gui.the_dream_table.show_others_off");
-		ui.card(context, new ItemStack(Items.SPYGLASS), others, ui.view().cardY(OTHERS), mouseX, mouseY, shown, true);
-		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
+		ui.cardAt("show_other_farms", context, new ItemStack(Items.SPYGLASS), others,
+				ui.view().gridCardX(OTHERS), ui.view().gridCardY(OTHERS), mouseX, mouseY, shown, true);
+		boolean tracker = ClientSettings.showTrackedFarm();
+		ui.cardAt("show_tracked_farm", context, new ItemStack(Items.COMPASS),
+				Text.translatable(tracker ? "gui.the_dream_table.show_tracker_on" : "gui.the_dream_table.show_tracker_off"),
+				ui.view().gridCardX(TRACKER), ui.view().gridCardY(TRACKER), mouseX, mouseY, tracker, true);
 	}
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
-		if (ui.cardHit(mouseX, mouseY, ui.view().cardY(SPEED))) {
+		if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(SPEED), ui.view().gridCardY(SPEED))) {
 			ui.go(DreamTableScreenHandler.PAGE_SPEED, DreamTableScreenHandler.BUTTON_SPEED_OPEN);
 			return true;
 		}
-		if (ui.cardHit(mouseX, mouseY, ui.view().cardY(LOADED))) {
-			LoadedFarmsView.invalidate();
-			ui.go(DreamTableScreenHandler.PAGE_LOADED, DreamTableScreenHandler.BUTTON_LOADED_FARMS);
-			return true;
-		}
-		if (ui.cardHit(mouseX, mouseY, ui.view().cardY(OTHERS))) {
+		if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(OTHERS), ui.view().gridCardY(OTHERS))) {
 			OtherFarms.setShown(!ClientSettings.showOtherFarms());
 			ui.actions().click();
 			return true;
 		}
-		if (ui.buttonHit(mouseX, mouseY, backY())) {
-			ui.go(DreamTableScreenHandler.PAGE_SELECT, DreamTableScreenHandler.BUTTON_OPTIONS_BACK);
+		if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(TRACKER), ui.view().gridCardY(TRACKER))) {
+			ClientSettings.setShowTrackedFarm(!ClientSettings.showTrackedFarm());
+			ui.actions().click();
 			return true;
 		}
 		return false;
@@ -70,7 +65,7 @@ public final class OptionsPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		return PAD + CARDS * CARD_HEIGHT + (CARDS - 1) * CARD_GAP + 6 + BUTTON_HEIGHT + 4;
+		return ui.view().gridContentHeight(CARDS);
 	}
 
 	@Override
@@ -78,7 +73,4 @@ public final class OptionsPage implements TablePage {
 		return Text.translatable("gui.the_dream_table.options");
 	}
 
-	private int backY() {
-		return ui.view().cardY(CARDS - 1) + CARD_HEIGHT + 6;
-	}
 }

@@ -3,14 +3,25 @@ package com.davisr.thedreamtable.client;
 import com.davisr.thedreamtable.farm.FarmListing;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.network.FarmCarePayload;
+import com.davisr.thedreamtable.network.FarmActionResultPayload;
+import com.davisr.thedreamtable.network.FarmCollaboratorPayload;
 import com.davisr.thedreamtable.network.FarmDetailsPayload;
+import com.davisr.thedreamtable.network.FarmInvitePayload;
+import com.davisr.thedreamtable.network.FarmInviteResponsePayload;
+import com.davisr.thedreamtable.network.FarmPreferencePayload;
+import com.davisr.thedreamtable.network.FarmRenamePayload;
+import com.davisr.thedreamtable.network.FarmAlertAckPayload;
+import com.davisr.thedreamtable.network.FarmAlertsPayload;
 import com.davisr.thedreamtable.network.LoadedFarmsPayload;
+import com.davisr.thedreamtable.farm.FarmRole;
+import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.Util;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Function;
 
 /**
@@ -18,14 +29,14 @@ import java.util.function.Function;
  * filtered and sorted, which stays while the menu is open.
  */
 public final class LoadedFarmsView {
-	private static final long DETAILS_EVERY_MS = 2000L;
 	private static List<FarmLoader.Entry> farms = List.of();
+	private static List<LoadedFarmsPayload.InviteEntry> invites = List.of();
 	private static int limit;
 	private static boolean received;
-	private static boolean requested;
 	private static String selected = "";
 	private static FarmDetailsPayload details;
-	private static long detailsAskedAt;
+	private static FarmAlertsPayload alerts;
+	private static final RequestState requests = new RequestState();
 	private static FarmListing.Show show = FarmListing.Show.ALL;
 	private static FarmListing.Sort sort = FarmListing.Sort.NEWEST;
 	private static String dimension = "";
@@ -36,6 +47,7 @@ public final class LoadedFarmsView {
 	public static void register() {
 		ClientPlayNetworking.registerGlobalReceiver(LoadedFarmsPayload.ID, (payload, context) -> {
 			farms = payload.farms();
+			invites = payload.invites();
 			limit = payload.limit();
 			received = true;
 		});
@@ -44,20 +56,43 @@ public final class LoadedFarmsView {
 				details = payload;
 			}
 		});
+		ClientPlayNetworking.registerGlobalReceiver(FarmAlertsPayload.ID, (payload, context) -> {
+			if (payload.key().equals(selected)) {
+				alerts = payload;
+			}
+		});
+		ClientPlayNetworking.registerGlobalReceiver(FarmActionResultPayload.ID, (payload, context) -> {
+			if (payload.action() == FarmActionResultPayload.Action.REMOVE_COLLABORATOR
+					&& payload.result() == FarmActionResultPayload.Result.SUCCESS && payload.key().equals(selected)) {
+				details = null;
+				requests.invalidateDetails();
+			}
+			MinecraftClient client = MinecraftClient.getInstance();
+			if (client.player != null) {
+				client.inGameHud.setOverlayMessage(Text.translatable("gui.the_dream_table.action_result."
+						+ payload.result().name().toLowerCase()), false);
+			}
+		});
 	}
 
-	/** The open farm's storage and size, asked for again every 2 seconds while its page is drawn; null until it arrives. */
+	/** The open farm's storage and size, or null until the one request for this selection arrives. */
 	public static FarmDetailsPayload details() {
-		long now = Util.getMeasuringTimeMs();
-		if (now - detailsAskedAt >= DETAILS_EVERY_MS && !selected.isEmpty() && ClientPlayNetworking.canSend(FarmDetailsPayload.Request.ID)) {
-			detailsAskedAt = now;
-			ClientPlayNetworking.send(new FarmDetailsPayload.Request(selected));
-		}
 		return details != null && details.key().equals(selected) ? details : null;
+	}
+
+	/** Requests the selected farm's details once for this opening or selection. */
+	public static void ensureDetails() {
+		if (!selected.isEmpty() && ClientPlayNetworking.canSend(FarmDetailsPayload.Request.ID) && requests.requestDetails()) {
+			ClientPlayNetworking.send(new FarmDetailsPayload.Request(table(), selected));
+		}
 	}
 
 	public static List<FarmLoader.Entry> farms() {
 		return farms;
+	}
+
+	public static List<LoadedFarmsPayload.InviteEntry> invites() {
+		return invites;
 	}
 
 	public static FarmListing.Show show() {
@@ -111,13 +146,12 @@ public final class LoadedFarmsView {
 	}
 
 	public static long loaded() {
-		return farms.stream().filter(FarmLoader.Entry::loaded).count();
+		return farms.stream().filter(farm -> farm.role() == FarmRole.OWNER && farm.loaded()).count();
 	}
 
 	/** Asks once per visit to the page, since farms can be finished or taken down while it is closed. */
 	public static void ensure() {
-		if (!requested) {
-			requested = true;
+		if (requests.requestFarms()) {
 			send("");
 		}
 	}
@@ -126,27 +160,75 @@ public final class LoadedFarmsView {
 	public static void select(String key) {
 		if (!key.equals(selected)) {
 			details = null;
-			detailsAskedAt = 0L;
+			alerts = null;
+			requests.select(key);
 		}
 		selected = key;
 	}
 
-	public static int selectedIndex() {
-		for (int index = 0; index < farms.size(); index++) {
-			if (farms.get(index).key().equals(selected)) {
-				return index;
-			}
+	/** Requests the selected farm's authorized alert page. */
+	public static FarmAlertsPayload alerts() {
+		return alerts != null && alerts.key().equals(selected) ? alerts : null;
+	}
+
+	/** Requests the selected farm's authorized alert page once for this opening or selection. */
+	public static void ensureAlerts() {
+		if (!selected.isEmpty() && ClientPlayNetworking.canSend(FarmAlertsPayload.Request.ID) && requests.requestAlerts()) {
+			ClientPlayNetworking.send(new FarmAlertsPayload.Request(table(), selected, 0));
 		}
-		return -1;
+	}
+
+	/** Acknowledges exactly the event references the server included in the currently displayed page. */
+	public static void acknowledgeAlerts(FarmAlertsPayload payload) {
+		if (ClientPlayNetworking.canSend(FarmAlertAckPayload.ID)) {
+			ClientPlayNetworking.send(new FarmAlertAckPayload(table(), payload.key(), payload.token(),
+					payload.entries().stream().map(FarmAlertsPayload.Entry::eventId).toList()));
+		}
+	}
+
+	public static int selectedIndex() {
+		return FarmListing.indexOfKey(farms, selected);
 	}
 
 	public static void invalidate() {
-		requested = false;
 		received = false;
+		details = null;
+		alerts = null;
+		requests.reset();
 	}
 
 	public static void toggle(String key) {
 		send(key);
+	}
+
+	public static void preference(String key, FarmPreferencePayload.Operation operation) {
+		if (ClientPlayNetworking.canSend(FarmPreferencePayload.ID)) {
+			ClientPlayNetworking.send(new FarmPreferencePayload(table(), key, operation));
+		}
+	}
+
+	public static void rename(String key, String name) {
+		if (ClientPlayNetworking.canSend(FarmRenamePayload.ID)) {
+			ClientPlayNetworking.send(new FarmRenamePayload(table(), key, name));
+		}
+	}
+
+	public static void invite(String key, String playerName, FarmRole role) {
+		if (ClientPlayNetworking.canSend(FarmInvitePayload.ID)) {
+			ClientPlayNetworking.send(new FarmInvitePayload(table(), key, playerName, role));
+		}
+	}
+
+	public static void removeCollaborator(String key, UUID collaboratorUuid) {
+		if (ClientPlayNetworking.canSend(FarmCollaboratorPayload.ID)) {
+			ClientPlayNetworking.send(new FarmCollaboratorPayload(table(), key, collaboratorUuid));
+		}
+	}
+
+	public static void respond(String key, UUID inviteId, boolean accept) {
+		if (ClientPlayNetworking.canSend(FarmInviteResponsePayload.ID)) {
+			ClientPlayNetworking.send(new FarmInviteResponsePayload(table(), key, inviteId, accept));
+		}
 	}
 
 	/** Repairs, takes down, or forgets exactly this farm even if the server's list changed since it was drawn. */
@@ -158,7 +240,65 @@ public final class LoadedFarmsView {
 
 	private static void send(String toggle) {
 		if (ClientPlayNetworking.canSend(LoadedFarmsPayload.Request.ID)) {
-			ClientPlayNetworking.send(new LoadedFarmsPayload.Request(toggle));
+			ClientPlayNetworking.send(new LoadedFarmsPayload.Request(table(), toggle));
+		}
+	}
+
+	private static BlockPos table() {
+		MinecraftClient client = MinecraftClient.getInstance();
+		return client.player != null && client.player.currentScreenHandler instanceof DreamTableScreenHandler handler
+				? handler.getTablePos() : BlockPos.ORIGIN;
+	}
+
+	static final class RequestState {
+		private boolean farms;
+		private String selected = "";
+		private boolean details;
+		private boolean alerts;
+
+		boolean requestFarms() {
+			if (farms) {
+				return false;
+			}
+			farms = true;
+			return true;
+		}
+
+		boolean select(String key) {
+			if (selected.equals(key)) {
+				return false;
+			}
+			selected = key;
+			details = false;
+			alerts = false;
+			return true;
+		}
+
+		boolean requestDetails() {
+			if (details) {
+				return false;
+			}
+			details = true;
+			return true;
+		}
+
+		void invalidateDetails() {
+			details = false;
+		}
+
+		boolean requestAlerts() {
+			if (alerts) {
+				return false;
+			}
+			alerts = true;
+			return true;
+		}
+
+		void reset() {
+			farms = false;
+			selected = "";
+			details = false;
+			alerts = false;
 		}
 	}
 }

@@ -1,10 +1,14 @@
 package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.BuildPace;
+import com.davisr.thedreamtable.farm.FarmGrant;
+import com.davisr.thedreamtable.farm.FarmInvite;
+import com.davisr.thedreamtable.farm.FarmNames;
 import net.minecraft.nbt.NbtCompound;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.BitSet;
+import java.util.Map;
 import java.util.UUID;
 
 import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
@@ -26,6 +30,11 @@ final class BuildProgress {
 	private long signature;
 	private @Nullable BuildIssue issue;
 	private boolean repair;
+	private @Nullable RepairContext repairContext;
+	private @Nullable UUID repairInstanceId;
+	private @Nullable String repairCustomName;
+	private Map<UUID, FarmGrant> repairGrants = Map.of();
+	private Map<UUID, FarmInvite> repairInvites = Map.of();
 	private int kept;
 	/** Whether this run already told its player that a returned item was dropped. Not persisted. */
 	private boolean droppedNotified;
@@ -72,9 +81,44 @@ final class BuildProgress {
 		return repair;
 	}
 
-	void setRepair(boolean value) {
-		repair = value;
+	void startRepair(UUID instanceId, @Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites) {
+		repair = true;
+		repairContext = null;
+		repairInstanceId = instanceId;
+		repairCustomName = customName;
+		repairGrants = Map.copyOf(grants);
+		repairInvites = Map.copyOf(invites);
 		kept = 0;
+	}
+
+	void startRepair(RepairContext context) {
+		repair = true;
+		repairContext = context;
+		repairInstanceId = context.farmKey().instanceId();
+		repairCustomName = null;
+		repairGrants = Map.of();
+		repairInvites = Map.of();
+		kept = 0;
+	}
+
+	@Nullable RepairContext repairContext() {
+		return repairContext;
+	}
+
+	@Nullable UUID repairInstanceId() {
+		return repairInstanceId;
+	}
+
+	@Nullable String repairCustomName() {
+		return repairCustomName;
+	}
+
+	Map<UUID, FarmGrant> repairGrants() {
+		return repairGrants;
+	}
+
+	Map<UUID, FarmInvite> repairInvites() {
+		return repairInvites;
 	}
 
 	int kept() {
@@ -106,6 +150,10 @@ final class BuildProgress {
 		return owner;
 	}
 
+	UUID actorUuid() {
+		return owner;
+	}
+
 	int pace() {
 		return pace;
 	}
@@ -134,6 +182,11 @@ final class BuildProgress {
 			placed.clear();
 			paid.clear();
 			repair = false;
+			repairContext = null;
+			repairInstanceId = null;
+			repairCustomName = null;
+			repairGrants = Map.of();
+			repairInvites = Map.of();
 			kept = 0;
 			droppedNotified = false;
 		}
@@ -174,6 +227,11 @@ final class BuildProgress {
 		signature = 0;
 		issue = null;
 		repair = false;
+		repairContext = null;
+		repairInstanceId = null;
+		repairCustomName = null;
+		repairGrants = Map.of();
+		repairInvites = Map.of();
 		kept = 0;
 		droppedNotified = false;
 		if (forgetOwner) {
@@ -193,6 +251,17 @@ final class BuildProgress {
 		nbt.putLongArray("PlacedSteps", placed.toLongArray());
 		nbt.putLongArray("PaidSteps", paid.toLongArray());
 		nbt.putBoolean("Repair", repair);
+		if (repairContext != null) {
+			repairContext.write(nbt);
+		}
+		if (repairInstanceId != null) {
+			nbt.putUuid("RepairInstanceId", repairInstanceId);
+		}
+		if (repairCustomName != null) {
+			nbt.putString("RepairCustomName", repairCustomName);
+		}
+		FarmGrant.writeAll(nbt, "RepairGrants", repairGrants);
+		FarmInvite.writeAll(nbt, "RepairInvites", repairInvites);
 		nbt.putInt("Kept", kept);
 		if (issue != null) {
 			issue.write(nbt);
@@ -223,6 +292,21 @@ final class BuildProgress {
 		paid.clear();
 		paid.or(BitSet.valueOf(nbt.getLongArray("PaidSteps")));
 		repair = nbt.getBoolean("Repair");
+		if (repair) {
+			repairContext = RepairContext.read(nbt);
+			repairInstanceId = repairContext != null ? repairContext.farmKey().instanceId()
+					: nbt.containsUuid("RepairInstanceId") ? nbt.getUuid("RepairInstanceId") : UUID.randomUUID();
+			FarmNames.Validation name = FarmNames.validate(nbt.getString("RepairCustomName"));
+			repairCustomName = name.result() == FarmNames.Result.VALID ? name.name() : null;
+			repairGrants = FarmGrant.readAll(nbt, "RepairGrants");
+			repairInvites = FarmInvite.readAll(nbt, "RepairInvites");
+		} else {
+			repairContext = null;
+			repairInstanceId = null;
+			repairCustomName = null;
+			repairGrants = Map.of();
+			repairInvites = Map.of();
+		}
 		kept = nbt.getInt("Kept");
 		issue = BuildIssue.read(nbt);
 	}

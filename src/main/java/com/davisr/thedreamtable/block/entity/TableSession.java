@@ -268,6 +268,10 @@ public final class TableSession {
 		return build;
 	}
 
+	RepairContext repairContext() {
+		return progress.repairContext();
+	}
+
 	public int getBuildIndex() {
 		return progress.index();
 	}
@@ -373,6 +377,7 @@ public final class TableSession {
 
 	void dropMaterials(World world) {
 		desk.returnAll(world, getPos(), null);
+		releaseArea();
 	}
 
 	private void releaseArea() {

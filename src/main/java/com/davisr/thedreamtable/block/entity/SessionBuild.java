@@ -5,6 +5,8 @@ import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.ChunkKeeper;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmTemplate;
+import com.davisr.thedreamtable.farm.FarmAreas;
+import com.davisr.thedreamtable.farm.alert.FarmAlertType;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -12,6 +14,8 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.UUID;
 
 import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
 
@@ -48,9 +52,14 @@ public final class SessionBuild {
 	void tick(ServerWorld world) {
 		FarmTemplate template = session.template();
 		if (progress.is(PHASE_DONE) && template != null && !areas.finishedRecorded()) {
-			areas.recordFinished(world, template);
+			complete(world, template);
 		}
 		if (!progress.is(PHASE_BUILDING)) {
+			return;
+		}
+		RepairContext repair = progress.repairContext();
+		if (repair != null && !areas.repairActive(world, repair)) {
+			stop(PHASE_BLOCKED, new BuildIssue(BuildIssue.Kind.ERROR, session.getPos(), "repair_lease", 1));
 			return;
 		}
 		if (session.onlineOwner(world) == null) {
@@ -113,12 +122,17 @@ public final class SessionBuild {
 	 * so, without trying again; if it is gone, the player hears that it was solved.
 	 */
 	public boolean begin(ServerPlayerEntity starter, boolean fromScratch) {
+		return begin(starter, fromScratch, null);
+	}
+
+	private boolean begin(ServerPlayerEntity starter, boolean fromScratch, @Nullable RepairContext repair) {
 		FarmTemplate template = session.template();
 		if (template == null || !(session.table().getWorld() instanceof ServerWorld world)) {
 			return false;
 		}
 		if (fromScratch) {
-			String problem = areas.problemAt(world, starter, FarmBuilder.site(session), template);
+			String problem = areas.problemAt(world, starter, FarmBuilder.site(session), template,
+					repair == null ? null : repair.farmKey().instanceId());
 			if (problem != null) {
 				session.clearPlacement();
 				starter.sendMessage(Text.translatable(problem), true);
@@ -142,6 +156,13 @@ public final class SessionBuild {
 		}
 		areas.claim(world, template);
 		progress.start(session.player(), fromScratch, template.signature());
+		if (repair != null) {
+			progress.startRepair(repair);
+		}
+		RepairContext activeRepair = repair != null ? repair : progress.repairContext();
+		if (activeRepair != null) {
+			FarmAreas.of(world).resolveRepairAlerts(activeRepair.farmKey().instanceId(), System.currentTimeMillis());
+		}
 		waitingSince = -1;
 		session.sync();
 		String started = previous != null && !previous.temporary() ? "gui.the_dream_table.issue_solved" : "gui.the_dream_table.building";
@@ -150,16 +171,16 @@ public final class SessionBuild {
 	}
 
 	/** Starts a repair: a new build that leaves alone the blocks the player changed and counts them. */
-	public boolean beginRepair(ServerPlayerEntity starter) {
-		if (!begin(starter, true)) {
-			return false;
-		}
-		progress.setRepair(true);
-		return true;
+	public boolean beginRepair(ServerPlayerEntity starter, RepairContext context) {
+		return begin(starter, true, context);
 	}
 
 	public boolean repairing() {
 		return progress.repair();
+	}
+
+	public @Nullable RepairContext repairContext() {
+		return progress.repairContext();
 	}
 
 	/** A repair found another block where the farm has one, and leaves it as the player made it. */
@@ -222,6 +243,7 @@ public final class SessionBuild {
 	private void stop(String phase, BuildIssue issue) {
 		progress.stop(phase);
 		progress.setIssue(issue);
+		recordRepairAlert(issue.kind() == BuildIssue.Kind.ERROR ? FarmAlertType.REPAIR_FAILED : FarmAlertType.REPAIR_BLOCKED);
 		session.sync();
 		session.tell(issue.what());
 		session.table().sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), issue.where(), 0.8F, 0.5F);
@@ -242,7 +264,7 @@ public final class SessionBuild {
 		progress.stop(PHASE_DONE);
 		FarmTemplate template = session.template();
 		if (template != null && session.table().getWorld() instanceof ServerWorld world) {
-			areas.recordFinished(world, template);
+			complete(world, template);
 		}
 		session.sync();
 		Text done = !progress.repair() ? Text.translatable("gui.the_dream_table.done")
@@ -250,6 +272,33 @@ public final class SessionBuild {
 				: Text.translatable("gui.the_dream_table.repair_done");
 		session.tell(done);
 		session.table().sound(SoundEvents.BLOCK_BEACON_ACTIVATE, session.getPos(), 0.6F, 1.2F);
+	}
+
+	private void recordRepairAlert(FarmAlertType type) {
+		RepairContext context = progress.repairContext();
+		if (context != null && session.table().getWorld() instanceof ServerWorld world) {
+			FarmAreas.of(world).observeAlert(context.farmKey().instanceId(), type, 1, System.currentTimeMillis());
+		}
+	}
+
+	private void complete(ServerWorld world, FarmTemplate template) {
+		RepairContext context = progress.repairContext();
+		UUID repairInstanceId = progress.repairInstanceId();
+		if (context == null) {
+			areas.recordFinished(world, template, progress.repairInstanceId(), progress.repairCustomName(), progress.repairGrants(), progress.repairInvites());
+			if (repairInstanceId != null) {
+				FarmAreas farmAreas = FarmAreas.of(world);
+				long time = System.currentTimeMillis();
+				farmAreas.resolveRepairAlerts(repairInstanceId, time);
+				farmAreas.observeAlert(repairInstanceId, FarmAlertType.REPAIR_COMPLETED, 1, time);
+			}
+		} else {
+			FarmAreas farmAreas = FarmAreas.of(world);
+			long time = System.currentTimeMillis();
+			farmAreas.resolveRepairAlerts(context.farmKey().instanceId(), time);
+			areas.completeRepair(world, context);
+			farmAreas.observeAlert(context.farmKey().instanceId(), FarmAlertType.REPAIR_COMPLETED, 1, time);
+		}
 	}
 
 	public void advance() {

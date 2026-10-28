@@ -16,6 +16,7 @@ public final class Theme {
 	public static final int CARD_TEXT_WIDTH = CARD_WIDTH - 46;
 	public static final int TRACK_WIDTH = 8;
 	public static final int SEARCH_SPACE = 26;
+	public static final int TAB_HEIGHT = 30;
 
 	public static final int HEADER_COLOR = 0xFF2B6DA7;
 	public static final int PANEL = 0xFFF4ECDF;
@@ -33,6 +34,9 @@ public final class Theme {
 	public static final int NAME = 0xFF14213D;
 	public static final int HINT = 0xFF5F6E7E;
 	public static final int MUTED = 0xFF8A94A0;
+	public static final int SUCCESS = 0xFF2E8B57;
+	public static final int WARNING = 0xFFD08A18;
+	public static final int ERROR = 0xFFB53B35;
 	public static final int TRACK_EDGE = 0xFF04203F;
 	public static final int TRACK_FILL = 0xFF0B3560;
 	public static final int THUMB_EDGE = 0xFF0A2A52;

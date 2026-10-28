@@ -20,11 +20,15 @@ public final class FarmListing {
 	}
 
 	public enum Show {
-		ALL, ATTENTION, RUNNING, UNLOADED, FULL;
+		ALL, OWNED, SHARED, FAVORITES, KEPT_LOADED, ATTENTION, RUNNING, UNLOADED, FULL;
 
 		boolean accepts(FarmLoader.Entry farm) {
 			return switch (this) {
 				case ALL -> true;
+				case OWNED -> farm.role() == FarmRole.OWNER;
+				case SHARED -> farm.role() != FarmRole.OWNER;
+				case FAVORITES -> farm.favorite();
+				case KEPT_LOADED -> farm.loaded();
 				case ATTENTION -> needsAttention(farm);
 				case RUNNING -> farm.available() && farm.status() == FarmStorage.RUNNING;
 				case UNLOADED -> farm.available() && farm.status() == FarmStorage.UNLOADED;
@@ -105,5 +109,14 @@ public final class FarmListing {
 			return -1;
 		}
 		return (int) Math.sqrt(farm.where().getSquaredDistance(viewer.pos()));
+	}
+
+	public static int indexOfKey(List<FarmLoader.Entry> farms, String key) {
+		for (int index = 0; index < farms.size(); index++) {
+			if (farms.get(index).key().equals(key)) {
+				return index;
+			}
+		}
+		return -1;
 	}
 }
