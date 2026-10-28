@@ -4,6 +4,11 @@ Release date: 2026-10-28
 
 This beta improves multiplayer farm management, repair safety, and the table interface while preserving existing worlds and farm layouts.
 
+## Built-in farms
+
+- Added bundled Cactus Farm and Honey Farm designs to the built-in farm catalogue.
+- Moved Honey Farm from Plants to Resources so its category matches the resources it produces.
+
 ## Interface and accessibility
 
 - Rebuilt the table menu around persistent Build, Farms, Schematics, and Settings tabs.
@@ -11,7 +16,6 @@ This beta improves multiplayer farm management, repair safety, and the table int
 - Fixed responsive HUD placement at every supported interface size: cards, filters, buttons, search fields, and the scrollbar stay inside the table instead of overlapping or leaking outside the panel.
 - Wide collections now use their available space as two balanced columns, while focused farm workflows stay centered. Informational text also centers and wraps within its visible area.
 - Improved keyboard focus, narration, clipping, scrolling, and menu routes for custom controls.
-- Moved Honey Farm from Plants to Resources so its category matches the resources it produces.
 
 ## Shared farms
 
