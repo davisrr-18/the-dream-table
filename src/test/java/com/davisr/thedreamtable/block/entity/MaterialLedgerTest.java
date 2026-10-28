@@ -123,4 +123,15 @@ class MaterialLedgerTest {
 		assertEquals(5, loaded.supplied(0));
 		assertEquals(3, count(loaded.drain(farm)));
 	}
+
+	@Test
+	void leftoverDepositsAreReturnedOnceAndNeverFreeOnes() {
+		MaterialLedger ledger = new MaterialLedger();
+		ledger.accept(farm, new ItemStack(Items.STONE, 2), true);
+		ledger.accept(farm, new ItemStack(Items.STONE, 6), false);
+		ledger.consume(farm, Items.STONE);
+		assertEquals(6, count(ledger.drain(farm)));
+		assertEquals(0, count(ledger.drain(farm)));
+		assertFalse(ledger.anyDelivered());
+	}
 }

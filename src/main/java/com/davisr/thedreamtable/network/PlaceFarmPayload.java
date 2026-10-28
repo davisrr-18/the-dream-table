@@ -25,10 +25,11 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 
 	public static void register() {
 		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> {
-			if (player.squaredDistanceTo(payload.table().toCenterPos()) > 64.0) {
+			if (player.isSpectator() || player.squaredDistanceTo(payload.table().toCenterPos()) > 64.0) {
 				return;
 			}
-			if (!(player.getWorld().getBlockEntity(payload.table()) instanceof DreamTableBlockEntity blockEntity)) {
+			DreamTableBlockEntity blockEntity = FarmNetwork.table(player, payload.table());
+			if (blockEntity == null) {
 				return;
 			}
 			TableSession table = blockEntity.session(player);

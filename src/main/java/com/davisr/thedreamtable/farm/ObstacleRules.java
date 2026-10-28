@@ -11,6 +11,7 @@ import net.minecraft.block.PistonBlock;
 import net.minecraft.block.PistonHeadBlock;
 import net.minecraft.block.TntBlock;
 import net.minecraft.block.enums.DoubleBlockHalf;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.server.world.ServerWorld;
@@ -59,7 +60,7 @@ final class ObstacleRules {
 	 * Liquids, fire and other replaceable blocks were simply overwritten and drop nothing.
 	 * Running only after a successful placement means a failed attempt can never drop an obstacle twice.
 	 */
-	static void afterReplace(ServerWorld world, BlockPos pos, BlockState state, boolean drop) {
+	static void afterReplace(ServerWorld world, PlayerEntity actor, BlockPos pos, BlockState state, boolean drop) {
 		if (state.isAir()) {
 			return;
 		}
@@ -69,7 +70,7 @@ final class ObstacleRules {
 			boolean upper = state.get(Properties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER;
 			BlockPos otherPos = upper ? pos.down() : pos.up();
 			BlockState other = world.getBlockState(otherPos);
-			if (isOtherHalf(state, other)) {
+			if (isOtherHalf(state, other) && BuildPermission.canBreak(world, actor, otherPos, other)) {
 				if (upper) {
 					dropPos = otherPos;
 					dropState = other;

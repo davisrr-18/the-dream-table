@@ -391,7 +391,8 @@ public final class FarmLoader extends PersistentState {
 		return nbt;
 	}
 
-	private static FarmLoader read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+	/** Reads at most the server's hard limit of picked farms per player, so a corrupt list stays bounded. */
+	static FarmLoader read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		FarmLoader loader = new FarmLoader();
 		NbtCompound players = nbt.getCompound("Players");
 		for (String player : players.getKeys()) {
@@ -403,7 +404,7 @@ public final class FarmLoader extends PersistentState {
 			}
 			Set<String> keys = new LinkedHashSet<>();
 			NbtList list = players.getList(player, NbtElement.STRING_TYPE);
-			for (int index = 0; index < list.size(); index++) {
+			for (int index = 0; index < Math.min(list.size(), DreamTableConfig.MAX_LOADED_LIMIT); index++) {
 				keys.add(list.getString(index));
 			}
 			loader.picked.put(id, keys);

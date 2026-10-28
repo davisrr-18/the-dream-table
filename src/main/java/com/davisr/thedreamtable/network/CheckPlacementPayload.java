@@ -34,8 +34,18 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 	/** The player may stand anywhere they can aim the hologram from. */
 	private static final double MAX_DISTANCE = FarmGeometry.AIM_RANGE + 16.0;
 
+	private static final RequestThrottle THROTTLE = new RequestThrottle();
+
+	/**
+	 * The client sends this from the world while aiming, usually with the menu closed, so no open menu is required:
+	 * distance, a non-spectator player and a request budget guard it instead.
+	 */
 	public static void register() {
+		THROTTLE.forgetOnDisconnect();
 		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> {
+			if (player.isSpectator() || !THROTTLE.allow(player.getUuid(), player.getServer().getTicks())) {
+				return;
+			}
 			if (player.squaredDistanceTo(payload.table().toCenterPos()) > MAX_DISTANCE * MAX_DISTANCE || !(player.getWorld() instanceof ServerWorld world)) {
 				return;
 			}

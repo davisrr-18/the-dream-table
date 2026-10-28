@@ -20,7 +20,7 @@ final class TableButtons {
 
 	static boolean press(TableSession table, ServerPlayerEntity player, int id) {
 		if (id >= 0 && id < BUTTON_REQUIREMENTS && id < FarmOptions.ALL.size()) {
-			return openFarm(table, FarmOptions.ALL.get(id).id());
+			return openFarm(table, player, FarmOptions.ALL.get(id).id());
 		}
 		if (id >= BUTTON_CATEGORY && id < BUTTON_CATEGORY + PageRoutes.CATEGORY_PAGE_COUNT) {
 			return page(table, PAGE_CATEGORY + id - BUTTON_CATEGORY);
@@ -38,7 +38,7 @@ final class TableButtons {
 		if (dynamicRange(id) == DynamicRange.SCHEMATIC) {
 			List<FarmOptions.FarmOption> imported = FarmTemplates.imported();
 			int index = id - BUTTON_SCHEME;
-			return index < imported.size() && openFarm(table, imported.get(index).id());
+			return index < imported.size() && openFarm(table, player, imported.get(index).id());
 		}
 		return switch (id) {
 			case BUTTON_TAB_BUILD -> page(table, PageRoutes.rootFor(PrimaryTab.BUILD, !table.getSelectedFarm().isEmpty()));
@@ -129,12 +129,12 @@ final class TableButtons {
 	}
 
 	/** Opening the current farm returns to it; another farm only replaces it when nothing was started. */
-	private static boolean openFarm(TableSession table, String id) {
+	private static boolean openFarm(TableSession table, ServerPlayerEntity player, String id) {
 		if (!id.equals(table.getSelectedFarm())) {
 			if (table.hasProgress()) {
 				return true;
 			}
-			table.setSelectedFarm(id);
+			table.setSelectedFarm(id, player);
 		}
 		return page(table, PAGE_WORK);
 	}

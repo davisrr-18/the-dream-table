@@ -18,7 +18,8 @@ public record DepositMaterialPayload(BlockPos table) implements CustomPayload {
 
 	public static void register() {
 		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> {
-			if (player.squaredDistanceTo(payload.table().toCenterPos()) > 64) {
+			// The client deposits from the in-world board with the menu closed, so no open menu is required here.
+			if (player.isSpectator() || !player.isAlive() || player.squaredDistanceTo(payload.table().toCenterPos()) > 64) {
 				return;
 			}
 			if (player.getWorld().getBlockEntity(payload.table()) instanceof DreamTableBlockEntity table) {

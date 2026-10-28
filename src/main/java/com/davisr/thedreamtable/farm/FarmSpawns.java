@@ -167,7 +167,7 @@ final class FarmSpawns {
 	static void returnBucket(ServerWorld world, TableSession table) {
 		ItemStack bucket = new ItemStack(Items.BUCKET);
 		ServerPlayerEntity player = table.getOwner() == null ? null : world.getServer().getPlayerManager().getPlayer(table.getOwner());
-		if (player != null) {
+		if (player != null && player.isAlive()) {
 			if (table.build().shouldNotifyDropped(Handover.give(player, bucket))) {
 				Handover.tellDropped(player);
 			}

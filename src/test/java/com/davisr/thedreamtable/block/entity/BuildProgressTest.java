@@ -229,4 +229,47 @@ class BuildProgressTest {
 		assertEquals(actor, restored.actorUuid());
 		assertEquals(null, restored.repairContext());
 	}
+
+	@Test
+	void finishedRecordedFlagSurvivesSaveAndLoad() {
+		BuildProgress progress = new BuildProgress();
+		progress.start(UUID.randomUUID(), true, 7L);
+		progress.stop(DreamTableBlockEntity.PHASE_DONE);
+		progress.setFinishedRecorded(false);
+		NbtCompound nbt = new NbtCompound();
+		progress.write(nbt);
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+		assertFalse(loaded.finishedRecorded());
+
+		progress.setFinishedRecorded(true);
+		nbt = new NbtCompound();
+		progress.write(nbt);
+		loaded.read(nbt);
+		assertTrue(loaded.finishedRecorded());
+	}
+
+	@Test
+	void doneSessionSavedWithoutTheFlagCountsAsRecorded() {
+		NbtCompound nbt = new NbtCompound();
+		nbt.putString("Phase", DreamTableBlockEntity.PHASE_DONE);
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+		assertTrue(loaded.finishedRecorded());
+
+		nbt.putString("Phase", DreamTableBlockEntity.PHASE_BUILDING);
+		loaded.read(nbt);
+		assertFalse(loaded.finishedRecorded());
+	}
+
+	@Test
+	void newBuildAndResetClearTheRecordedFlag() {
+		BuildProgress progress = new BuildProgress();
+		progress.setFinishedRecorded(true);
+		progress.start(UUID.randomUUID(), true, 7L);
+		assertFalse(progress.finishedRecorded());
+		progress.setFinishedRecorded(true);
+		progress.reset(false);
+		assertFalse(progress.finishedRecorded());
+	}
 }

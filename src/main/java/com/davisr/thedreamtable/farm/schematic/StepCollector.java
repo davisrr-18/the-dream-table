@@ -35,12 +35,30 @@ final class StepCollector {
 	/** Blocks that only exist while something else is happening, so placing them alone makes no sense. */
 	private static final Set<Block> TECHNICAL = Set.of(Blocks.MOVING_PISTON, Blocks.BUBBLE_COLUMN);
 
+	/** Block entity keys that hold items; a player's file loses them so a built chest, hopper or lectern isn't a free stack. */
+	private static final List<String> CONTENT_KEYS = List.of("Items", "RecordItem", "Book", "item");
+
+	private final boolean stripContents;
 	private final List<FarmStep> steps = new ArrayList<>();
 	/** Where each block step is in {@link #steps}, so block data finds its block at once in big files. */
 	private final Map<Long, Integer> blockAt = new HashMap<>();
 	private final Set<String> unknownNames = new LinkedHashSet<>();
 	private int unknownBlocks;
 	private final Set<String> creativeNames = new LinkedHashSet<>();
+
+	/** @param stripContents true for a player's file; bundled farms keep the items their designer put in. */
+	StepCollector(boolean stripContents) {
+		this.stripContents = stripContents;
+	}
+
+	/** A copy of the data, without the held items when this collector strips them. */
+	private NbtCompound copyOf(NbtCompound data) {
+		NbtCompound copy = data.copy();
+		if (stripContents) {
+			CONTENT_KEYS.forEach(copy::remove);
+		}
+		return copy;
+	}
 
 	List<FarmStep> steps() {
 		return steps;
@@ -78,7 +96,7 @@ final class StepCollector {
 			creativeNames.add(Registries.BLOCK.getId(state.getBlock()).toString());
 		}
 		blockAt.put(BlockPos.asLong(x, y, z), steps.size());
-		steps.add(FarmStep.block(x, y, z, state, BlockItems.itemFor(state), blockNbt == null ? null : blockNbt.copy()));
+		steps.add(FarmStep.block(x, y, z, state, BlockItems.itemFor(state), blockNbt == null ? null : copyOf(blockNbt)));
 	}
 
 	/** Attaches block entity data to the block at that spot. Returns false when no block is there. */
@@ -88,7 +106,7 @@ final class StepCollector {
 			return false;
 		}
 		FarmStep step = steps.get(index);
-		steps.set(index, FarmStep.block(x, y, z, step.state(), step.item(), data.copy()));
+		steps.set(index, FarmStep.block(x, y, z, step.state(), step.item(), copyOf(data)));
 		return true;
 	}
 

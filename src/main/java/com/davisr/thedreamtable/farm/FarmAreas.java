@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.MaterialLedger;
 import com.davisr.thedreamtable.farm.alert.FarmAlerts;
@@ -19,6 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -70,11 +72,13 @@ public final class FarmAreas extends PersistentState {
 	/**
 	 * A finished farm remembers what it built: the farm, the exact design ({@code layout}, kept under a saved id so it
 	 * outlives updates that change or remove the farm), the spot, swaps, and when it was finished. The layout is null
-	 * only for farms finished by an older version whose design has changed since.
+	 * only for farms finished by an older version whose design has changed since. {@code placed} and {@code paid} are the
+	 * steps the table placed itself and the ones that used delivered items, so Take Down removes and refunds only those;
+	 * records saved before they existed have every step set.
 	 */
 	private record Built(UUID instanceId, String farmId, long signature, FarmSite site, Map<Item, Item> swaps,
 			@Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites, long finishedAt,
-			@Nullable FarmTemplate layout) {
+			@Nullable FarmTemplate layout, BitSet placed, BitSet paid) {
 	}
 
 	/**
@@ -83,7 +87,7 @@ public final class FarmAreas extends PersistentState {
 	 */
 	public record Finished(String id, Key key, UUID instanceId, UUID ownerUuid, String farmId, long signature, FarmSite site, Map<Item, Item> swaps,
 			@Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites, BlockPos where, Box box, long finishedAt,
-			@Nullable FarmTemplate layout, FarmOperation operation, @Nullable RepairLease repairLease) {
+			@Nullable FarmTemplate layout, FarmOperation operation, @Nullable RepairLease repairLease, BitSet placed, BitSet paid) {
 	}
 
 	private record Area(Box box, @Nullable Built built) {
@@ -111,9 +115,15 @@ public final class FarmAreas extends PersistentState {
 		recordFinished(player, template, site, swaps, instanceId, null, grants, Map.of());
 	}
 
-	/** Restores all owner-managed metadata after an operation that temporarily reconstructs the finished record. */
+	/** Records a farm whose placed and paid steps are unknown: every step counts as both. */
 	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps, UUID instanceId,
 			@Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites) {
+		recordFinished(player, template, site, swaps, instanceId, customName, grants, invites, every(template), every(template));
+	}
+
+	/** Restores all owner-managed metadata after an operation that temporarily reconstructs the finished record. */
+	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps, UUID instanceId,
+			@Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites, BitSet placed, BitSet paid) {
 		Key key = Key.finished(player, site);
 		if (!areas.containsKey(key)) {
 			String farmId = FarmTemplates.baseId(template.id());
@@ -124,9 +134,15 @@ public final class FarmAreas extends PersistentState {
 			Map<UUID, FarmInvite> pending = new LinkedHashMap<>(invites);
 			pending.values().removeIf(invite -> invite.playerUuid().equals(player));
 			areas.put(key, new Area(site.footprint(template), new Built(instanceId, FarmTemplates.baseId(template.id()), template.signature(), site, Map.copyOf(swaps),
-					customName, Map.copyOf(collaborators), Map.copyOf(pending), System.currentTimeMillis(), layout)));
+					customName, Map.copyOf(collaborators), Map.copyOf(pending), System.currentTimeMillis(), layout,
+					(BitSet) placed.clone(), (BitSet) paid.clone())));
 			markDirty();
 		}
+	}
+
+	/** Whether the player has a finished record at this site, in any state. */
+	public boolean recordedAt(UUID player, FarmSite site) {
+		return areas.containsKey(Key.finished(player, site));
 	}
 
 	public java.util.Optional<Finished> finished(UUID instanceId) {
@@ -170,6 +186,36 @@ public final class FarmAreas extends PersistentState {
 
 	public boolean completeRepair(UUID instanceId, UUID operationId) {
 		return endRepair(instanceId, operationId);
+	}
+
+	/**
+	 * Ends the repair and adds what it placed to the farm's own record. A step the repair placed again takes that
+	 * placement's payment, so a free replacement of a paid block doesn't refund; steps it left alone keep theirs.
+	 */
+	public boolean completeRepair(UUID instanceId, UUID operationId, BitSet placed, BitSet paid) {
+		if (!endRepair(instanceId, operationId)) {
+			return false;
+		}
+		updateBuilt(instanceId, built -> {
+			BitSet allPlaced = (BitSet) built.placed().clone();
+			allPlaced.or(placed);
+			BitSet allPaid = (BitSet) built.paid().clone();
+			for (int step = placed.nextSetBit(0); step >= 0; step = placed.nextSetBit(step + 1)) {
+				allPaid.set(step, paid.get(step));
+			}
+			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
+					built.grants(), built.invites(), built.finishedAt(), built.layout(), allPlaced, allPaid);
+		});
+		return true;
+	}
+
+	/** Every step of the design set, the record of a farm whose placed and paid steps were never saved. */
+	private static BitSet every(@Nullable FarmTemplate template) {
+		BitSet all = new BitSet();
+		if (template != null) {
+			all.set(0, template.steps().size());
+		}
+		return all;
 	}
 
 	public boolean failRepair(UUID instanceId, UUID operationId) {
@@ -222,7 +268,7 @@ public final class FarmAreas extends PersistentState {
 
 	void setCustomName(UUID instanceId, @Nullable String customName) {
 		updateBuilt(instanceId, built -> new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(),
-				customName, built.grants(), built.invites(), built.finishedAt(), built.layout()));
+				customName, built.grants(), built.invites(), built.finishedAt(), built.layout(), built.placed(), built.paid()));
 	}
 
 	void putGrant(UUID instanceId, FarmGrant grant) {
@@ -230,7 +276,7 @@ public final class FarmAreas extends PersistentState {
 			Map<UUID, FarmGrant> grants = new LinkedHashMap<>(built.grants());
 			grants.put(grant.playerUuid(), grant);
 			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-					Map.copyOf(grants), built.invites(), built.finishedAt(), built.layout());
+					Map.copyOf(grants), built.invites(), built.finishedAt(), built.layout(), built.placed(), built.paid());
 		});
 	}
 
@@ -239,7 +285,7 @@ public final class FarmAreas extends PersistentState {
 			Map<UUID, FarmInvite> invites = new LinkedHashMap<>(built.invites());
 			invites.put(invite.inviteId(), invite);
 			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-					built.grants(), Map.copyOf(invites), built.finishedAt(), built.layout());
+					built.grants(), Map.copyOf(invites), built.finishedAt(), built.layout(), built.placed(), built.paid());
 		});
 	}
 
@@ -253,7 +299,7 @@ public final class FarmAreas extends PersistentState {
 			Map<UUID, FarmGrant> grants = new LinkedHashMap<>(built.grants());
 			grants.put(grant.playerUuid(), grant);
 			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-					Map.copyOf(grants), Map.copyOf(invites), built.finishedAt(), built.layout());
+					Map.copyOf(grants), Map.copyOf(invites), built.finishedAt(), built.layout(), built.placed(), built.paid());
 		});
 	}
 
@@ -268,7 +314,7 @@ public final class FarmAreas extends PersistentState {
 			invites.remove(inviteId);
 			removed[0] = true;
 			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-					built.grants(), Map.copyOf(invites), built.finishedAt(), built.layout());
+					built.grants(), Map.copyOf(invites), built.finishedAt(), built.layout(), built.placed(), built.paid());
 		});
 		return removed[0];
 	}
@@ -283,7 +329,7 @@ public final class FarmAreas extends PersistentState {
 			grants.remove(playerUuid);
 			removed[0] = true;
 			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-					Map.copyOf(grants), built.invites(), built.finishedAt(), built.layout());
+					Map.copyOf(grants), built.invites(), built.finishedAt(), built.layout(), built.placed(), built.paid());
 		});
 		return removed[0];
 	}
@@ -301,7 +347,7 @@ public final class FarmAreas extends PersistentState {
 			if (invites.size() != before) {
 				removed += before - invites.size();
 				Built changed = new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-						built.grants(), Map.copyOf(invites), built.finishedAt(), built.layout());
+						built.grants(), Map.copyOf(invites), built.finishedAt(), built.layout(), built.placed(), built.paid());
 				entry.setValue(new Area(entry.getValue().box(), changed));
 			}
 		}
@@ -398,7 +444,8 @@ public final class FarmAreas extends PersistentState {
 				BlockPos where = built.site().anchor() != null ? built.site().anchor() : built.site().table();
 				RepairLease lease = repairLeases.get(built.instanceId());
 				farms.add(new Finished(key.table() + "/" + key.spot(), key, built.instanceId(), key.player(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(), built.grants(), built.invites(), where,
-						entry.getValue().box(), built.finishedAt(), built.layout(), lease == null ? FarmOperation.READY : FarmOperation.REPAIRING, lease));
+						entry.getValue().box(), built.finishedAt(), built.layout(), lease == null ? FarmOperation.READY : FarmOperation.REPAIRING, lease,
+						(BitSet) built.placed().clone(), (BitSet) built.paid().clone()));
 			}
 		}
 		return farms;
@@ -578,6 +625,8 @@ public final class FarmAreas extends PersistentState {
 					item.putString("LayoutId", built.layout().id());
 					item.put("Layout", TemplateCodec.encode(built.layout(), true));
 				}
+				item.putLongArray("PlacedSteps", built.placed().toLongArray());
+				item.putLongArray("PaidSteps", built.paid().toLongArray());
 			}
 			list.add(item);
 		}
@@ -595,10 +644,16 @@ public final class FarmAreas extends PersistentState {
 			if (box.length != 6 || !item.containsUuid("Player")) {
 				continue;
 			}
-			Kind kind = kindOf(item);
-			Built built = kind == Kind.FINISHED ? readBuilt(state, item, instanceIds) : null;
-			Key key = new Key(item.getLong("Table"), item.getUuid("Player"), kind, item.getLong("Spot"));
-			state.areas.put(key, new Area(new Box(box[0], box[1], box[2], box[3], box[4], box[5]), built));
+			try {
+				Kind kind = kindOf(item);
+				Built built = kind == Kind.FINISHED ? readBuilt(state, item, instanceIds) : null;
+				Key key = new Key(item.getLong("Table"), item.getUuid("Player"), kind, item.getLong("Spot"));
+				state.areas.put(key, new Area(new Box(box[0], box[1], box[2], box[3], box[4], box[5]), built));
+			} catch (RuntimeException corrupt) {
+				// One malformed record must not discard the dimension's other farms.
+				TheDreamTableMod.LOGGER.error("Skipping unreadable farm area record #{}", index, corrupt);
+				state.markDirty();
+			}
 		}
 		return state;
 	}
@@ -654,8 +709,11 @@ public final class FarmAreas extends PersistentState {
 		if (item.contains("Alerts", NbtElement.COMPOUND_TYPE)) {
 			state.alerts.put(instanceId, FarmAlerts.read(item.getCompound("Alerts")));
 		}
+		boolean steps = item.contains("PlacedSteps", NbtElement.LONG_ARRAY_TYPE) && item.contains("PaidSteps", NbtElement.LONG_ARRAY_TYPE);
+		BitSet placed = steps ? BitSet.valueOf(item.getLongArray("PlacedSteps")) : every(layout);
+		BitSet paid = steps ? BitSet.valueOf(item.getLongArray("PaidSteps")) : every(layout);
 		return new Built(instanceId, farmId, signature, FarmSite.read(item.getCompound("Site")), MaterialLedger.readSwaps(item), customName,
-				Map.copyOf(grants), invites, item.getLong("FinishedAt"), layout);
+				Map.copyOf(grants), invites, item.getLong("FinishedAt"), layout, placed, paid);
 	}
 
 	private static Map<UUID, FarmInvite> readInvites(NbtCompound item, UUID ownerUuid) {

@@ -1,6 +1,8 @@
 package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.GameSetup;
+import com.davisr.thedreamtable.farm.FarmLoader;
+import com.davisr.thedreamtable.farm.FarmRole;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.NbtCompound;
@@ -72,6 +74,23 @@ class PayloadCodecsTest {
 		roundTrip(FarmInviteResponsePayload.CODEC, new FarmInviteResponsePayload(TABLE, KEY, id, true));
 		roundTrip(FarmActionResultPayload.CODEC, new FarmActionResultPayload(KEY, FarmActionResultPayload.Action.KEEP_LOADED,
 				FarmActionResultPayload.Result.LIMIT_REACHED));
+	}
+
+	private static FarmLoader.Entry entry(String layoutId) {
+		return new FarmLoader.Entry(KEY, "nbt:big", layoutId, "", "minecraft:overworld", TABLE, FarmRole.OWNER, false, false, false, false, 0, 0, true, 0);
+	}
+
+	@Test
+	void layoutIdsUpToTheOldLimitKeepTheirBytesAndLongerOnesNowFit() {
+		String old = "a".repeat(256);
+		RegistryByteBuf expected = new RegistryByteBuf(Unpooled.buffer(), DynamicRegistryManager.EMPTY);
+		expected.writeString(old, 256);
+		RegistryByteBuf actual = new RegistryByteBuf(Unpooled.buffer(), DynamicRegistryManager.EMPTY);
+		actual.writeString(old, LoadedFarmsPayload.MAX_ID);
+		assertEquals(ByteBufUtil.hexDump(expected), ByteBufUtil.hexDump(actual));
+
+		roundTrip(LoadedFarmsPayload.CODEC, new LoadedFarmsPayload(List.of(entry(old)), List.of(), 3));
+		roundTrip(LoadedFarmsPayload.CODEC, new LoadedFarmsPayload(List.of(entry("saved:nbt:" + "b".repeat(300) + "@" + UUID.randomUUID())), List.of(), 3));
 	}
 
 	@Test

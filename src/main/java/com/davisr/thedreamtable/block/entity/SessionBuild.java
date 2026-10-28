@@ -15,6 +15,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.BitSet;
 import java.util.UUID;
 
 import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
@@ -51,14 +52,19 @@ public final class SessionBuild {
 	 */
 	void tick(ServerWorld world) {
 		FarmTemplate template = session.template();
-		if (progress.is(PHASE_DONE) && template != null && !areas.finishedRecorded()) {
-			complete(world, template);
+		if (progress.is(PHASE_DONE) && template != null) {
+			if (!areas.finishedRecorded()) {
+				complete(world, template, false);
+			} else if (progress.legacyDone() && world.getTime() % LEGACY_CHECK_TICKS == 0) {
+				settleLegacy(world, template);
+			}
 		}
 		if (!progress.is(PHASE_BUILDING)) {
 			return;
 		}
 		RepairContext repair = progress.repairContext();
-		if (repair != null && !areas.repairActive(world, repair)) {
+		// The role is rechecked once a second: a revoked operator or disabled sharing ends the repair.
+		if (repair != null && (!areas.repairActive(world, repair) || world.getTime() % BuildPace.TICKS_PER_SECOND == 0 && !areas.repairPermitted(world, repair))) {
 			stop(PHASE_BLOCKED, new BuildIssue(BuildIssue.Kind.ERROR, session.getPos(), "repair_lease", 1));
 			return;
 		}
@@ -264,7 +270,7 @@ public final class SessionBuild {
 		progress.stop(PHASE_DONE);
 		FarmTemplate template = session.template();
 		if (template != null && session.table().getWorld() instanceof ServerWorld world) {
-			complete(world, template);
+			complete(world, template, false);
 		}
 		session.sync();
 		Text done = !progress.repair() ? Text.translatable("gui.the_dream_table.done")
@@ -281,11 +287,53 @@ public final class SessionBuild {
 		}
 	}
 
-	private void complete(ServerWorld world, FarmTemplate template) {
+	/** How often a legacy DONE session whose farm is partly unloaded looks again. */
+	private static final long LEGACY_CHECK_TICKS = 100;
+
+	/** What to do with a DONE session saved before the recorded flag existed. */
+	enum LegacyDecision {
+		RECORD, SKIP, WAIT
+	}
+
+	/**
+	 * Old DONE sessions were never recorded. Record the farm only when it still physically stands (at least half its
+	 * blocks as built, as {@link FarmAreas} counts a standing farm) and has no record; a taken-down farm stays gone.
+	 * Parts in unloaded chunks can't be judged, so the decision waits.
+	 */
+	static LegacyDecision legacyDecision(boolean recordExists, FarmAreas.Presence presence) {
+		if (recordExists) {
+			return LegacyDecision.SKIP;
+		}
+		if (presence.unloaded()) {
+			return LegacyDecision.WAIT;
+		}
+		return presence.percent() >= 50 ? LegacyDecision.RECORD : LegacyDecision.SKIP;
+	}
+
+	private void settleLegacy(ServerWorld world, FarmTemplate template) {
+		LegacyDecision decision = legacyDecision(areas.recordedAtSite(world), areas.presenceAtSite(world, template));
+		if (decision == LegacyDecision.WAIT) {
+			return;
+		}
+		progress.settleLegacy();
+		if (decision == LegacyDecision.RECORD) {
+			complete(world, template, true);
+		}
+	}
+
+	private void complete(ServerWorld world, FarmTemplate template, boolean legacy) {
 		RepairContext context = progress.repairContext();
 		UUID repairInstanceId = progress.repairInstanceId();
 		if (context == null) {
-			areas.recordFinished(world, template, progress.repairInstanceId(), progress.repairCustomName(), progress.repairGrants(), progress.repairInvites());
+			BitSet placed = progress.placedSteps();
+			BitSet paid = progress.paidSteps();
+			if (legacy && placed.isEmpty()) {
+				// Nothing was kept of what this old build placed, so every step counts as both, like any record saved before them.
+				placed.set(0, template.steps().size());
+				paid.set(0, template.steps().size());
+			}
+			areas.recordFinished(world, template, progress.repairInstanceId(), progress.repairCustomName(), progress.repairGrants(), progress.repairInvites(),
+					placed, paid);
 			if (repairInstanceId != null) {
 				FarmAreas farmAreas = FarmAreas.of(world);
 				long time = System.currentTimeMillis();
@@ -296,7 +344,7 @@ public final class SessionBuild {
 			FarmAreas farmAreas = FarmAreas.of(world);
 			long time = System.currentTimeMillis();
 			farmAreas.resolveRepairAlerts(context.farmKey().instanceId(), time);
-			areas.completeRepair(world, context);
+			areas.completeRepair(world, context, progress.placedSteps(), progress.paidSteps());
 			farmAreas.observeAlert(context.farmKey().instanceId(), FarmAlertType.REPAIR_COMPLETED, 1, time);
 		}
 	}

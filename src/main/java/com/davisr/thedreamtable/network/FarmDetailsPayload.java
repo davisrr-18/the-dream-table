@@ -40,6 +40,7 @@ public record FarmDetailsPayload(String key, boolean loaded, int stored, int cap
 	public static final Id<FarmDetailsPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_details"));
 	private static final int SHOWN_ITEMS = 8;
 	private static final int MAX_COLLABORATORS = 64;
+	private static final RequestThrottle THROTTLE = new RequestThrottle();
 
 	public record CollaboratorEntry(UUID playerUuid, String playerName, FarmRole role) {
 	}
@@ -129,7 +130,11 @@ public record FarmDetailsPayload(String key, boolean loaded, int stored, int cap
 
 	public static void register() {
 		Platform.network().registerServerToClient(ID, CODEC);
+		THROTTLE.forgetOnDisconnect();
 		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
+			if (!THROTTLE.allow(player.getUuid(), player.getServer().getTicks())) {
+				return;
+			}
 			FarmNetwork.Checked checked = FarmNetwork.authorize(player, payload.table(), payload.key(), FarmAction.VIEW,
 					FarmActionResultPayload.Action.DETAILS);
 			if (checked != null) {

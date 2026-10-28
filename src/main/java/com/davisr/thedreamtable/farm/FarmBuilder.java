@@ -168,7 +168,7 @@ public final class FarmBuilder {
 		boolean costs = step.item() != null && !free;
 
 		FarmSpawns.Result spawnResult = placed == null ? spawn(world, target, step) : null;
-		boolean done = placed == null ? spawnResult == FarmSpawns.Result.PLACED : place(world, target, placed, step, !free, sound);
+		boolean done = placed == null ? spawnResult == FarmSpawns.Result.PLACED : place(world, owner, target, placed, step, !free, sound);
 		if (spawnResult == FarmSpawns.Result.PRESENT) {
 			advance(world, table, template, site);
 			return Outcome.SKIPPED;
@@ -220,13 +220,28 @@ public final class FarmBuilder {
 		return result;
 	}
 
-	/** Sets the block, confirms it took, then settles the block it replaced. Drops items only in survival. */
-	private static boolean place(ServerWorld world, BlockPos target, BlockState placed, FarmStep step, boolean drop, boolean sound) {
+	/**
+	 * Sets the block and confirms it took; false means nothing was placed. Once the block stands the step counts as placed,
+	 * so a failure in the work that follows is logged and neither undoes nor repeats it: a retry would find the block
+	 * already there and skip it unpaid and untracked. Drops items only in survival.
+	 */
+	private static boolean place(ServerWorld world, ServerPlayerEntity owner, BlockPos target, BlockState placed, FarmStep step, boolean drop, boolean sound) {
 		BlockState old = world.getBlockState(target);
 		if (!world.setBlockState(target, placed, FLAGS) || !world.getBlockState(target).isOf(placed.getBlock())) {
 			return false;
 		}
-		ObstacleRules.afterReplace(world, target, old, drop);
+		try {
+			settlePlaced(world, owner, target, placed, step, old, drop, sound);
+		} catch (RuntimeException exception) {
+			TheDreamTableMod.LOGGER.error("Finishing the block at {} failed after it was placed; the step still counts as placed and paid", target, exception);
+		}
+		return true;
+	}
+
+	/** Settles the block that was replaced, loads the placed block's saved data, and plays the place effects. */
+	private static void settlePlaced(ServerWorld world, ServerPlayerEntity owner, BlockPos target, BlockState placed, FarmStep step, BlockState old, boolean drop,
+			boolean sound) {
+		ObstacleRules.afterReplace(world, owner, target, old, drop);
 		BlockEntity blockEntity = world.getBlockEntity(target);
 		if (step.blockNbt() != null && blockEntity != null) {
 			NbtCompound data = step.blockNbt().copy();
@@ -239,7 +254,6 @@ public final class FarmBuilder {
 			world.playSound(null, target, placed.getSoundGroup().getPlaceSound(), SoundCategory.BLOCKS, 0.85F, 0.9F + world.random.nextFloat() * 0.2F);
 			world.spawnParticles(ParticleTypes.END_ROD, target.getX() + 0.5, target.getY() + 0.5, target.getZ() + 0.5, 3, 0.3, 0.3, 0.3, 0.01);
 		}
-		return true;
 	}
 
 	private static void advance(ServerWorld world, TableSession table, FarmTemplate template, FarmSite site) {

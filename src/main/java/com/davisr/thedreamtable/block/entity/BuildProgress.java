@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.farm.FarmGrant;
 import com.davisr.thedreamtable.farm.FarmInvite;
 import com.davisr.thedreamtable.farm.FarmNames;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.BitSet;
@@ -36,6 +37,10 @@ final class BuildProgress {
 	private Map<UUID, FarmGrant> repairGrants = Map.of();
 	private Map<UUID, FarmInvite> repairInvites = Map.of();
 	private int kept;
+	/** Whether the finished farm of this DONE session already has its record. Saved, so a reload never records it again. */
+	private boolean finishedRecorded;
+	/** A DONE session saved before the flag existed: whether it was recorded is unknown until the table first ticks it. Not saved. */
+	private boolean legacyDone;
 	/** Whether this run already told its player that a returned item was dropped. Not persisted. */
 	private boolean droppedNotified;
 
@@ -79,6 +84,23 @@ final class BuildProgress {
 
 	boolean repair() {
 		return repair;
+	}
+
+	boolean finishedRecorded() {
+		return finishedRecorded;
+	}
+
+	void setFinishedRecorded(boolean value) {
+		finishedRecorded = value;
+		legacyDone = false;
+	}
+
+	boolean legacyDone() {
+		return legacyDone;
+	}
+
+	void settleLegacy() {
+		legacyDone = false;
 	}
 
 	void startRepair(UUID instanceId, @Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites) {
@@ -189,6 +211,8 @@ final class BuildProgress {
 			repairInvites = Map.of();
 			kept = 0;
 			droppedNotified = false;
+			finishedRecorded = false;
+			legacyDone = false;
 		}
 		issue = null;
 		if (fromScratch || signature == 0) {
@@ -234,6 +258,8 @@ final class BuildProgress {
 		repairInvites = Map.of();
 		kept = 0;
 		droppedNotified = false;
+		finishedRecorded = false;
+		legacyDone = false;
 		if (forgetOwner) {
 			owner = null;
 		}
@@ -263,6 +289,7 @@ final class BuildProgress {
 		FarmGrant.writeAll(nbt, "RepairGrants", repairGrants);
 		FarmInvite.writeAll(nbt, "RepairInvites", repairInvites);
 		nbt.putInt("Kept", kept);
+		nbt.putBoolean("FinishedRecorded", finishedRecorded);
 		if (issue != null) {
 			issue.write(nbt);
 		}
@@ -291,6 +318,11 @@ final class BuildProgress {
 		placed.or(BitSet.valueOf(nbt.getLongArray("PlacedSteps")));
 		paid.clear();
 		paid.or(BitSet.valueOf(nbt.getLongArray("PaidSteps")));
+		if (is(PHASE_DONE) && !nbt.contains("PlacedSteps", NbtElement.LONG_ARRAY_TYPE)) {
+			// Finished by a version that didn't record steps: its farm is taken down as a whole, like before.
+			placed.set(0, index);
+			paid.set(0, index);
+		}
 		repair = nbt.getBoolean("Repair");
 		if (repair) {
 			repairContext = RepairContext.read(nbt);
@@ -308,6 +340,12 @@ final class BuildProgress {
 			repairInvites = Map.of();
 		}
 		kept = nbt.getInt("Kept");
+		// A DONE session saved without the flag counts as recorded, so a farm taken down or forgotten since can't come back by
+		// itself. Versions before 1.1.4-beta never recorded, though, so its first tick decides whether the farm still stands and
+		// has no record ({@link SessionBuild#legacyDecision}).
+		boolean flagged = nbt.contains("FinishedRecorded", NbtElement.BYTE_TYPE);
+		finishedRecorded = flagged ? nbt.getBoolean("FinishedRecorded") : is(PHASE_DONE);
+		legacyDone = !flagged && is(PHASE_DONE);
 		issue = BuildIssue.read(nbt);
 	}
 }
