@@ -1,6 +1,6 @@
 # The Dream Table
 
-Beta `2.1.0-beta` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
+Beta `2.2.0-beta` for Minecraft **1.21.1**, using Fabric Loader and Fabric API.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets how fast it builds.
 
@@ -27,7 +27,7 @@ Lapis lazuli on the top row and in the center, paper on the sides, and oak plank
 
 The Dream Table holds the essential vanilla farms, one design each: sugar cane, bamboo, crops, mob farm, and iron farm, with more to come. For a bigger, smaller or different version of a farm, put its schematic in My Schematics. Blocks in the way are broken and dropped as items as the build reaches them (in Creative they are just removed). Blocks that hold data, like chests, furnaces, hoppers, signs, beds, and spawners, are never removed. Neither are unbreakable blocks, redstone parts, pistons, rails, TNT, infested blocks, or blocks you can't get back, like budding amethyst and eggs. The build stops there and the block shows up red on the hologram. Clearing never updates the blocks around it, so nothing outside the farm falls, pops off, or fires.
 
-Every player has their own session at a table: their own menu page, farm, materials, swaps, clipboard, hologram and build. Players can use the same table at once without affecting each other, and two players' farms at one table can't overlap.
+Every player has their own session at a table: their own menu page, farm, materials, swaps, clipboard, hologram and build. Players can use the same table at once without affecting each other, and two players' farms at one table can't overlap. The adaptive menu has persistent Build, Farms, Schematics, and Settings tabs; it keeps the same safe inventory-slot region on compact and wide screens.
 
 Discard returns the materials and removes the hologram. Whatever leaned on the removed blocks, like cane or bamboo that grew, crops you planted, torches or redstone, drops as items, as it would when mined by hand. If the build has started and is not finished, Discard also takes apart the blocks the table placed and gives them back, along with anything stored in its chests and hoppers. It takes them apart a few dozen per tick, so large farms don't lag the server, and you can pick a new farm right away. Items delivered in Creative are never handed back. It asks for a second click first. Blocks you changed, or that were already there, are left alone. A block you turned or replaced is also left alone; opening a door doesn't count as a change. A finished farm is never taken apart.
 
@@ -58,6 +58,8 @@ Server owners can set `max_blocks_per_second` (1 to 1024, default 256) in `confi
 - If you log off during a build or while a farm is being removed, it waits and tells you when it continues after you return. An unexpected error stops only that operation, with a message, and its details go to the game log.
 - Items handed back never get lost: when your inventory is full, the rest drops at your feet and you get a message. Set `load_farms_while_offline=true` to keep them loaded after you log off. Mob farms are the exception: the game only spawns mobs within 128 blocks of a player, loaded or not. Build them above sea level and away from caves; the table reminds you when you place one lower.
 
+A finished farm now has a permanent identity, so its name, sharing, alerts, and saved design survive Repair and world restarts. Its owner can invite a player as a Viewer (read-only) or Operator (Repair and Keep Loaded); invitations must be accepted and can expire. Shared farms remain private to authorized players. Favorite or track a farm from its page: tracked farms show a direction and distance HUD, while alerts report missing blocks, full storage, unavailable designs, and Repair outcomes. Alert history is private, and active farm problems remain visible to every authorized collaborator.
+
 On a server, My Schematics lists the server's files, and players see the hologram, clipboard and miniature of those farms without having the files themselves.
 
 Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` files of up to 16,384 blocks from these instance folders:
@@ -87,4 +89,4 @@ From the project root, with Java 21:
 ./gradlew build
 ```
 
-The mod jar is `build/libs/the_dream_table-2.1.0-beta.jar`. Jars suffixed with `sources` or `dev` are for development only.
+The mod jar is `build/libs/the_dream_table-2.2.0-beta.jar`. Jars suffixed with `sources` or `dev` are for development only.
