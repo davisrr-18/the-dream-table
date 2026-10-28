@@ -65,6 +65,8 @@ final class TableButtons {
 			}
 			case BUTTON_BUILD -> build(table, player);
 			case BUTTON_PAUSE -> table.build().pause();
+			case BUTTON_DELIVER_ALL -> table.deliverAll(player);
+			case BUTTON_DELIVER_NEARBY -> table.deliverNearby(player);
 			case BUTTON_DISCARD -> {
 				table.discard(player);
 				yield true;
