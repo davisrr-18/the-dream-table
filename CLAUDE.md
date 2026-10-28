@@ -196,6 +196,7 @@ Agents may improve code, tests, architecture, documentation, and rules when chan
 - Explain structural changes and provide regression coverage where applicable.
 - Request direction for product-scope expansion, unresolved user-facing decisions, destructive actions, or external-system changes.
 - Releases, publishing, and external artifact copies require an explicit user request.
+- Final release and changelog (standing user decision, 2026-10-28): create the GitHub release and write the final changelog only after every adjustment of the update is done and the user says they will post it on CurseForge. Until then, keep building and committing, but do not run `gh release` or draft the final changelog.
 - Commits and pushes are automatic (standing user authorization, 2026-10-28): at the end of every finished task, phase, or milestone, after its verification passes, commit all of its changes and push them. Never commit failing builds, secrets, or unrelated user work.
 - Commits and pushes always land directly on `main` (standing user decision, 2026-10-28). Work may happen in a worktree branch, but integrate it by fast-forwarding `main` and pushing `main`; never force-push or rewrite history. If `main` cannot fast-forward, rebase the unpushed work onto `origin/main` and stop for direction on conflicts.
 
