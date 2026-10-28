@@ -1,0 +1,9 @@
+.gradle/
+build/
+*/build/
+run/
+*/run/
+logs/
+*/logs/
+.architectury-transformer/
+*/.architectury-transformer/

@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"id": "dream_table_poc",
+	"version": "${version}",
+	"name": "Dream Table Multiloader POC",
+	"description": "Isolated Fabric + NeoForge feasibility prototype for The Dream Table 1.0.0.",
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["com.davisr.dreamtablepoc.fabric.DreamTablePocFabric"],
+		"client": ["com.davisr.dreamtablepoc.fabric.DreamTablePocFabricClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*",
+		"architectury": ">=13.0.11"
+	}
+}
