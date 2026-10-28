@@ -2,6 +2,8 @@ package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.MaterialLedger;
+import com.davisr.thedreamtable.farm.alert.FarmAlerts;
+import com.davisr.thedreamtable.farm.alert.FarmAlertType;
 import net.minecraft.block.BlockState;
 import net.minecraft.item.Item;
 import net.minecraft.nbt.NbtCompound;
@@ -37,6 +39,7 @@ public final class FarmAreas extends PersistentState {
 	private static final Type<FarmAreas> TYPE = new Type<>(FarmAreas::new, FarmAreas::read, null);
 	private final Map<Key, Area> areas = new LinkedHashMap<>();
 	private final Map<UUID, RepairLease> repairLeases = new LinkedHashMap<>();
+	private final Map<UUID, FarmAlerts> alerts = new LinkedHashMap<>();
 
 	public enum Kind {
 		BUILD, DISMANTLE, FINISHED
@@ -127,6 +130,30 @@ public final class FarmAreas extends PersistentState {
 
 	public java.util.Optional<Finished> finished(UUID instanceId) {
 		return finished().stream().filter(farm -> farm.instanceId().equals(instanceId)).findFirst();
+	}
+
+	/** Persisted alert state belongs to the immutable finished-farm identity, not a table position. */
+	public java.util.Optional<FarmAlerts> alerts(UUID instanceId) {
+		return finished(instanceId).map(ignored -> alerts.computeIfAbsent(instanceId, key -> new FarmAlerts()));
+	}
+
+	/** Records a fresh loaded-world observation and marks the per-world state only when it changed. */
+	public FarmAlerts.Transition observeAlert(UUID instanceId, FarmAlertType type, int quantity, long time) {
+		FarmAlerts farmAlerts = alerts(instanceId).orElse(null);
+		if (farmAlerts == null) {
+			return FarmAlerts.Transition.UNCHANGED;
+		}
+		FarmAlerts.Transition transition = farmAlerts.observe(type, quantity, time);
+		if (transition == FarmAlerts.Transition.NEW || transition == FarmAlerts.Transition.UPDATED || transition == FarmAlerts.Transition.RESOLVED) {
+			markDirty();
+		}
+		return transition;
+	}
+
+	/** Resolves repair problems when the same repair resumes or completes, retaining their history. */
+	public void resolveRepairAlerts(UUID instanceId, long time) {
+		observeAlert(instanceId, FarmAlertType.REPAIR_BLOCKED, 0, time);
+		observeAlert(instanceId, FarmAlertType.REPAIR_FAILED, 0, time);
 	}
 
 	/** Atomically changes a READY farm to REPAIRING and returns the persisted lease. */
@@ -318,6 +345,7 @@ public final class FarmAreas extends PersistentState {
 		if (removed != null) {
 			if (removed.built() != null) {
 				repairLeases.remove(removed.built().instanceId());
+				alerts.remove(removed.built().instanceId());
 			}
 			markDirty();
 		}
@@ -424,8 +452,12 @@ public final class FarmAreas extends PersistentState {
 		return ignoredFinished != null && area.built() != null && area.built().instanceId().equals(ignoredFinished);
 	}
 
-	private static boolean forgotten(ServerWorld world, Key key, Area area) {
-		return key.kind() == Kind.FINISHED ? !standing(world, area.built()) : tableGone(world, key);
+	private boolean forgotten(ServerWorld world, Key key, Area area) {
+		if (key.kind() != Kind.FINISHED) {
+			return tableGone(world, key);
+		}
+		Built built = area.built();
+		return built == null || (!repairLeases.containsKey(built.instanceId()) && !standing(world, built));
 	}
 
 	/** Only a loaded chunk can prove the table is gone; an unloaded table keeps its area. */
@@ -536,6 +568,10 @@ public final class FarmAreas extends PersistentState {
 				if (lease != null) {
 					lease.write(item);
 				}
+				FarmAlerts farmAlerts = alerts.get(built.instanceId());
+				if (farmAlerts != null) {
+					item.put("Alerts", farmAlerts.write(new NbtCompound()));
+				}
 				item.putLong("FinishedAt", built.finishedAt());
 				if (built.layout() != null) {
 					item.putString("LayoutId", built.layout().id());
@@ -613,6 +649,9 @@ public final class FarmAreas extends PersistentState {
 		RepairLease lease = RepairLease.read(item);
 		if (lease != null) {
 			state.repairLeases.put(instanceId, lease);
+		}
+		if (item.contains("Alerts", NbtElement.COMPOUND_TYPE)) {
+			state.alerts.put(instanceId, FarmAlerts.read(item.getCompound("Alerts")));
 		}
 		return new Built(instanceId, farmId, signature, FarmSite.read(item.getCompound("Site")), MaterialLedger.readSwaps(item), customName,
 				Map.copyOf(grants), invites, item.getLong("FinishedAt"), layout);

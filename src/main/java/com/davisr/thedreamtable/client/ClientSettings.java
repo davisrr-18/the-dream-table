@@ -14,8 +14,10 @@ import java.util.Properties;
 public final class ClientSettings {
 	private static final String FILE = "the_dream_table-client.properties";
 	private static final String SHOW_OTHER_FARMS = "show_other_farms";
+	private static final String SHOW_TRACKED_FARM = "show_tracked_farm";
 
 	private static boolean showOtherFarms;
+	private static boolean showTrackedFarm = true;
 
 	private ClientSettings() {
 	}
@@ -29,6 +31,15 @@ public final class ClientSettings {
 		save();
 	}
 
+	public static boolean showTrackedFarm() {
+		return showTrackedFarm;
+	}
+
+	public static void setShowTrackedFarm(boolean shown) {
+		showTrackedFarm = shown;
+		save();
+	}
+
 	public static void load() {
 		Path path = path();
 		if (!Files.isRegularFile(path)) {
@@ -38,6 +49,7 @@ public final class ClientSettings {
 		try (Reader reader = Files.newBufferedReader(path)) {
 			properties.load(reader);
 			showOtherFarms = Boolean.parseBoolean(properties.getProperty(SHOW_OTHER_FARMS, "false"));
+			showTrackedFarm = Boolean.parseBoolean(properties.getProperty(SHOW_TRACKED_FARM, "true"));
 		} catch (IOException exception) {
 			TheDreamTableMod.LOGGER.warn("Could not read {}", path, exception);
 		}
@@ -47,6 +59,7 @@ public final class ClientSettings {
 		Path path = path();
 		Properties properties = new Properties();
 		properties.setProperty(SHOW_OTHER_FARMS, Boolean.toString(showOtherFarms));
+		properties.setProperty(SHOW_TRACKED_FARM, Boolean.toString(showTrackedFarm));
 		try {
 			Files.createDirectories(path.getParent());
 			try (Writer writer = Files.newBufferedWriter(path)) {

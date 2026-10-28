@@ -29,14 +29,15 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
  * can only be forgotten.
  */
 public final class FarmPage implements TablePage {
-	private static final int FAVORITE = 0;
-	private static final int TRACK = 1;
-	private static final int LOADED = 2;
-	private static final int REPAIR = 3;
-	private static final int RENAME = 4;
-	private static final int INVITE_VIEWER = 5;
-	private static final int INVITE_OPERATOR = 6;
-	private static final int COLLABORATORS = 7;
+	private static final int ALERTS = 0;
+	private static final int FAVORITE = 1;
+	private static final int TRACK = 2;
+	private static final int LOADED = 3;
+	private static final int REPAIR = 4;
+	private static final int RENAME = 5;
+	private static final int INVITE_VIEWER = 6;
+	private static final int INVITE_OPERATOR = 7;
+	private static final int COLLABORATORS = 8;
 	private static final long CONFIRM_MS = 3000L;
 	private static final int ITEM_SPACING = 21;
 	private static final int LINE_HEIGHT = 10;
@@ -60,6 +61,7 @@ public final class FarmPage implements TablePage {
 	@Override
 	public void draw(DrawContext context, int mouseX, int mouseY) {
 		LoadedFarmsView.ensure();
+		LoadedFarmsView.ensureDetails();
 		FarmLoader.Entry farm = farm();
 		if (farm == null) {
 			context.drawText(ui.painter().text(), Text.translatable(LoadedFarmsView.received() ? "gui.the_dream_table.farm_gone" : "gui.the_dream_table.loaded_waiting"),
@@ -73,6 +75,7 @@ public final class FarmPage implements TablePage {
 		drawWrapped(context, statusText(farm), statusY(), Integer.MAX_VALUE, HINT);
 		drawStorage(context);
 		drawCondition(context, farm);
+		ui.button("alerts", context, Text.translatable("gui.the_dream_table.alerts"), rowY(ALERTS), mouseX, mouseY, true, false);
 		ui.button("favorite", context, Text.translatable(farm.favorite() ? "gui.the_dream_table.unfavorite" : "gui.the_dream_table.favorite"),
 				rowY(FAVORITE), mouseX, mouseY, true, farm.favorite());
 		ui.button("track", context, Text.translatable(farm.tracked() ? "gui.the_dream_table.untrack" : "gui.the_dream_table.track"),
@@ -120,6 +123,10 @@ public final class FarmPage implements TablePage {
 		}
 		if (farm == null) {
 			return false;
+		}
+		if (ui.buttonHit(mouseX, mouseY, rowY(ALERTS))) {
+			ui.go(DreamTableScreenHandler.PAGE_ALERTS, DreamTableScreenHandler.BUTTON_ALERTS);
+			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, rowY(FAVORITE))) {
 			LoadedFarmsView.preference(farm.key(), farm.favorite() ? FarmPreferencePayload.Operation.UNFAVORITE : FarmPreferencePayload.Operation.FAVORITE);

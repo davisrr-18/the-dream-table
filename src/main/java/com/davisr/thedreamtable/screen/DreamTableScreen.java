@@ -8,6 +8,7 @@ import com.davisr.thedreamtable.screen.page.CategoryPage;
 import com.davisr.thedreamtable.screen.page.FarmPage;
 import com.davisr.thedreamtable.screen.page.LoadedFarmsPage;
 import com.davisr.thedreamtable.screen.page.InvitesPage;
+import com.davisr.thedreamtable.screen.page.AlertsPage;
 import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.screen.page.OptionsPage;
 import com.davisr.thedreamtable.screen.page.SpeedPage;
@@ -77,6 +78,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private TablePage loaded;
 	private TablePage farm;
 	private TablePage invites;
+	private TablePage alerts;
 	private TablePage materials;
 	private TablePage swap;
 	private PageContext ui;
@@ -121,6 +123,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		loaded = new LoadedFarmsPage(ui, search);
 		farm = new FarmPage(ui, search);
 		invites = new InvitesPage(ui);
+		alerts = new AlertsPage(ui);
 		LoadedFarmsView.invalidate();
 		materials = new MaterialsPage(ui);
 		swap = new SwapPage(ui, search);
@@ -316,6 +319,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			case DreamTableScreenHandler.PAGE_LOADED -> loaded;
 			case DreamTableScreenHandler.PAGE_FARM -> farm;
 			case DreamTableScreenHandler.PAGE_INVITES -> invites;
+			case DreamTableScreenHandler.PAGE_ALERTS -> alerts;
 			case DreamTableScreenHandler.PAGE_MATERIALS -> materials;
 			case DreamTableScreenHandler.PAGE_SWAP -> swap;
 			default -> selection;
@@ -408,6 +412,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			case DreamTableScreenHandler.PAGE_SPEED -> DreamTableScreenHandler.BUTTON_SPEED_BACK;
 			case DreamTableScreenHandler.PAGE_FARM -> DreamTableScreenHandler.BUTTON_FARM_BACK;
 			case DreamTableScreenHandler.PAGE_INVITES -> DreamTableScreenHandler.BUTTON_LOADED_FARMS;
+			case DreamTableScreenHandler.PAGE_ALERTS -> DreamTableScreenHandler.BUTTON_FARM_OPEN;
 			default -> throw new IllegalStateException("No back button for page " + page);
 		};
 		handler.preview(handler.getSelectedFarm(), parent);

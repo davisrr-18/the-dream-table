@@ -1,9 +1,11 @@
 package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.GameSetup;
+import com.davisr.thedreamtable.farm.alert.FarmAlertType;
 import net.minecraft.block.Blocks;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -139,6 +141,57 @@ class FinishedFarmsTest {
 		areas.recordFinished(PLAYER, template, SITE, Map.of());
 
 		assertNotEquals(first.instanceId(), areas.finishedBy(PLAYER).getFirst().instanceId());
+	}
+
+	@Test
+	void finishedFarmKeepsItsAlertStateThroughASave() {
+		FarmAreas areas = new FarmAreas();
+		areas.recordFinished(PLAYER, FarmTemplates.get(FarmOptions.SUGAR_CANE.id()), SITE, Map.of());
+		UUID instanceId = areas.finishedBy(PLAYER).getFirst().instanceId();
+		areas.observeAlert(instanceId, FarmAlertType.BLOCKS_MISSING, 4, 120L);
+
+		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null);
+
+		assertEquals(4, restored.alerts(instanceId).orElseThrow().active(FarmAlertType.BLOCKS_MISSING).orElseThrow().quantity());
+	}
+
+	@Test
+	void repairingFarmIsNotForgottenByAConcurrentConflictWhenItsPresenceIsLow() {
+		FarmTemplate template = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
+		UUID instanceId = UUID.randomUUID();
+		UUID operator = UUID.randomUUID();
+		Map<UUID, FarmGrant> grants = Map.of(operator, new FarmGrant(operator, FarmRole.OPERATOR, 1_700_000_000_000L));
+		FarmAreas areas = new FarmAreas();
+		areas.recordFinished(PLAYER, template, SITE, Map.of(), instanceId, grants);
+		areas.setCustomName(instanceId, "River Works");
+		NbtCompound saved = areas.writeNbt(new NbtCompound(), null);
+		NbtCompound item = saved.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0);
+		item.remove("Layout");
+		item.putLong("FarmSignature", Long.MIN_VALUE);
+		FarmAreas restored = FarmAreas.read(saved, null);
+		FarmAreas.Finished before = restored.finished(instanceId).orElseThrow();
+		UUID operationId = UUID.randomUUID();
+		restored.beginRepair(instanceId, PLAYER, SITE.table(), operationId).orElseThrow();
+
+		FarmAreas.Key concurrentBuild = FarmAreas.Key.build(new BlockPos(200, 64, 200), UUID.randomUUID());
+		assertEquals(FarmAreas.Conflict.FINISHED, restored.conflict(null, concurrentBuild, before.box()));
+		assertTrue(restored.completeRepair(instanceId, operationId));
+		FarmAreas.Finished after = restored.finished(instanceId).orElseThrow();
+		assertEquals(before.instanceId(), after.instanceId());
+		assertEquals(before.customName(), after.customName());
+		assertEquals(before.grants(), after.grants());
+	}
+
+	@Test
+	void observingAChangedAlertMarksFinishedFarmStateDirty() {
+		FarmAreas areas = new FarmAreas();
+		areas.recordFinished(PLAYER, FarmTemplates.get(FarmOptions.SUGAR_CANE.id()), SITE, Map.of());
+		UUID instanceId = areas.finishedBy(PLAYER).getFirst().instanceId();
+		areas.setDirty(false);
+
+		areas.observeAlert(instanceId, FarmAlertType.STORAGE_FULL, 1, 120L);
+
+		assertTrue(areas.isDirty());
 	}
 
 	@Test

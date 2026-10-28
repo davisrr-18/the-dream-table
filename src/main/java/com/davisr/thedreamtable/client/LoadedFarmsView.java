@@ -10,13 +10,14 @@ import com.davisr.thedreamtable.network.FarmInvitePayload;
 import com.davisr.thedreamtable.network.FarmInviteResponsePayload;
 import com.davisr.thedreamtable.network.FarmPreferencePayload;
 import com.davisr.thedreamtable.network.FarmRenamePayload;
+import com.davisr.thedreamtable.network.FarmAlertAckPayload;
+import com.davisr.thedreamtable.network.FarmAlertsPayload;
 import com.davisr.thedreamtable.network.LoadedFarmsPayload;
 import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
-import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
@@ -28,15 +29,14 @@ import java.util.function.Function;
  * filtered and sorted, which stays while the menu is open.
  */
 public final class LoadedFarmsView {
-	private static final long DETAILS_EVERY_MS = 2000L;
 	private static List<FarmLoader.Entry> farms = List.of();
 	private static List<LoadedFarmsPayload.InviteEntry> invites = List.of();
 	private static int limit;
 	private static boolean received;
-	private static boolean requested;
 	private static String selected = "";
 	private static FarmDetailsPayload details;
-	private static long detailsAskedAt;
+	private static FarmAlertsPayload alerts;
+	private static final RequestState requests = new RequestState();
 	private static FarmListing.Show show = FarmListing.Show.ALL;
 	private static FarmListing.Sort sort = FarmListing.Sort.NEWEST;
 	private static String dimension = "";
@@ -56,7 +56,17 @@ public final class LoadedFarmsView {
 				details = payload;
 			}
 		});
+		ClientPlayNetworking.registerGlobalReceiver(FarmAlertsPayload.ID, (payload, context) -> {
+			if (payload.key().equals(selected)) {
+				alerts = payload;
+			}
+		});
 		ClientPlayNetworking.registerGlobalReceiver(FarmActionResultPayload.ID, (payload, context) -> {
+			if (payload.action() == FarmActionResultPayload.Action.REMOVE_COLLABORATOR
+					&& payload.result() == FarmActionResultPayload.Result.SUCCESS && payload.key().equals(selected)) {
+				details = null;
+				requests.invalidateDetails();
+			}
 			MinecraftClient client = MinecraftClient.getInstance();
 			if (client.player != null) {
 				client.inGameHud.setOverlayMessage(Text.translatable("gui.the_dream_table.action_result."
@@ -65,14 +75,16 @@ public final class LoadedFarmsView {
 		});
 	}
 
-	/** The open farm's storage and size, asked for again every 2 seconds while its page is drawn; null until it arrives. */
+	/** The open farm's storage and size, or null until the one request for this selection arrives. */
 	public static FarmDetailsPayload details() {
-		long now = Util.getMeasuringTimeMs();
-		if (now - detailsAskedAt >= DETAILS_EVERY_MS && !selected.isEmpty() && ClientPlayNetworking.canSend(FarmDetailsPayload.Request.ID)) {
-			detailsAskedAt = now;
+		return details != null && details.key().equals(selected) ? details : null;
+	}
+
+	/** Requests the selected farm's details once for this opening or selection. */
+	public static void ensureDetails() {
+		if (!selected.isEmpty() && ClientPlayNetworking.canSend(FarmDetailsPayload.Request.ID) && requests.requestDetails()) {
 			ClientPlayNetworking.send(new FarmDetailsPayload.Request(table(), selected));
 		}
-		return details != null && details.key().equals(selected) ? details : null;
 	}
 
 	public static List<FarmLoader.Entry> farms() {
@@ -139,8 +151,7 @@ public final class LoadedFarmsView {
 
 	/** Asks once per visit to the page, since farms can be finished or taken down while it is closed. */
 	public static void ensure() {
-		if (!requested) {
-			requested = true;
+		if (requests.requestFarms()) {
 			send("");
 		}
 	}
@@ -149,9 +160,30 @@ public final class LoadedFarmsView {
 	public static void select(String key) {
 		if (!key.equals(selected)) {
 			details = null;
-			detailsAskedAt = 0L;
+			alerts = null;
+			requests.select(key);
 		}
 		selected = key;
+	}
+
+	/** Requests the selected farm's authorized alert page. */
+	public static FarmAlertsPayload alerts() {
+		return alerts != null && alerts.key().equals(selected) ? alerts : null;
+	}
+
+	/** Requests the selected farm's authorized alert page once for this opening or selection. */
+	public static void ensureAlerts() {
+		if (!selected.isEmpty() && ClientPlayNetworking.canSend(FarmAlertsPayload.Request.ID) && requests.requestAlerts()) {
+			ClientPlayNetworking.send(new FarmAlertsPayload.Request(table(), selected, 0));
+		}
+	}
+
+	/** Acknowledges exactly the event references the server included in the currently displayed page. */
+	public static void acknowledgeAlerts(FarmAlertsPayload payload) {
+		if (ClientPlayNetworking.canSend(FarmAlertAckPayload.ID)) {
+			ClientPlayNetworking.send(new FarmAlertAckPayload(table(), payload.key(), payload.token(),
+					payload.entries().stream().map(FarmAlertsPayload.Entry::eventId).toList()));
+		}
 	}
 
 	public static int selectedIndex() {
@@ -159,8 +191,10 @@ public final class LoadedFarmsView {
 	}
 
 	public static void invalidate() {
-		requested = false;
 		received = false;
+		details = null;
+		alerts = null;
+		requests.reset();
 	}
 
 	public static void toggle(String key) {
@@ -188,7 +222,6 @@ public final class LoadedFarmsView {
 	public static void removeCollaborator(String key, UUID collaboratorUuid) {
 		if (ClientPlayNetworking.canSend(FarmCollaboratorPayload.ID)) {
 			ClientPlayNetworking.send(new FarmCollaboratorPayload(table(), key, collaboratorUuid));
-			detailsAskedAt = 0L;
 		}
 	}
 
@@ -215,5 +248,57 @@ public final class LoadedFarmsView {
 		MinecraftClient client = MinecraftClient.getInstance();
 		return client.player != null && client.player.currentScreenHandler instanceof DreamTableScreenHandler handler
 				? handler.getTablePos() : BlockPos.ORIGIN;
+	}
+
+	static final class RequestState {
+		private boolean farms;
+		private String selected = "";
+		private boolean details;
+		private boolean alerts;
+
+		boolean requestFarms() {
+			if (farms) {
+				return false;
+			}
+			farms = true;
+			return true;
+		}
+
+		boolean select(String key) {
+			if (selected.equals(key)) {
+				return false;
+			}
+			selected = key;
+			details = false;
+			alerts = false;
+			return true;
+		}
+
+		boolean requestDetails() {
+			if (details) {
+				return false;
+			}
+			details = true;
+			return true;
+		}
+
+		void invalidateDetails() {
+			details = false;
+		}
+
+		boolean requestAlerts() {
+			if (alerts) {
+				return false;
+			}
+			alerts = true;
+			return true;
+		}
+
+		void reset() {
+			farms = false;
+			selected = "";
+			details = false;
+			alerts = false;
+		}
 	}
 }

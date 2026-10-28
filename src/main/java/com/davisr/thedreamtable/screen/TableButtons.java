@@ -53,6 +53,7 @@ final class TableButtons {
 			case BUTTON_SPEED_OPEN -> page(table, PAGE_SPEED);
 			case BUTTON_LOADED_FARMS, BUTTON_FARM_BACK -> page(table, PAGE_LOADED);
 			case BUTTON_INVITES -> page(table, PAGE_INVITES);
+			case BUTTON_ALERTS -> page(table, PAGE_ALERTS);
 			case BUTTON_FARM_OPEN -> page(table, PAGE_FARM);
 			case BUTTON_REQUIREMENTS -> {
 				table.setRequirementsBoard(true);

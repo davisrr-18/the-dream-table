@@ -18,7 +18,8 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
 public final class OptionsPage implements TablePage {
 	private static final int SPEED = 0;
 	private static final int OTHERS = 1;
-	private static final int CARDS = 2;
+	private static final int TRACKER = 2;
+	private static final int CARDS = 3;
 
 	private final PageContext ui;
 
@@ -37,6 +38,10 @@ public final class OptionsPage implements TablePage {
 		Text others = Text.translatable(shown ? "gui.the_dream_table.show_others_on" : "gui.the_dream_table.show_others_off");
 		ui.cardAt("show_other_farms", context, new ItemStack(Items.SPYGLASS), others,
 				ui.view().gridCardX(OTHERS), ui.view().gridCardY(OTHERS), mouseX, mouseY, shown, true);
+		boolean tracker = ClientSettings.showTrackedFarm();
+		ui.cardAt("show_tracked_farm", context, new ItemStack(Items.COMPASS),
+				Text.translatable(tracker ? "gui.the_dream_table.show_tracker_on" : "gui.the_dream_table.show_tracker_off"),
+				ui.view().gridCardX(TRACKER), ui.view().gridCardY(TRACKER), mouseX, mouseY, tracker, true);
 	}
 
 	@Override
@@ -47,6 +52,11 @@ public final class OptionsPage implements TablePage {
 		}
 		if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(OTHERS), ui.view().gridCardY(OTHERS))) {
 			OtherFarms.setShown(!ClientSettings.showOtherFarms());
+			ui.actions().click();
+			return true;
+		}
+		if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(TRACKER), ui.view().gridCardY(TRACKER))) {
+			ClientSettings.setShowTrackedFarm(!ClientSettings.showTrackedFarm());
 			ui.actions().click();
 			return true;
 		}

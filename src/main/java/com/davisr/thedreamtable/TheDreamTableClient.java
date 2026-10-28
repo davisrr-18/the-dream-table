@@ -10,6 +10,7 @@ import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.client.OtherFarms;
 import com.davisr.thedreamtable.client.OwnSessions;
 import com.davisr.thedreamtable.client.ServerSchematics;
+import com.davisr.thedreamtable.client.TrackedFarmHud;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.registry.ModScreenHandlers;
 import com.davisr.thedreamtable.screen.DreamTableScreen;
@@ -30,6 +31,7 @@ public final class TheDreamTableClient implements ClientModInitializer {
 		ClientSettings.load();
 		OwnSessions.register();
 		OtherFarms.register();
+		TrackedFarmHud.register();
 		LoadedFarmsView.register();
 		FarmFaces.register();
 		ServerSchematics.register();
