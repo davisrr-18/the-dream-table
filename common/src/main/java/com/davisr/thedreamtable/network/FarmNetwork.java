@@ -11,8 +11,12 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.UUID;
+
 /** Shared table, key, directory, and role checks for cooperative payload handlers. */
 final class FarmNetwork {
+	private static final RefreshCoalescer REFRESHES = new RefreshCoalescer();
+
 	private FarmNetwork() {
 	}
 
@@ -39,6 +43,13 @@ final class FarmNetwork {
 			result(player, externalKey, resultAction, FarmActionResultPayload.Result.FORBIDDEN);
 			return null;
 		}
+		FarmDirectory.Authorized farm = authorizeFarm(player, externalKey, action, resultAction);
+		return farm == null ? null : new Checked(table, farm);
+	}
+
+	/** The key, directory and role checks without an open table, for work that finishes after the player left the screen. */
+	static @Nullable FarmDirectory.Authorized authorizeFarm(ServerPlayerEntity player, String externalKey, FarmAction action,
+			FarmActionResultPayload.Action resultAction) {
 		FarmPayloadGuard.Parsed parsed = FarmPayloadGuard.parse(externalKey);
 		if (parsed.key() == null) {
 			result(player, externalKey, resultAction, FarmActionResultPayload.Result.INVALID_INPUT);
@@ -51,14 +62,34 @@ final class FarmNetwork {
 			result(player, externalKey, resultAction, authorization.result());
 			return null;
 		}
-		return new Checked(table, new FarmDirectory.Authorized(located, authorization.role()));
+		return new FarmDirectory.Authorized(located, authorization.role());
 	}
 
 	static void result(ServerPlayerEntity player, String key, FarmActionResultPayload.Action action, FarmActionResultPayload.Result result) {
 		Platform.network().send(player, new FarmActionResultPayload(key, action, result));
 	}
 
+	/**
+	 * Sends the player's My Farms list now, or merges the request into one later send when the last one went out less
+	 * than {@link RefreshCoalescer#DEFAULT_INTERVAL_TICKS} ago. Every handler that changes a farm calls this, including
+	 * for a third party, so no sequence of requests can force more than a few full scans a second for one player.
+	 */
 	static void refresh(ServerPlayerEntity player) {
-		LoadedFarmsPayload.send(player);
+		if (REFRESHES.request(player.getUuid(), player.getServer().getTicks())) {
+			LoadedFarmsPayload.send(player);
+		}
+	}
+
+	/** Releases the merged refreshes once due and forgets leaving players; called once from {@code LoadedFarmsPayload.register}. */
+	static void register() {
+		Platform.serverEvents().onTickEnd(server -> {
+			for (UUID id : REFRESHES.flush(server.getTicks())) {
+				ServerPlayerEntity player = server.getPlayerManager().getPlayer(id);
+				if (player != null) {
+					LoadedFarmsPayload.send(player);
+				}
+			}
+		});
+		Platform.serverEvents().onPlayerDisconnect((player, server) -> server.execute(() -> REFRESHES.forget(player.getUuid())));
 	}
 }

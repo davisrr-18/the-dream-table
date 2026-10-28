@@ -7,6 +7,7 @@ package com.davisr.thedreamtable.platform;
 public final class Platform {
 	private static PlatformPaths paths;
 	private static BlockBreakGuard blockBreaks;
+	private static BlockPlaceGuard blockPlaces;
 	private static ServerNetwork network;
 	private static ServerEvents serverEvents;
 	private static Menus menus;
@@ -18,10 +19,11 @@ public final class Platform {
 	private Platform() {
 	}
 
-	public static void install(PlatformPaths paths, BlockBreakGuard blockBreaks, ServerNetwork network,
-			ServerEvents serverEvents, Menus menus, Content content) {
+	public static void install(PlatformPaths paths, BlockBreakGuard blockBreaks, BlockPlaceGuard blockPlaces,
+			ServerNetwork network, ServerEvents serverEvents, Menus menus, Content content) {
 		Platform.paths = paths;
 		Platform.blockBreaks = blockBreaks;
+		Platform.blockPlaces = blockPlaces;
 		Platform.network = network;
 		Platform.serverEvents = serverEvents;
 		Platform.menus = menus;
@@ -40,6 +42,10 @@ public final class Platform {
 
 	public static BlockBreakGuard blockBreaks() {
 		return installed(blockBreaks);
+	}
+
+	public static BlockPlaceGuard blockPlaces() {
+		return installed(blockPlaces);
 	}
 
 	public static ServerNetwork network() {

@@ -134,12 +134,15 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		}
 	}
 
+	/** On the server the live session decides, since a repair or another action can change its farm without a button press; the client uses its synced copy. */
 	public String getSelectedFarm() {
-		return selectedFarm;
+		TableSession table = client ? null : table();
+		return table == null ? selectedFarm : table.getSelectedFarm();
 	}
 
 	public int getPage() {
-		return page;
+		TableSession table = client ? null : table();
+		return table == null ? page : table.getPage();
 	}
 
 	public int getBuildIndex() {
@@ -194,7 +197,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	}
 
 	public MaterialSpec material(int index) {
-		FarmTemplate template = FarmTemplates.get(selectedFarm);
+		FarmTemplate template = FarmTemplates.get(getSelectedFarm());
 		if (template == null || index < 0 || index >= template.materials().size()) {
 			return null;
 		}
@@ -213,7 +216,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	public List<Item> swapOptions(int index) {
 		MaterialSpec spec = material(index);
-		return spec == null ? List.of() : MaterialSwaps.options(FarmTemplates.get(selectedFarm), spec.item());
+		return spec == null ? List.of() : MaterialSwaps.options(FarmTemplates.get(getSelectedFarm()), spec.item());
 	}
 
 	public boolean canSwap(int index) {
@@ -255,6 +258,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 			return false;
 		}
 		FarmTemplates.reloadImports(serverPlayer.getServerWorld().getServer().getSavePath(WorldSavePath.ROOT));
+		table.reconcileMaterials(serverPlayer);
 		if (!TableButtons.press(table, serverPlayer, id)) {
 			return false;
 		}
@@ -264,7 +268,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	@Override
 	public ItemStack quickMove(PlayerEntity player, int index) {
-		if (page != PAGE_REQUIREMENTS) {
+		if (getPage() != PAGE_REQUIREMENTS) {
 			return ItemStack.EMPTY;
 		}
 		Slot slot = this.slots.get(index);
@@ -403,7 +407,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 		@Override
 		public boolean isEnabled() {
-			return page == PAGE_REQUIREMENTS;
+			return getPage() == PAGE_REQUIREMENTS;
 		}
 	}
 }

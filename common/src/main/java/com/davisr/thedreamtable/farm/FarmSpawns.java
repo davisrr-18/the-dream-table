@@ -5,6 +5,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.vehicle.MinecartEntity;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -162,6 +163,26 @@ final class FarmSpawns {
 	}
 
 	private record Pairing(MinecartPairing.Action action, Entity passenger, Entity cart) {
+	}
+
+	/** Buckets that pour out their fluid when placed and leave an empty bucket behind. */
+	public static boolean leavesEmptyBucket(Item item) {
+		return item == Items.WATER_BUCKET || item == Items.LAVA_BUCKET || item == Items.POWDER_SNOW_BUCKET;
+	}
+
+	/**
+	 * Whether a placed step is recorded as paid. A bucket that was handed back empty cost nothing lasting, so it is recorded
+	 * as unpaid and Take Down refunds nothing for it. Before the empty bucket was returned for lava and powder snow, those
+	 * steps were recorded as paid because the bucket was consumed, and they keep their refund. The flag is per step, so a
+	 * record that mixes old and new steps never refunds a bucket that already came back.
+	 */
+	public static boolean recordsAsPaid(Item item, boolean paid) {
+		return paid && !(item != null && leavesEmptyBucket(item));
+	}
+
+	/** Whether Take Down hands back this recorded step's item. Water is skipped because it always returned its bucket, even in records that mark it paid. */
+	public static boolean refundsOnTakeDown(Item item, boolean paid) {
+		return paid && item != null && item != Items.WATER_BUCKET;
 	}
 
 	static void returnBucket(ServerWorld world, TableSession table) {

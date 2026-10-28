@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.MaterialLedger;
+import com.davisr.thedreamtable.farm.alert.FarmAlerts;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -10,7 +11,6 @@ import net.minecraft.fluid.FluidState;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.particle.ParticleTypes;
@@ -66,8 +66,15 @@ public final class FarmDismantler {
 	/** The job waited for the player to come back online. Not saved. */
 	private boolean playerAway;
 
-	/** The owner-managed data of a finished farm, kept so its record can be restored if Take Down leaves part of it standing. */
-	public record Identity(UUID instanceId, UUID owner, @Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites) {
+	/**
+	 * The owner-managed data of a finished farm, kept so its record can be restored if Take Down leaves part of it standing.
+	 * {@code alerts} is the saved alert state, which releasing the record would otherwise drop with it.
+	 */
+	public record Identity(UUID instanceId, UUID owner, @Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites,
+			@Nullable NbtCompound alerts) {
+		public Identity(UUID instanceId, UUID owner, @Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites) {
+			this(instanceId, owner, customName, grants, invites, null);
+		}
 	}
 
 	public FarmDismantler(UUID player, String farmId, long signature, FarmSite site, Map<Item, Item> swaps, BitSet placed, BitSet paid, int buildIndex) {
@@ -180,8 +187,12 @@ public final class FarmDismantler {
 		}
 		BitSet leftPaid = (BitSet) paid.clone();
 		leftPaid.and(left);
-		FarmAreas.of(world).recordFinished(identity.owner(), layout, site, swaps, identity.instanceId(), identity.customName(),
+		FarmAreas areas = FarmAreas.of(world);
+		areas.recordFinished(identity.owner(), layout, site, swaps, identity.instanceId(), identity.customName(),
 				identity.grants(), identity.invites(), left, leftPaid);
+		if (identity.alerts() != null) {
+			areas.restoreAlerts(identity.instanceId(), FarmAlerts.read(identity.alerts()));
+		}
 	}
 
 	/**
@@ -239,8 +250,8 @@ public final class FarmDismantler {
 			world.spawnParticles(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 4, 0.25, 0.25, 0.25, 0.01);
 		}
 		batch.removed++;
-		// Water already handed its empty bucket back when it was poured, so it refunds nothing.
-		if (paid.get(index) && step.item() != null && step.item() != Items.WATER_BUCKET) {
+		// Water, and lava or powder snow placed since they too hand back their empty bucket, refund nothing; see FarmSpawns.recordsAsPaid.
+		if (FarmSpawns.refundsOnTakeDown(step.item(), paid.get(index))) {
 			batch.refunds.merge(swaps.getOrDefault(step.item(), step.item()), 1, Integer::sum);
 		}
 		return true;
@@ -338,15 +349,18 @@ public final class FarmDismantler {
 			}
 			FarmGrant.writeAll(nbt, "Grants", identity.grants());
 			FarmInvite.writeAll(nbt, "Invites", identity.invites());
+			if (identity.alerts() != null) {
+				nbt.put("Alerts", identity.alerts().copy());
+			}
 		}
 	}
 
-	/** A saved job, or null when it is unreadable; a job that can't be read is dropped so it can't take the table's other data with it. */
+	/** A saved job, or null when it is unreadable; a job that can't be read doesn't take the table's other data with it, and its table keeps the saved data unchanged. */
 	public static @Nullable FarmDismantler read(NbtCompound nbt) {
 		try {
 			return readJob(nbt);
 		} catch (RuntimeException corrupt) {
-			TheDreamTableMod.LOGGER.error("Skipping unreadable Take Down job", corrupt);
+			TheDreamTableMod.LOGGER.error("Unreadable Take Down job; its saved data is kept unchanged", corrupt);
 			return null;
 		}
 	}
@@ -382,7 +396,8 @@ public final class FarmDismantler {
 		if (nbt.containsUuid("Instance") && nbt.containsUuid("Owner")) {
 			String name = nbt.contains("CustomName", NbtElement.STRING_TYPE) ? nbt.getString("CustomName") : null;
 			identity = new Identity(nbt.getUuid("Instance"), nbt.getUuid("Owner"), name,
-					FarmGrant.readAll(nbt, "Grants"), FarmInvite.readAll(nbt, "Invites"));
+					FarmGrant.readAll(nbt, "Grants"), FarmInvite.readAll(nbt, "Invites"),
+					nbt.contains("Alerts", NbtElement.COMPOUND_TYPE) ? nbt.getCompound("Alerts") : null);
 		}
 		FarmDismantler job = new FarmDismantler(nbt.getUuid("Player"), farmId, nbt.getLong("FarmSignature"), site, MaterialLedger.readSwaps(nbt),
 				BitSet.valueOf(nbt.getLongArray("PlacedSteps")), BitSet.valueOf(nbt.getLongArray("PaidSteps")), nbt.getInt("Next") + 1, areaSpot, host, layout,

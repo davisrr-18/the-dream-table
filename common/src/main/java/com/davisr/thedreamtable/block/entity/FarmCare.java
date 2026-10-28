@@ -8,6 +8,7 @@ import com.davisr.thedreamtable.farm.FarmOperation;
 import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
@@ -82,10 +83,12 @@ public final class FarmCare {
 			return false;
 		}
 		// The job and its area claim belong to this table, which ticks and keeps them, not to the table the farm came from.
+		FarmAreas areas = FarmAreas.of(farm.world());
+		// Snapshot before the record is released: releasing drops its alert state, which a partial Take Down brings back.
+		NbtCompound alerts = areas.alerts(farm.farm().instanceId()).map(saved -> saved.write(new NbtCompound())).orElse(null);
 		FarmDismantler job = new FarmDismantler(player.getUuid(), template, site, farm.farm().swaps(), placed, farm.farm().paid(),
 				session.table().getPos(), new FarmDismantler.Identity(farm.farm().instanceId(), farm.farm().ownerUuid(), farm.farm().customName(),
-						farm.farm().grants(), farm.farm().invites()));
-		FarmAreas areas = FarmAreas.of(farm.world());
+						farm.farm().grants(), farm.farm().invites(), alerts));
 		areas.release(farm.farm().key());
 		areas.claim(job.areaKey(), site.footprint(template));
 		session.table().startDismantling(job);

@@ -31,6 +31,8 @@ public record BuildIssue(Kind kind, BlockPos where, String subject, int attempts
 		MATERIAL(false),
 		/** The entity cell contains an occupied or ambiguous minecart/passenger combination. */
 		ENTITY_BLOCKED(false),
+		/** The farm file was deleted or changed since the build started, so its saved progress no longer fits it. */
+		FARM_CHANGED(false),
 		/** The spot's chunk takes long to load. The build keeps waiting there. */
 		UNLOADED(true),
 		/** The game refused the block. */
@@ -74,6 +76,7 @@ public record BuildIssue(Kind kind, BlockPos where, String subject, int attempts
 	public Text what() {
 		return switch (kind) {
 			case OBSTACLE, OTHER_FARM, PLACE_FAILED -> Text.translatable(kind.key(), subjectName(), where.getX(), where.getY(), where.getZ());
+			case FARM_CHANGED -> Text.translatable(kind.key());
 			case PROTECTED, ENTITY_BLOCKED -> Text.translatable(kind.key(), where.getX(), where.getY(), where.getZ());
 			case MATERIAL -> Text.translatable(kind.key(), subjectName());
 			case UNLOADED -> Text.translatable(kind.key(), where.getX(), where.getZ());

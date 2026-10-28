@@ -9,8 +9,8 @@ final class NeoForgePlatform {
 	}
 
 	static void install(IEventBus modBus) {
-		Platform.install(new NeoForgePaths(), new NeoForgeBlockBreakGuard(), new NeoForgeServerNetwork(modBus),
-				new NeoForgeServerEvents(), new NeoForgeMenus(), new NeoForgeContent(modBus));
+		Platform.install(new NeoForgePaths(), new NeoForgeBlockBreakGuard(), new NeoForgeBlockPlaceGuard(),
+				new NeoForgeServerNetwork(modBus), new NeoForgeServerEvents(), new NeoForgeMenus(), new NeoForgeContent(modBus));
 	}
 
 	static void installClient(IEventBus modBus) {

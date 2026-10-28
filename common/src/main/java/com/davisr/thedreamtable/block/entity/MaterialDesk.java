@@ -14,6 +14,7 @@ import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -94,11 +95,13 @@ final class MaterialDesk {
 	}
 
 	int deposited(int index) {
-		return ledger.deposited(index);
+		FarmTemplate farm = template.get();
+		return farm == null ? ledger.deposited(index) : ledger.deposited(farm, index);
 	}
 
 	int supplied(int index) {
-		return ledger.supplied(index);
+		FarmTemplate farm = template.get();
+		return farm == null ? ledger.supplied(index) : ledger.supplied(farm, index);
 	}
 
 	int stored(Item item) {
@@ -117,25 +120,56 @@ final class MaterialDesk {
 		return farm != null && ledger.consume(farm, item);
 	}
 
-	/** Gives the unused delivered items back to the player, or drops them at the table when there is no player. */
+	/** Gives the unused delivered items and anything left in the slots back to the player, or drops them at the table when there is no player. */
 	void returnAll(World world, BlockPos table, PlayerEntity receiver) {
 		adjusting = true;
+		List<ItemStack> back;
 		try {
-			boolean dropped = false;
-			for (ItemStack stack : ledger.drain(template.get())) {
-				if (receiver != null) {
-					dropped |= Handover.give(receiver, stack);
-				} else if (world != null) {
-					ItemScatterer.spawn(world, table.getX() + 0.5, table.getY() + 0.5, table.getZ() + 0.5, stack);
+			back = new ArrayList<>(ledger.drain(template.get()));
+			for (int index = 0; index < slots.size(); index++) {
+				ItemStack left = slots.getStack(index);
+				if (!left.isEmpty()) {
+					back.add(left.copy());
 				}
-			}
-			if (dropped) {
-				Handover.tellDropped(receiver);
 			}
 			slots.clear();
 		} finally {
 			adjusting = false;
 		}
+		hand(back, world, table, receiver);
+	}
+
+	/**
+	 * Hands back deliveries that no longer fit the farm's design, the same way {@link #returnAll} does, and returns
+	 * whether there were any. Without this they would count towards nothing and block new deliveries at their index.
+	 */
+	boolean returnIncompatible(World world, BlockPos table, PlayerEntity receiver) {
+		FarmTemplate farm = template.get();
+		if (farm == null) {
+			return false;
+		}
+		List<ItemStack> back = ledger.drainIncompatible(farm);
+		hand(back, world, table, receiver);
+		return !back.isEmpty();
+	}
+
+	private static void hand(List<ItemStack> stacks, World world, BlockPos table, PlayerEntity receiver) {
+		boolean dropped = false;
+		for (ItemStack stack : stacks) {
+			if (receiver != null) {
+				dropped |= Handover.give(receiver, stack);
+			} else if (world != null) {
+				ItemScatterer.spawn(world, table.getX() + 0.5, table.getY() + 0.5, table.getZ() + 0.5, stack);
+			}
+		}
+		if (dropped) {
+			Handover.tellDropped(receiver);
+		}
+	}
+
+	/** True when anything was delivered or still sits in a slot, so there is something to hand back. */
+	boolean holdsItems() {
+		return ledger.anyDelivered() || !slots.isEmpty();
 	}
 
 	private void absorbSlots() {

@@ -28,6 +28,8 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 	private static final int RADIUS = 160;
 	private static final int INTERVAL_TICKS = 40;
 	private static final Set<UUID> WATCHERS = new HashSet<>();
+	/** The immediate first send of turning the option on scans the area index; the two-second tick covers a throttled one. */
+	private static final RequestThrottle STARTS = new RequestThrottle(3, 100);
 
 	public record Area(int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean finished) {
 		private static final PacketCodec<RegistryByteBuf, Area> CODEC = PacketCodec.of(
@@ -56,10 +58,13 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 
 	public static void register() {
 		Platform.network().registerServerToClient(ID, CODEC);
+		STARTS.forgetOnDisconnect();
 		Platform.network().registerClientToServer(WatchAreasPayload.ID, WatchAreasPayload.CODEC, (payload, player) -> {
 			if (payload.watch()) {
 				WATCHERS.add(player.getUuid());
-				send(player);
+				if (STARTS.allow(player.getUuid(), player.getServer().getTicks())) {
+					send(player);
+				}
 			} else {
 				WATCHERS.remove(player.getUuid());
 			}

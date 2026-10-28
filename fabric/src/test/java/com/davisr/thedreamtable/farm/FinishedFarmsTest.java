@@ -325,4 +325,95 @@ class FinishedFarmsTest {
 		assertEquals(expectedPaid, after.paid());
 		assertFalse(areas.completeRepair(instanceId, operationId, repaired, repairPaid));
 	}
+
+	@Test
+	void anUnreadableRecordIsKeptUnchangedThroughASaveSoALaterVersionCanReadIt() {
+		FarmTemplate template = FarmTemplates.get(FarmOptions.CROP.id());
+		FarmAreas areas = new FarmAreas();
+		FarmSite otherSite = new FarmSite(SITE.table(), new BlockPos(30, 64, 30), Direction.NORTH);
+		areas.recordFinished(PLAYER, template, SITE, Map.of());
+		areas.recordFinished(PLAYER, template, otherSite, Map.of());
+		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
+		NbtCompound broken = nbt.getList("Areas", 10).getCompound(0);
+		broken.getCompound("Layout").putIntArray("State", new int[0]);
+		NbtCompound original = broken.copy();
+
+		FarmAreas restored = FarmAreas.read(nbt, null);
+		assertEquals(1, restored.finishedBy(PLAYER).size());
+		assertEquals(1, restored.unreadableCount());
+
+		NbtList resaved = restored.writeNbt(new NbtCompound(), null).getList("Areas", NbtElement.COMPOUND_TYPE);
+		assertEquals(2, resaved.size());
+		assertTrue(resaved.stream().anyMatch(original::equals), "the unreadable record was written back as it was saved");
+
+		// The record survives any number of load and save cycles, still untouched.
+		FarmAreas again = FarmAreas.read(restored.writeNbt(new NbtCompound(), null), null);
+		assertEquals(1, again.unreadableCount());
+		assertTrue(again.writeNbt(new NbtCompound(), null).getList("Areas", NbtElement.COMPOUND_TYPE).stream().anyMatch(original::equals));
+	}
+
+	@Test
+	void aRecordWithoutABoxOrPlayerIsAlsoKeptNotDeleted() {
+		NbtCompound nbt = saved(FarmTemplates.get(FarmOptions.CROP.id()));
+		NbtCompound junk = new NbtCompound();
+		junk.putString("Kind", "FINISHED");
+		nbt.getList("Areas", NbtElement.COMPOUND_TYPE).add(junk.copy());
+
+		FarmAreas restored = FarmAreas.read(nbt, null);
+
+		assertEquals(1, restored.finishedBy(PLAYER).size());
+		assertEquals(1, restored.unreadableCount());
+		assertTrue(restored.writeNbt(new NbtCompound(), null).getList("Areas", NbtElement.COMPOUND_TYPE).stream().anyMatch(junk::equals));
+	}
+
+	@Test
+	void aRepairWhoseLeaseWasReconciledAwayStillMergesItsPlacements() {
+		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
+		UUID instanceId = UUID.randomUUID();
+		BitSet placed = new BitSet();
+		placed.set(0);
+		BitSet paid = new BitSet();
+		paid.set(0);
+		FarmAreas areas = new FarmAreas();
+		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null, Map.of(), Map.of(), placed, paid);
+		UUID operationId = UUID.randomUUID();
+		areas.beginRepair(instanceId, PLAYER, SITE.table(), operationId).orElseThrow();
+		areas.failRepair(instanceId, operationId);
+		BitSet repaired = new BitSet();
+		repaired.set(1);
+		repaired.set(2);
+		BitSet repairPaid = new BitSet();
+		repairPaid.set(2);
+
+		assertFalse(areas.completeRepair(instanceId, operationId, repaired, repairPaid));
+		assertEquals(placed, areas.finished(instanceId).orElseThrow().placed(), "the lease-bound path changes nothing");
+
+		areas.mergePlacement(instanceId, repaired, repairPaid);
+
+		BitSet expectedPlaced = new BitSet();
+		expectedPlaced.set(0, 3);
+		BitSet expectedPaid = new BitSet();
+		expectedPaid.set(0);
+		expectedPaid.set(2);
+		assertEquals(expectedPlaced, areas.finished(instanceId).orElseThrow().placed());
+		assertEquals(expectedPaid, areas.finished(instanceId).orElseThrow().paid());
+		areas.mergePlacement(UUID.randomUUID(), repaired, repairPaid);
+	}
+
+	@Test
+	void restoredAlertStateReplacesWhatReleasingTheRecordDropped() {
+		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
+		UUID instanceId = UUID.randomUUID();
+		FarmAreas areas = new FarmAreas();
+		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null, Map.of(), Map.of());
+		areas.observeAlert(instanceId, FarmAlertType.BLOCKS_MISSING, 4, 120L);
+		NbtCompound snapshot = areas.alerts(instanceId).orElseThrow().write(new NbtCompound());
+
+		areas.release(FarmAreas.Key.finished(PLAYER, SITE));
+		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null, Map.of(), Map.of());
+		assertTrue(areas.alerts(instanceId).orElseThrow().active().isEmpty());
+		areas.restoreAlerts(instanceId, com.davisr.thedreamtable.farm.alert.FarmAlerts.read(snapshot));
+
+		assertEquals(4, areas.alerts(instanceId).orElseThrow().active(FarmAlertType.BLOCKS_MISSING).orElseThrow().quantity());
+	}
 }

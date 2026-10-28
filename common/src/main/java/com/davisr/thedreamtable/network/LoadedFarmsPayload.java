@@ -30,6 +30,8 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 	/** Farm and layout ids embed imported file names; the limit is far above any real one and encodes the same below 256. */
 	static final int MAX_ID = 1024;
 	private static final RequestThrottle THROTTLE = new RequestThrottle();
+	/** A toggle is a button click that changes server state and gets a reply: six a second is more than a person makes. */
+	private static final RequestThrottle TOGGLE_THROTTLE = new RequestThrottle(6, RequestThrottle.DEFAULT_WINDOW_TICKS);
 	public record InviteEntry(String key, UUID inviteId, String farmName, FarmRole role, long expiresAt) {
 	}
 	private static final PacketCodec<RegistryByteBuf, FarmLoader.Entry> ENTRY = PacketCodec.of(
@@ -72,33 +74,42 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 	public static void register() {
 		Platform.network().registerServerToClient(ID, CODEC);
 		THROTTLE.forgetOnDisconnect();
+		TOGGLE_THROTTLE.forgetOnDisconnect();
+		FarmNetwork.register();
 		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
-			// A toggle changes state and gets a reply the client waits for, so only plain list reads are budgeted.
-			if (payload.toggle().isEmpty() && !THROTTLE.allow(player.getUuid(), player.getServer().getTicks())) {
+			boolean toggling = !payload.toggle().isEmpty();
+			long now = player.getServer().getTicks();
+			LoadedFarmsGate.Route route = LoadedFarmsGate.route(toggling, (toggling ? TOGGLE_THROTTLE : THROTTLE).allow(player.getUuid(), now));
+			if (route == LoadedFarmsGate.Route.DROP || FarmNetwork.table(player, payload.table()) == null) {
 				return;
 			}
-			FarmLoader loader = FarmLoader.of(player.getServer());
-			if (FarmNetwork.table(player, payload.table()) == null) {
+			if (route == LoadedFarmsGate.Route.BUSY) {
+				FarmNetwork.result(player, payload.toggle(), FarmActionResultPayload.Action.KEEP_LOADED, FarmActionResultPayload.Result.BUSY);
 				return;
 			}
-			if (!payload.toggle().isEmpty()) {
-				FarmNetwork.Checked checked = FarmNetwork.authorize(player, payload.table(), payload.toggle(), FarmAction.KEEP_LOADED,
-						FarmActionResultPayload.Action.KEEP_LOADED);
-				if (checked != null) {
-					FarmLoader.ToggleResult result = loader.toggle(player.getServer(), player.getUuid(), checked.farm().located().key());
-					FarmActionResultPayload.Result response = switch (result) {
-						case SELECTED, UNSELECTED -> FarmActionResultPayload.Result.SUCCESS;
-						case OWNER_QUOTA_FULL -> FarmActionResultPayload.Result.LIMIT_REACHED;
-						case NOT_FOUND -> FarmActionResultPayload.Result.NOT_FOUND;
-						case FORBIDDEN -> FarmActionResultPayload.Result.FORBIDDEN;
-					};
-					FarmNetwork.result(player, payload.toggle(), FarmActionResultPayload.Action.KEEP_LOADED, response);
-					if (result == FarmLoader.ToggleResult.OWNER_QUOTA_FULL) {
-						player.sendMessage(Text.translatable("gui.the_dream_table.loaded_full", DreamTableConfig.maxLoadedFarms()), true);
-					}
+			if (route == LoadedFarmsGate.Route.LIST) {
+				send(player);
+				return;
+			}
+			FarmNetwork.Checked checked = FarmNetwork.authorize(player, payload.table(), payload.toggle(), FarmAction.KEEP_LOADED,
+					FarmActionResultPayload.Action.KEEP_LOADED);
+			if (checked != null) {
+				FarmLoader.ToggleResult result = FarmLoader.of(player.getServer()).toggle(player.getServer(), player.getUuid(), checked.farm().located().key());
+				FarmActionResultPayload.Result response = switch (result) {
+					case SELECTED, UNSELECTED -> FarmActionResultPayload.Result.SUCCESS;
+					case OWNER_QUOTA_FULL, TOO_LARGE -> FarmActionResultPayload.Result.LIMIT_REACHED;
+					case NOT_FOUND -> FarmActionResultPayload.Result.NOT_FOUND;
+					case FORBIDDEN -> FarmActionResultPayload.Result.FORBIDDEN;
+				};
+				FarmNetwork.result(player, payload.toggle(), FarmActionResultPayload.Action.KEEP_LOADED, response);
+				if (result == FarmLoader.ToggleResult.OWNER_QUOTA_FULL) {
+					player.sendMessage(Text.translatable("gui.the_dream_table.loaded_full", DreamTableConfig.maxLoadedFarms()), true);
+				} else if (result == FarmLoader.ToggleResult.TOO_LARGE) {
+					player.sendMessage(Text.translatable("gui.the_dream_table.loaded_too_large", FarmLoader.MAX_CHUNKS_PER_FARM), true);
 				}
 			}
-			send(player);
+			// The full scan after a toggle, granted or denied, runs only through the shared per-player refresh budget.
+			FarmNetwork.refresh(player);
 		});
 	}
 

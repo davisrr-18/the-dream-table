@@ -16,8 +16,15 @@ public record DepositMaterialPayload(BlockPos table) implements CustomPayload {
 			DepositMaterialPayload::new
 	);
 
+	/** The client sends at most one deposit per tick while clicking; fifteen a second is above any person's clicking. */
+	private static final RequestThrottle THROTTLE = new RequestThrottle(15, RequestThrottle.DEFAULT_WINDOW_TICKS);
+
 	public static void register() {
+		THROTTLE.forgetOnDisconnect();
 		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> {
+			if (!THROTTLE.allow(player.getUuid(), player.getServer().getTicks())) {
+				return;
+			}
 			// The client deposits from the in-world board with the menu closed, so no open menu is required here.
 			if (player.isSpectator() || !player.isAlive() || player.squaredDistanceTo(payload.table().toCenterPos()) > 64) {
 				return;

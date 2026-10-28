@@ -34,10 +34,12 @@ import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -59,8 +61,15 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	private final Map<UUID, TableSession> sessions = new LinkedHashMap<>();
 	/** Discarded builds still being taken apart. Server only; never sent to clients. */
 	private final List<FarmDismantler> dismantling = new ArrayList<>();
-	/** Area claims of saved Take Down jobs that could not be read, freed on the next tick. Server only. */
+	/**
+	 * Area claims of saved Take Down jobs that could not be read. Their jobs are kept as saved and the farm stands, so the
+	 * claims stay until the table is broken: nothing is built over the leftovers meanwhile, and a later version that reads
+	 * the job finds its claim. Server only.
+	 */
 	private final List<FarmAreas.Key> staleClaims = new ArrayList<>();
+	/** Saved sessions and take-apart jobs this version couldn't read, written back as they were so a later version can. */
+	private final List<NbtCompound> unreadableSessions = new ArrayList<>();
+	private final List<NbtCompound> unreadableJobs = new ArrayList<>();
 	private boolean ownSessionReceived;
 
 	public DreamTableBlockEntity(BlockPos pos, BlockState state) {
@@ -119,11 +128,6 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	}
 
 	private void tickDismantling(ServerWorld world) {
-		if (!staleClaims.isEmpty()) {
-			FarmAreas areas = FarmAreas.of(world);
-			staleClaims.forEach(areas::release);
-			staleClaims.clear();
-		}
 		if (dismantling.isEmpty()) {
 			return;
 		}
@@ -258,14 +262,19 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		super.writeNbt(nbt, registries);
 		NbtList list = new NbtList();
+		Set<UUID> written = new HashSet<>();
 		for (TableSession session : sessions.values()) {
 			if (!session.isEmpty()) {
 				NbtCompound entry = new NbtCompound();
 				entry.putUuid("Player", session.player());
 				session.write(entry, registries);
 				list.add(entry);
+				written.add(session.player());
 			}
 		}
+		// A player who started a new session since the load must not be read back as the old one next time.
+		GuardedRead.dropSuperseded(unreadableSessions, written);
+		unreadableSessions.forEach(raw -> list.add(raw.copy()));
 		nbt.put("Sessions", list);
 		NbtList jobs = new NbtList();
 		for (FarmDismantler job : dismantling) {
@@ -273,6 +282,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 			job.write(entry);
 			jobs.add(entry);
 		}
+		unreadableJobs.forEach(raw -> jobs.add(raw.copy()));
 		nbt.put("Dismantling", jobs);
 	}
 
@@ -283,15 +293,17 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 			return;
 		}
 		sessions.clear();
+		unreadableSessions.clear();
+		unreadableJobs.clear();
 		NbtList list = nbt.getList("Sessions", NbtElement.COMPOUND_TYPE);
-		for (int index = 0; index < list.size(); index++) {
-			NbtCompound entry = list.getCompound(index);
+		unreadableSessions.addAll(GuardedRead.forEach(list, "session at " + pos, entry -> {
 			if (entry.containsUuid("Player")) {
 				TableSession session = new TableSession(this, entry.getUuid("Player"));
 				session.read(entry, registries);
 				sessions.put(session.player(), session);
 			}
-		}
+		}));
+		GuardedRead.dropSuperseded(unreadableSessions, sessions.keySet());
 		if (!nbt.contains("Sessions", NbtElement.LIST_TYPE)) {
 			readSharedState(nbt, registries);
 		}
@@ -303,6 +315,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 			if (job != null) {
 				dismantling.add(job);
 			} else {
+				unreadableJobs.add(jobs.getCompound(index).copy());
 				FarmAreas.Key claim = FarmDismantler.claimOf(jobs.getCompound(index));
 				if (claim != null) {
 					staleClaims.add(claim);

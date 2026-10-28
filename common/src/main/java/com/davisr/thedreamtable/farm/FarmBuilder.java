@@ -7,7 +7,6 @@ import com.davisr.thedreamtable.block.entity.TableSession;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -97,7 +96,7 @@ public final class FarmBuilder {
 				return BuildIssue.of(BuildIssue.Kind.OBSTACLE, target, existing.getBlock());
 			}
 		}
-		if (!permitted(world, owner, target, existing)) {
+		if (!permitted(world, owner, target, existing, placed)) {
 			return BuildIssue.at(BuildIssue.Kind.PROTECTED, target);
 		}
 		if (step.item() != null && !owner.isCreative() && !table.hasMaterial(step.item())) {
@@ -187,9 +186,9 @@ public final class FarmBuilder {
 		}
 		boolean paid = costs && table.spendMaterial(step.item());
 		if (placed != null) {
-			table.build().recordPlaced(paid);
+			table.build().recordPlaced(FarmSpawns.recordsAsPaid(step.item(), paid));
 		}
-		if (placed != null && step.item() == Items.WATER_BUCKET && paid) {
+		if (placed != null && step.item() != null && FarmSpawns.leavesEmptyBucket(step.item()) && paid) {
 			FarmSpawns.returnBucket(world, table);
 		}
 		advance(world, table, template, site);
@@ -197,11 +196,14 @@ public final class FarmBuilder {
 	}
 
 	/** Builds as the player who started it, so protected land stays protected. The build waits while that player is offline. */
-	private static boolean permitted(ServerWorld world, ServerPlayerEntity owner, BlockPos target, BlockState existing) {
-		if (existing != null && !existing.isReplaceable()) {
-			return BuildPermission.canBreak(world, owner, target, existing);
+	private static boolean permitted(ServerWorld world, ServerPlayerEntity owner, BlockPos target, @Nullable BlockState existing, @Nullable BlockState placed) {
+		if (placed == null) {
+			return BuildPermission.canPlace(world, owner, target);
 		}
-		return BuildPermission.canPlace(world, owner, target);
+		if (!existing.isReplaceable() && !BuildPermission.canBreak(world, owner, target, existing)) {
+			return false;
+		}
+		return BuildPermission.canPlace(world, owner, target, placed);
 	}
 
 	/** Blocks inside another table's farm, or another player's, belong to that farm and are never cleared. */
