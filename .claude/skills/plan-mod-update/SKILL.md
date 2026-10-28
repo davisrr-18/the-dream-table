@@ -15,12 +15,14 @@ Quando solicitado, transformar os requisitos da atualização em um plano execut
 4. Consolidar relatórios compactos.
 5. Dividir o trabalho em marcos verificáveis.
 6. Definir testes e gates de qualidade.
-7. Avaliar se alguma tarefa justifica escalonamento para um modelo ou esforço superior, sem escalonar sem autorização.
+7. Definir o modelo e o esforço recomendados para cada marco e tarefa, elevando ou reduzindo conforme a complexidade e o risco (roteamento adaptativo, CLAUDE.md seção 7).
 8. Registrar decisões e pendências.
 
 Para atualizações relevantes, apresentar o escopo inicial e solicitar autorização antes de iniciar o Marco 1.
 
 Ao concluir cada marco, apresentar resultados e solicitar aprovação explícita antes de iniciar o próximo.
+
+Testes em jogo: o usuário testa no Minecraft somente uma vez, na versão final pronta da atualização (CLAUDE.md seção 4). Os marcos intermediários fecham com verificação automatizada, smoke de servidor dedicado em cada loader e revisão independente; as verificações manuais de cada marco entram na checklist consolidada do registro da tarefa.
 
 A autorização de um marco cobre apenas seu escopo aprovado.
 
@@ -54,13 +56,13 @@ Papéis, quando disponíveis e verificados no ambiente:
 - `investigator`: investigação delimitada de código e requisitos.
 - `implementer`: implementação isolada de tarefas aprovadas.
 - `reviewer`: revisão independente de alterações e riscos.
-- Escalonamento: modelo ou esforço superior em casos excepcionais, sujeito à aprovação do usuário.
+- Roteamento adaptativo: o agente principal pode elevar ou reduzir o modelo e o esforço de si mesmo e dos subagentes por tarefa ou marco, sem nova aprovação, informando cada mudança e o motivo. O modelo da sessão principal só muda pelo usuário (`/model`, `/effort`); nesse caso, recomendar.
 
 Os subagentes são definidos em `.claude/agents/*.md`, com os mesmos nomes e responsabilidades.
 
 Antes de delegar, confirmar que o papel está carregado na sessão atual. Se não estiver, executar diretamente ou informar o usuário; não substituir silenciosamente por outro agente.
 
-O modelo e o esforço de cada papel vêm da definição do agente em `.claude/agents/*.md`. Seguir as preferências de modelo do CLAUDE.md somente quando os modelos citados existirem no ambiente.
+O modelo e o esforço padrão de cada papel vêm da definição do agente em `.claude/agents/*.md`; o roteamento adaptativo pode ajustá-los na chamada de delegação. Seguir as preferências de modelo do CLAUDE.md somente quando os modelos citados existirem no ambiente.
 
 Utilizar no máximo três subagentes simultâneos, conforme os limites efetivamente configurados.
 

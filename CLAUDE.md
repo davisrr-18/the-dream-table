@@ -141,14 +141,14 @@ The orchestrator is accountable for the final integrated result.
 Optimize for validated work per unit of available resources, without sacrificing correctness.
 
 - Prefer the least expensive capable model and reasoning effort.
-- Preserve configured agent models and effort levels.
+- Use configured agent models and effort levels unless adaptive routing (section 7) recommends another level.
 - Keep subagent context focused and reports concise.
 - Reuse existing discoveries and checkpoints.
 - Avoid unnecessary repeated tool calls and redundant reviews.
 - Do not rerun tests that already passed unless the relevant code changed or there is a concrete reason.
 - Do not bypass essential tests to reduce usage.
 - Do not claim token or quota savings without actual measurements.
-- Request explicit approval before exceptional model escalation.
+- Raise or lower model/effort per task under the adaptive routing rules in section 7, reporting each change.
 
 The detailed procedure belongs to the applicable project skill. Do not duplicate its full contents here.
 
@@ -180,6 +180,8 @@ A task or milestone may be declared complete only when:
 - Required approvals were respected.
 
 Trivial changes and read-only questions may use a simplified workflow.
+
+In-game testing (standing user decision, 2026-10-28): the user tests in a Minecraft client only once, on the final release-ready build of an update. Intermediate milestones close on automated verification (`./gradlew build`, tests, dev dedicated server smoke on each loader) and independent review. Each milestone adds its manual checks to the update's consolidated in-game checklist in the task record instead of waiting for them. Fixes found in that final pass follow the normal workflow.
 
 The skill owns the detailed process, task classification, delegation plan, acceptance criteria, and quality gates.
 
@@ -230,11 +232,17 @@ Operational preferences, when available:
 
 - Primary agent: orchestration and integration, at medium effort (Claude Code main session).
 - Investigation, isolated implementation, and independent review: delegate to the matching subagent at its configured model and effort.
-- Escalation to a stronger model or higher effort: exceptional, requires justification and explicit user approval.
+- Adaptive routing (standing user authorization, 2026-10-28): the primary agent may raise or lower the model and effort of itself and of any delegated subagent, per task or milestone, following the recommendation for that work. No separate approval is needed.
 
 Use low effort for mechanical work, medium for ordinary tasks, and high for difficult or risky tasks. Higher efforts require model support and concrete justification.
 
-Do not escalate automatically. Keep a durable checkpoint before switching models.
+Adaptive routing rules:
+
+- Subagents: set `model`/`effort` on the delegation call when the task warrants a level different from its `.claude/agents/*.md` default; otherwise keep the default.
+- Primary session: its model and effort can only be changed by the user (`/model`, `/effort`). Recommend the change at the start of the task or milestone, and include the recommended model/effort in every resume phrase for a new chat.
+- Lower the level for mechanical or low-risk work; raise it only for concrete complexity or risk, never by default.
+- State each change and its reason in the stage report and record it in the task record.
+- Keep a durable checkpoint before switching models.
 
 State model/effort routing at the start when actionable.
 
