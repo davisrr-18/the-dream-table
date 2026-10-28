@@ -89,4 +89,9 @@ From the project root, with Java 21:
 ./gradlew build
 ```
 
-The mod jars are `fabric/build/libs/the_dream_table-fabric-1.0.0.jar` (Fabric, needs Fabric API) and `neoforge/build/libs/the_dream_table-neoforge-1.0.0.jar` (NeoForge). Jars suffixed with `sources` or `dev-shadow` are for development only.
+The build places one jar per loader in its own folder:
+
+- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-1.0.0.jar`
+- NeoForge: `build/release/neoforge/the_dream_table-neoforge-1.0.0.jar`
+
+The `sources` and `dev-shadow` jars under `fabric/build/libs/` and `neoforge/build/libs/` are for development only.
