@@ -79,6 +79,7 @@ Delegation is adaptive, not unconditional:
 - Execute dependent activities sequentially.
 - Avoid overlapping parallel edits and duplicated investigations.
 - Do not repeat completed investigations without a concrete verification need.
+- Avoid nested delegation (subagents spawning subagents) unless it brings a clear benefit.
 
 ### 3.2. Specialized agents
 
@@ -148,6 +149,7 @@ Optimize for validated work per unit of available resources, without sacrificing
 - Keep subagent context focused and reports concise.
 - Reuse existing discoveries and checkpoints.
 - Avoid unnecessary repeated tool calls and redundant reviews.
+- Do not rerun tests that already passed unless the relevant code changed or there is a concrete reason.
 - Do not bypass essential tests to reduce usage.
 - Do not claim token or quota savings without actual measurements.
 - Request explicit approval before exceptional model escalation.
@@ -171,6 +173,15 @@ Obtain explicit approval before starting each subsequent milestone and before de
 Approval covers only the agreed scope. In-scope corrections and tests do not require repeated approval.
 
 Do not use delegation to bypass milestone approvals or expand the approved scope.
+
+A task or milestone may be declared complete only when:
+
+- The approved scope is implemented.
+- Acceptance criteria are verified.
+- Relevant tests have known results.
+- Required integration and review are done.
+- Limitations and pending items are documented.
+- Required approvals were respected.
 
 Trivial changes and read-only questions may use a simplified workflow.
 
