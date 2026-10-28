@@ -218,7 +218,7 @@ public final class FarmDismantler {
 	}
 
 	private static BlockState expected(FarmStep step, Map<Item, Item> swaps, FarmSite site) {
-		return MaterialSwaps.apply(step.state(), swaps).rotate(FarmGeometry.rotation(site.facing()));
+		return site.orient(MaterialSwaps.apply(step.state(), swaps));
 	}
 
 	/** Returns false when the step's chunk isn't loaded, so the job waits there instead of skipping it. */

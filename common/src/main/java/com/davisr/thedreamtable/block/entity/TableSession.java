@@ -249,8 +249,12 @@ public final class TableSession {
 		return placement.facing();
 	}
 
-	public void setPlacement(BlockPos anchor, Direction facing) {
-		placement.set(anchor, facing);
+	public boolean getFarmMirrored() {
+		return placement.mirrored();
+	}
+
+	public void setPlacement(BlockPos anchor, Direction facing, boolean mirrored) {
+		placement.set(anchor, facing, mirrored);
 		sync();
 	}
 

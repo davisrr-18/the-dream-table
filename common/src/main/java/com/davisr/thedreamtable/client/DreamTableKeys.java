@@ -12,6 +12,13 @@ public final class DreamTableKeys {
 			"category.the_dream_table"
 	));
 
+	public static final KeyBinding MIRROR = Platform.clientEvents().registerKeyBinding(new KeyBinding(
+			"key.the_dream_table.mirror",
+			InputUtil.Type.KEYSYM,
+			InputUtil.GLFW_KEY_M,
+			"category.the_dream_table"
+	));
+
 	public static final KeyBinding LAYERS = Platform.clientEvents().registerKeyBinding(new KeyBinding(
 			"key.the_dream_table.layers",
 			InputUtil.Type.KEYSYM,
@@ -29,6 +36,9 @@ public final class DreamTableKeys {
 			}
 			while (ROTATE.wasPressed()) {
 				DreamTableHologram.rotate();
+			}
+			while (MIRROR.wasPressed()) {
+				DreamTableHologram.mirror();
 			}
 			while (LAYERS.wasPressed()) {
 				DreamTableHologram.toggleLayers();

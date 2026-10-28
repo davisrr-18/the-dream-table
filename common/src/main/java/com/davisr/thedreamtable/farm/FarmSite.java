@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import net.minecraft.block.BlockState;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
@@ -11,11 +12,20 @@ import org.jetbrains.annotations.Nullable;
  * Where a farm sits in the world: beside the table when there is no anchor, or at the anchor the player picked.
  * It turns template steps into world positions without touching a session, so a spot can be checked before it is used.
  */
-public record FarmSite(BlockPos table, @Nullable BlockPos anchor, Direction facing) {
+public record FarmSite(BlockPos table, @Nullable BlockPos anchor, Direction facing, boolean mirrored) {
+	public FarmSite(BlockPos table, @Nullable BlockPos anchor, Direction facing) {
+		this(table, anchor, facing, false);
+	}
+
 	public BlockPos target(FarmTemplate template, FarmStep step) {
 		return anchor != null
-				? FarmGeometry.toAimed(anchor, facing, template, step)
-				: FarmGeometry.toWorld(table, facing, step);
+				? FarmGeometry.toAimed(anchor, facing, mirrored, template, step)
+				: FarmGeometry.toWorld(table, facing, mirrored, step);
+	}
+
+	/** A template block state as this site places it: mirrored when asked, then turned. */
+	public BlockState orient(BlockState state) {
+		return FarmGeometry.orient(state, facing, mirrored);
 	}
 
 	/** The box of blocks the farm occupies. */
@@ -50,6 +60,9 @@ public record FarmSite(BlockPos table, @Nullable BlockPos anchor, Direction faci
 			nbt.putLong("Anchor", anchor.asLong());
 		}
 		nbt.putString("Facing", facing.asString());
+		if (mirrored) {
+			nbt.putBoolean("Mirrored", true);
+		}
 	}
 
 	public static FarmSite read(NbtCompound nbt) {
@@ -57,6 +70,7 @@ public record FarmSite(BlockPos table, @Nullable BlockPos anchor, Direction faci
 		return new FarmSite(
 				BlockPos.fromLong(nbt.getLong("Table")),
 				nbt.contains("Anchor") ? BlockPos.fromLong(nbt.getLong("Anchor")) : null,
-				facing != null && facing.getAxis().isHorizontal() ? facing : Direction.SOUTH);
+				facing != null && facing.getAxis().isHorizontal() ? facing : Direction.SOUTH,
+				nbt.getBoolean("Mirrored"));
 	}
 }

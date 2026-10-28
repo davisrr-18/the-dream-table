@@ -28,7 +28,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * Where the farm preview sits. Before the build the player aims, anchors with a right-click and rotates with R;
+ * Where the farm preview sits. Before the build the player aims, anchors with a right-click, rotates with R and mirrors with M;
  * once building, the table's saved anchor and facing are used instead.
  */
 public final class DreamTableHologram {
@@ -39,6 +39,7 @@ public final class DreamTableHologram {
 	private static BlockPos aimed;
 	private static boolean anchored;
 	private static Direction previewFacing;
+	private static boolean previewMirrored;
 	private static int lastPlaceAge = -1;
 	private static final int RECHECK_TICKS = 40;
 	/** While building, the hologram shows the layer being built and this many above it, unless all layers are on. */
@@ -59,7 +60,7 @@ public final class DreamTableHologram {
 	public static void registerChecks() {
 		Platform.clientNetwork().registerReceiver(PlacementResultPayload.ID, payload -> {
 			if (payload.table().equals(tablePos)) {
-				checked = new Placement(payload.anchor(), payload.facing());
+				checked = new Placement(payload.anchor(), payload.facing(), payload.mirrored());
 				problem = payload.problem();
 				if (payload.existing() != PlacementResultPayload.UNCHANGED) {
 					existing = payload.existing();
@@ -87,7 +88,7 @@ public final class DreamTableHologram {
 	}
 
 	private static boolean checkedNow() {
-		return hasPlacement() && new Placement(aimed, previewFacing()).equals(checked);
+		return hasPlacement() && new Placement(aimed, previewFacing(), previewMirrored).equals(checked);
 	}
 
 	/** A new placement forgets the old answer; the regular recheck keeps showing it until the new one arrives. */
@@ -101,7 +102,7 @@ public final class DreamTableHologram {
 
 	private static void send(boolean announce) {
 		if (hasPlacement() && Platform.clientNetwork().canSend(CheckPlacementPayload.ID)) {
-			Platform.clientNetwork().send(new CheckPlacementPayload(tablePos, aimed, previewFacing(), announce));
+			Platform.clientNetwork().send(new CheckPlacementPayload(tablePos, aimed, previewFacing(), previewMirrored, announce));
 		}
 	}
 
@@ -120,6 +121,7 @@ public final class DreamTableHologram {
 			aimed = null;
 			anchored = false;
 			previewFacing = null;
+			previewMirrored = false;
 			checked = null;
 			problem = "";
 			existing = 0;
@@ -142,6 +144,20 @@ public final class DreamTableHologram {
 		}
 	}
 
+	/** M flips the preview left to right. It turns and mirrors independently, so any of the eight orientations is reachable. */
+	public static void mirror() {
+		if (tablePos == null || farmId.isEmpty() || locked()) {
+			return;
+		}
+		previewMirrored = !previewMirrored;
+		check();
+		PlayerEntity player = MinecraftClient.getInstance().player;
+		if (player != null) {
+			player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5F, previewMirrored ? 1.25F : 1.05F);
+			player.sendMessage(Text.translatable(previewMirrored ? "gui.the_dream_table.mirror_on" : "gui.the_dream_table.mirror_off"), true);
+		}
+	}
+
 	/** H switches a running build's hologram between the next layers only and the whole farm. */
 	public static void toggleLayers() {
 		allLayers = !allLayers;
@@ -158,6 +174,10 @@ public final class DreamTableHologram {
 			previewFacing = player == null ? Direction.SOUTH : player.getHorizontalFacing();
 		}
 		return previewFacing;
+	}
+
+	public static boolean previewMirrored() {
+		return previewMirrored;
 	}
 
 	public static boolean hasPlacement() {
@@ -180,6 +200,7 @@ public final class DreamTableHologram {
 		aimed = null;
 		anchored = false;
 		previewFacing = null;
+		previewMirrored = false;
 		checked = null;
 		problem = "";
 		existing = 0;
@@ -214,7 +235,7 @@ public final class DreamTableHologram {
 		if (placement != null) {
 			boolean refused = idle && !placementProblem().isEmpty();
 			int topLayer = topLayer(template, shownPlaced, idle);
-			GhostRenderer.drawGhosts(matrices, template, table, placement.anchor(), placement.facing(), shownPlaced, shownBlocked, refused, topLayer, wave);
+			GhostRenderer.drawGhosts(matrices, template, table, placement.anchor(), placement.facing(), placement.mirrored(), shownPlaced, shownBlocked, refused, topLayer, wave);
 		}
 		matrices.pop();
 	}
@@ -286,9 +307,9 @@ public final class DreamTableHologram {
 
 	private static Placement placement(TableSession table) {
 		if (table != null && table.hasAnchor() && !DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase())) {
-			return new Placement(table.getFarmAnchor(), table.getFarmFacing());
+			return new Placement(table.getFarmAnchor(), table.getFarmFacing(), table.getFarmMirrored());
 		}
-		return hasPlacement() ? new Placement(aimed, previewFacing()) : null;
+		return hasPlacement() ? new Placement(aimed, previewFacing(), previewMirrored) : null;
 	}
 
 	private static BlockPos aim(RenderFrame context) {
@@ -326,6 +347,6 @@ public final class DreamTableHologram {
 		return player != null && blockEntity instanceof DreamTableBlockEntity table ? table.session(player) : null;
 	}
 
-	private record Placement(BlockPos anchor, Direction facing) {
+	private record Placement(BlockPos anchor, Direction facing, boolean mirrored) {
 	}
 }

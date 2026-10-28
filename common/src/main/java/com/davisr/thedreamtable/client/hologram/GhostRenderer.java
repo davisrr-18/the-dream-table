@@ -55,10 +55,10 @@ public final class GhostRenderer {
 	 * skipped when that block is already built or drawn too, so the top of the last shown layer still gets its faces.
 	 */
 	public static void drawGhosts(MatrixStack matrices, FarmTemplate template, TableSession table,
-			BlockPos anchor, Direction facing, int shownPlaced, boolean blocked, boolean refused, int topLayer, float wave) {
+			BlockPos anchor, Direction facing, boolean mirrored, int shownPlaced, boolean blocked, boolean refused, int topLayer, float wave) {
 		List<FarmFaces.Part> parts = table == null
-				? FarmFaces.of(template, "", state -> state, facing)
-				: FarmFaces.of(template, table.swapKey(), table::swapState, facing);
+				? FarmFaces.of(template, "", state -> state, facing, mirrored)
+				: FarmFaces.of(template, table.swapKey(), table::swapState, facing, mirrored);
 		List<FarmStep> steps = template.steps();
 		BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
 		boolean any = false;

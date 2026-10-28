@@ -253,6 +253,10 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			DreamTableHologram.rotate();
 			return true;
 		}
+		if (DreamTableKeys.MIRROR.matchesKey(keyCode, scanCode)) {
+			DreamTableHologram.mirror();
+			return true;
+		}
 		if (keyCode == GLFW.GLFW_KEY_TAB) {
 			controls.moveTab((modifiers & GLFW.GLFW_MOD_SHIFT) != 0).ifPresent(this::focusControl);
 			revealFocused();

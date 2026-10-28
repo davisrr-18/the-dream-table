@@ -9,6 +9,7 @@ import net.minecraft.util.math.Direction;
 final class FarmPlacement {
 	private BlockPos anchor;
 	private Direction facing = Direction.SOUTH;
+	private boolean mirrored;
 
 	BlockPos anchor() {
 		return anchor;
@@ -18,22 +19,31 @@ final class FarmPlacement {
 		return facing;
 	}
 
+	boolean mirrored() {
+		return mirrored;
+	}
+
 	boolean placed() {
 		return anchor != null;
 	}
 
-	void set(BlockPos anchor, Direction facing) {
+	void set(BlockPos anchor, Direction facing, boolean mirrored) {
 		this.anchor = anchor;
 		this.facing = horizontal(facing);
+		this.mirrored = mirrored;
 	}
 
 	void clear() {
 		anchor = null;
 		facing = Direction.SOUTH;
+		mirrored = false;
 	}
 
 	void write(NbtCompound nbt) {
 		nbt.putString("FarmFacing", facing.asString());
+		if (mirrored) {
+			nbt.putBoolean("FarmMirror", true);
+		}
 		if (anchor != null) {
 			nbt.putInt("AnchorX", anchor.getX());
 			nbt.putInt("AnchorY", anchor.getY());
@@ -43,6 +53,7 @@ final class FarmPlacement {
 
 	void read(NbtCompound nbt) {
 		facing = horizontal(Direction.byName(nbt.getString("FarmFacing")));
+		mirrored = nbt.getBoolean("FarmMirror");
 		anchor = nbt.contains("AnchorX", NbtElement.INT_TYPE) ? new BlockPos(nbt.getInt("AnchorX"), nbt.getInt("AnchorY"), nbt.getInt("AnchorZ")) : null;
 	}
 

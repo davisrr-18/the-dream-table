@@ -21,12 +21,13 @@ import net.minecraft.util.math.Direction;
  * The server runs the same checks Build will and answers with {@link PlacementResultPayload},
  * so the hologram turns red and the reason shows right away.
  */
-public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction facing, boolean announce) implements CustomPayload {
+public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction facing, boolean mirrored, boolean announce) implements CustomPayload {
 	public static final Id<CheckPlacementPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "check_placement"));
 	public static final PacketCodec<RegistryByteBuf, CheckPlacementPayload> CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC, CheckPlacementPayload::table,
 			BlockPos.PACKET_CODEC, CheckPlacementPayload::anchor,
 			Direction.PACKET_CODEC, CheckPlacementPayload::facing,
+			PacketCodecs.BOOL, CheckPlacementPayload::mirrored,
 			PacketCodecs.BOOL, CheckPlacementPayload::announce,
 			CheckPlacementPayload::new
 	);
@@ -58,10 +59,10 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 				return;
 			}
 			Direction facing = PlaceFarmPayload.horizontal(payload.facing(), player);
-			FarmSite site = new FarmSite(table.getPos(), payload.anchor(), facing);
+			FarmSite site = new FarmSite(table.getPos(), payload.anchor(), facing, payload.mirrored());
 			String problem = table.problemAt(world, player, site);
 			int existing = problem != null ? 0 : payload.announce() ? table.existingPercent(world, site) : PlacementResultPayload.UNCHANGED;
-			Platform.network().send(player, new PlacementResultPayload(payload.table(), payload.anchor(), facing, problem == null ? "" : problem, existing));
+			Platform.network().send(player, new PlacementResultPayload(payload.table(), payload.anchor(), facing, site.mirrored(), problem == null ? "" : problem, existing));
 			if (problem != null && payload.announce()) {
 				player.sendMessage(Text.translatable(problem), true);
 			}

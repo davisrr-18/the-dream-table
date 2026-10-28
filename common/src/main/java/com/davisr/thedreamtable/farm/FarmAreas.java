@@ -601,7 +601,7 @@ public final class FarmAreas extends PersistentState {
 				unloaded = true;
 				continue;
 			}
-			BlockState expected = MaterialSwaps.apply(step.state(), swaps).rotate(FarmGeometry.rotation(site.facing()));
+			BlockState expected = site.orient(MaterialSwaps.apply(step.state(), swaps));
 			blocks++;
 			switch (spot(world.getBlockState(pos), expected)) {
 				case FARM -> found++;
