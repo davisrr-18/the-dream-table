@@ -4,8 +4,7 @@ import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
-import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
@@ -13,8 +12,6 @@ import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.client.render.model.BakedQuad;
 import net.minecraft.client.texture.Sprite;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.resource.ResourceType;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -48,17 +45,7 @@ public final class FarmFaces {
 
 	/** Kept faces point into the texture atlas, so they are dropped whenever resources reload. */
 	public static void register() {
-		ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
-			@Override
-			public Identifier getFabricId() {
-				return Identifier.of(TheDreamTableMod.MOD_ID, "farm_faces");
-			}
-
-			@Override
-			public void reload(ResourceManager manager) {
-				CACHE.clear();
-			}
-		});
+		Platform.clientEvents().onResourcesReloaded(Identifier.of(TheDreamTableMod.MOD_ID, "farm_faces"), manager -> CACHE.clear());
 	}
 
 	/**

@@ -9,11 +9,11 @@ import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.RepairLease;
 import com.davisr.thedreamtable.network.ServerSchematicsPayload;
 import com.davisr.thedreamtable.network.SessionSyncPayload;
+import com.davisr.thedreamtable.platform.ExtendedMenuProvider;
+import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import com.davisr.thedreamtable.screen.OpenData;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -44,7 +44,7 @@ import java.util.UUID;
  * The table block. It keeps one {@link TableSession} per player, so every player who uses it has their own
  * menu, farm, materials and build. The table itself only ticks the builds, saves the sessions, and syncs them to clients.
  */
-public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<OpenData> {
+public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuProvider<OpenData> {
 	public static final String PHASE_IDLE = "idle";
 	public static final String PHASE_BUILDING = "building";
 	public static final String PHASE_BLOCKED = "blocked";
@@ -84,7 +84,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 			if (session.takeClientDirty()) {
 				ServerPlayerEntity owner = session.onlineOwner(world);
 				if (owner != null && owner.getServerWorld() == world && owner.squaredDistanceTo(pos.toCenterPos()) < SEND_DISTANCE * SEND_DISTANCE) {
-					ServerPlayNetworking.send(owner, new SessionSyncPayload(pos, session.writeForClient()));
+					Platform.network().send(owner, new SessionSyncPayload(pos, session.writeForClient()));
 				}
 			}
 		}
@@ -202,7 +202,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedScreen
 	}
 
 	@Override
-	public OpenData getScreenOpeningData(ServerPlayerEntity player) {
+	public OpenData openingData(ServerPlayerEntity player) {
 		TableSession session = session(player);
 		return new OpenData(pos, session.getSelectedFarm(), session.getPage(), DreamTableScreenHandler.phaseOf(session.getPhase()), session.getBuildIndex());
 	}

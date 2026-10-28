@@ -5,13 +5,11 @@ import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmSite;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -37,9 +35,7 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 	private static final double MAX_DISTANCE = FarmGeometry.AIM_RANGE + 16.0;
 
 	public static void register() {
-		PayloadTypeRegistry.playC2S().register(ID, CODEC);
-		ServerPlayNetworking.registerGlobalReceiver(ID, (payload, context) -> context.server().execute(() -> {
-			ServerPlayerEntity player = context.player();
+		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> {
 			if (player.squaredDistanceTo(payload.table().toCenterPos()) > MAX_DISTANCE * MAX_DISTANCE || !(player.getWorld() instanceof ServerWorld world)) {
 				return;
 			}
@@ -55,11 +51,11 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 			FarmSite site = new FarmSite(table.getPos(), payload.anchor(), facing);
 			String problem = table.problemAt(world, player, site);
 			int existing = problem != null ? 0 : payload.announce() ? table.existingPercent(world, site) : PlacementResultPayload.UNCHANGED;
-			ServerPlayNetworking.send(player, new PlacementResultPayload(payload.table(), payload.anchor(), facing, problem == null ? "" : problem, existing));
+			Platform.network().send(player, new PlacementResultPayload(payload.table(), payload.anchor(), facing, problem == null ? "" : problem, existing));
 			if (problem != null && payload.announce()) {
 				player.sendMessage(Text.translatable(problem), true);
 			}
-		}));
+		});
 	}
 
 	@Override

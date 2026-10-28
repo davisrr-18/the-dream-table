@@ -14,12 +14,9 @@ import com.davisr.thedreamtable.client.clipboard.ClipboardSheet.Column;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.network.DepositMaterialPayload;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.fabricmc.fabric.api.event.player.UseBlockCallback;
-import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import com.davisr.thedreamtable.platform.Platform;
+import com.davisr.thedreamtable.platform.RenderFrame;
+import com.davisr.thedreamtable.platform.RenderStage;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
@@ -63,21 +60,21 @@ public final class DreamTableClipboard {
 	}
 
 	public static void register() {
-		WorldRenderEvents.AFTER_TRANSLUCENT.register(DreamTableClipboard::render);
-		UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+		Platform.clientRendering().onWorldRender(RenderStage.AFTER_TRANSLUCENT, DreamTableClipboard::render);
+		Platform.clientEvents().onUseBlock((player, world, hand, hit) -> {
 			if (!world.isClient() || hand != Hand.MAIN_HAND || !isCloserThanBlock(player, hit.getPos())) {
 				return ActionResult.PASS;
 			}
 			return interact(player) ? ActionResult.FAIL : ActionResult.PASS;
 		});
-		UseItemCallback.EVENT.register((player, world, hand) -> {
+		Platform.clientEvents().onUseItem((player, world, hand) -> {
 			ItemStack stack = player.getStackInHand(hand);
 			if (!world.isClient() || hand != Hand.MAIN_HAND || !hits(player)) {
 				return TypedActionResult.pass(stack);
 			}
 			return interact(player) ? TypedActionResult.fail(stack) : TypedActionResult.pass(stack);
 		});
-		ClientTickEvents.END_CLIENT_TICK.register(DreamTableClipboard::turnPageWithEmptyHand);
+		Platform.clientEvents().onTickEnd(DreamTableClipboard::turnPageWithEmptyHand);
 	}
 
 	public static void pin(BlockPos pos) {
@@ -115,7 +112,7 @@ public final class DreamTableClipboard {
 		interact(client.player);
 	}
 
-	private static void render(WorldRenderContext context) {
+	private static void render(RenderFrame context) {
 		hitbox = null;
 		if (context.world() == null || context.matrixStack() == null || context.camera() == null) {
 			return;
@@ -143,7 +140,7 @@ public final class DreamTableClipboard {
 	}
 
 	/** The local player's own session at the pinned table: every player sees only their own board. */
-	private static TableSession shownTable(WorldRenderContext context) {
+	private static TableSession shownTable(RenderFrame context) {
 		BlockPos pos = pinned != null ? pinned : DreamTableHologram.trackedTable();
 		if (pos == null || !(context.world().getBlockState(pos).getBlock() instanceof DreamTableBlock)) {
 			return null;
@@ -227,7 +224,7 @@ public final class DreamTableClipboard {
 			return true;
 		}
 		lastClickAge = player.age;
-		ClientPlayNetworking.send(new DepositMaterialPayload(pos));
+		Platform.clientNetwork().send(new DepositMaterialPayload(pos));
 		return true;
 	}
 

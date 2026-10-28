@@ -5,8 +5,7 @@ import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.ImportNote;
 import com.davisr.thedreamtable.farm.TemplateCodec;
 import com.davisr.thedreamtable.network.ServerSchematicsPayload;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
@@ -31,8 +30,8 @@ public final class ServerSchematics {
 	}
 
 	public static void register() {
-		ClientPlayNetworking.registerGlobalReceiver(ServerSchematicsPayload.ID, (payload, context) -> {
-			if (onThisComputer(context.client())) {
+		Platform.clientNetwork().registerReceiver(ServerSchematicsPayload.ID, payload -> {
+			if (onThisComputer(MinecraftClient.getInstance())) {
 				return;
 			}
 			List<FarmOption> options = new ArrayList<>();
@@ -48,27 +47,27 @@ public final class ServerSchematics {
 			REQUESTED.clear();
 			FarmTemplates.useRemote(options, steps, notes, payload.rejected());
 		});
-		ClientPlayNetworking.registerGlobalReceiver(ServerSchematicsPayload.Farm.ID, (payload, context) -> {
-			if (!onThisComputer(context.client())) {
+		Platform.clientNetwork().registerReceiver(ServerSchematicsPayload.Farm.ID, payload -> {
+			if (!onThisComputer(MinecraftClient.getInstance())) {
 				FarmTemplates.putRemote(TemplateCodec.decode(payload.id(), payload.data()));
 			}
 		});
 		FarmTemplates.onMissing(ServerSchematics::request);
-		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+		Platform.clientEvents().onJoin(client -> {
 			if (!onThisComputer(client)) {
 				REQUESTED.clear();
 				FarmTemplates.useRemote(List.of(), Map.of(), Map.of(), List.of());
 			}
 		});
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+		Platform.clientEvents().onDisconnect(client -> {
 			REQUESTED.clear();
 			FarmTemplates.useLocal();
 		});
 	}
 
 	private static void request(String id) {
-		if (REQUESTED.add(id) && ClientPlayNetworking.canSend(ServerSchematicsPayload.Request.ID)) {
-			ClientPlayNetworking.send(new ServerSchematicsPayload.Request(id));
+		if (REQUESTED.add(id) && Platform.clientNetwork().canSend(ServerSchematicsPayload.Request.ID)) {
+			Platform.clientNetwork().send(new ServerSchematicsPayload.Request(id));
 		}
 	}
 

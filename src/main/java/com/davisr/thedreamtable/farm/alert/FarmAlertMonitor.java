@@ -4,7 +4,7 @@ import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmStorage;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmTemplate;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 
@@ -19,7 +19,7 @@ public final class FarmAlertMonitor {
 
 	/** Polls existing chunks only; alerts never cause a farm or its storage to load. */
 	public static void register() {
-		ServerTickEvents.END_SERVER_TICK.register(server -> {
+		Platform.serverEvents().onTickEnd(server -> {
 			if (server.getTicks() % INTERVAL_TICKS == 0) {
 				tick(server);
 			}

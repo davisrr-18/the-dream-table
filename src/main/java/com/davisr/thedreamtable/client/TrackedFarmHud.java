@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable.client;
 
 import com.davisr.thedreamtable.farm.FarmLoader;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
@@ -12,7 +12,7 @@ public final class TrackedFarmHud {
 	}
 
 	public static void register() {
-		HudRenderCallback.EVENT.register((context, tickDelta) -> render(context));
+		Platform.clientRendering().onHud(TrackedFarmHud::render);
 	}
 
 	private static void render(DrawContext context) {

@@ -14,13 +14,15 @@ import com.davisr.thedreamtable.client.TrackedFarmHud;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.registry.ModScreenHandlers;
 import com.davisr.thedreamtable.screen.DreamTableScreen;
-import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories;
 
-public final class TheDreamTableClient implements ClientModInitializer {
-	@Override
-	public void onInitializeClient() {
+/** The loader-neutral client setup, run by the loader's client entrypoint right after it installs the client platform. */
+public final class TheDreamTableClient {
+	private TheDreamTableClient() {
+	}
+
+	public static void init() {
 		HandledScreens.register(ModScreenHandlers.DREAM_TABLE, DreamTableScreen::new);
 		BlockEntityRendererFactories.register(ModBlockEntities.DREAM_TABLE, FarmMiniature::new);
 		DreamTableKeys.register();

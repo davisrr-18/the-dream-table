@@ -4,8 +4,7 @@ import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmSharing;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -25,8 +24,7 @@ public record FarmRenamePayload(BlockPos table, String key, String name) impleme
 			buf -> new FarmRenamePayload(buf.readBlockPos(), buf.readString(256), buf.readString(128)));
 
 	public static void register() {
-		PayloadTypeRegistry.playC2S().register(ID, CODEC);
-		ServerPlayNetworking.registerGlobalReceiver(ID, (payload, context) -> context.server().execute(() -> handle(context.player(), payload)));
+		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> handle(player, payload));
 	}
 
 	private static void handle(ServerPlayerEntity player, FarmRenamePayload payload) {

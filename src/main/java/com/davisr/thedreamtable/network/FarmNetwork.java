@@ -5,8 +5,8 @@ import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmDirectory;
 import com.davisr.thedreamtable.farm.FarmKey;
+import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
@@ -55,7 +55,7 @@ final class FarmNetwork {
 	}
 
 	static void result(ServerPlayerEntity player, String key, FarmActionResultPayload.Action action, FarmActionResultPayload.Result result) {
-		ServerPlayNetworking.send(player, new FarmActionResultPayload(key, action, result));
+		Platform.network().send(player, new FarmActionResultPayload(key, action, result));
 	}
 
 	static void refresh(ServerPlayerEntity player) {

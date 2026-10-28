@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.block;
 
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.block.Block;
@@ -13,6 +14,7 @@ import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.world.World;
@@ -128,8 +130,8 @@ public class DreamTableBlock extends BlockWithEntity {
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (!world.isClient) {
-			player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
+		if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table) {
+			Platform.menus().open(serverPlayer, table);
 		}
 		return ActionResult.SUCCESS;
 	}

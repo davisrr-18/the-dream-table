@@ -5,7 +5,6 @@ import com.davisr.thedreamtable.client.FarmFaces;
 import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.BuiltBuffer;
@@ -55,7 +54,7 @@ public final class GhostRenderer {
 	 * Draws the blocks still to build from the cached {@link FarmFaces}. A face covered by another block of the farm is
 	 * skipped when that block is already built or drawn too, so the top of the last shown layer still gets its faces.
 	 */
-	public static void drawGhosts(WorldRenderContext context, MatrixStack matrices, FarmTemplate template, TableSession table,
+	public static void drawGhosts(MatrixStack matrices, FarmTemplate template, TableSession table,
 			BlockPos anchor, Direction facing, int shownPlaced, boolean blocked, boolean refused, int topLayer, float wave) {
 		List<FarmFaces.Part> parts = table == null
 				? FarmFaces.of(template, "", state -> state, facing)

@@ -14,8 +14,8 @@ import com.davisr.thedreamtable.network.FarmAlertAckPayload;
 import com.davisr.thedreamtable.network.FarmAlertsPayload;
 import com.davisr.thedreamtable.network.LoadedFarmsPayload;
 import com.davisr.thedreamtable.farm.FarmRole;
+import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
@@ -46,23 +46,23 @@ public final class LoadedFarmsView {
 	}
 
 	public static void register() {
-		ClientPlayNetworking.registerGlobalReceiver(LoadedFarmsPayload.ID, (payload, context) -> {
+		Platform.clientNetwork().registerReceiver(LoadedFarmsPayload.ID, payload -> {
 			farms = payload.farms();
 			invites = payload.invites();
 			limit = payload.limit();
 			received = true;
 		});
-		ClientPlayNetworking.registerGlobalReceiver(FarmDetailsPayload.ID, (payload, context) -> {
+		Platform.clientNetwork().registerReceiver(FarmDetailsPayload.ID, payload -> {
 			if (payload.key().equals(selected)) {
 				details = payload;
 			}
 		});
-		ClientPlayNetworking.registerGlobalReceiver(FarmAlertsPayload.ID, (payload, context) -> {
+		Platform.clientNetwork().registerReceiver(FarmAlertsPayload.ID, payload -> {
 			if (payload.key().equals(selected)) {
 				alerts = payload;
 			}
 		});
-		ClientPlayNetworking.registerGlobalReceiver(FarmActionResultPayload.ID, (payload, context) -> {
+		Platform.clientNetwork().registerReceiver(FarmActionResultPayload.ID, payload -> {
 			if (payload.action() == FarmActionResultPayload.Action.REMOVE_COLLABORATOR
 					&& payload.result() == FarmActionResultPayload.Result.SUCCESS && payload.key().equals(selected)) {
 				details = null;
@@ -83,8 +83,8 @@ public final class LoadedFarmsView {
 
 	/** Requests the selected farm's details once for this opening or selection. */
 	public static void ensureDetails() {
-		if (!selected.isEmpty() && ClientPlayNetworking.canSend(FarmDetailsPayload.Request.ID) && requests.requestDetails()) {
-			ClientPlayNetworking.send(new FarmDetailsPayload.Request(table(), selected));
+		if (!selected.isEmpty() && Platform.clientNetwork().canSend(FarmDetailsPayload.Request.ID) && requests.requestDetails()) {
+			Platform.clientNetwork().send(new FarmDetailsPayload.Request(table(), selected));
 		}
 	}
 
@@ -182,15 +182,15 @@ public final class LoadedFarmsView {
 
 	/** Requests the selected farm's authorized alert page once for this opening or selection. */
 	public static void ensureAlerts() {
-		if (!selected.isEmpty() && ClientPlayNetworking.canSend(FarmAlertsPayload.Request.ID) && requests.requestAlerts()) {
-			ClientPlayNetworking.send(new FarmAlertsPayload.Request(table(), selected, 0));
+		if (!selected.isEmpty() && Platform.clientNetwork().canSend(FarmAlertsPayload.Request.ID) && requests.requestAlerts()) {
+			Platform.clientNetwork().send(new FarmAlertsPayload.Request(table(), selected, 0));
 		}
 	}
 
 	/** Acknowledges exactly the event references the server included in the currently displayed page. */
 	public static void acknowledgeAlerts(FarmAlertsPayload payload) {
-		if (ClientPlayNetworking.canSend(FarmAlertAckPayload.ID)) {
-			ClientPlayNetworking.send(new FarmAlertAckPayload(table(), payload.key(), payload.token(),
+		if (Platform.clientNetwork().canSend(FarmAlertAckPayload.ID)) {
+			Platform.clientNetwork().send(new FarmAlertAckPayload(table(), payload.key(), payload.token(),
 					payload.entries().stream().map(FarmAlertsPayload.Entry::eventId).toList()));
 		}
 	}
@@ -211,45 +211,45 @@ public final class LoadedFarmsView {
 	}
 
 	public static void preference(String key, FarmPreferencePayload.Operation operation) {
-		if (ClientPlayNetworking.canSend(FarmPreferencePayload.ID)) {
-			ClientPlayNetworking.send(new FarmPreferencePayload(table(), key, operation));
+		if (Platform.clientNetwork().canSend(FarmPreferencePayload.ID)) {
+			Platform.clientNetwork().send(new FarmPreferencePayload(table(), key, operation));
 		}
 	}
 
 	public static void rename(String key, String name) {
-		if (ClientPlayNetworking.canSend(FarmRenamePayload.ID)) {
-			ClientPlayNetworking.send(new FarmRenamePayload(table(), key, name));
+		if (Platform.clientNetwork().canSend(FarmRenamePayload.ID)) {
+			Platform.clientNetwork().send(new FarmRenamePayload(table(), key, name));
 		}
 	}
 
 	public static void invite(String key, String playerName, FarmRole role) {
-		if (ClientPlayNetworking.canSend(FarmInvitePayload.ID)) {
-			ClientPlayNetworking.send(new FarmInvitePayload(table(), key, playerName, role));
+		if (Platform.clientNetwork().canSend(FarmInvitePayload.ID)) {
+			Platform.clientNetwork().send(new FarmInvitePayload(table(), key, playerName, role));
 		}
 	}
 
 	public static void removeCollaborator(String key, UUID collaboratorUuid) {
-		if (ClientPlayNetworking.canSend(FarmCollaboratorPayload.ID)) {
-			ClientPlayNetworking.send(new FarmCollaboratorPayload(table(), key, collaboratorUuid));
+		if (Platform.clientNetwork().canSend(FarmCollaboratorPayload.ID)) {
+			Platform.clientNetwork().send(new FarmCollaboratorPayload(table(), key, collaboratorUuid));
 		}
 	}
 
 	public static void respond(String key, UUID inviteId, boolean accept) {
-		if (ClientPlayNetworking.canSend(FarmInviteResponsePayload.ID)) {
-			ClientPlayNetworking.send(new FarmInviteResponsePayload(table(), key, inviteId, accept));
+		if (Platform.clientNetwork().canSend(FarmInviteResponsePayload.ID)) {
+			Platform.clientNetwork().send(new FarmInviteResponsePayload(table(), key, inviteId, accept));
 		}
 	}
 
 	/** Repairs, takes down, or forgets exactly this farm even if the server's list changed since it was drawn. */
 	public static void care(BlockPos table, String key, FarmCarePayload.Action action) {
-		if (ClientPlayNetworking.canSend(FarmCarePayload.ID)) {
-			ClientPlayNetworking.send(new FarmCarePayload(table, key, action));
+		if (Platform.clientNetwork().canSend(FarmCarePayload.ID)) {
+			Platform.clientNetwork().send(new FarmCarePayload(table, key, action));
 		}
 	}
 
 	private static void send(String toggle) {
-		if (ClientPlayNetworking.canSend(LoadedFarmsPayload.Request.ID)) {
-			ClientPlayNetworking.send(new LoadedFarmsPayload.Request(table(), toggle));
+		if (Platform.clientNetwork().canSend(LoadedFarmsPayload.Request.ID)) {
+			Platform.clientNetwork().send(new LoadedFarmsPayload.Request(table(), toggle));
 		}
 	}
 

@@ -7,8 +7,7 @@ import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmLoader;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -33,8 +32,7 @@ public record FarmCarePayload(BlockPos table, String key, Action action) impleme
 	}
 
 	public static void register() {
-		PayloadTypeRegistry.playC2S().register(ID, CODEC);
-		ServerPlayNetworking.registerGlobalReceiver(ID, (payload, context) -> context.server().execute(() -> handle(context.player(), payload)));
+		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> handle(player, payload));
 	}
 
 	private static void handle(ServerPlayerEntity player, FarmCarePayload payload) {

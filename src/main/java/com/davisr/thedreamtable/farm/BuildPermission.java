@@ -1,6 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
-import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -10,7 +10,7 @@ import net.minecraft.util.math.BlockPos;
 /**
  * Asks the world whether a player may build at a spot, the way their own hands would be asked:
  * adventure mode, spawn protection, the world border, and any claim mod that hooks those checks.
- * Breaking also fires Fabric's block break event, which claim mods use to cancel breaks in protected land.
+ * Breaking also asks the loader's block break hook, which claim mods use to cancel breaks in protected land.
  */
 public final class BuildPermission {
 	private BuildPermission() {
@@ -22,7 +22,7 @@ public final class BuildPermission {
 
 	public static boolean canBreak(ServerWorld world, PlayerEntity player, BlockPos pos, BlockState state) {
 		return canPlace(world, player, pos)
-				&& PlayerBlockBreakEvents.BEFORE.invoker().beforeBlockBreak(world, player, pos, state, world.getBlockEntity(pos));
+				&& Platform.blockBreaks().allowsBreak(world, player, pos, state);
 	}
 
 	/** True when the player may place at every spot the farm uses. Checked once before a new build starts. */

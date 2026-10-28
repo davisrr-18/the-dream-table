@@ -8,8 +8,7 @@ import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmInvite;
 import com.davisr.thedreamtable.farm.FarmKey;
 import com.davisr.thedreamtable.farm.FarmRole;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
@@ -68,11 +67,9 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 	);
 
 	public static void register() {
-		PayloadTypeRegistry.playS2C().register(ID, CODEC);
-		PayloadTypeRegistry.playC2S().register(Request.ID, Request.CODEC);
-		ServerPlayNetworking.registerGlobalReceiver(Request.ID, (payload, context) -> context.server().execute(() -> {
-			ServerPlayerEntity player = context.player();
-			FarmLoader loader = FarmLoader.of(context.server());
+		Platform.network().registerServerToClient(ID, CODEC);
+		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
+			FarmLoader loader = FarmLoader.of(player.getServer());
 			if (FarmNetwork.table(player, payload.table()) == null) {
 				return;
 			}
@@ -80,7 +77,7 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 				FarmNetwork.Checked checked = FarmNetwork.authorize(player, payload.table(), payload.toggle(), FarmAction.KEEP_LOADED,
 						FarmActionResultPayload.Action.KEEP_LOADED);
 				if (checked != null) {
-					FarmLoader.ToggleResult result = loader.toggle(context.server(), player.getUuid(), checked.farm().located().key());
+					FarmLoader.ToggleResult result = loader.toggle(player.getServer(), player.getUuid(), checked.farm().located().key());
 					FarmActionResultPayload.Result response = switch (result) {
 						case SELECTED, UNSELECTED -> FarmActionResultPayload.Result.SUCCESS;
 						case OWNER_QUOTA_FULL -> FarmActionResultPayload.Result.LIMIT_REACHED;
@@ -94,7 +91,7 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 				}
 			}
 			send(player);
-		}));
+		});
 	}
 
 	public static void send(ServerPlayerEntity player) {
@@ -111,7 +108,7 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 				}
 			}
 		}
-		ServerPlayNetworking.send(player, new LoadedFarmsPayload(farms.subList(0, Math.min(MAX_FARMS, farms.size())), List.copyOf(invites),
+		Platform.network().send(player, new LoadedFarmsPayload(farms.subList(0, Math.min(MAX_FARMS, farms.size())), List.copyOf(invites),
 				DreamTableConfig.maxLoadedFarms()));
 	}
 

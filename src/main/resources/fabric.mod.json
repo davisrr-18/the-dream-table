@@ -11,10 +11,10 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"com.davisr.thedreamtable.TheDreamTableMod"
+			"com.davisr.thedreamtable.fabric.TheDreamTableFabric"
 		],
 		"client": [
-			"com.davisr.thedreamtable.TheDreamTableClient"
+			"com.davisr.thedreamtable.fabric.TheDreamTableFabricClient"
 		]
 	},
 	"depends": {
