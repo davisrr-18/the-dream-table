@@ -1,0 +1,46 @@
+architectury {
+	common rootProject.enabled_platforms.split(',')
+}
+
+dependencies {
+	// Provides the Mixin dependencies and the @Environment annotations; do not use other fabric-loader classes here.
+	modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+	modImplementation "dev.architectury:architectury:$rootProject.architectury_api_version"
+
+	testImplementation platform('org.junit:junit-bom:5.11.4')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+	useJUnitPlatform()
+}
+
+// Keeps common loader-neutral: platform APIs must be reached through Architectury or the platform modules.
+tasks.register('verifyNoLoaderImports') {
+	def sources = fileTree('src') { include '**/*.java' }
+	inputs.files(sources)
+	doLast {
+		def forbidden = [
+				/\bnet\.(fabricmc|neoforged|minecraftforge)\./,
+				/\bdev\.architectury\.(\w+\.)*(fabric|forge|neoforge)\./
+		]
+		def offenders = []
+		sources.each { file ->
+			file.eachLine { line, number ->
+				def code = line.trim()
+				if (code.startsWith('//') || code.startsWith('*') || code.startsWith('/*')) {
+					return
+				}
+				if (forbidden.any { code =~ it }) {
+					offenders << "${file}:${number}: ${code}"
+				}
+			}
+		}
+		if (offenders) {
+			throw new GradleException("Common code must not reference loader APIs:\n" + offenders.join('\n'))
+		}
+	}
+}
+
+check.dependsOn 'verifyNoLoaderImports'
