@@ -56,7 +56,7 @@ The primary agent owns orchestration, integration, verification, and delivery. D
 - Require clear scope, deliverables, evidence, and stopping conditions for delegation.
 - Keep the primary agent accountable for integration and final verification.
 
-Specialized agent behavior is defined in `.codex/agents/*.toml`.
+Specialized agent behavior is defined per tool: `.codex/agents/*.toml` for Codex and `.claude/agents/*.md` for Claude Code.
 
 ## 4. Milestones and approvals
 
@@ -111,9 +111,9 @@ Only recommend models verified as available in the current environment.
 
 Operational preferences, when available:
 
-- Terra Medium: primary orchestration and integration.
-- Luna: investigation, isolated implementation, and independent review.
-- Sol: exceptional escalation requiring justification and explicit user approval.
+- Primary agent: orchestration and integration, at medium effort.
+- Investigation, isolated implementation, and independent review: delegate to the matching subagent at its configured model and effort.
+- Escalation to a stronger model or higher effort: exceptional, requires justification and explicit user approval.
 
 Use low effort for mechanical work, medium for ordinary tasks, and high for difficult or risky tasks. Higher efforts require model support and concrete justification.
 

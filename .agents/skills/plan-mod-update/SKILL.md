@@ -15,7 +15,7 @@ Quando solicitado, transformar os requisitos da atualização em um plano execut
 4. Consolidar relatórios compactos.
 5. Dividir o trabalho em marcos verificáveis.
 6. Definir testes e gates de qualidade.
-7. Avaliar se alguma tarefa justifica escalonamento para Sol, sem escalonar sem autorização.
+7. Avaliar se alguma tarefa justifica escalonamento para um modelo ou esforço superior, sem escalonar sem autorização.
 8. Registrar decisões e pendências.
 
 Para atualizações relevantes, apresentar o escopo inicial e solicitar autorização antes de iniciar o Marco 1.
@@ -48,13 +48,22 @@ A complexidade não determina automaticamente a quantidade de subagentes.
 
 O agente principal deve decidir entre execução direta e delegação de acordo com o benefício esperado.
 
-Preferências, quando disponíveis e verificadas no ambiente:
+Papéis, quando disponíveis e verificados no ambiente:
 
-- Terra Medium: orquestração, integração, implementação direta e decisões.
-- Investigator: investigação delimitada de código e requisitos.
-- Implementer: implementação isolada de tarefas aprovadas.
-- Reviewer: revisão independente de alterações e riscos.
-- Sol: escalonamento excepcional, sujeito à aprovação do usuário.
+- Agente principal: orquestração, integração, implementação direta e decisões.
+- `investigator`: investigação delimitada de código e requisitos.
+- `implementer`: implementação isolada de tarefas aprovadas.
+- `reviewer`: revisão independente de alterações e riscos.
+- Escalonamento: modelo ou esforço superior em casos excepcionais, sujeito à aprovação do usuário.
+
+Os subagentes são definidos por ferramenta, com os mesmos nomes e responsabilidades:
+
+- Codex: `.codex/agents/*.toml`.
+- Claude Code: `.claude/agents/*.md`.
+
+Antes de delegar, confirmar que o papel está carregado na sessão atual. Se não estiver, executar diretamente ou informar o usuário; não substituir silenciosamente por outro agente.
+
+O modelo e o esforço de cada papel vêm da definição da ferramenta em uso. Seguir as preferências de modelo do AGENTS.md somente quando os modelos citados existirem no ambiente.
 
 Utilizar no máximo três subagentes simultâneos, conforme os limites efetivamente configurados.
 
@@ -144,7 +153,7 @@ Priorizar trabalho validado com o menor custo razoável.
 - Evitar relatórios longos sem evidências adicionais.
 - Não revisar novamente um diff inalterado sem justificativa.
 - Usar subagentes somente quando proporcionarem benefício.
-- Não reduzir testes ou critérios de qualidade para economizar franquia.
+- Não reduzir testes ou critérios de qualidade para economizar cota de uso.
 
 Antes de criar um subagente, verificar se a tarefa já foi resolvida, investigada ou documentada. Encerrar a delegação quando as evidências necessárias forem suficientes, sem continuar explorando caminhos não relacionados.
 
