@@ -43,3 +43,25 @@ tasks.register('verifyNoLoaderImports') {
 }
 
 check.dependsOn 'verifyNoLoaderImports'
+
+// Case changes must not follow the JVM locale: lowercasing an enum under a Turkish locale yields a
+// dotless ı and turns translation keys built from enum names into raw keys.
+tasks.register('verifyRootLocale') {
+	def sources = fileTree('src/main/java') { include '**/*.java' }
+	inputs.files(sources)
+	doLast {
+		def offenders = []
+		sources.each { file ->
+			file.eachLine { line, number ->
+				if (line =~ /\.to(Lower|Upper)Case\(\s*\)/) {
+					offenders << "${file}:${number}: ${line.trim()}"
+				}
+			}
+		}
+		if (offenders) {
+			throw new GradleException("Use toLowerCase(Locale.ROOT) / toUpperCase(Locale.ROOT):\n" + offenders.join('\n'))
+		}
+	}
+}
+
+check.dependsOn 'verifyRootLocale'

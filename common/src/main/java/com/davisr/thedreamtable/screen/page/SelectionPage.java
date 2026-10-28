@@ -5,6 +5,8 @@ import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
+import java.util.Locale;
+
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /** The first menu page: the farm categories, then My Schematics and Options. The category of the current farm is highlighted. */
@@ -22,7 +24,7 @@ public final class SelectionPage implements TablePage {
 		Category current = Category.of(ui.farm()).orElse(null);
 		for (int index = 0; index < CATEGORIES.length; index++) {
 			Category category = CATEGORIES[index];
-			ui.cardAt("category." + category.name().toLowerCase(), context, category.icon().getDefaultStack(), category.title(), count(category),
+			ui.cardAt("category." + category.name().toLowerCase(Locale.ROOT), context, category.icon().getDefaultStack(), category.title(), count(category),
 					ui.view().gridCardX(index), ui.view().gridCardY(index), mouseX, mouseY, category == current, true);
 		}
 	}

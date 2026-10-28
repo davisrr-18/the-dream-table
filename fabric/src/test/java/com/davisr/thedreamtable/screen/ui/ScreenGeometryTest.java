@@ -23,8 +23,18 @@ class ScreenGeometryTest {
 	void centersTheChosenPanelAndCapsItsHeight() {
 		assertEquals(new UiRect(62, 4, 196, 232), ScreenGeometry.calculate(320, 240, 0, false).panel());
 		assertEquals(new UiRect(18, 4, 384, 232), ScreenGeometry.calculate(420, 240, 0, false).panel());
-		assertEquals(new UiRect(128, 4, 384, 352), ScreenGeometry.calculate(640, 360, 0, false).panel());
-		assertEquals(new UiRect(235, 4, 384, 472), ScreenGeometry.calculate(854, 480, 0, false).panel());
+		assertEquals(new UiRect(128, 52, 384, 256), ScreenGeometry.calculate(640, 360, 0, false).panel());
+		assertEquals(new UiRect(235, 112, 384, 256), ScreenGeometry.calculate(854, 480, 0, false).panel());
+	}
+
+	@Test
+	void keepsAFixedPanelSizeOnScreensWhereItFits() {
+		for (int[] screen : new int[][] {{420, 264}, {480, 270}, {640, 360}, {854, 480}, {1920, 1080}}) {
+			UiRect panel = ScreenGeometry.calculate(screen[0], screen[1], 0, false).panel();
+			assertEquals(LayoutMode.WIDE.panelWidth(), panel.width());
+			assertEquals(ScreenGeometry.PANEL_HEIGHT, panel.height());
+		}
+		assertEquals(ScreenGeometry.PANEL_HEIGHT - 6, ScreenGeometry.calculate(455, 258, 0, false).panel().height());
 	}
 
 	@Test

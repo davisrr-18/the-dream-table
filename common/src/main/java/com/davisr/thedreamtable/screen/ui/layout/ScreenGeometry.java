@@ -17,6 +17,8 @@ public record ScreenGeometry(
 		UiPoint slotOrigin
 ) {
 	public static final int SCREEN_MARGIN = 4;
+	/** Fixed panel height in GUI pixels, so the panel only scales with the GUI scale; shorter screens cap it. */
+	public static final int PANEL_HEIGHT = 256;
 	public static final int HEADER_HEIGHT = 38;
 	public static final int TABS_HEIGHT = 30;
 	public static final int CONTENT_INSET = 14;
@@ -31,7 +33,7 @@ public record ScreenGeometry(
 	public static ScreenGeometry calculate(int screenWidth, int screenHeight, int toolbarHeight, boolean slotPage) {
 		LayoutMode mode = LayoutMode.forWidth(screenWidth);
 		int panelWidth = mode.panelWidth();
-		int panelHeight = Math.max(0, screenHeight - SCREEN_MARGIN * 2);
+		int panelHeight = Math.max(0, Math.min(PANEL_HEIGHT, screenHeight - SCREEN_MARGIN * 2));
 		int panelX = (screenWidth - panelWidth) / 2;
 		int panelY = (screenHeight - panelHeight) / 2;
 		UiRect panel = new UiRect(panelX, panelY, panelWidth, panelHeight);
