@@ -8,6 +8,12 @@
 		"Davi"
 	],
 	"license": "MIT",
+	"icon": "assets/the_dream_table/icon.png",
+	"contact": {
+		"homepage": "https://github.com/davisrr-18/the-dream-table",
+		"sources": "https://github.com/davisrr-18/the-dream-table",
+		"issues": "https://github.com/davisrr-18/the-dream-table/issues"
+	},
 	"environment": "*",
 	"entrypoints": {
 		"main": [
@@ -19,8 +25,8 @@
 	},
 	"depends": {
 		"fabricloader": ">=0.16.0",
-		"minecraft": "~1.21.1",
+		"minecraft": "1.21.1",
 		"java": ">=21",
-		"fabric-api": "*"
+		"fabric-api": ">=0.116.17"
 	}
 }

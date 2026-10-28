@@ -37,7 +37,7 @@ When you anchor or turn the hologram, the table checks the spot right away: the 
 
 **Show Other Farms**, in Options, outlines other players' farms near you: orange while being built or taken apart, green once finished. It is off by default and remembered on your computer.
 
-If a farm you finished before 1.1.4-beta has no protection, place the same farm exactly over it: the table says how much of it is already built. Press Build, and it only fills the gaps and protects the farm once done.
+If a farm you finished with an early beta has no protection, place the same farm exactly over it: the table says how much of it is already built. Press Build, and it only fills the gaps and protects the farm once done.
 
 The table builds with the permissions of the player who started the build. It won't start a farm that touches spawn protection, land outside the world border, or a claim that player can't build in, and it won't build in Adventure mode. If a spot becomes protected during the build, the build stops there until you press Try Again.
 
@@ -79,7 +79,19 @@ A finished farm keeps everything its blocks held in the schematic, like a hopper
 - Minecraft 1.21.1
 - Java 21
 - Fabric: Fabric Loader 0.16 or newer and Fabric API
-- NeoForge: NeoForge 21.1 or newer. On NeoForge the mod must be installed on both the client and the server.
+- NeoForge: NeoForge 21.1 or newer
+
+Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides.
+
+1.0.0 is the first stable release. It follows 2.2.0-beta; the lower number is intentional.
+
+## Known limitations
+
+- Fabric and NeoForge only; there is no Forge build.
+- A farm built in Creative gives back no blocks on Take Down, even in Survival. Chest contents still come back.
+- Claim mods are respected through Fabric API's block break event on Fabric and through block break and place events on NeoForge. Claim mods that use other hooks are not seen.
+- Keep Loaded can't hold a farm that spans more than 64 chunks.
+- Only English text is included.
 
 ## Build
 
