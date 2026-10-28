@@ -6,9 +6,8 @@ import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.farm.FarmSharing;
+import com.davisr.thedreamtable.platform.Platform;
 import com.mojang.authlib.GameProfile;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -33,8 +32,7 @@ public record FarmInvitePayload(BlockPos table, String key, String playerName, F
 			buf -> new FarmInvitePayload(buf.readBlockPos(), buf.readString(256), buf.readString(64), buf.readEnumConstant(FarmRole.class)));
 
 	public static void register() {
-		PayloadTypeRegistry.playC2S().register(ID, CODEC);
-		ServerPlayNetworking.registerGlobalReceiver(ID, (payload, context) -> context.server().execute(() -> begin(context.player(), payload)));
+		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> begin(player, payload));
 	}
 
 	private static void begin(ServerPlayerEntity player, FarmInvitePayload payload) {

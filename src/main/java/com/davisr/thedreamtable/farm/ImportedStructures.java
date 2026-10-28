@@ -3,7 +3,7 @@ package com.davisr.thedreamtable.farm;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import com.davisr.thedreamtable.farm.schematic.SchematicReader;
-import net.fabricmc.loader.api.FabricLoader;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 
@@ -82,7 +82,7 @@ public final class ImportedStructures {
 	}
 
 	private static List<Path> folders(Path worldRoot) {
-		Path game = FabricLoader.getInstance().getGameDir();
+		Path game = Platform.paths().gameDir();
 		List<Path> folders = new ArrayList<>();
 		folders.add(game.resolve("schematics"));
 		folders.add(game.resolve("config").resolve("worldedit").resolve("schematics"));

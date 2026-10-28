@@ -6,8 +6,7 @@ import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmGrant;
 import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.farm.alert.FarmAlertView;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -55,9 +54,8 @@ public record FarmAlertsPayload(String key, String token, List<Entry> entries) i
 			});
 
 	public static void register() {
-		PayloadTypeRegistry.playS2C().register(ID, CODEC);
-		PayloadTypeRegistry.playC2S().register(Request.ID, Request.CODEC);
-		ServerPlayNetworking.registerGlobalReceiver(Request.ID, (payload, context) -> context.server().execute(() -> send(context.player(), payload)));
+		Platform.network().registerServerToClient(ID, CODEC);
+		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> send(player, payload));
 	}
 
 	private static void send(ServerPlayerEntity player, Request request) {
@@ -72,7 +70,7 @@ public record FarmAlertsPayload(String key, String token, List<Entry> entries) i
 				.map(alerts -> FarmAlertView.page(alerts, acceptedAt, request.offset(), MAX_ENTRIES)).orElse(List.of());
 		List<Entry> entries = page.stream().map(entry -> new Entry(entry.event().eventId(), entry.event().type().name(), entry.event().quantity(), entry.event().time(), entry.active())).toList();
 		String token = TOKENS.issue(player.getUuid(), request.key(), entries.stream().map(Entry::eventId).toList());
-		ServerPlayNetworking.send(player, new FarmAlertsPayload(request.key(), token, entries));
+		Platform.network().send(player, new FarmAlertsPayload(request.key(), token, entries));
 	}
 
 	static boolean accepts(ServerPlayerEntity player, String token, String key, List<Long> eventIds) {

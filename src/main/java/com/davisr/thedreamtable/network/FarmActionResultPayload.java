@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -29,7 +29,7 @@ public record FarmActionResultPayload(String key, Action action, Result result) 
 	}
 
 	public static void register() {
-		PayloadTypeRegistry.playS2C().register(ID, CODEC);
+		Platform.network().registerServerToClient(ID, CODEC);
 	}
 
 	@Override

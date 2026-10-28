@@ -1,6 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
@@ -21,6 +21,7 @@ import java.util.function.BiPredicate;
 
 /** Per-player farm UI preferences, stored once in the overworld. */
 public final class FarmPreferences extends PersistentState {
+	static final String STATE_KEY = "the_dream_table_farm_preferences";
 	private static final Type<FarmPreferences> TYPE = new Type<>(FarmPreferences::new, FarmPreferences::read, null);
 	private static final int PRUNE_INTERVAL_TICKS = 1200;
 	static final int MAX_SAVED_PLAYERS = 4096;
@@ -40,11 +41,11 @@ public final class FarmPreferences extends PersistentState {
 	private final Map<UUID, FarmKey> tracked = new HashMap<>();
 
 	public static FarmPreferences of(MinecraftServer server) {
-		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, "the_dream_table_farm_preferences");
+		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
 	}
 
 	public static void register() {
-		ServerTickEvents.END_SERVER_TICK.register(server -> {
+		Platform.serverEvents().onTickEnd(server -> {
 			if (server.getTicks() % PRUNE_INTERVAL_TICKS == 0) {
 				FarmPreferences preferences = of(server);
 				preferences.prune((player, key) -> FarmDirectory.resolve(server, key)

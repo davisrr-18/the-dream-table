@@ -2,8 +2,7 @@ package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -18,16 +17,14 @@ public record DepositMaterialPayload(BlockPos table) implements CustomPayload {
 	);
 
 	public static void register() {
-		PayloadTypeRegistry.playC2S().register(ID, CODEC);
-		ServerPlayNetworking.registerGlobalReceiver(ID, (payload, context) -> context.server().execute(() -> {
-			var player = context.player();
+		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> {
 			if (player.squaredDistanceTo(payload.table().toCenterPos()) > 64) {
 				return;
 			}
 			if (player.getWorld().getBlockEntity(payload.table()) instanceof DreamTableBlockEntity table) {
 				table.session(player).offerFromHand(player);
 			}
-		}));
+		});
 	}
 
 	@Override

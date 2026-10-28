@@ -2,10 +2,9 @@ package com.davisr.thedreamtable.client;
 
 import com.davisr.thedreamtable.network.FarmAreasPayload;
 import com.davisr.thedreamtable.network.FarmAreasPayload.WatchAreasPayload;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import com.davisr.thedreamtable.platform.Platform;
+import com.davisr.thedreamtable.platform.RenderFrame;
+import com.davisr.thedreamtable.platform.RenderStage;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.WorldRenderer;
@@ -25,14 +24,14 @@ public final class OtherFarms {
 	}
 
 	public static void register() {
-		ClientPlayNetworking.registerGlobalReceiver(FarmAreasPayload.ID, (payload, context) -> areas = payload.areas());
-		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+		Platform.clientNetwork().registerReceiver(FarmAreasPayload.ID, payload -> areas = payload.areas());
+		Platform.clientEvents().onJoin(client -> {
 			areas = List.of();
 			if (ClientSettings.showOtherFarms()) {
 				tellServer(true);
 			}
 		});
-		WorldRenderEvents.AFTER_ENTITIES.register(OtherFarms::render);
+		Platform.clientRendering().onWorldRender(RenderStage.AFTER_ENTITIES, OtherFarms::render);
 	}
 
 	public static void setShown(boolean shown) {
@@ -44,12 +43,12 @@ public final class OtherFarms {
 	}
 
 	private static void tellServer(boolean watch) {
-		if (ClientPlayNetworking.canSend(WatchAreasPayload.ID)) {
-			ClientPlayNetworking.send(new WatchAreasPayload(watch));
+		if (Platform.clientNetwork().canSend(WatchAreasPayload.ID)) {
+			Platform.clientNetwork().send(new WatchAreasPayload(watch));
 		}
 	}
 
-	private static void render(WorldRenderContext context) {
+	private static void render(RenderFrame context) {
 		if (!ClientSettings.showOtherFarms() || areas.isEmpty() || context.consumers() == null || context.matrixStack() == null) {
 			return;
 		}

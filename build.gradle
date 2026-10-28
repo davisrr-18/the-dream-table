@@ -61,3 +61,43 @@ jar {
 		rename { "${it}_${project.base.archivesName.get()}" }
 	}
 }
+
+// Keeps every package except the Fabric adapters loader-neutral, so they can move to a shared module unchanged.
+// The server-safe seams must also stay free of client classes, so a dedicated server can load them.
+tasks.register('verifyNoLoaderImports') {
+	def sources = fileTree('src/main/java') {
+		include '**/*.java'
+		exclude 'com/davisr/thedreamtable/fabric/**'
+	}
+	def serverSafeSeams = [
+			'Platform', 'PlatformPaths', 'BlockBreakGuard', 'ServerNetwork', 'ClientNetwork',
+			'ServerEvents', 'Menus', 'ExtendedMenuProvider', 'Content'
+	].collect { "com/davisr/thedreamtable/platform/${it}.java".toString() }
+	inputs.files(sources)
+	doLast {
+		def loaderApis = /\bnet\.(fabricmc|neoforged|minecraftforge)\./
+		def adapters = /\bcom\.davisr\.thedreamtable\.fabric\./
+		def clientClasses = /\bnet\.minecraft\.client\./
+		def offenders = []
+		def sourceRoot = file('src/main/java').toPath()
+		sources.each { file ->
+			def serverSafe = serverSafeSeams.contains(sourceRoot.relativize(file.toPath()).toString().replace('\\', '/'))
+			file.eachLine { line, number ->
+				def code = line.trim()
+				if (code.startsWith('//') || code.startsWith('*') || code.startsWith('/*')) {
+					return
+				}
+				if (code =~ loaderApis || code =~ adapters) {
+					offenders << "${file}:${number}: ${code}"
+				} else if (serverSafe && code =~ clientClasses) {
+					offenders << "${file}:${number}: (client class in a server-safe seam) ${code}"
+				}
+			}
+		}
+		if (offenders) {
+			throw new GradleException("Only com.davisr.thedreamtable.fabric may reference loader APIs or be referenced by name, and the server-safe seams must not use client classes:\n" + offenders.join('\n'))
+		}
+	}
+}
+
+check.dependsOn 'verifyNoLoaderImports'

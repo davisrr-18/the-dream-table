@@ -9,11 +9,9 @@ import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.network.CheckPlacementPayload;
 import com.davisr.thedreamtable.network.PlacementResultPayload;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import com.davisr.thedreamtable.platform.Platform;
+import com.davisr.thedreamtable.platform.RenderFrame;
+import com.davisr.thedreamtable.platform.RenderStage;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
@@ -55,11 +53,11 @@ public final class DreamTableHologram {
 	}
 
 	public static void register() {
-		WorldRenderEvents.AFTER_TRANSLUCENT.register(DreamTableHologram::render);
+		Platform.clientRendering().onWorldRender(RenderStage.AFTER_TRANSLUCENT, DreamTableHologram::render);
 	}
 
 	public static void registerChecks() {
-		ClientPlayNetworking.registerGlobalReceiver(PlacementResultPayload.ID, (payload, context) -> {
+		Platform.clientNetwork().registerReceiver(PlacementResultPayload.ID, payload -> {
 			if (payload.table().equals(tablePos)) {
 				checked = new Placement(payload.anchor(), payload.facing());
 				problem = payload.problem();
@@ -68,7 +66,7 @@ public final class DreamTableHologram {
 				}
 			}
 		});
-		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+		Platform.clientEvents().onTickEnd(client -> {
 			if (++recheckTicks >= RECHECK_TICKS) {
 				recheckTicks = 0;
 				if (hasPlacement() && !locked()) {
@@ -102,13 +100,13 @@ public final class DreamTableHologram {
 	}
 
 	private static void send(boolean announce) {
-		if (hasPlacement() && ClientPlayNetworking.canSend(CheckPlacementPayload.ID)) {
-			ClientPlayNetworking.send(new CheckPlacementPayload(tablePos, aimed, previewFacing(), announce));
+		if (hasPlacement() && Platform.clientNetwork().canSend(CheckPlacementPayload.ID)) {
+			Platform.clientNetwork().send(new CheckPlacementPayload(tablePos, aimed, previewFacing(), announce));
 		}
 	}
 
 	public static void registerClicks() {
-		UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+		Platform.clientEvents().onUseBlock((player, world, hand, hit) -> {
 			if (!world.isClient() || hand != Hand.MAIN_HAND || !tryPlace(player, hit)) {
 				return ActionResult.PASS;
 			}
@@ -187,7 +185,7 @@ public final class DreamTableHologram {
 		existing = 0;
 	}
 
-	private static void render(WorldRenderContext context) {
+	private static void render(RenderFrame context) {
 		if (tablePos == null || context.world() == null || context.matrixStack() == null || !tableStillThere(context.world())) {
 			return;
 		}
@@ -216,7 +214,7 @@ public final class DreamTableHologram {
 		if (placement != null) {
 			boolean refused = idle && !placementProblem().isEmpty();
 			int topLayer = topLayer(template, shownPlaced, idle);
-			GhostRenderer.drawGhosts(context, matrices, template, table, placement.anchor(), placement.facing(), shownPlaced, shownBlocked, refused, topLayer, wave);
+			GhostRenderer.drawGhosts(matrices, template, table, placement.anchor(), placement.facing(), shownPlaced, shownBlocked, refused, topLayer, wave);
 		}
 		matrices.pop();
 	}
@@ -285,7 +283,7 @@ public final class DreamTableHologram {
 		return hasPlacement() ? new Placement(aimed, previewFacing()) : null;
 	}
 
-	private static BlockPos aim(WorldRenderContext context) {
+	private static BlockPos aim(RenderFrame context) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		if (client.player == null || context.world() == null || tablePos == null) {
 			return null;

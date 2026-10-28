@@ -9,9 +9,8 @@ import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.farm.FarmStorage;
 import com.davisr.thedreamtable.farm.FarmTemplate;
+import com.davisr.thedreamtable.platform.Platform;
 import com.mojang.authlib.GameProfile;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.RegistryByteBuf;
@@ -129,15 +128,14 @@ public record FarmDetailsPayload(String key, boolean loaded, int stored, int cap
 	}
 
 	public static void register() {
-		PayloadTypeRegistry.playS2C().register(ID, CODEC);
-		PayloadTypeRegistry.playC2S().register(Request.ID, Request.CODEC);
-		ServerPlayNetworking.registerGlobalReceiver(Request.ID, (payload, context) -> context.server().execute(() -> {
-			FarmNetwork.Checked checked = FarmNetwork.authorize(context.player(), payload.table(), payload.key(), FarmAction.VIEW,
+		Platform.network().registerServerToClient(ID, CODEC);
+		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
+			FarmNetwork.Checked checked = FarmNetwork.authorize(player, payload.table(), payload.key(), FarmAction.VIEW,
 					FarmActionResultPayload.Action.DETAILS);
 			if (checked != null) {
-				send(context.player(), checked);
+				send(player, checked);
 			}
-		}));
+		});
 	}
 
 	/** Missing is {@link FarmLoader#UNKNOWN} while part of the farm is unloaded. */
@@ -175,7 +173,7 @@ public record FarmDetailsPayload(String key, boolean loaded, int stored, int cap
 				}
 			}
 			List<CollaboratorEntry> collaborators = collaborators(located.farm().grants(), checked.farm().role(), uuid -> collaboratorName(player, uuid));
-			ServerPlayNetworking.send(player, contents == null
+			Platform.network().send(player, contents == null
 					? new FarmDetailsPayload(key, false, 0, 0, 0, blocks, items, counts, missing, changed, needs, needCounts, collaborators)
 					: new FarmDetailsPayload(key, true, contents.stored(), contents.capacity(), contents.containers(), blocks, items, counts, missing, changed,
 							needs, needCounts, collaborators));

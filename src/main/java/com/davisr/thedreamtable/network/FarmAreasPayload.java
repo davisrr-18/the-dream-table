@@ -2,10 +2,7 @@ package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmAreas;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
@@ -58,18 +55,17 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 	);
 
 	public static void register() {
-		PayloadTypeRegistry.playS2C().register(ID, CODEC);
-		PayloadTypeRegistry.playC2S().register(WatchAreasPayload.ID, WatchAreasPayload.CODEC);
-		ServerPlayNetworking.registerGlobalReceiver(WatchAreasPayload.ID, (payload, context) -> context.server().execute(() -> {
+		Platform.network().registerServerToClient(ID, CODEC);
+		Platform.network().registerClientToServer(WatchAreasPayload.ID, WatchAreasPayload.CODEC, (payload, player) -> {
 			if (payload.watch()) {
-				WATCHERS.add(context.player().getUuid());
-				send(context.player());
+				WATCHERS.add(player.getUuid());
+				send(player);
 			} else {
-				WATCHERS.remove(context.player().getUuid());
+				WATCHERS.remove(player.getUuid());
 			}
-		}));
-		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> server.execute(() -> WATCHERS.remove(handler.getPlayer().getUuid())));
-		ServerTickEvents.END_SERVER_TICK.register(FarmAreasPayload::tick);
+		});
+		Platform.serverEvents().onPlayerDisconnect((player, server) -> server.execute(() -> WATCHERS.remove(player.getUuid())));
+		Platform.serverEvents().onTickEnd(FarmAreasPayload::tick);
 	}
 
 	private static void tick(MinecraftServer server) {
@@ -92,7 +88,7 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 			}
 			areas.add(Area.of(view));
 		}
-		ServerPlayNetworking.send(player, new FarmAreasPayload(areas));
+		Platform.network().send(player, new FarmAreasPayload(areas));
 	}
 
 	@Override

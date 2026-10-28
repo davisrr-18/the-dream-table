@@ -9,8 +9,8 @@ import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.ImportNote;
 import com.davisr.thedreamtable.network.PlaceFarmPayload;
+import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
@@ -156,7 +156,7 @@ public final class WorkPage implements TablePage {
 			ui.message("gui.the_dream_table.place_then_build");
 			return;
 		}
-		ClientPlayNetworking.send(new PlaceFarmPayload(ui.handler().getTablePos(), DreamTableHologram.anchorForBuild(), DreamTableHologram.previewFacing()));
+		Platform.clientNetwork().send(new PlaceFarmPayload(ui.handler().getTablePos(), DreamTableHologram.anchorForBuild(), DreamTableHologram.previewFacing()));
 		ui.actions().click();
 	}
 

@@ -3,8 +3,7 @@ package com.davisr.thedreamtable.client;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.network.RequestSessionPayload;
 import com.davisr.thedreamtable.network.SessionSyncPayload;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 
@@ -20,13 +19,13 @@ public final class OwnSessions {
 	}
 
 	public static void register() {
-		ClientPlayNetworking.registerGlobalReceiver(SessionSyncPayload.ID, (payload, context) -> {
-			MinecraftClient client = context.client();
+		Platform.clientNetwork().registerReceiver(SessionSyncPayload.ID, payload -> {
+			MinecraftClient client = MinecraftClient.getInstance();
 			if (client.world != null && client.player != null && client.world.getBlockEntity(payload.table()) instanceof DreamTableBlockEntity table) {
 				table.receiveOwnSession(client.player.getUuid(), payload.session());
 			}
 		});
-		ClientTickEvents.END_CLIENT_TICK.register(OwnSessions::requestMissing);
+		Platform.clientEvents().onTickEnd(OwnSessions::requestMissing);
 	}
 
 	private static void requestMissing(MinecraftClient client) {
@@ -40,8 +39,8 @@ public final class OwnSessions {
 
 	private static void request(MinecraftClient client, BlockPos pos) {
 		if (pos != null && client.world.getBlockEntity(pos) instanceof DreamTableBlockEntity table && !table.hasOwnSession()
-				&& ClientPlayNetworking.canSend(RequestSessionPayload.ID)) {
-			ClientPlayNetworking.send(new RequestSessionPayload(pos));
+				&& Platform.clientNetwork().canSend(RequestSessionPayload.ID)) {
+			Platform.clientNetwork().send(new RequestSessionPayload(pos));
 		}
 	}
 }

@@ -7,8 +7,7 @@ import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.ImportNote;
 import com.davisr.thedreamtable.farm.ImportedStructures;
 import com.davisr.thedreamtable.farm.TemplateCodec;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -57,18 +56,17 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 	);
 
 	public static void register() {
-		PayloadTypeRegistry.playS2C().register(ID, CODEC);
-		PayloadTypeRegistry.playS2C().register(Farm.ID, Farm.CODEC);
-		PayloadTypeRegistry.playC2S().register(Request.ID, Request.CODEC);
-		ServerPlayNetworking.registerGlobalReceiver(Request.ID, (payload, context) -> context.server().execute(() -> {
+		Platform.network().registerServerToClient(ID, CODEC);
+		Platform.network().registerServerToClient(Farm.ID, Farm.CODEC);
+		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
 			if (!FarmTemplates.isImported(payload.id()) && !FarmTemplates.isSaved(payload.id())) {
 				return;
 			}
 			FarmTemplate template = FarmTemplates.get(payload.id());
 			if (template != null) {
-				ServerPlayNetworking.send(context.player(), new Farm(payload.id(), TemplateCodec.encode(template)));
+				Platform.network().send(player, new Farm(payload.id(), TemplateCodec.encode(template)));
 			}
-		}));
+		});
 	}
 
 	public static void send(ServerPlayerEntity player) {
@@ -83,7 +81,7 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 					notes.subList(0, Math.min(MAX_NOTES, notes.size()))));
 		}
 		List<ImportedStructures.Rejected> rejected = FarmTemplates.rejected();
-		ServerPlayNetworking.send(player, new ServerSchematicsPayload(entries, rejected.subList(0, Math.min(MAX_SCHEMATICS, rejected.size()))));
+		Platform.network().send(player, new ServerSchematicsPayload(entries, rejected.subList(0, Math.min(MAX_SCHEMATICS, rejected.size()))));
 	}
 
 	@Override

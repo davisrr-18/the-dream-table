@@ -6,6 +6,14 @@ alwaysApply: false
 
 # Architecture
 
+## Loader boundary
+- Only `com.davisr.thedreamtable.fabric` may reference loader APIs (`net.fabricmc`, and later `net.neoforged`/`net.minecraftforge`), and no other package may reference `fabric`. `verifyNoLoaderImports` (run by `check`/`build`) enforces this.
+- Everything else reaches the loader through `platform/` seams via `Platform`: `paths()`, `blockBreaks()`, `network()`, `serverEvents()`, `menus()`, `content()`, and on the client only `clientNetwork()`, `clientEvents()`, `clientRendering()`. Add a seam method instead of calling a loader API.
+- `fabric/TheDreamTableFabric` and `TheDreamTableFabricClient` are the entrypoints: they install the platform first, then call `TheDreamTableMod.init()` / `TheDreamTableClient.init()`. Nothing may touch `Platform` in static initializers that run before install.
+- Server-safe seams (`Platform`, `PlatformPaths`, `BlockBreakGuard`, `ServerNetwork`, `ClientNetwork`, `ServerEvents`, `Menus`, `ExtendedMenuProvider`, `Content`) never reference `net.minecraft.client`; client seam implementations are created only in `FabricPlatform.installClient()`, so a dedicated server never loads them.
+- C2S handlers given to `ServerNetwork.registerClientToServer` run on the server thread with the authenticated player; they still revalidate everything as described under "Server owns the state".
+- Tables open through `Platform.menus().open(player, table)`; the opening data is `DreamTableBlockEntity.OpenData` written by the menu type's codec.
+
 - `block/entity`: `DreamTableBlockEntity` keeps one `TableSession` per player (a map by UUID), ticks them, saves them, and sends each to its owner. A session holds everything a player does at the table: page, chosen farm, placement. It delegates to `MaterialDesk` (slots + `MaterialLedger`: delivered and used counts, Creative counts, swaps), `SessionBuild` (begin, pace, tick, stops, finish; reach it with `session.build()`), `BuildProgress` (phase, step, credit, owner, pace, placed and paid steps, the current `BuildIssue`, repair flag and kept count), `SessionAreas` (problem checks, area claims, finished farms) and `FarmPlacement` (anchor and facing).
 - Sync: chunk data carries no sessions (`ClientView` marker). `TableSession.sync()` marks the session dirty; the table sends `SessionSyncPayload` with `writeForClient()` to the owner at most once per tick. A client without its session asks with `RequestSessionPayload` (`OwnSessions`). Data a client draws must be added to `writeForClient`.
 - My Schematics on a dedicated server: opening a table sends `ServerSchematicsPayload` (the server's list); a client not running the server switches `FarmTemplates` to remote mode and fetches each farm through `TemplateCodec` when `get` misses (`client/ServerSchematics`). Singleplayer shares the same static lists and ignores these payloads.

@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable.registry;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
-import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemGroups;
@@ -20,6 +20,6 @@ public final class ModItems {
 	}
 
 	public static void register() {
-		ItemGroupEvents.modifyEntriesEvent(ItemGroups.REDSTONE).register(entries -> entries.add(DREAM_TABLE));
+		Platform.content().addToCreativeTab(ItemGroups.REDSTONE, DREAM_TABLE);
 	}
 }

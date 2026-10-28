@@ -2,7 +2,7 @@ package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.TheDreamTableMod;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
@@ -46,6 +46,7 @@ import java.util.UUID;
  * within 128 blocks no matter what, so mob farms only run with someone nearby.
  */
 public final class FarmLoader extends PersistentState {
+	static final String STATE_KEY = "the_dream_table_loaded_farms";
 	private static final Type<FarmLoader> TYPE = new Type<>(FarmLoader::new, FarmLoader::read, null);
 	private static final int INTERVAL_TICKS = 100;
 	private static final ChunkTicketType<ChunkPos> TICKET = ChunkTicketType.create("the_dream_table_farm", Comparator.comparingLong(ChunkPos::toLong), INTERVAL_TICKS * 3);
@@ -94,7 +95,7 @@ public final class FarmLoader extends PersistentState {
 	private boolean failing;
 
 	public static void register() {
-		ServerTickEvents.END_SERVER_TICK.register(server -> {
+		Platform.serverEvents().onTickEnd(server -> {
 			FarmLoader loader = of(server);
 			try {
 				if (server.getTicks() % INTERVAL_TICKS == 0) {
@@ -145,7 +146,7 @@ public final class FarmLoader extends PersistentState {
 	}
 
 	public static FarmLoader of(MinecraftServer server) {
-		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, "the_dream_table_loaded_farms");
+		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
 	}
 
 	/** Every finished farm of the player, newest first, and whether each is picked. */

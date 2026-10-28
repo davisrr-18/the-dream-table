@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable.client;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
-import net.fabricmc.loader.api.FabricLoader;
+import com.davisr.thedreamtable.platform.Platform;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -12,7 +12,7 @@ import java.util.Properties;
 
 /** This player's own preferences, in {@code config/the_dream_table-client.properties}. They follow the player to every world and server. */
 public final class ClientSettings {
-	private static final String FILE = "the_dream_table-client.properties";
+	static final String FILE = "the_dream_table-client.properties";
 	private static final String SHOW_OTHER_FARMS = "show_other_farms";
 	private static final String SHOW_TRACKED_FARM = "show_tracked_farm";
 
@@ -71,6 +71,6 @@ public final class ClientSettings {
 	}
 
 	private static Path path() {
-		return FabricLoader.getInstance().getConfigDir().resolve(FILE);
+		return Platform.paths().configDir().resolve(FILE);
 	}
 }

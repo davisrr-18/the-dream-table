@@ -1,6 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import com.davisr.thedreamtable.platform.Platform;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
@@ -42,7 +42,7 @@ public final class FarmSharing {
 	}
 
 	public static void register() {
-		ServerTickEvents.END_SERVER_TICK.register(server -> {
+		Platform.serverEvents().onTickEnd(server -> {
 			if (server.getTicks() % CLEANUP_INTERVAL_TICKS == 0) {
 				long now = System.currentTimeMillis();
 				server.getWorlds().forEach(world -> cleanupExpired(FarmAreas.of(world), now));

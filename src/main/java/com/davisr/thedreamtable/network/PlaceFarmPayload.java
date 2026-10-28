@@ -4,8 +4,7 @@ import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmGeometry;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -25,9 +24,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 	);
 
 	public static void register() {
-		PayloadTypeRegistry.playC2S().register(ID, CODEC);
-		ServerPlayNetworking.registerGlobalReceiver(ID, (payload, context) -> context.server().execute(() -> {
-			ServerPlayerEntity player = context.player();
+		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> {
 			if (player.squaredDistanceTo(payload.table().toCenterPos()) > 64.0) {
 				return;
 			}
@@ -50,7 +47,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 			}
 			table.setPlacement(anchor, facing);
 			table.build().begin(player, true);
-		}));
+		});
 	}
 
 	static Direction horizontal(Direction facing, ServerPlayerEntity player) {

@@ -29,29 +29,31 @@ import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.registry.ModBlocks;
 import com.davisr.thedreamtable.registry.ModItems;
 import com.davisr.thedreamtable.registry.ModScreenHandlers;
-import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.util.WorldSavePath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class TheDreamTableMod implements ModInitializer {
+/** The loader-neutral setup, run by the loader's entrypoint right after it installs the platform. */
+public final class TheDreamTableMod {
 	public static final String MOD_ID = "the_dream_table";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-	@Override
-	public void onInitialize() {
+	private TheDreamTableMod() {
+	}
+
+	public static void init() {
 		ModBlocks.register();
 		ModBlockEntities.register();
 		ModItems.register();
 		ModScreenHandlers.register();
 		FarmTemplates.load();
 		DreamTableConfig.load();
-		ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+		Platform.serverEvents().onServerStarted(server -> {
 			server.getWorlds().forEach(FarmAreas::of);
 			FarmLoader.of(server).migrateLegacyKeys(server);
 		});
-		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
+		Platform.serverEvents().onServerStarting(server -> {
 			DreamTableConfig.load();
 			FarmTemplates.reloadImports(server.getSavePath(WorldSavePath.ROOT));
 		});

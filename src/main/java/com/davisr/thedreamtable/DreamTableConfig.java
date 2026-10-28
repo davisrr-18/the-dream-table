@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable;
 
 import com.davisr.thedreamtable.farm.BuildPace;
-import net.fabricmc.loader.api.FabricLoader;
+import com.davisr.thedreamtable.platform.Platform;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -15,7 +15,7 @@ import java.util.Properties;
  * Read when the server starts, so a server owner can change them between restarts.
  */
 public final class DreamTableConfig {
-	private static final String FILE = "the_dream_table.properties";
+	static final String FILE = "the_dream_table.properties";
 	private static final String MAX_RATE = "max_blocks_per_second";
 	private static final String MAX_LOADED = "max_loaded_farms_per_player";
 	private static final String LOAD_OFFLINE = "load_farms_while_offline";
@@ -66,7 +66,7 @@ public final class DreamTableConfig {
 	}
 
 	public static void load() {
-		Path path = FabricLoader.getInstance().getConfigDir().resolve(FILE);
+		Path path = Platform.paths().configDir().resolve(FILE);
 		Properties properties = new Properties();
 		if (Files.isRegularFile(path)) {
 			try (Reader reader = Files.newBufferedReader(path)) {

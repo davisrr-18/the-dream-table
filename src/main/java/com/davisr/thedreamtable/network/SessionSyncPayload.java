@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -20,7 +20,7 @@ public record SessionSyncPayload(BlockPos table, NbtCompound session) implements
 	);
 
 	public static void register() {
-		PayloadTypeRegistry.playS2C().register(ID, CODEC);
+		Platform.network().registerServerToClient(ID, CODEC);
 	}
 
 	@Override
