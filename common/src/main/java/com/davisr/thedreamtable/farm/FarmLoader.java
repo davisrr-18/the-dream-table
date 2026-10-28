@@ -352,7 +352,9 @@ public final class FarmLoader extends PersistentState {
 		}
 		if (owner != null && reportedFull.add(farm.key())) {
 			BlockPos where = farm.farm().where();
-			Text name = FarmOptions.byId(farm.farm().farmId()).map(FarmOptions.FarmOption::title).orElse(Text.literal(farm.farm().farmId()));
+			String customName = farm.farm().customName();
+			Text name = customName != null && !customName.isBlank() ? Text.literal(customName)
+					: FarmOptions.byId(farm.farm().farmId()).map(FarmOptions.FarmOption::title).orElse(Text.literal(farm.farm().farmId()));
 			owner.sendMessage(Text.translatable("gui.the_dream_table.storage_full", name, where.getX(), where.getY(), where.getZ()), false);
 		}
 	}

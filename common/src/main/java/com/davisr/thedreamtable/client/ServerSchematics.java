@@ -36,16 +36,18 @@ public final class ServerSchematics {
 			}
 			List<FarmOption> options = new ArrayList<>();
 			Map<String, Integer> steps = new HashMap<>();
+			Map<String, Long> versions = new HashMap<>();
 			Map<String, List<ImportNote>> notes = new HashMap<>();
 			for (ServerSchematicsPayload.Entry entry : payload.schematics()) {
 				options.add(new FarmOption(entry.id(), icon(entry.icon()), "farm.the_dream_table.imported", entry.name()));
 				steps.put(entry.id(), entry.steps());
+				versions.put(entry.id(), entry.version());
 				if (!entry.notes().isEmpty()) {
 					notes.put(entry.id(), entry.notes());
 				}
 			}
 			REQUESTED.clear();
-			FarmTemplates.useRemote(options, steps, notes, payload.rejected());
+			FarmTemplates.useRemote(options, steps, versions, notes, payload.rejected());
 		});
 		Platform.clientNetwork().registerReceiver(ServerSchematicsPayload.Farm.ID, payload -> {
 			if (!onThisComputer(MinecraftClient.getInstance())) {

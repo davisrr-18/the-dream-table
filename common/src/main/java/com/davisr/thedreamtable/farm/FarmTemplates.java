@@ -33,6 +33,8 @@ public final class FarmTemplates {
 	private static volatile List<ImportedStructures.Rejected> remoteRejected = List.of();
 	private static final Map<String, FarmTemplate> REMOTE = new ConcurrentHashMap<>();
 	private static final Map<String, Integer> REMOTE_STEPS = new ConcurrentHashMap<>();
+	/** The file version the server listed for each imported farm, to tell a farm held in {@link #REMOTE} from an edited file. */
+	private static final Map<String, Long> REMOTE_VERSIONS = new ConcurrentHashMap<>();
 	private static volatile Consumer<String> missing = id -> {
 	};
 	/**
@@ -124,6 +126,11 @@ public final class FarmTemplates {
 		SAVED.putIfAbsent(template.id(), template);
 	}
 
+	/** Forgets the designs of the world that just closed; the next server reads its own back as its farms load. */
+	public static void clearSaved() {
+		SAVED.clear();
+	}
+
 	/** Imported schematics have ids made by {@link ImportedStructures}; anything else is a built-in farm. */
 	public static boolean isImported(String id) {
 		return id.startsWith(ImportedStructures.ID_PREFIX);
@@ -135,12 +142,27 @@ public final class FarmTemplates {
 		return template != null ? template.steps().size() : REMOTE_STEPS.getOrDefault(id, -1);
 	}
 
-	/** Switches this client to the server's schematic list. Farms that changed are fetched again when next needed. */
+	/** The version of an imported farm's file on this computer, sent to clients so they notice an edited file. */
+	public static long version(String id) {
+		return imports.versions().getOrDefault(id, 0L);
+	}
+
 	public static void useRemote(List<FarmOption> options, Map<String, Integer> steps, Map<String, List<ImportNote>> notes,
 			List<ImportedStructures.Rejected> rejected) {
+		useRemote(options, steps, Map.of(), notes, rejected);
+	}
+
+	/**
+	 * Switches this client to the server's schematic list. A farm held from before is kept only while the server's file
+	 * has the same version, so an edited schematic is fetched again when next needed.
+	 */
+	public static void useRemote(List<FarmOption> options, Map<String, Integer> steps, Map<String, Long> versions,
+			Map<String, List<ImportNote>> notes, List<ImportedStructures.Rejected> rejected) {
 		REMOTE_STEPS.clear();
 		REMOTE_STEPS.putAll(steps);
-		REMOTE.keySet().removeIf(id -> isImported(id) && !steps.containsKey(id));
+		REMOTE.keySet().removeIf(id -> isImported(id) && !(versions.containsKey(id) && Objects.equals(versions.get(id), REMOTE_VERSIONS.get(id))));
+		REMOTE_VERSIONS.clear();
+		REMOTE_VERSIONS.putAll(versions);
 		remoteNotes = Map.copyOf(notes);
 		remoteRejected = List.copyOf(rejected);
 		remoteOptions = List.copyOf(options);
@@ -152,6 +174,7 @@ public final class FarmTemplates {
 		remoteRejected = List.of();
 		REMOTE.clear();
 		REMOTE_STEPS.clear();
+		REMOTE_VERSIONS.clear();
 	}
 
 	public static void putRemote(FarmTemplate template) {

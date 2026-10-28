@@ -30,6 +30,10 @@ import java.util.Set;
  */
 public final class SchematicReader {
 	public static final int MAX_BLOCKS = 16384;
+	/** The most cells all regions of a file may declare, walked or not; far above any farm's bounding box, far below what takes a server's time. */
+	public static final long MAX_CELLS = 1L << 25;
+	/** The most palette entries a file may declare. */
+	public static final int MAX_PALETTE = 1 << 17;
 	/** The tallest a world can be: from -64 to 320 in the Overworld. */
 	public static final int MAX_HEIGHT = 384;
 	/** The most data a file may hold, so a huge or crafted file can't take the server's memory. Farms within the block limit need far less. */
@@ -99,13 +103,13 @@ public final class SchematicReader {
 			return Result.rejected(ImportNote.Kind.UNKNOWN_FORMAT, 0);
 		}
 		List<FarmStep> steps = collector.steps();
+		if (collector.total() > MAX_BLOCKS) {
+			TheDreamTableMod.LOGGER.warn("{} has {} blocks or cells; the limit is {}", id, collector.total(), MAX_BLOCKS);
+			return Result.rejected(ImportNote.Kind.TOO_MANY_BLOCKS, collector.total());
+		}
 		if (steps.isEmpty()) {
 			TheDreamTableMod.LOGGER.warn("{} has no blocks to build", id);
 			return Result.rejected(ImportNote.Kind.EMPTY, 0);
-		}
-		if (steps.size() > MAX_BLOCKS) {
-			TheDreamTableMod.LOGGER.warn("{} has {} blocks; the limit is {}", id, steps.size(), MAX_BLOCKS);
-			return Result.rejected(ImportNote.Kind.TOO_MANY_BLOCKS, steps.size());
 		}
 		int height = height(steps);
 		if (height > MAX_HEIGHT) {

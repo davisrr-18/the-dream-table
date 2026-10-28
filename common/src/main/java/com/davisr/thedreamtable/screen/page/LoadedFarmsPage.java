@@ -113,7 +113,7 @@ public final class LoadedFarmsPage implements TablePage {
 	}
 
 	/** The farm's name, its schematic's file name, or "Removed Farm" for one the mod no longer has. */
-	static Text name(FarmLoader.Entry farm) {
+	public static Text name(FarmLoader.Entry farm) {
 		if (!farm.customName().isEmpty()) {
 			return Text.literal(farm.customName());
 		}
@@ -160,7 +160,7 @@ public final class LoadedFarmsPage implements TablePage {
 		});
 	}
 
-	static Text dimension(String id) {
+	public static Text dimension(String id) {
 		Identifier dimension = Identifier.tryParse(id);
 		if (dimension != null && dimension.getNamespace().equals("minecraft")) {
 			return Text.translatable("gui.the_dream_table.dimension." + dimension.getPath());

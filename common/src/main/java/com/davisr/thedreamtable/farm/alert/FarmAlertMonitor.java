@@ -37,9 +37,13 @@ public final class FarmAlertMonitor {
 					continue;
 				}
 				areas.observeAlert(farm.instanceId(), FarmAlertType.DESIGN_UNAVAILABLE, 0, time);
-				FarmAreas.Presence presence = FarmAreas.presence(world, layout, farm.site(), farm.swaps());
+				// The cheap chunk check comes first so a farm nobody has loaded costs no scan of its blocks; nothing here loads a chunk.
 				int storage = FarmStorage.status(world, layout, farm.site());
-				if (presence.unloaded() || storage == FarmStorage.UNLOADED) {
+				if (storage == FarmStorage.UNLOADED) {
+					continue;
+				}
+				FarmAreas.Presence presence = FarmAreas.presence(world, layout, farm.site(), farm.swaps());
+				if (presence.unloaded()) {
 					continue;
 				}
 				areas.observeAlert(farm.instanceId(), FarmAlertType.STORAGE_FULL, storage == FarmStorage.FULL ? 1 : 0, time);
