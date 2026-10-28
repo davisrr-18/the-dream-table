@@ -18,6 +18,7 @@ import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
+import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
@@ -52,6 +53,7 @@ public final class LoadedFarmsView {
 			invites = payload.invites();
 			limit = payload.limit();
 			received = true;
+			TrackedFarmHud.follow(farms);
 		});
 		Platform.clientNetwork().registerReceiver(FarmDetailsPayload.ID, payload -> {
 			if (payload.key().equals(selected)) {
@@ -159,11 +161,24 @@ public final class LoadedFarmsView {
 		return farms.stream().filter(farm -> farm.role() == FarmRole.OWNER && farm.loaded()).count();
 	}
 
-	/** Asks once per visit to the page, since farms can be finished or taken down while it is closed. */
+	/**
+	 * Asks once per visit to the page, since farms can be finished or taken down while it is closed, and again every
+	 * second until the list arrives: the server drops a request over its budget, for example after a window resize.
+	 */
 	public static void ensure() {
-		if (requests.requestFarms()) {
+		if (requests.requestFarms(Util.getMeasuringTimeMs(), received)) {
 			send("");
 		}
+	}
+
+	/** Forgets everything the previous world or server sent, when the player leaves it. */
+	public static void reset() {
+		farms = List.of();
+		invites = List.of();
+		limit = 0;
+		selected = "";
+		dimension = "";
+		invalidate();
 	}
 
 	/** The farm whose page is open, by key, so it stays the same farm when the list is refreshed. */
@@ -261,16 +276,20 @@ public final class LoadedFarmsView {
 	}
 
 	static final class RequestState {
+		/** How long a list request may go unanswered before it is sent again. */
+		static final long RETRY_MS = 1000L;
 		private boolean farms;
+		private long farmsSentAt;
 		private String selected = "";
 		private boolean details;
 		private boolean alerts;
 
-		boolean requestFarms() {
-			if (farms) {
+		boolean requestFarms(long nowMs, boolean answered) {
+			if (farms && (answered || nowMs - farmsSentAt < RETRY_MS)) {
 				return false;
 			}
 			farms = true;
+			farmsSentAt = nowMs;
 			return true;
 		}
 

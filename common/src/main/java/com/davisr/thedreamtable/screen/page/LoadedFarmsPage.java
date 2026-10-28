@@ -48,7 +48,12 @@ public final class LoadedFarmsPage implements TablePage {
 	}
 
 	private boolean listing() {
-		return LoadedFarmsView.received() && LoadedFarmsView.limit() > 0 && !LoadedFarmsView.farms().isEmpty();
+		return lists(LoadedFarmsView.received(), LoadedFarmsView.farms().size());
+	}
+
+	/** The list shows whenever there are farms: a server limit of 0 only turns Keep Loaded off, it never hides them. */
+	static boolean lists(boolean received, int farms) {
+		return received && farms > 0;
 	}
 
 	private List<Integer> shown() {
@@ -61,8 +66,7 @@ public final class LoadedFarmsPage implements TablePage {
 		List<FarmLoader.Entry> farms = LoadedFarmsView.farms();
 		if (!listing()) {
 			chip(context, Text.translatable("gui.the_dream_table.invites_chip", LoadedFarmsView.invites().size()), INVITES, mouseX, mouseY);
-			String key = !LoadedFarmsView.received() ? "gui.the_dream_table.loaded_waiting"
-					: LoadedFarmsView.limit() <= 0 ? "gui.the_dream_table.loaded_off" : "gui.the_dream_table.loaded_empty";
+			String key = !LoadedFarmsView.received() ? "gui.the_dream_table.loaded_waiting" : "gui.the_dream_table.loaded_empty";
 			ui.collectionNote(context, Text.translatable(key), chipY(filterColumns(ui.view())), HINT);
 		} else {
 			List<Integer> shown = shown();
@@ -76,7 +80,8 @@ public final class LoadedFarmsPage implements TablePage {
 				card(ui, context, farm, detail(farm, viewer), cardX(place), cardY(place), mouseX, mouseY);
 			}
 		}
-		ui.collectionNote(context, Text.translatable("gui.the_dream_table.loaded_hint"), noteY(), HINT);
+		boolean keepingOff = LoadedFarmsView.received() && LoadedFarmsView.limit() <= 0;
+		ui.collectionNote(context, Text.translatable(keepingOff ? "gui.the_dream_table.loaded_off" : "gui.the_dream_table.loaded_hint"), noteY(), HINT);
 	}
 
 	private void drawControls(DrawContext context, int mouseX, int mouseY, int shown, int total) {
@@ -114,12 +119,16 @@ public final class LoadedFarmsPage implements TablePage {
 
 	/** The farm's name, its schematic's file name, or "Removed Farm" for one the mod no longer has. */
 	public static Text name(FarmLoader.Entry farm) {
-		if (!farm.customName().isEmpty()) {
-			return Text.literal(farm.customName());
+		return name(farm.customName(), farm.farmId());
+	}
+
+	public static Text name(String customName, String farmId) {
+		if (!customName.isEmpty()) {
+			return Text.literal(customName);
 		}
-		FarmOption option = FarmOptions.byId(farm.farmId()).orElse(null);
-		return option != null ? option.title() : FarmTemplates.isImported(farm.farmId())
-				? Text.literal(farm.farmId().substring(ImportedStructures.ID_PREFIX.length()))
+		FarmOption option = FarmOptions.byId(farmId).orElse(null);
+		return option != null ? option.title() : FarmTemplates.isImported(farmId)
+				? Text.literal(farmId.substring(ImportedStructures.ID_PREFIX.length()))
 				: Text.translatable("gui.the_dream_table.retired_name");
 	}
 

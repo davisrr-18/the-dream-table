@@ -59,6 +59,12 @@ class PayloadCodecsTest {
 	}
 
 	@Test
+	void trackedFarmRoundTripsWithAndWithoutAFarm() {
+		roundTrip(TrackedFarmPayload.CODEC, new TrackedFarmPayload("the_dream_table:sugar_cane", "My cane", "minecraft:overworld", new BlockPos(-5, 64, 9)));
+		roundTrip(TrackedFarmPayload.CODEC, TrackedFarmPayload.NONE);
+	}
+
+	@Test
 	void placementPayloadsRoundTrip() {
 		roundTrip(PlaceFarmPayload.CODEC, new PlaceFarmPayload(TABLE, new BlockPos(4, 5, 6), Direction.EAST));
 		roundTrip(CheckPlacementPayload.CODEC, new CheckPlacementPayload(TABLE, new BlockPos(4, 5, 6), Direction.NORTH, true));

@@ -22,6 +22,13 @@ class LoadedFarmsPageLayoutTest {
 	}
 
 	@Test
+	void listsFarmsEvenWhenTheServerLimitIsZero() {
+		assertTrue(LoadedFarmsPage.lists(true, 3));
+		assertTrue(!LoadedFarmsPage.lists(true, 0));
+		assertTrue(!LoadedFarmsPage.lists(false, 3));
+	}
+
+	@Test
 	void putsTheFourFilterChipsInTwoRowsOnlyWhenTheViewportIsWide() throws ReflectiveOperationException {
 		Viewport compact = new Viewport();
 		compact.layout(ScreenGeometry.calculate(416, 240, 26, false), 0, 500);

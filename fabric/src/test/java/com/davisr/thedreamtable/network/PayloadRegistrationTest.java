@@ -6,6 +6,7 @@ import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.client.OtherFarms;
 import com.davisr.thedreamtable.client.OwnSessions;
 import com.davisr.thedreamtable.client.ServerSchematics;
+import com.davisr.thedreamtable.client.TrackedFarmHud;
 import com.davisr.thedreamtable.platform.ClientEvents;
 import com.davisr.thedreamtable.platform.ClientNetwork;
 import com.davisr.thedreamtable.platform.ClientRendering;
@@ -66,6 +67,7 @@ class PayloadRegistrationTest {
 		FarmCollaboratorPayload.register();
 		FarmPreferencePayload.register();
 		FarmCarePayload.register();
+		TrackedFarmPayload.register();
 		LoadedFarmsPayload.register();
 		ServerSchematicsPayload.register();
 		FarmDetailsPayload.register();
@@ -75,6 +77,7 @@ class PayloadRegistrationTest {
 		OwnSessions.register();
 		OtherFarms.register();
 		LoadedFarmsView.register();
+		TrackedFarmHud.register();
 		ServerSchematics.register();
 	}
 
@@ -114,7 +117,8 @@ class PayloadRegistrationTest {
 				"the_dream_table:placement_result",
 				"the_dream_table:schematic_farm",
 				"the_dream_table:server_schematics",
-				"the_dream_table:session_sync")), new TreeSet<>(SERVER_TO_CLIENT));
+				"the_dream_table:session_sync",
+				"the_dream_table:tracked_farm")), new TreeSet<>(SERVER_TO_CLIENT));
 	}
 
 	/** NeoForge drops a payload with no client receiver, so each server-to-client id needs exactly one. */
@@ -127,7 +131,7 @@ class PayloadRegistrationTest {
 	@Test
 	void directionsHoldTheExpectedCounts() {
 		assertEquals(16, CLIENT_TO_SERVER.size());
-		assertEquals(9, SERVER_TO_CLIENT.size());
+		assertEquals(10, SERVER_TO_CLIENT.size());
 	}
 
 	@Test
@@ -191,6 +195,10 @@ class PayloadRegistrationTest {
 
 		@Override
 		public void onTickEnd(Consumer<MinecraftServer> listener) {
+		}
+
+		@Override
+		public void onPlayerJoin(BiConsumer<ServerPlayerEntity, MinecraftServer> listener) {
 		}
 
 		@Override

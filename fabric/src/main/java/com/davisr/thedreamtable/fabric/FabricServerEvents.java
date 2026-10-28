@@ -33,6 +33,11 @@ final class FabricServerEvents implements ServerEvents {
 	}
 
 	@Override
+	public void onPlayerJoin(BiConsumer<ServerPlayerEntity, MinecraftServer> listener) {
+		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> listener.accept(handler.getPlayer(), server));
+	}
+
+	@Override
 	public void onPlayerDisconnect(BiConsumer<ServerPlayerEntity, MinecraftServer> listener) {
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> listener.accept(handler.getPlayer(), server));
 	}

@@ -20,6 +20,9 @@ public interface ServerEvents {
 	/** At the end of every server tick. */
 	void onTickEnd(Consumer<MinecraftServer> listener);
 
+	/** When a player has joined and can receive payloads. */
+	void onPlayerJoin(BiConsumer<ServerPlayerEntity, MinecraftServer> listener);
+
 	/** When a player leaves the server; the player is still readable. */
 	void onPlayerDisconnect(BiConsumer<ServerPlayerEntity, MinecraftServer> listener);
 }

@@ -24,6 +24,7 @@ import com.davisr.thedreamtable.network.PlaceFarmPayload;
 import com.davisr.thedreamtable.network.PlacementResultPayload;
 import com.davisr.thedreamtable.network.RequestSessionPayload;
 import com.davisr.thedreamtable.network.ServerSchematicsPayload;
+import com.davisr.thedreamtable.network.TrackedFarmPayload;
 import com.davisr.thedreamtable.network.SessionSyncPayload;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.registry.ModBlocks;
@@ -74,6 +75,7 @@ public final class TheDreamTableMod {
 		FarmCollaboratorPayload.register();
 		FarmPreferencePayload.register();
 		FarmCarePayload.register();
+		TrackedFarmPayload.register();
 		FarmLoader.register();
 		FarmPreferences.register();
 		FarmSharing.register();
