@@ -20,14 +20,13 @@ public final class FarmListing {
 	}
 
 	public enum Show {
-		ALL, OWNED, SHARED, FAVORITES, KEPT_LOADED, ATTENTION, RUNNING, UNLOADED, FULL;
+		ALL, OWNED, SHARED, KEPT_LOADED, ATTENTION, RUNNING, UNLOADED, FULL;
 
 		boolean accepts(FarmLoader.Entry farm) {
 			return switch (this) {
 				case ALL -> true;
 				case OWNED -> farm.role() == FarmRole.OWNER;
 				case SHARED -> farm.role() != FarmRole.OWNER;
-				case FAVORITES -> farm.favorite();
 				case KEPT_LOADED -> farm.loaded();
 				case ATTENTION -> needsAttention(farm);
 				case RUNNING -> farm.available() && farm.status() == FarmStorage.RUNNING;
@@ -38,7 +37,7 @@ public final class FarmListing {
 	}
 
 	public enum Sort {
-		NEWEST, NAME, STATUS, STORAGE, DISTANCE
+		NEWEST, FAVORITES, NAME, STATUS, STORAGE, DISTANCE
 	}
 
 	/** Where the player stands, for sorting by distance. */
@@ -65,11 +64,21 @@ public final class FarmListing {
 	 */
 	public static List<Integer> shown(List<FarmLoader.Entry> farms, Function<FarmLoader.Entry, String> name, String query, Show show, String dimension,
 			Sort sort, Viewer viewer) {
+		return shown(farms, name, query, show, false, dimension, sort, viewer);
+	}
+
+	/**
+	 * The places of the farms to show, with an independent favorite-only filter. The filter is separate from {@link Show}
+	 * so favorite selection does not depend on cycling through unrelated farm states.
+	 */
+	public static List<Integer> shown(List<FarmLoader.Entry> farms, Function<FarmLoader.Entry, String> name, String query, Show show,
+			boolean favoritesOnly, String dimension, Sort sort, Viewer viewer) {
 		String search = query.trim().toLowerCase(Locale.ROOT);
 		List<Integer> shown = new ArrayList<>();
 		for (int index = 0; index < farms.size(); index++) {
 			FarmLoader.Entry farm = farms.get(index);
-			if (show.accepts(farm) && (dimension.isEmpty() || dimension.equals(farm.dimension()))
+			if ((!favoritesOnly || farm.favorite()) && show.accepts(farm)
+					&& (dimension.isEmpty() || dimension.equals(farm.dimension()))
 					&& (search.isEmpty() || name.apply(farm).toLowerCase(Locale.ROOT).contains(search))) {
 				shown.add(index);
 			}
@@ -77,6 +86,7 @@ public final class FarmListing {
 		Comparator<Integer> newest = Comparator.naturalOrder();
 		Comparator<Integer> byName = Comparator.comparing((Integer index) -> name.apply(farms.get(index)).toLowerCase(Locale.ROOT));
 		Comparator<Integer> order = switch (sort) {
+			case FAVORITES -> Comparator.comparingInt((Integer index) -> farms.get(index).favorite() ? 0 : 1).thenComparing(newest);
 			case NEWEST -> newest;
 			case NAME -> byName.thenComparing(newest);
 			case STATUS -> Comparator.comparingInt((Integer index) -> statusRank(farms.get(index))).thenComparing(byName).thenComparing(newest);

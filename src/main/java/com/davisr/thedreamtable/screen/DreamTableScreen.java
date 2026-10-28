@@ -159,7 +159,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 				Text.translatable("gui.the_dream_table.title"), page.subtitle());
 		drawTabs(context, mouseX, mouseY);
 		view.drawScrollbar(context, painter, mouseX, mouseY);
-		search.draw(context, painter, view.cardX(), geometry.toolbar().y() + 4);
+		search.draw(context, painter, searchX(), geometry.toolbar().y() + 4, searchWidth());
 		view.clip(context);
 		ui.beginControls(this.handler.getPage(), page);
 		page.draw(context, mouseX, mouseY);
@@ -340,7 +340,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		}
 		int toolbarHeight = search.visible() ? SEARCH_SPACE : 0;
 		geometry = ScreenGeometry.calculate(this.width, this.height, toolbarHeight, current == DreamTableScreenHandler.PAGE_REQUIREMENTS);
-		view.layout(geometry, current, page().contentHeight());
+		view.layout(geometry, current, () -> page().contentHeight());
 		this.backgroundWidth = geometry.panel().width();
 		this.backgroundHeight = geometry.panel().height();
 		this.x = view.slotOriginX();
@@ -362,11 +362,24 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			x += tabWidth;
 		}
 		if (search.visible()) {
-			UiRect bounds = new UiRect(view.cardX(), geometry.toolbar().y() + 4, CARD_WIDTH, 18);
+			UiRect bounds = new UiRect(searchX(), geometry.toolbar().y() + 4, searchWidth(), 18);
 			specs.add(new ControlSpec(SEARCH_CONTROL, ControlGroup.CONTENT, bounds,
 					Text.translatable("gui.the_dream_table.search"), Text.empty(), true, false, Text.empty(), -1, 0));
 		}
 		chromeControls = List.copyOf(specs);
+	}
+
+	private int searchX() {
+		return collectionSearch() ? view.collectionX() : view.flowX();
+	}
+
+	private int searchWidth() {
+		return collectionSearch() ? view.collectionWidth() : CARD_WIDTH;
+	}
+
+	private boolean collectionSearch() {
+		int current = this.handler.getPage();
+		return current == DreamTableScreenHandler.PAGE_SWAP || current == DreamTableScreenHandler.PAGE_LOADED;
 	}
 
 	private ControlSpec tabSpec(PrimaryTab tab, UiRect bounds) {

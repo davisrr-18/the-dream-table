@@ -6,6 +6,8 @@ import com.davisr.thedreamtable.screen.ui.layout.UiRect;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
+import java.util.function.IntSupplier;
+
 /** Keeps the panel fixed on screen and scrolls only the content below the header. */
 public final class Viewport {
 	public static final int DESIGN_VIEW = PAD + 5 * CARD_HEIGHT + 4 * CARD_GAP + 4;
@@ -39,6 +41,19 @@ public final class Viewport {
 
 	/** Uses the adaptive screen geometry while keeping scrolling isolated to page content. */
 	public void layout(ScreenGeometry geometry, int page, int contentHeight) {
+		installGeometry(geometry, page);
+		this.contentHeight = contentHeight;
+		clampScroll();
+	}
+
+	/** Installs the new geometry before the page calculates its responsive content height. */
+	public void layout(ScreenGeometry geometry, int page, IntSupplier contentHeight) {
+		installGeometry(geometry, page);
+		this.contentHeight = contentHeight.getAsInt();
+		clampScroll();
+	}
+
+	private void installGeometry(ScreenGeometry geometry, int page) {
 		if (page != scrolledPage) {
 			scroll = 0;
 			scrolledPage = page;
@@ -47,9 +62,11 @@ public final class Viewport {
 		this.geometry = geometry;
 		this.screenHeight = geometry.panel().height() + ScreenGeometry.SCREEN_MARGIN * 2;
 		this.searchSpace = geometry.toolbar().height();
-		this.contentHeight = contentHeight;
 		this.originX = geometry.panel().x();
 		this.originY = geometry.panel().y();
+	}
+
+	private void clampScroll() {
 		scroll = Math.max(0, Math.min(maxScroll(), scroll));
 	}
 
@@ -112,6 +129,29 @@ public final class Viewport {
 
 	public int cardX() {
 		return geometry == null ? originX + CARD_X : geometry.contentOrigin().x();
+	}
+
+	/** Left edge of the collection area: one card in compact mode and both grid columns in wide mode. */
+	public int collectionX() {
+		return cardX();
+	}
+
+	/** Width available to a collection toolbar without entering the scrollbar gutter. */
+	public int collectionWidth() {
+		return geometry == null ? CARD_WIDTH : geometry.columns().getLast().right() - collectionX();
+	}
+
+	/** X for a single-card workflow, centered across the collection area in wide mode. */
+	public int flowX() {
+		return collectionX() + (collectionWidth() - CARD_WIDTH) / 2;
+	}
+
+	public int collectionCenterX() {
+		return collectionX() + collectionWidth() / 2;
+	}
+
+	public int flowCenterX() {
+		return flowX() + CARD_WIDTH / 2;
 	}
 
 	public int slotOriginX() {
@@ -277,8 +317,7 @@ public final class Viewport {
 	}
 
 	private int trackX() {
-		int width = geometry == null ? PANEL_WIDTH : geometry.panel().width();
-		return originX + width - 15;
+		return contentRight() + 2;
 	}
 
 	private int trackY() {

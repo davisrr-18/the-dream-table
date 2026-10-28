@@ -27,22 +27,22 @@ public final class InvitesPage implements TablePage {
 		LoadedFarmsView.ensure();
 		List<LoadedFarmsPayload.InviteEntry> invites = LoadedFarmsView.invites();
 		if (invites.isEmpty()) {
-			context.drawText(ui.painter().text(), Text.translatable(LoadedFarmsView.received()
-					? "gui.the_dream_table.invites_empty" : "gui.the_dream_table.loaded_waiting"), ui.view().cardX(), ui.view().cardY(0) + 8, HINT, false);
+			ui.flowNote(context, Text.translatable(LoadedFarmsView.received()
+					? "gui.the_dream_table.invites_empty" : "gui.the_dream_table.loaded_waiting"), ui.view().cardY(0) + 8, HINT);
 		}
 		for (int index = 0; index < invites.size(); index++) {
 			LoadedFarmsPayload.InviteEntry invite = invites.get(index);
 			int y = rowY(index);
 			Text detail = Text.translatable("gui.the_dream_table.invite_role",
 					Text.translatable("gui.the_dream_table.role." + invite.role().name().toLowerCase(Locale.ROOT)));
-			ui.card("invite." + invite.inviteId(), context, new ItemStack(Items.WRITABLE_BOOK), Text.literal(invite.farmName()), detail,
-					y, mouseX, mouseY, false, true);
-			ui.button("accept." + invite.inviteId(), context, Text.translatable("gui.the_dream_table.invite_accept"), y + CARD_HEIGHT + BUTTON_GAP,
-					mouseX, mouseY, true, true);
-			ui.button("decline." + invite.inviteId(), context, Text.translatable("gui.the_dream_table.invite_decline"),
+			ui.cardAt("invite." + invite.inviteId(), context, new ItemStack(Items.WRITABLE_BOOK), Text.literal(invite.farmName()), detail,
+					flowX(), y, mouseX, mouseY, false, true);
+			ui.buttonAt("accept." + invite.inviteId(), context, Text.translatable("gui.the_dream_table.invite_accept"), flowX(),
+					y + CARD_HEIGHT + BUTTON_GAP, mouseX, mouseY, true, true);
+			ui.buttonAt("decline." + invite.inviteId(), context, Text.translatable("gui.the_dream_table.invite_decline"), flowX(),
 					y + CARD_HEIGHT + BUTTON_GAP + BUTTON_HEIGHT + BUTTON_GAP, mouseX, mouseY, true, false);
 		}
-		ui.button("back", context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
+		ui.buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), flowX(), backY(), mouseX, mouseY, true, false);
 	}
 
 	@Override
@@ -51,16 +51,16 @@ public final class InvitesPage implements TablePage {
 		for (int index = 0; index < invites.size(); index++) {
 			LoadedFarmsPayload.InviteEntry invite = invites.get(index);
 			int y = rowY(index) + CARD_HEIGHT + BUTTON_GAP;
-			if (ui.buttonHit(mouseX, mouseY, y)) {
+			if (ui.buttonHit(mouseX, mouseY, flowX(), y)) {
 				LoadedFarmsView.respond(invite.key(), invite.inviteId(), true);
 				return true;
 			}
-			if (ui.buttonHit(mouseX, mouseY, y + BUTTON_HEIGHT + BUTTON_GAP)) {
+			if (ui.buttonHit(mouseX, mouseY, flowX(), y + BUTTON_HEIGHT + BUTTON_GAP)) {
 				LoadedFarmsView.respond(invite.key(), invite.inviteId(), false);
 				return true;
 			}
 		}
-		if (ui.buttonHit(mouseX, mouseY, backY())) {
+		if (ui.buttonHit(mouseX, mouseY, flowX(), backY())) {
 			ui.go(DreamTableScreenHandler.PAGE_LOADED, DreamTableScreenHandler.BUTTON_LOADED_FARMS);
 			return true;
 		}
@@ -73,6 +73,10 @@ public final class InvitesPage implements TablePage {
 
 	private int backY() {
 		return ui.view().cardY(0) + Math.max(1, LoadedFarmsView.invites().size()) * ROW_HEIGHT + 4;
+	}
+
+	private int flowX() {
+		return ui.view().flowX();
 	}
 
 	@Override

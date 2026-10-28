@@ -8,6 +8,8 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 
+import static com.davisr.thedreamtable.screen.ui.Theme.*;
+
 /** Lists the farm materials; a swapped one shows its replacement and is marked as selected. */
 public final class MaterialsPage implements TablePage {
 	private final PageContext ui;
@@ -21,20 +23,21 @@ public final class MaterialsPage implements TablePage {
 		FarmTemplate template = ui.template();
 		int count = ui.materialCount();
 		for (int index = 0; index < count; index++) {
-			int y = ui.view().cardY(index);
+			int x = cardX(ui.view(), index);
+			int y = cardY(ui.view(), index);
 			Item original = template.materials().get(index).item();
 			Item replacement = ui.handler().materialItem(index);
 			Item shown = replacement == null ? original : replacement;
-			ui.card("material." + index, context, new ItemStack(shown), shown.getName(), y, mouseX, mouseY, shown != original, ui.handler().canSwap(index));
+			ui.cardAt("material." + index, context, new ItemStack(shown), shown.getName(), x, y, mouseX, mouseY, shown != original, ui.handler().canSwap(index));
 		}
-		ui.button(context, Text.translatable("gui.the_dream_table.back"), ui.view().listBackY(count), mouseX, mouseY, true, false);
+		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(ui.view(), count), mouseX, mouseY, true, false);
 	}
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		int count = ui.materialCount();
 		for (int index = 0; index < count; index++) {
-			if (!ui.cardHit(mouseX, mouseY, ui.view().cardY(index))) {
+			if (!ui.cardHit(mouseX, mouseY, cardX(ui.view(), index), cardY(ui.view(), index))) {
 				continue;
 			}
 			if (ui.handler().canSwap(index)) {
@@ -45,7 +48,7 @@ public final class MaterialsPage implements TablePage {
 			}
 			return true;
 		}
-		if (ui.buttonHit(mouseX, mouseY, ui.view().listBackY(count))) {
+		if (ui.buttonHit(mouseX, mouseY, backY(ui.view(), count))) {
 			ui.go(DreamTableScreenHandler.PAGE_WORK, DreamTableScreenHandler.BUTTON_MATERIALS_BACK);
 			return true;
 		}
@@ -54,11 +57,27 @@ public final class MaterialsPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		return Viewport.listContentHeight(ui.materialCount());
+		return contentHeight(ui.view(), ui.materialCount());
 	}
 
 	@Override
 	public Text subtitle() {
 		return Text.translatable("gui.the_dream_table.materials");
+	}
+
+	static int cardX(Viewport view, int index) {
+		return view.gridCardX(index);
+	}
+
+	static int cardY(Viewport view, int index) {
+		return view.gridCardY(index);
+	}
+
+	static int backY(Viewport view, int count) {
+		return count == 0 ? cardY(view, 0) + 10 : cardY(view, count - 1) + CARD_HEIGHT + 10;
+	}
+
+	static int contentHeight(Viewport view, int count) {
+		return backY(view, count) - cardY(view, 0) + PAD + BUTTON_HEIGHT + 8;
 	}
 }

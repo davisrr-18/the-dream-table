@@ -61,20 +61,20 @@ public final class SpeedPage implements TablePage {
 		int pace = shownPace();
 		for (int index = 0; index < LEVELS.length; index++) {
 			Level level = LEVELS[index];
-			ui.card(context, new ItemStack(level.icon()), Text.translatable(level.label()), detail(handler, level.pace()),
-					ui.view().cardY(index), mouseX, mouseY, pace == level.pace(), true);
+			ui.cardAt("pace." + index, context, new ItemStack(level.icon()), Text.translatable(level.label()), detail(handler, level.pace()),
+					flowX(), ui.view().cardY(index), mouseX, mouseY, pace == level.pace(), true);
 		}
-		ui.card(context, new ItemStack(Items.COMPARATOR), Text.translatable("gui.the_dream_table.pace_custom"), detail(handler, pace),
-				customY(), mouseX, mouseY, !BuildPace.isLevel(pace), true);
+		ui.cardAt("pace.custom", context, new ItemStack(Items.COMPARATOR), Text.translatable("gui.the_dream_table.pace_custom"), detail(handler, pace),
+				flowX(), customY(), mouseX, mouseY, !BuildPace.isLevel(pace), true);
 		float fraction = (BuildPace.percent(pace) - BuildPace.MIN_PERCENT) / (float) (BuildPace.MAX_PERCENT - BuildPace.MIN_PERCENT);
 		ui.painter().slider(context, sliderX(), sliderY(), sliderWidth(), fraction, dragging >= 0 || !BuildPace.isLevel(pace));
-		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
+		ui.buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), flowX(), backY(), mouseX, mouseY, true, false);
 	}
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		for (int index = 0; index < LEVELS.length; index++) {
-			if (ui.cardHit(mouseX, mouseY, ui.view().cardY(index))) {
+			if (ui.cardHit(mouseX, mouseY, flowX(), ui.view().cardY(index))) {
 				ui.handler().previewPace(LEVELS[index].pace());
 				ui.actions().press(DreamTableScreenHandler.BUTTON_PACE + index);
 				return true;
@@ -84,11 +84,11 @@ public final class SpeedPage implements TablePage {
 			dragging = percentAt(mouseX);
 			return true;
 		}
-		if (ui.cardHit(mouseX, mouseY, customY())) {
+		if (ui.cardHit(mouseX, mouseY, flowX(), customY())) {
 			choose(BuildPace.percent(ui.handler().getPace()));
 			return true;
 		}
-		if (ui.buttonHit(mouseX, mouseY, backY())) {
+		if (ui.buttonHit(mouseX, mouseY, flowX(), backY())) {
 			ui.go(DreamTableScreenHandler.PAGE_OPTIONS, DreamTableScreenHandler.BUTTON_SPEED_BACK);
 			return true;
 		}
@@ -147,7 +147,7 @@ public final class SpeedPage implements TablePage {
 	}
 
 	private int sliderX() {
-		return ui.view().cardX() + SLIDER_INSET;
+		return flowX() + SLIDER_INSET;
 	}
 
 	private int sliderWidth() {
@@ -160,5 +160,9 @@ public final class SpeedPage implements TablePage {
 
 	private int backY() {
 		return sliderY() + SLIDER_HEIGHT + 10;
+	}
+
+	private int flowX() {
+		return ui.view().flowX();
 	}
 }

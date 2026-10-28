@@ -4,6 +4,8 @@ import com.davisr.thedreamtable.screen.ui.layout.ScreenGeometry;
 import com.davisr.thedreamtable.screen.ui.layout.UiRect;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -61,5 +63,108 @@ class ViewportTest {
 		assertEquals(wide.gridCardY(0), wide.gridCardY(1));
 		assertEquals(wide.gridCardX(0), wide.gridCardX(2));
 		assertTrue(wide.gridCardY(2) > wide.gridCardY(0));
+	}
+
+	@Test
+	void exposesCenteredFlowAndFullCollectionToolbarAnchors() {
+		Viewport compact = new Viewport();
+		compact.layout(ScreenGeometry.calculate(416, 240, 0, false), 0, 300);
+		Viewport wide = new Viewport();
+		wide.layout(ScreenGeometry.calculate(420, 240, 0, false), 0, 300);
+
+		assertEquals(compact.cardX(), compact.flowX());
+		assertEquals(168, compact.collectionWidth());
+		assertEquals(wide.gridCardX(0) + 94, wide.flowX());
+		assertEquals(wide.gridCardX(1) + 168 - wide.gridCardX(0), wide.collectionWidth());
+	}
+
+	@Test
+	void keepsFlowAndCollectionAnchorsInsideEverySupportedResolution() {
+		for (int[] resolution : java.util.List.of(
+				new int[] {320, 240}, new int[] {384, 240}, new int[] {416, 240},
+				new int[] {420, 240}, new int[] {640, 360}, new int[] {854, 480})) {
+			Viewport viewport = new Viewport();
+			viewport.layout(ScreenGeometry.calculate(resolution[0], resolution[1], 0, false), 0, 300);
+
+			assertTrue(viewport.flowX() >= viewport.collectionX());
+			assertTrue(viewport.flowX() + 168 <= viewport.collectionX() + viewport.collectionWidth());
+			assertTrue(viewport.collectionX() + viewport.collectionWidth() <= viewport.contentRight());
+		}
+	}
+
+	@Test
+	void alignsCollectionAndSingleFlowTextOnTheSharedVisualCenterInWideMode() {
+		Viewport view = new Viewport();
+		view.layout(ScreenGeometry.calculate(420, 240, 0, false), 0, 300);
+
+		assertEquals(view.collectionX() + view.collectionWidth() / 2, view.collectionCenterX());
+		assertEquals(view.flowX() + 84, view.flowCenterX());
+		assertEquals(view.collectionCenterX(), view.flowCenterX());
+	}
+
+	@Test
+	void scrollbarStaysOutsideTheLastContentColumn() throws ReflectiveOperationException {
+		Method trackX = Viewport.class.getDeclaredMethod("trackX");
+		trackX.setAccessible(true);
+		for (ScreenGeometry geometry : java.util.List.of(
+				ScreenGeometry.calculate(384, 240, 26, false),
+				ScreenGeometry.calculate(640, 360, 26, false))) {
+			Viewport viewport = new Viewport();
+			viewport.layout(geometry, 0, 500);
+
+			assertTrue((int) trackX.invoke(viewport) > geometry.columns().getLast().right());
+		}
+	}
+
+	@Test
+	void keepsPanelColumnsAndScrollbarInsideEverySupportedResolution() throws ReflectiveOperationException {
+		Method trackX = Viewport.class.getDeclaredMethod("trackX");
+		trackX.setAccessible(true);
+		for (int[] resolution : java.util.List.of(
+				new int[] {320, 240}, new int[] {384, 240}, new int[] {416, 240},
+				new int[] {420, 240}, new int[] {640, 360}, new int[] {854, 480})) {
+			ScreenGeometry geometry = ScreenGeometry.calculate(resolution[0], resolution[1], 0, false);
+			Viewport viewport = new Viewport();
+			viewport.layout(geometry, 0, 500);
+
+			assertTrue(geometry.panel().x() >= 0);
+			assertTrue(geometry.panel().right() <= resolution[0]);
+			assertTrue(geometry.panel().y() >= 0);
+			assertTrue(geometry.panel().bottom() <= resolution[1]);
+			assertTrue(geometry.columns().stream().allMatch(column ->
+					column.x() >= viewport.contentLeft() && column.right() <= viewport.contentRight()));
+			int scrollbarX = (int) trackX.invoke(viewport);
+			assertTrue(scrollbarX > geometry.columns().getLast().right());
+			assertTrue(scrollbarX + 8 <= geometry.viewport().right());
+		}
+	}
+
+	@Test
+	void acceptsGridCardClicksOnlyInsideTheVisibleViewportAtEverySupportedResolution() {
+		for (int[] resolution : java.util.List.of(
+				new int[] {320, 240}, new int[] {384, 240}, new int[] {416, 240},
+				new int[] {420, 240}, new int[] {640, 360}, new int[] {854, 480})) {
+			Viewport viewport = new Viewport();
+			viewport.layout(ScreenGeometry.calculate(resolution[0], resolution[1], 0, false), 0, 500);
+			for (int index = 0; index < 2; index++) {
+				int x = viewport.gridCardX(index);
+				int y = viewport.gridCardY(index);
+				assertTrue(viewport.hit(x + 1, y + 1, x, y, 168, 32));
+			}
+			assertFalse(viewport.hit(viewport.contentRight(), viewport.cardY(0), viewport.cardX(), viewport.cardY(0), 168, 32));
+		}
+	}
+
+	@Test
+	void computesContentHeightAfterInstallingTheNewResizeGeometry() throws ReflectiveOperationException {
+		Viewport viewport = new Viewport();
+		ScreenGeometry wide = ScreenGeometry.calculate(420, 240, 0, false);
+		ScreenGeometry compact = ScreenGeometry.calculate(416, 240, 0, false);
+		viewport.layout(wide, 0, 0);
+		viewport.layout(compact, 0, () -> viewport.gridContentHeight(10));
+
+		Method maxScroll = Viewport.class.getDeclaredMethod("maxScroll");
+		maxScroll.setAccessible(true);
+		assertEquals(217, maxScroll.invoke(viewport));
 	}
 }

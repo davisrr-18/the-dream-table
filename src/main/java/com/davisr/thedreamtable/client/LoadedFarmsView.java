@@ -39,6 +39,7 @@ public final class LoadedFarmsView {
 	private static final RequestState requests = new RequestState();
 	private static FarmListing.Show show = FarmListing.Show.ALL;
 	private static FarmListing.Sort sort = FarmListing.Sort.NEWEST;
+	private static boolean favoritesOnly;
 	private static String dimension = "";
 
 	private LoadedFarmsView() {
@@ -103,6 +104,10 @@ public final class LoadedFarmsView {
 		return sort;
 	}
 
+	public static boolean favoritesOnly() {
+		return favoritesOnly;
+	}
+
 	/** The dimension shown, or empty for every dimension. */
 	public static String dimension() {
 		return dimension;
@@ -114,6 +119,10 @@ public final class LoadedFarmsView {
 
 	public static void nextSort() {
 		sort = FarmListing.Sort.values()[(sort.ordinal() + 1) % FarmListing.Sort.values().length];
+	}
+
+	public static void toggleFavorites() {
+		favoritesOnly = !favoritesOnly;
 	}
 
 	/** Every dimension, then each dimension the player has farms in. */
@@ -134,7 +143,7 @@ public final class LoadedFarmsView {
 		if (!dimension.isEmpty() && !FarmListing.dimensions(farms).contains(dimension)) {
 			dimension = "";
 		}
-		return FarmListing.shown(farms, name, query, show, dimension, sort, viewer());
+		return FarmListing.shown(farms, name, query, show, favoritesOnly, dimension, sort, viewer());
 	}
 
 	public static int limit() {

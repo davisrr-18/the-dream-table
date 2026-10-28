@@ -1,6 +1,6 @@
 # The Dream Table 2.2.0-beta
 
-Release date: 2026-10-27
+Release date: 2026-10-28
 
 This beta improves multiplayer farm management, repair safety, and the table interface while preserving existing worlds and farm layouts.
 
@@ -8,14 +8,18 @@ This beta improves multiplayer farm management, repair safety, and the table int
 
 - Rebuilt the table menu around persistent Build, Farms, Schematics, and Settings tabs.
 - Added compact and wide layouts that keep handled inventory slots safe, reachable, and stable while the window changes size.
+- Fixed responsive HUD placement at every supported interface size: cards, filters, buttons, search fields, and the scrollbar stay inside the table instead of overlapping or leaking outside the panel.
+- Wide collections now use their available space as two balanced columns, while focused farm workflows stay centered. Informational text also centers and wraps within its visible area.
 - Improved keyboard focus, narration, clipping, scrolling, and menu routes for custom controls.
+- Moved Honey Farm from Plants to Resources so its category matches the resources it produces.
 
 ## Shared farms
 
 - Finished farms now have permanent identities that keep their custom name, saved layout, sharing data, alerts, and preferences through Repair and restarts.
 - Owners can invite players as Viewers or Operators. Invitations expire, must be accepted, and never make a farm public.
 - Viewers can inspect authorized farms; Operators can start Repair and manage the owner's Keep Loaded selection without taking ownership.
-- Added favorites, farm tracking, a direction-and-distance HUD, and private Farm alerts.
+- Added favorites, farm tracking, a direction-and-distance HUD, and private Farm alerts. My Farms now has a dedicated favorites-only filter and a Favorites First sort option.
+- Expanded the selected farm view with the player's role, running or unavailable state, Keep Loaded state, and distance or dimension alongside storage, condition, repair, and collaborator information.
 
 ## Alerts and repair safety
 

@@ -11,6 +11,7 @@ import com.davisr.thedreamtable.screen.ui.ControlSpec;
 import com.davisr.thedreamtable.screen.ui.layout.UiRect;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
+import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 
 import java.util.List;
@@ -124,9 +125,13 @@ public final class PageContext {
 	}
 
 	public void button(String stableKey, DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
-		register(stableKey, label, Text.empty(), view.cardX(), y, BUTTON_HEIGHT, false, enabled);
-		boolean hit = buttonHit(mouseX, mouseY, y);
-		painter.button(context, label, view.cardX(), y, hit, enabled, primary);
+		buttonAt(stableKey, context, label, view.cardX(), y, mouseX, mouseY, enabled, primary);
+	}
+
+	public void buttonAt(String stableKey, DrawContext context, Text label, int x, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
+		register(stableKey, label, Text.empty(), x, y, BUTTON_HEIGHT, false, enabled);
+		boolean hit = buttonHit(mouseX, mouseY, x, y);
+		painter.button(context, label, x, y, hit, enabled, primary);
 		if (hit && !painter.fits(label, CARD_WIDTH - 16)) {
 			tooltip(label);
 		}
@@ -137,15 +142,23 @@ public final class PageContext {
 	}
 
 	public void destructiveButton(String stableKey, DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled) {
-		register(stableKey, label, Text.empty(), view.cardX(), y, BUTTON_HEIGHT, false, enabled);
-		boolean hit = buttonHit(mouseX, mouseY, y);
-		painter.destructiveButton(context, label, view.cardX(), y, hit, enabled);
+		destructiveButtonAt(stableKey, context, label, view.cardX(), y, mouseX, mouseY, enabled);
+	}
+
+	public void destructiveButtonAt(String stableKey, DrawContext context, Text label, int x, int y, int mouseX, int mouseY, boolean enabled) {
+		register(stableKey, label, Text.empty(), x, y, BUTTON_HEIGHT, false, enabled);
+		boolean hit = buttonHit(mouseX, mouseY, x, y);
+		painter.destructiveButton(context, label, x, y, hit, enabled);
 	}
 
 	public void chip(String stableKey, DrawContext context, Text label, int y, int width, int height, int mouseX, int mouseY) {
+		chipAt(stableKey, context, label, view.cardX(), y, width, height, mouseX, mouseY);
+	}
+
+	public void chipAt(String stableKey, DrawContext context, Text label, int x, int y, int width, int height, int mouseX, int mouseY) {
 		int index = controlIndex++;
 		ControlId id = ControlId.of("page." + pageId, stableKey == null ? Integer.toString(index) : stableKey);
-		UiRect bounds = new UiRect(view.cardX(), y, width, height);
+		UiRect bounds = new UiRect(x, y, width, height);
 		controls.add(new ControlSpec(id, ControlGroup.CONTENT, bounds, label, Text.empty(), true, false, Text.empty(), y, bounds.x()));
 		controlActions.put(id, () -> page.click(bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0));
 		boolean hit = view.hit(mouseX, mouseY, bounds.x(), bounds.y(), bounds.width(), bounds.height());
@@ -158,6 +171,24 @@ public final class PageContext {
 	/** Text shown by the mouse after the page is drawn, for labels cut short with "...". The last one asked for wins. */
 	public void tooltip(Text... lines) {
 		tooltip = List.of(lines);
+	}
+
+	/** Draws a non-interactive note centered across the responsive collection area. */
+	public int collectionNote(DrawContext context, Text text, int y, int color) {
+		return centeredNote(context, text, y, view.collectionX(), view.collectionWidth(), color);
+	}
+
+	/** Draws a non-interactive note centered within the current single-card workflow. */
+	public int flowNote(DrawContext context, Text text, int y, int color) {
+		return centeredNote(context, text, y, view.flowX(), CARD_WIDTH, color);
+	}
+
+	private int centeredNote(DrawContext context, Text text, int y, int x, int width, int color) {
+		for (OrderedText line : painter.text().wrapLines(text, width)) {
+			context.drawText(painter.text(), line, x + (width - painter.text().getWidth(line)) / 2, y, color, false);
+			y += 11;
+		}
+		return y;
 	}
 
 	/** The tooltip asked for during this frame, once. */
@@ -176,7 +207,11 @@ public final class PageContext {
 	}
 
 	public boolean buttonHit(double mouseX, double mouseY, int y) {
-		return view.hit(mouseX, mouseY, view.cardX(), y, CARD_WIDTH, BUTTON_HEIGHT);
+		return buttonHit(mouseX, mouseY, view.cardX(), y);
+	}
+
+	public boolean buttonHit(double mouseX, double mouseY, int x, int y) {
+		return view.hit(mouseX, mouseY, x, y, CARD_WIDTH, BUTTON_HEIGHT);
 	}
 
 	/** Shows the next page right away and asks the server to switch to it. */

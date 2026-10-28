@@ -108,12 +108,14 @@ class BuiltInFarmsTest {
 	}
 
 	@Test
-	void cactusAndHoneyAreBuiltInPlantFarms() {
-		for (String id : java.util.List.of("cactus", "honey")) {
-			FarmOptions.FarmOption option = FarmOptions.byId(id).orElseThrow();
-			assertTrue(FarmOptions.Category.PLANTS.farms().contains(option), id);
-			assertNotNull(FarmTemplates.get(id), id);
-		}
+	void cactusIsAPlantFarmAndHoneyIsAResourceFarm() {
+		FarmOptions.FarmOption cactus = FarmOptions.byId("cactus").orElseThrow();
+		FarmOptions.FarmOption honey = FarmOptions.byId("honey").orElseThrow();
+
+		assertTrue(FarmOptions.Category.PLANTS.farms().contains(cactus));
+		assertTrue(FarmOptions.Category.RESOURCES.farms().contains(honey));
+		assertNotNull(FarmTemplates.get("cactus"));
+		assertNotNull(FarmTemplates.get("honey"));
 	}
 
 	@Test

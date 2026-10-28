@@ -26,4 +26,13 @@ class LoadedFarmsViewTest {
 		assertTrue(state.requestDetails());
 		assertTrue(state.requestAlerts());
 	}
+
+	@Test
+	void favoriteFilterHasIndependentClientState() {
+		assertFalse(LoadedFarmsView.favoritesOnly());
+		LoadedFarmsView.toggleFavorites();
+		assertTrue(LoadedFarmsView.favoritesOnly());
+		LoadedFarmsView.toggleFavorites();
+		assertFalse(LoadedFarmsView.favoritesOnly());
+	}
 }

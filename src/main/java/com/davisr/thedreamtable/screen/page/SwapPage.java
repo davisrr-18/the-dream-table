@@ -30,26 +30,27 @@ public final class SwapPage implements TablePage {
 		List<Integer> shown = search.filter(options);
 		Item current = ui.handler().materialItem(material);
 		for (int position = 0; position < shown.size(); position++) {
-			int y = ui.view().cardY(position);
+			int x = cardX(ui.view(), position);
+			int y = cardY(ui.view(), position);
 			Item option = options.get(shown.get(position));
-			ui.card("swap." + Registries.ITEM.getId(option), context, new ItemStack(option), option.getName(), y, mouseX, mouseY, option == current, true);
+			ui.cardAt("swap." + Registries.ITEM.getId(option), context, new ItemStack(option), option.getName(), x, y, mouseX, mouseY, option == current, true);
 		}
 		if (shown.isEmpty()) {
-			context.drawText(ui.painter().text(), Text.translatable("gui.the_dream_table.search_empty"), ui.view().cardX(), ui.view().cardY(0), HINT, false);
+			ui.collectionNote(context, Text.translatable("gui.the_dream_table.search_empty"), cardY(ui.view(), 0), HINT);
 		}
-		ui.button(context, Text.translatable("gui.the_dream_table.back"), ui.view().listBackY(shown.size()), mouseX, mouseY, true, false);
+		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(ui.view(), shown.size()), mouseX, mouseY, true, false);
 	}
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		List<Integer> shown = shownOptions();
 		for (int position = 0; position < shown.size(); position++) {
-			if (ui.cardHit(mouseX, mouseY, ui.view().cardY(position))) {
+			if (ui.cardHit(mouseX, mouseY, cardX(ui.view(), position), cardY(ui.view(), position))) {
 				ui.go(DreamTableScreenHandler.PAGE_MATERIALS, DreamTableScreenHandler.BUTTON_SWAP_PICK + shown.get(position));
 				return true;
 			}
 		}
-		if (ui.buttonHit(mouseX, mouseY, ui.view().listBackY(shown.size()))) {
+		if (ui.buttonHit(mouseX, mouseY, backY(ui.view(), shown.size()))) {
 			ui.go(DreamTableScreenHandler.PAGE_MATERIALS, DreamTableScreenHandler.BUTTON_SWAP_BACK);
 			return true;
 		}
@@ -58,7 +59,7 @@ public final class SwapPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		return Viewport.listContentHeight(shownOptions().size());
+		return contentHeight(ui.view(), shownOptions().size());
 	}
 
 	@Override
@@ -68,5 +69,21 @@ public final class SwapPage implements TablePage {
 
 	private List<Integer> shownOptions() {
 		return search.filter(ui.handler().swapOptions(ui.handler().getSwapMaterial()));
+	}
+
+	static int cardX(Viewport view, int index) {
+		return view.gridCardX(index);
+	}
+
+	static int cardY(Viewport view, int index) {
+		return view.gridCardY(index);
+	}
+
+	static int backY(Viewport view, int count) {
+		return count == 0 ? cardY(view, 0) + 10 : cardY(view, count - 1) + CARD_HEIGHT + 10;
+	}
+
+	static int contentHeight(Viewport view, int count) {
+		return backY(view, count) - cardY(view, 0) + PAD + BUTTON_HEIGHT + 8;
 	}
 }

@@ -3,9 +3,12 @@ package com.davisr.thedreamtable.farm;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FarmListingTest {
 	private static final String OVERWORLD = "minecraft:overworld";
@@ -62,7 +65,19 @@ class FarmListingTest {
 	void accessAndFavoriteFiltersUseServerDerivedSnapshotFields() {
 		assertEquals(List.of(0, 3, 4), shown("", FarmListing.Show.OWNED, "", FarmListing.Sort.NEWEST));
 		assertEquals(List.of(1, 2), shown("", FarmListing.Show.SHARED, "", FarmListing.Sort.NEWEST));
-		assertEquals(List.of(1, 3), shown("", FarmListing.Show.FAVORITES, "", FarmListing.Sort.NEWEST));
+	}
+
+	@Test
+	void favoritesHaveTheirOwnFilterInsteadOfBeingHiddenInTheShowCycle() {
+		assertFalse(Arrays.stream(FarmListing.Show.values()).anyMatch(show -> show.name().equals("FAVORITES")));
+		assertTrue(Arrays.stream(FarmListing.Sort.values()).anyMatch(sort -> sort.name().equals("FAVORITES")));
+	}
+
+	@Test
+	void favoriteFilterAndSortUseTheSnapshotFavoriteFlag() {
+		assertEquals(List.of(1, 3), FarmListing.shown(FARMS, FarmLoader.Entry::displayName, "", FarmListing.Show.ALL,
+				true, "", FarmListing.Sort.NEWEST, HOME));
+		assertEquals(List.of(1, 3, 0, 2, 4), shown("", FarmListing.Show.ALL, "", FarmListing.Sort.FAVORITES));
 	}
 
 	@Test

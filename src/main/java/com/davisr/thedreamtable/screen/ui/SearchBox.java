@@ -83,17 +83,22 @@ public final class SearchBox {
 	}
 
 	public void draw(DrawContext context, Painter painter, int x, int y) {
+		draw(context, painter, x, y, CARD_WIDTH);
+	}
+
+	public void draw(DrawContext context, Painter painter, int x, int y, int width) {
 		if (!visible()) {
 			return;
 		}
 		TextRenderer text = painter.text();
-		painter.field(context, x, y, CARD_WIDTH, HEIGHT, field.isFocused());
+		painter.field(context, x, y, width, HEIGHT, field.isFocused());
 		field.setX(x + INSET);
 		field.setY(y + 5);
+		field.setWidth(width - INSET * 2);
 
 		int left = x + INSET;
 		int top = y + 5;
-		int room = CARD_WIDTH - INSET * 2;
+		int room = width - INSET * 2;
 		String value = field.getText();
 		if (value.isEmpty()) {
 			context.drawText(text, painter.trim(hint, room), left, top, MUTED, false);

@@ -13,7 +13,6 @@ import com.davisr.thedreamtable.screen.ui.SearchBox;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
@@ -32,14 +31,13 @@ public final class LoadedFarmsPage implements TablePage {
 	private static final int NOTE_HEIGHT = 36;
 	private static final int CHIP_HEIGHT = 14;
 	private static final int CHIP_GAP = 3;
-	private static final int CHIPS = 4;
+	private static final int CHIPS = 5;
 	private static final int INVITES = 0;
 	private static final int SHOW = 1;
 	private static final int SORT = 2;
 	private static final int DIMENSION = 3;
+	private static final int FAVORITES = 4;
 	private static final int COUNT_HEIGHT = 12;
-	/** The filters and the count above the cards. */
-	private static final int CONTROLS = CHIPS * (CHIP_HEIGHT + CHIP_GAP) + COUNT_HEIGHT + 2;
 
 	private final PageContext ui;
 	private final SearchBox search;
@@ -65,20 +63,20 @@ public final class LoadedFarmsPage implements TablePage {
 			chip(context, Text.translatable("gui.the_dream_table.invites_chip", LoadedFarmsView.invites().size()), INVITES, mouseX, mouseY);
 			String key = !LoadedFarmsView.received() ? "gui.the_dream_table.loaded_waiting"
 					: LoadedFarmsView.limit() <= 0 ? "gui.the_dream_table.loaded_off" : "gui.the_dream_table.loaded_empty";
-			note(context, Text.translatable(key), chipY(1));
+			ui.collectionNote(context, Text.translatable(key), chipY(filterColumns(ui.view())), HINT);
 		} else {
 			List<Integer> shown = shown();
 			drawControls(context, mouseX, mouseY, shown.size(), farms.size());
 			if (shown.isEmpty()) {
-				note(context, Text.translatable("gui.the_dream_table.farms_none_match"), cardY(0));
+				ui.collectionNote(context, Text.translatable("gui.the_dream_table.farms_none_match"), cardY(0), HINT);
 			}
 			FarmListing.Viewer viewer = LoadedFarmsView.viewer();
 			for (int place = 0; place < shown.size(); place++) {
 				FarmLoader.Entry farm = farms.get(shown.get(place));
-				card(ui, context, farm, detail(farm, viewer), cardY(place), mouseX, mouseY);
+				card(ui, context, farm, detail(farm, viewer), cardX(place), cardY(place), mouseX, mouseY);
 			}
 		}
-		note(context, Text.translatable("gui.the_dream_table.loaded_hint"), noteY());
+		ui.collectionNote(context, Text.translatable("gui.the_dream_table.loaded_hint"), noteY(), HINT);
 	}
 
 	private void drawControls(DrawContext context, int mouseX, int mouseY, int shown, int total) {
@@ -89,24 +87,29 @@ public final class LoadedFarmsPage implements TablePage {
 		chip(context, Text.translatable("gui.the_dream_table.show", Text.translatable(showKey)), SHOW, mouseX, mouseY);
 		chip(context, Text.translatable("gui.the_dream_table.sort", Text.translatable(sortKey)), SORT, mouseX, mouseY);
 		chip(context, Text.translatable("gui.the_dream_table.dimension_filter", where), DIMENSION, mouseX, mouseY);
+		String favoritesKey = LoadedFarmsView.favoritesOnly() ? "gui.the_dream_table.favorites_only" : "gui.the_dream_table.favorites_all";
+		chip(context, Text.translatable("gui.the_dream_table.favorites_filter", Text.translatable(favoritesKey)), FAVORITES, mouseX, mouseY);
 		Text count = shown == total ? Text.translatable(total == 1 ? "gui.the_dream_table.farm_count_one" : "gui.the_dream_table.farm_count", total)
 				: Text.translatable("gui.the_dream_table.farms_shown", shown, total);
-		context.drawText(ui.painter().text(), count, ui.view().cardX(), chipY(CHIPS) + 1, HINT, false);
+		ui.collectionNote(context, count, countY() + 1, HINT);
 	}
 
 	private void chip(DrawContext context, Text label, int row, int mouseX, int mouseY) {
-		int y = chipY(row);
-		ui.chip("filter." + row, context, label, y, CARD_WIDTH, CHIP_HEIGHT, mouseX, mouseY);
+		ui.chipAt("filter." + row, context, label, filterX(ui.view(), row), chipY(row), CARD_WIDTH, CHIP_HEIGHT, mouseX, mouseY);
 	}
 
 	private boolean chipHit(double mouseX, double mouseY, int row) {
-		return ui.view().hit(mouseX, mouseY, ui.view().cardX(), chipY(row), CARD_WIDTH, CHIP_HEIGHT);
+		return ui.view().hit(mouseX, mouseY, filterX(ui.view(), row), chipY(row), CARD_WIDTH, CHIP_HEIGHT);
 	}
 
 	static void card(PageContext ui, DrawContext context, FarmLoader.Entry farm, Text detail, int y, int mouseX, int mouseY) {
+		card(ui, context, farm, detail, ui.view().cardX(), y, mouseX, mouseY);
+	}
+
+	static void card(PageContext ui, DrawContext context, FarmLoader.Entry farm, Text detail, int x, int y, int mouseX, int mouseY) {
 		FarmOption option = FarmOptions.byId(farm.farmId()).orElse(null);
 		ItemStack icon = option == null ? new ItemStack(Items.STRUCTURE_BLOCK) : option.icon().getDefaultStack();
-		ui.card(farm.key(), context, icon, name(farm), detail, y, mouseX, mouseY, farm.loaded(), true);
+		ui.cardAt(farm.key(), context, icon, name(farm), detail, x, y, mouseX, mouseY, farm.loaded(), true);
 	}
 
 	/** The farm's name, its schematic's file name, or "Removed Farm" for one the mod no longer has. */
@@ -165,14 +168,6 @@ public final class LoadedFarmsPage implements TablePage {
 		return Text.literal(dimension == null ? id : dimension.getPath());
 	}
 
-	private void note(DrawContext context, Text text, int y) {
-		int lineY = y;
-		for (OrderedText line : ui.painter().text().wrapLines(text, CARD_WIDTH)) {
-			context.drawText(ui.painter().text(), line, ui.view().cardX(), lineY, HINT, false);
-			lineY += 11;
-		}
-	}
-
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		if (chipHit(mouseX, mouseY, INVITES)) {
@@ -180,13 +175,16 @@ public final class LoadedFarmsPage implements TablePage {
 			return true;
 		}
 		if (listing()) {
-			if (chipHit(mouseX, mouseY, SHOW) || chipHit(mouseX, mouseY, SORT) || chipHit(mouseX, mouseY, DIMENSION)) {
+			if (chipHit(mouseX, mouseY, SHOW) || chipHit(mouseX, mouseY, SORT) || chipHit(mouseX, mouseY, DIMENSION)
+					|| chipHit(mouseX, mouseY, FAVORITES)) {
 				if (chipHit(mouseX, mouseY, SHOW)) {
 					LoadedFarmsView.nextShow();
 				} else if (chipHit(mouseX, mouseY, SORT)) {
 					LoadedFarmsView.nextSort();
-				} else {
+				} else if (chipHit(mouseX, mouseY, DIMENSION)) {
 					LoadedFarmsView.nextDimension();
+				} else {
+					LoadedFarmsView.toggleFavorites();
 				}
 				ui.view().resetScroll();
 				ui.actions().click();
@@ -194,7 +192,7 @@ public final class LoadedFarmsPage implements TablePage {
 			}
 			List<Integer> shown = shown();
 			for (int place = 0; place < shown.size(); place++) {
-				if (ui.cardHit(mouseX, mouseY, cardY(place))) {
+				if (ui.cardHit(mouseX, mouseY, cardX(place), cardY(place))) {
 					LoadedFarmsView.select(LoadedFarmsView.farms().get(shown.get(place)).key());
 					ui.go(DreamTableScreenHandler.PAGE_FARM, DreamTableScreenHandler.BUTTON_FARM_OPEN);
 					return true;
@@ -214,24 +212,60 @@ public final class LoadedFarmsPage implements TablePage {
 		return Text.translatable("gui.the_dream_table.my_farms_title", LoadedFarmsView.loaded(), LoadedFarmsView.limit());
 	}
 
-	private int chipY(int row) {
-		return ui.view().cardY(0) + row * (CHIP_HEIGHT + CHIP_GAP);
+	private int cardY(int place) {
+		return cardY(ui.view(), place);
 	}
 
-	private int cardY(int place) {
-		return ui.view().cardY(place) + CONTROLS;
+	private int cardX(int place) {
+		return ui.view().gridCardX(place);
 	}
 
 	private int listHeight() {
 		if (!listing()) {
 			return CHIP_HEIGHT + CHIP_GAP + NOTE_HEIGHT;
 		}
-		int count = shown().size();
-		return CONTROLS + (count == 0 ? NOTE_HEIGHT : count * CARD_HEIGHT + (count - 1) * CARD_GAP);
+		return listHeight(ui.view(), shown().size());
 	}
 
 	private int noteY() {
 		return ui.view().cardY(0) + listHeight() + 6;
+	}
+
+	private int chipY(int row) {
+		return filterY(ui.view(), row);
+	}
+
+	private int countY() {
+		return ui.view().cardY(0) + filterRows(ui.view(), CHIPS) * (CHIP_HEIGHT + CHIP_GAP);
+	}
+
+	static int filterX(com.davisr.thedreamtable.screen.ui.Viewport view, int index) {
+		return view.gridCardX(index);
+	}
+
+	static int filterY(com.davisr.thedreamtable.screen.ui.Viewport view, int index) {
+		return view.cardY(0) + index / filterColumns(view) * (CHIP_HEIGHT + CHIP_GAP);
+	}
+
+	static int filterRows(com.davisr.thedreamtable.screen.ui.Viewport view, int count) {
+		int columns = filterColumns(view);
+		return (Math.max(0, count) + columns - 1) / columns;
+	}
+
+	static int controlsHeight(com.davisr.thedreamtable.screen.ui.Viewport view) {
+		return filterRows(view, CHIPS) * (CHIP_HEIGHT + CHIP_GAP) + COUNT_HEIGHT + 2;
+	}
+
+	static int cardY(com.davisr.thedreamtable.screen.ui.Viewport view, int place) {
+		return view.gridCardY(place) + controlsHeight(view);
+	}
+
+	static int listHeight(com.davisr.thedreamtable.screen.ui.Viewport view, int count) {
+		return controlsHeight(view) + (count == 0 ? NOTE_HEIGHT : cardY(view, count - 1) - cardY(view, 0) + CARD_HEIGHT);
+	}
+
+	private static int filterColumns(com.davisr.thedreamtable.screen.ui.Viewport view) {
+		return view.gridCardX(0) == view.gridCardX(1) ? 1 : 2;
 	}
 
 }

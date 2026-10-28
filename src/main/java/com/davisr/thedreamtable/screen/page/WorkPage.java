@@ -53,43 +53,43 @@ public final class WorkPage implements TablePage {
 		FarmOption option = FarmOptions.byId(ui.farm()).orElse(null);
 		ItemStack icon = option == null ? new ItemStack(Items.STRUCTURE_BLOCK) : option.icon().getDefaultStack();
 		Text name = option == null ? Text.literal(ui.farm()) : option.title();
-		ui.card(context, icon, name, ui.view().cardY(0), mouseX, mouseY, true, true);
+		ui.cardAt("farm", context, icon, name, flowX(), ui.view().cardY(0), mouseX, mouseY, true, true);
 		drawStatus(context);
-		ui.painter().progress(context, ui.view().cardX(), barY(), CARD_WIDTH, handler.getBuildIndex(), handler.getTotal());
+		ui.painter().progress(context, flowX(), barY(), CARD_WIDTH, handler.getBuildIndex(), handler.getTotal());
 
-		ui.button("menu", context, Text.translatable("gui.the_dream_table.menu"), rowY(MENU), mouseX, mouseY, true, false);
-		ui.button("requirements", context, Text.translatable("gui.the_dream_table.requirements"), rowY(REQUIREMENTS), mouseX, mouseY, true, false);
-		ui.button("materials", context, Text.translatable("gui.the_dream_table.materials"), rowY(MATERIALS), mouseX, mouseY, true, false);
-		ui.button("build", context, buildLabel(), rowY(BUILD), mouseX, mouseY, ProjectState.canBuild(handler), true);
+		ui.buttonAt("menu", context, Text.translatable("gui.the_dream_table.menu"), flowX(), rowY(MENU), mouseX, mouseY, true, false);
+		ui.buttonAt("requirements", context, Text.translatable("gui.the_dream_table.requirements"), flowX(), rowY(REQUIREMENTS), mouseX, mouseY, true, false);
+		ui.buttonAt("materials", context, Text.translatable("gui.the_dream_table.materials"), flowX(), rowY(MATERIALS), mouseX, mouseY, true, false);
+		ui.buttonAt("build", context, buildLabel(), flowX(), rowY(BUILD), mouseX, mouseY, ProjectState.canBuild(handler), true);
 		if (confirming()) {
-			ui.button("cancel_discard", context, Text.translatable("gui.the_dream_table.cancel"), rowY(DISCARD), mouseX, mouseY, true, false);
-			ui.destructiveButton("confirm_discard", context, Text.translatable("gui.the_dream_table.confirm_discard"), rowY(CONFIRM_DISCARD), mouseX, mouseY, true);
+			ui.buttonAt("cancel_discard", context, Text.translatable("gui.the_dream_table.cancel"), flowX(), rowY(DISCARD), mouseX, mouseY, true, false);
+			ui.destructiveButtonAt("confirm_discard", context, Text.translatable("gui.the_dream_table.confirm_discard"), flowX(), rowY(CONFIRM_DISCARD), mouseX, mouseY, true);
 		} else {
-			ui.destructiveButton("discard", context, Text.translatable("gui.the_dream_table.discard"), rowY(DISCARD), mouseX, mouseY, true);
+			ui.destructiveButtonAt("discard", context, Text.translatable("gui.the_dream_table.discard"), flowX(), rowY(DISCARD), mouseX, mouseY, true);
 		}
 	}
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
-		if (ui.buttonHit(mouseX, mouseY, rowY(MENU))) {
+		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(MENU))) {
 			ui.go(DreamTableScreenHandler.PAGE_SELECT, DreamTableScreenHandler.BUTTON_MENU);
 			return true;
 		}
-		if (ui.buttonHit(mouseX, mouseY, rowY(REQUIREMENTS))) {
+		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(REQUIREMENTS))) {
 			DreamTableClipboard.pin(ui.handler().getTablePos());
 			ui.actions().press(DreamTableScreenHandler.BUTTON_REQUIREMENTS);
 			ui.actions().close();
 			return true;
 		}
-		if (ui.buttonHit(mouseX, mouseY, rowY(MATERIALS))) {
+		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(MATERIALS))) {
 			ui.go(DreamTableScreenHandler.PAGE_MATERIALS, DreamTableScreenHandler.BUTTON_MATERIALS);
 			return true;
 		}
-		if (ui.buttonHit(mouseX, mouseY, rowY(BUILD))) {
+		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(BUILD))) {
 			build();
 			return true;
 		}
-		if (ui.buttonHit(mouseX, mouseY, rowY(DISCARD))) {
+		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(DISCARD))) {
 			if (confirming()) {
 				confirmUntil = 0L;
 				ui.actions().click();
@@ -98,7 +98,7 @@ public final class WorkPage implements TablePage {
 			}
 			return true;
 		}
-		if (confirming() && ui.buttonHit(mouseX, mouseY, rowY(CONFIRM_DISCARD))) {
+		if (confirming() && ui.buttonHit(mouseX, mouseY, flowX(), rowY(CONFIRM_DISCARD))) {
 			discardNow();
 			return true;
 		}
@@ -179,7 +179,7 @@ public final class WorkPage implements TablePage {
 		List<Integer> colors = new ArrayList<>();
 		List<OrderedText> lines = statusLines(colors);
 		for (int line = 0; line < Math.min(MAX_STATUS_LINES, lines.size()); line++) {
-			context.drawText(ui.painter().text(), lines.get(line), ui.view().cardX(), statusY() + line * LINE_HEIGHT, colors.get(line), false);
+			context.drawText(ui.painter().text(), lines.get(line), flowX(), statusY() + line * LINE_HEIGHT, colors.get(line), false);
 		}
 	}
 
@@ -270,6 +270,10 @@ public final class WorkPage implements TablePage {
 
 	private int statusY() {
 		return ui.view().cardY(0) + CARD_HEIGHT + 8;
+	}
+
+	private int flowX() {
+		return ui.view().flowX();
 	}
 
 	private int barY() {

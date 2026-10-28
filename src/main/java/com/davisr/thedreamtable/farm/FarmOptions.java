@@ -35,9 +35,9 @@ public final class FarmOptions {
 
 	/** The first menu page, by what the farms produce. A new built-in farm goes in {@link #ALL} and one category. */
 	public enum Category {
-		PLANTS(Items.SUGAR_CANE, "category.the_dream_table.plants", List.of(SUGAR_CANE, BAMBOO, CACTUS, CROP, HONEY)),
+		PLANTS(Items.SUGAR_CANE, "category.the_dream_table.plants", List.of(SUGAR_CANE, BAMBOO, CACTUS, CROP)),
 		MOBS(Items.BONE, "category.the_dream_table.mobs", List.of(MOB_DARK_ROOM)),
-		RESOURCES(Items.IRON_INGOT, "category.the_dream_table.resources", List.of(IRON_GOLEM));
+		RESOURCES(Items.IRON_INGOT, "category.the_dream_table.resources", List.of(HONEY, IRON_GOLEM));
 
 		private final Item icon;
 		private final String translationKey;

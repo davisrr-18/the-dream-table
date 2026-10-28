@@ -3,7 +3,10 @@ package com.davisr.thedreamtable.screen.page;
 import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmOptions.Category;
 import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
+import com.davisr.thedreamtable.farm.BuildPace;
+import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
+import com.davisr.thedreamtable.screen.ui.Viewport;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
@@ -34,7 +37,7 @@ public final class CategoryPage implements TablePage {
 		for (int index = 0; index < farms.size(); index++) {
 			FarmOption option = farms.get(index);
 			boolean selected = option.id().equals(ui.farm());
-			FarmCard.draw(ui, context, option, ui.view().cardY(index), mouseX, mouseY, selected, !locked || selected);
+			drawCard(context, option, cardX(ui.view(), index), cardY(ui.view(), index), mouseX, mouseY, selected, !locked || selected);
 		}
 		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
 	}
@@ -43,7 +46,7 @@ public final class CategoryPage implements TablePage {
 	public boolean click(double mouseX, double mouseY) {
 		List<FarmOption> farms = category().farms();
 		for (int index = 0; index < farms.size(); index++) {
-			if (ui.cardHit(mouseX, mouseY, ui.view().cardY(index))) {
+			if (ui.cardHit(mouseX, mouseY, cardX(ui.view(), index), cardY(ui.view(), index))) {
 				FarmOption option = farms.get(index);
 				if (!option.id().equals(ui.farm()) && ProjectState.locked(ui.handler())) {
 					ui.message("gui.the_dream_table.farm_busy");
@@ -63,7 +66,7 @@ public final class CategoryPage implements TablePage {
 	@Override
 	public int contentHeight() {
 		int count = category().farms().size();
-		return PAD + count * CARD_HEIGHT + (count - 1) * CARD_GAP + 6 + BUTTON_HEIGHT + 4;
+		return contentHeight(ui.view(), count);
 	}
 
 	@Override
@@ -72,6 +75,38 @@ public final class CategoryPage implements TablePage {
 	}
 
 	private int backY() {
-		return ui.view().cardY(category().farms().size() - 1) + CARD_HEIGHT + 6;
+		return backY(ui.view(), category().farms().size());
+	}
+
+	static int cardX(Viewport view, int index) {
+		return view.gridCardX(index);
+	}
+
+	static int cardY(Viewport view, int index) {
+		return view.gridCardY(index);
+	}
+
+	static int backY(Viewport view, int count) {
+		return cardY(view, Math.max(0, count - 1)) + CARD_HEIGHT + 6;
+	}
+
+	static int contentHeight(Viewport view, int count) {
+		return view.gridContentHeight(count) + BUTTON_HEIGHT + 4;
+	}
+
+	private void drawCard(DrawContext context, FarmOption option, int x, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
+		int steps = FarmTemplates.stepCount(option.id());
+		if (steps < 0) {
+			ui.cardAt(option.id(), context, option.icon().getDefaultStack(), option.title(), x, y, mouseX, mouseY, selected, enabled);
+			return;
+		}
+		int seconds = BuildPace.secondsLeftAt(ui.handler().blocksPerSecondAt(ui.handler().getPace()), steps, 0);
+		Text detail = Text.translatable("gui.the_dream_table.with_eta", Text.translatable("gui.the_dream_table.farm_size", steps), TimeText.of(seconds));
+		int warnings = FarmTemplates.notes(option.id()).size();
+		if (warnings > 0) {
+			Text count = Text.translatable(warnings == 1 ? "gui.the_dream_table.warning_one" : "gui.the_dream_table.warnings", warnings);
+			detail = Text.translatable("gui.the_dream_table.joined", detail, count);
+		}
+		ui.cardAt(option.id(), context, option.icon().getDefaultStack(), option.title(), detail, x, y, mouseX, mouseY, selected, enabled);
 	}
 }
