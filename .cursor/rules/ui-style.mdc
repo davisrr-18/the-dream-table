@@ -7,7 +7,7 @@ alwaysApply: false
 # UI style
 
 - Use the `Theme` colors and the `Painter` styles for cards, buttons and fields. Cards are 168 px wide; semantic state also needs text, icon, or outline instead of color alone.
-- Use `ScreenGeometry` as the single source for panel, header, tabs, toolbar, viewport, content, and slot origins. Compact mode is 196 px below 420 logical pixels; wide mode is 384 px at and above 420.
+- Use `ScreenGeometry` as the single source for panel, header, tabs, toolbar, viewport, content, and slot origins. Compact mode is 196 px below 420 logical pixels; wide mode is 384 px at and above 420. The panel height is fixed at `ScreenGeometry.PANEL_HEIGHT` (256) GUI pixels, so the menu scales only with the Minecraft GUI scale; a shorter screen caps it to the available height.
 - Header, primary tabs, and toolbar stay fixed. Only the viewport content scrolls, and resizing must preserve the active page and stable control focus.
 - Keep `ScreenHandler` slot coordinates immutable. `DreamTableScreen.x/y` are the current slot origin; slot drawing, highlighting, tooltips, and hit testing must use that origin and reject every partially clipped slot.
 - The four primary tabs are persistent. Build owns catalog/work/material flows, Farms owns finished-farm operations and Keep Loaded, Schematics owns imports, and Settings owns client/build preferences.

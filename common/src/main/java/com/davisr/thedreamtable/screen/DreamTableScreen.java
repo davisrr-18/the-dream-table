@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
@@ -384,7 +385,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 
 	private ControlSpec tabSpec(PrimaryTab tab, UiRect bounds) {
 		boolean selected = geometry != null && PageRoutes.tabFor(this.handler.getPage()) == tab;
-		return new ControlSpec(new ControlId("tab." + tab.name().toLowerCase()), ControlGroup.PRIMARY_TABS, bounds,
+		return new ControlSpec(new ControlId("tab." + tab.name().toLowerCase(Locale.ROOT)), ControlGroup.PRIMARY_TABS, bounds,
 				tabLabel(tab), Text.empty(),
 				true, selected, Text.empty(), 0, tab.ordinal());
 	}
@@ -517,7 +518,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	}
 
 	private static Text tabLabel(PrimaryTab tab) {
-		return Text.translatable("gui.the_dream_table.tab." + tab.name().toLowerCase());
+		return Text.translatable("gui.the_dream_table.tab." + tab.name().toLowerCase(Locale.ROOT));
 	}
 
 	private static ItemStack tabIcon(PrimaryTab tab) {

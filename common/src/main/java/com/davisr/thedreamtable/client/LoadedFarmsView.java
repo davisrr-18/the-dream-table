@@ -21,6 +21,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -71,7 +72,7 @@ public final class LoadedFarmsView {
 			MinecraftClient client = MinecraftClient.getInstance();
 			if (client.player != null) {
 				client.inGameHud.setOverlayMessage(Text.translatable("gui.the_dream_table.action_result."
-						+ payload.result().name().toLowerCase()), false);
+						+ payload.result().name().toLowerCase(Locale.ROOT)), false);
 			}
 		});
 	}
