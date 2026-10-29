@@ -134,6 +134,7 @@
 	"gui.the_dream_table.deliver_none": "Nothing in your inventory is needed",
 	"gui.the_dream_table.deliver_nearby_none": "No needed items in nearby containers",
 	"gui.the_dream_table.deliver_nearby_none_skipped": "No needed items in nearby containers. Skipped %s locked, unopened or protected containers",
+	"gui.the_dream_table.deliver_nearby_wait": "Wait a moment before delivering again",
 	"gui.the_dream_table.farm_busy": "Discard the current farm before starting another",
 	"gui.the_dream_table.build": "Build",
 	"gui.the_dream_table.discard": "Discard",
