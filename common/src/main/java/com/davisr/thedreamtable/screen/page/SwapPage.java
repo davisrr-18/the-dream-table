@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.screen.page;
 
+import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import com.davisr.thedreamtable.screen.ui.SearchBox;
 import com.davisr.thedreamtable.screen.ui.Viewport;
@@ -19,6 +20,7 @@ public final class SwapPage implements TablePage {
 	private final SearchBox search;
 	/** The options for the open material and the ones the search keeps, made once per change instead of per call. */
 	private String cachedFarm;
+	private FarmTemplate cachedTemplate;
 	private int cachedMaterial = -1;
 	private String cachedQuery;
 	private List<Item> cachedOptions = List.of();
@@ -77,7 +79,9 @@ public final class SwapPage implements TablePage {
 		String farm = ui.farm();
 		int material = ui.handler().getSwapMaterial();
 		String query = search.text();
-		if (!farm.equals(cachedFarm) || material != cachedMaterial || !query.equals(cachedQuery)) {
+		FarmTemplate template = ui.template();
+		if (!farm.equals(cachedFarm) || material != cachedMaterial || !query.equals(cachedQuery) || template != cachedTemplate) {
+			cachedTemplate = template;
 			cachedOptions = ui.handler().swapOptions(material);
 			cachedShown = search.filter(cachedOptions);
 			cachedFarm = farm;

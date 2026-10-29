@@ -73,4 +73,14 @@ class ObstacleRulesTest {
 			assertFalse(clearable(block), block.toString());
 		}
 	}
+
+	@Test
+	void clearingKeepsNoMiningRewardButEveryOrdinaryBlockStillDrops() {
+		assertTrue(ObstacleRules.minedResource(Blocks.OBSIDIAN.getDefaultState()));
+		assertTrue(ObstacleRules.minedResource(Blocks.ANCIENT_DEBRIS.getDefaultState()));
+		assertTrue(ObstacleRules.minedResource(Blocks.NETHER_QUARTZ_ORE.getDefaultState()));
+		assertFalse(ObstacleRules.minedResource(Blocks.STONE.getDefaultState()));
+		assertFalse(ObstacleRules.minedResource(Blocks.COBBLESTONE.getDefaultState()));
+		assertFalse(ObstacleRules.minedResource(Blocks.DIRT.getDefaultState()));
+	}
 }

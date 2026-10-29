@@ -66,8 +66,10 @@ public final class FarmPage implements TablePage {
 	@Override
 	public void draw(DrawContext context, int mouseX, int mouseY) {
 		LoadedFarmsView.ensure();
-		LoadedFarmsView.ensureDetails();
 		FarmLoader.Entry farm = farm();
+		if (farm != null) {
+			LoadedFarmsView.ensureDetails();
+		}
 		syncAlerts(farm);
 		if (farm == null) {
 			ui.flowNote(context, Text.translatable(LoadedFarmsView.received() ? "gui.the_dream_table.farm_gone" : "gui.the_dream_table.loaded_waiting"),

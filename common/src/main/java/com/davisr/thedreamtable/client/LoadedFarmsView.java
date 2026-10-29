@@ -72,6 +72,11 @@ public final class LoadedFarmsView {
 				details = null;
 				requests.invalidateDetails();
 			}
+			// Refused (gone, no longer shared): stop asking every second, the notice below says why once.
+			if (payload.action() == FarmActionResultPayload.Action.DETAILS
+					&& payload.result() != FarmActionResultPayload.Result.SUCCESS && payload.key().equals(selected)) {
+				requests.refuse();
+			}
 			TableNotices.show(Text.translatable("gui.the_dream_table.action_result." + payload.result().name().toLowerCase(Locale.ROOT)),
 					payload.result() == FarmActionResultPayload.Result.SUCCESS ? TableNoticePayload.Severity.INFO : TableNoticePayload.Severity.PROBLEM);
 		});
@@ -285,6 +290,7 @@ public final class LoadedFarmsView {
 		private long detailsSentAt;
 		private boolean alerts;
 		private long alertsSentAt;
+		private boolean refused;
 
 		boolean requestFarms(long nowMs, boolean answered) {
 			if (farms && (answered || nowMs - farmsSentAt < RETRY_MS)) {
@@ -302,12 +308,13 @@ public final class LoadedFarmsView {
 			selected = key;
 			details = false;
 			alerts = false;
+			refused = false;
 			return true;
 		}
 
 		/** Like {@link #requestFarms}: sent again after {@link #RETRY_MS} while the server's answer has not arrived. */
 		boolean requestDetails(long nowMs, boolean answered) {
-			if (details && (answered || nowMs - detailsSentAt < RETRY_MS)) {
+			if (refused || details && (answered || nowMs - detailsSentAt < RETRY_MS)) {
 				return false;
 			}
 			details = true;
@@ -317,10 +324,16 @@ public final class LoadedFarmsView {
 
 		void invalidateDetails() {
 			details = false;
+			refused = false;
+		}
+
+		/** The server refused this selection's details or alerts; nothing is asked again until another selection. */
+		void refuse() {
+			refused = true;
 		}
 
 		boolean requestAlerts(long nowMs, boolean answered) {
-			if (alerts && (answered || nowMs - alertsSentAt < RETRY_MS)) {
+			if (refused || alerts && (answered || nowMs - alertsSentAt < RETRY_MS)) {
 				return false;
 			}
 			alerts = true;
@@ -333,6 +346,7 @@ public final class LoadedFarmsView {
 			selected = "";
 			details = false;
 			alerts = false;
+			refused = false;
 		}
 	}
 }
