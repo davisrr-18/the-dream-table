@@ -12,13 +12,13 @@ class TextFitTest {
 		for (int width = 100; width <= 4000; width += 7) {
 			int max = Tooltips.maxWidth(width);
 			assertTrue(max >= Tooltips.MIN_WIDTH && max <= Tooltips.MAX_WIDTH, "width " + width);
-			if (width >= 2 * (Tooltips.MIN_WIDTH + 12)) {
-				// Flipped to the left of the mouse, the text box and its 12 px gap still fit in the window.
-				assertTrue(max + 12 <= width / 2, "width " + width);
+			if (width >= 2 * (Tooltips.MIN_WIDTH + 32)) {
+				// Flipped to the left of the mouse, the text, vanilla's 24 px offset and the frame still fit beside the pointer.
+				assertTrue(max + 32 <= width / 2, "width " + width);
 			}
 		}
 		assertEquals(Tooltips.MAX_WIDTH, Tooltips.maxWidth(854));
-		assertEquals(130, Tooltips.maxWidth(284));
+		assertEquals(110, Tooltips.maxWidth(284));
 	}
 
 	@Test

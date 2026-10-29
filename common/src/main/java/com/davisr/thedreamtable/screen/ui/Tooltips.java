@@ -13,7 +13,8 @@ public final class Tooltips {
 	public static final int MAX_WIDTH = 200;
 	public static final int MIN_WIDTH = 80;
 	/** Vanilla offsets a tooltip 12 px from the mouse and flips it to the left of the mouse when it would leave the window. */
-	private static final int MOUSE_GAP = 12;
+	/** Vanilla puts a tooltip flipped left of the mouse 24 px away; plus its frame, so it never covers the pointer. */
+	private static final int MOUSE_GAP = 32;
 
 	private Tooltips() {
 	}

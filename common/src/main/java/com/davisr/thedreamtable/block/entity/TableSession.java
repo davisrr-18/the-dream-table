@@ -586,8 +586,9 @@ public final class TableSession {
 	void read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		selectedFarm = nbt.getString("SelectedFarm");
 		page = nbt.getInt("Page");
+		// The farm page needs a farm chosen in My Farms on the client, which a reload doesn't have.
 		if (page == REMOVED_ALERTS_PAGE) {
-			page = DreamTableScreenHandler.PAGE_FARM;
+			page = DreamTableScreenHandler.PAGE_LOADED;
 		}
 		requirementsBoard = nbt.getBoolean("RequirementsBoard");
 		swapMaterial = nbt.contains("SwapMaterial", NbtElement.INT_TYPE) ? nbt.getInt("SwapMaterial") : -1;

@@ -37,6 +37,10 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 
 ## Table, HUD and My Farms
 
+- Table messages (delivery results, missing materials, farm protection, the mirror toggle and more) now appear in a notice at the top center of the screen for a few seconds, even while the table is open: green for success, red for problems. Before, they used the action bar, which is hidden behind the table and easy to miss.
+- Farm alerts moved into My Farms: a farm with an alert shows a red ⚠ before its name, and its page lists each alert in red at the bottom ("⚠ Alert: storage full"). The separate Alerts page is gone.
+- Tooltips now wrap to fit the window instead of running off the edge of the screen.
+- Long text in the table's header, tabs, cards and buttons now scrolls so it can always be read in full, in every language, instead of being cut with "...".
 - The hologram and the clipboard no longer disappear when you walk away and the table's chunk unloads; they come back when you return. They are still cleared when the table is broken.
 - The tracked farm HUD now shows right after you join, without opening My Farms first. It no longer carries over to another world or server, and it shows the farm's custom name, its translated dimension, and the direction and distance in your language.
 - My Farms lists your farms even when the server sets `max_loaded_farms_per_player=0`. It says that keeping farms loaded is turned off on the server, and Keep Loaded reads "Off On This Server".
