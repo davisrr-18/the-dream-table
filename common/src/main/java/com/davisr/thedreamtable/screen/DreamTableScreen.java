@@ -137,10 +137,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		super.render(context, mouseX, mouseY, delta);
 		view.release(context);
 		drawMouseoverTooltip(context, mouseX, mouseY);
-		List<Text> tooltip = ui.takeTooltip();
-		if (tooltip != null && view.inContent(mouseX, mouseY)) {
-			Tooltips.draw(context, this.textRenderer, tooltip, mouseX, mouseY);
-		}
 		if (geometry.mode() == LayoutMode.COMPACT) {
 			for (PrimaryTab tab : PrimaryTab.values()) {
 				UiControl control = tabControls.get(tab);

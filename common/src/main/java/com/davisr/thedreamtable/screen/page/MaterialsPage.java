@@ -54,13 +54,9 @@ public final class MaterialsPage implements TablePage {
 		return playerWants ? null : "gui.the_dream_table.deliver_nearby_off_player";
 	}
 
-	/** A disabled button explains itself in a tooltip; an enabled one says what it does. */
+	/** A disabled button explains itself on its second line; an enabled one says what it does. */
 	private void drawDelivery(DrawContext context, int y, String key, String label, String hint, String blocker, int mouseX, int mouseY) {
-		Text text = Text.translatable(label);
-		ui.button(key, context, text, y, mouseX, mouseY, blocker == null, false);
-		if (ui.buttonHit(mouseX, mouseY, y)) {
-			ui.tooltip(text, Text.translatable(blocker == null ? hint : blocker));
-		}
+		ui.button(key, context, Text.translatable(label), Text.translatable(blocker == null ? hint : blocker), y, mouseX, mouseY, blocker == null, false);
 	}
 
 	@Override

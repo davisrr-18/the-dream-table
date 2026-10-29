@@ -251,7 +251,7 @@
 	"gui.the_dream_table.dismantle_protected": "%s blocos ficaram de pé porque a área deles é protegida",
 	"gui.the_dream_table.dismantle_kept": "%s blocos não puderam ser removidos porque a área deles é protegida. A farm continua em Minhas Farms",
 	"gui.the_dream_table.dismantle_failed": "A remoção da farm parou por causa de um erro. Os blocos ainda não removidos ficam no lugar; os detalhes estão no log do jogo",
-	"gui.the_dream_table.schemes_rejected": "Estes arquivos não podem ser usados. Passe o mouse em um para ver o motivo.",
+	"gui.the_dream_table.schemes_rejected": "Estes arquivos não podem ser usados. Cada um diz o motivo.",
 	"gui.the_dream_table.warning_one": "1 aviso",
 	"gui.the_dream_table.warnings": "%s avisos",
 	"gui.the_dream_table.import.separator": ", ",
