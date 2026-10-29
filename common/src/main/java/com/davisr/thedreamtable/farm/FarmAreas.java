@@ -484,7 +484,7 @@ public final class FarmAreas extends PersistentState {
 	}
 
 	/** What block protection needs from a finished farm: who may break it and its design at its site. */
-	public record Guard(UUID instanceId, UUID ownerUuid, Map<UUID, FarmGrant> grants, FarmTemplate layout, FarmSite site) {
+	public record Guard(UUID instanceId, UUID ownerUuid, Map<UUID, FarmGrant> grants, FarmTemplate layout, FarmSite site, Map<Item, Item> swaps) {
 	}
 
 	/**
@@ -502,7 +502,7 @@ public final class FarmAreas extends PersistentState {
 			if (guards.isEmpty()) {
 				guards = new ArrayList<>(1);
 			}
-			guards.add(new Guard(built.instanceId(), entry.getKey().player(), built.grants(), built.layout(), built.site()));
+			guards.add(new Guard(built.instanceId(), entry.getKey().player(), built.grants(), built.layout(), built.site(), built.swaps()));
 		}
 		return guards;
 	}

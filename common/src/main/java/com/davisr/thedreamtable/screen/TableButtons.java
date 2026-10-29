@@ -10,6 +10,7 @@ import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.screen.page.PageRoutes;
 import com.davisr.thedreamtable.screen.page.PrimaryTab;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 
 import java.util.List;
 
@@ -70,6 +71,7 @@ final class TableButtons {
 			case BUTTON_DELIVER_ALL -> table.deliverAll(player);
 			case BUTTON_DELIVER_NEARBY -> table.deliverNearby(player);
 			case BUTTON_PROTECT_FARMS -> toggleFarmProtection(player);
+			case BUTTON_VIEWERS_BREAK -> toggleViewersBreak(player);
 			case BUTTON_DISCARD -> {
 				table.discard(player);
 				yield true;
@@ -108,7 +110,24 @@ final class TableButtons {
 			return false;
 		}
 		FarmPreferences preferences = FarmPreferences.of(player.getServer());
-		return preferences.setProtectsFarms(player.getUuid(), !preferences.protectsFarms(player.getUuid()));
+		return savedOrTold(player, preferences.setProtectsFarms(player.getUuid(), !preferences.protectsFarms(player.getUuid())));
+	}
+
+	/** "Viewers Can Break": only meaningful while the player protects their farms on a server that allows it. */
+	private static boolean toggleViewersBreak(ServerPlayerEntity player) {
+		FarmPreferences preferences = FarmPreferences.of(player.getServer());
+		if (!DreamTableConfig.farmProtectionEnabled() || !preferences.protectsFarms(player.getUuid())) {
+			return false;
+		}
+		return savedOrTold(player, preferences.setViewersMayBreak(player.getUuid(), !preferences.viewersMayBreak(player.getUuid())));
+	}
+
+	/** A switch refused for the saved-player limit is told to the player instead of doing nothing. */
+	private static boolean savedOrTold(ServerPlayerEntity player, boolean saved) {
+		if (!saved) {
+			player.sendMessage(Text.translatable("gui.the_dream_table.protect_farms_full"), true);
+		}
+		return saved;
 	}
 
 	private static boolean page(TableSession table, int page) {

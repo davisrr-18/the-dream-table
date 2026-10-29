@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.GameSetup;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.Identifier;
@@ -28,12 +29,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FarmProtectionTest {
 	private static final UUID OWNER = UUID.fromString("10000000-0000-0000-0000-000000000001");
 	private static final UUID SHARED = UUID.fromString("20000000-0000-0000-0000-000000000002");
+	private static final UUID COLLABORATOR = UUID.fromString("50000000-0000-0000-0000-000000000005");
 	private static final UUID STRANGER = UUID.fromString("30000000-0000-0000-0000-000000000003");
 	private static final FarmKey KEY = new FarmKey(Identifier.of("minecraft", "overworld"), UUID.fromString("40000000-0000-0000-0000-000000000004"));
-	private static final FarmRecord FARM = new FarmRecord(KEY, OWNER, Map.of(SHARED, new FarmGrant(SHARED, FarmRole.VIEWER, 1L)));
+	private static final FarmRecord FARM = new FarmRecord(KEY, OWNER, Map.of(
+			SHARED, new FarmGrant(SHARED, FarmRole.VIEWER, 1L),
+			COLLABORATOR, new FarmGrant(COLLABORATOR, FarmRole.OPERATOR, 1L)));
 	private static final BlockPos TABLE = new BlockPos(0, 64, 0);
 	private static final BlockPos ANCHOR = new BlockPos(30, 64, 30);
 	private static final BooleanSupplier STRUCTURE = () -> true;
+	private static final Map<Item, Item> NO_SWAPS = Map.of();
 
 	@BeforeAll
 	static void bootstrap() {
@@ -41,7 +46,11 @@ class FarmProtectionTest {
 	}
 
 	private static boolean denies(boolean server, boolean ownerProtects, boolean operator, UUID actor, boolean sharing) {
-		return FarmProtection.denies(server, ownerProtects, operator, actor, FARM, sharing, STRUCTURE);
+		return FarmProtection.denies(server, ownerProtects, false, operator, actor, FARM, sharing, STRUCTURE);
+	}
+
+	private static boolean deniesWithViewers(UUID actor, boolean viewersMayBreak) {
+		return FarmProtection.denies(true, true, viewersMayBreak, false, actor, FARM, true, STRUCTURE);
 	}
 
 	@Test
@@ -53,14 +62,31 @@ class FarmProtectionTest {
 	}
 
 	@Test
-	void theOwnerAndSharedPlayersAreNeverStopped() {
+	void theOwnerAndOperatorCollaboratorsAreNeverStopped() {
 		assertFalse(denies(true, true, false, OWNER, true));
-		assertFalse(denies(true, true, false, SHARED, true));
+		assertFalse(denies(true, true, false, COLLABORATOR, true));
+	}
+
+	@Test
+	void viewersAreStoppedUnlessTheOwnerAllowsThem() {
+		assertTrue(denies(true, true, false, SHARED, true));
+		assertTrue(deniesWithViewers(SHARED, false));
+		assertFalse(deniesWithViewers(SHARED, true));
+		assertTrue(deniesWithViewers(STRANGER, true));
+		assertFalse(deniesWithViewers(COLLABORATOR, false));
+	}
+
+	@Test
+	void viewersCanBreakNeverWidensToStrangersOrOutlivesTheSwitches() {
+		assertTrue(FarmProtection.denies(true, true, true, false, STRANGER, FARM, true, STRUCTURE));
+		assertFalse(FarmProtection.denies(true, false, false, false, SHARED, FARM, true, STRUCTURE));
+		assertTrue(FarmProtection.denies(true, true, true, false, SHARED, FARM, false, STRUCTURE));
 	}
 
 	@Test
 	void sharedAccessCountsOnlyWhileSharingIsOnForTheServer() {
-		assertTrue(denies(true, true, false, SHARED, false));
+		assertTrue(denies(true, true, false, COLLABORATOR, false));
+		assertFalse(denies(true, true, false, COLLABORATOR, true));
 		assertFalse(denies(true, true, false, OWNER, false));
 	}
 
@@ -76,14 +102,16 @@ class FarmProtectionTest {
 			asked[0] = true;
 			return true;
 		};
-		FarmProtection.denies(true, true, false, OWNER, FARM, true, probe);
-		FarmProtection.denies(true, false, false, STRANGER, FARM, true, probe);
-		FarmProtection.denies(false, true, false, STRANGER, FARM, true, probe);
-		FarmProtection.denies(true, true, true, STRANGER, FARM, true, probe);
+		FarmProtection.denies(true, true, false, false, OWNER, FARM, true, probe);
+		FarmProtection.denies(true, true, false, false, COLLABORATOR, FARM, true, probe);
+		FarmProtection.denies(true, true, true, false, SHARED, FARM, true, probe);
+		FarmProtection.denies(true, false, false, false, STRANGER, FARM, true, probe);
+		FarmProtection.denies(false, true, false, false, STRANGER, FARM, true, probe);
+		FarmProtection.denies(true, true, false, true, STRANGER, FARM, true, probe);
 		assertFalse(asked[0]);
-		assertTrue(FarmProtection.denies(true, true, false, STRANGER, FARM, true, probe));
+		assertTrue(FarmProtection.denies(true, true, false, false, STRANGER, FARM, true, probe));
 		assertTrue(asked[0]);
-		assertFalse(FarmProtection.denies(true, true, false, STRANGER, FARM, true, () -> false));
+		assertFalse(FarmProtection.denies(true, true, false, false, STRANGER, FARM, true, () -> false));
 	}
 
 	@Test
@@ -139,7 +167,7 @@ class FarmProtectionTest {
 					for (int index = 0; index < farm.steps().size(); index++) {
 						BlockPos pos = site.target(farm, farm.steps().get(index));
 						boolean expected = index == 0 || index == 1 || index == 3;
-						assertEquals(expected, FarmProtection.structuralAt(farm, site, pos, worldAt(farm, site, index)), label + " step " + index);
+						assertEquals(expected, FarmProtection.structuralAt(farm, site, NO_SWAPS, pos, worldAt(farm, site, index)), label + " step " + index);
 					}
 				}
 			}
@@ -151,48 +179,65 @@ class FarmProtectionTest {
 		FarmTemplate farm = farm();
 		FarmSite site = new FarmSite(TABLE, ANCHOR, Direction.EAST, false);
 		BlockPos inside = site.target(farm, farm.steps().get(0));
-		assertTrue(FarmProtection.structuralAt(farm, site, inside, Blocks.STONE.getDefaultState()));
+		assertTrue(FarmProtection.structuralAt(farm, site, NO_SWAPS, inside, Blocks.STONE.getDefaultState()));
 		for (Direction side : Direction.values()) {
 			BlockPos next = inside.offset(side);
 			boolean designed = farm.steps().stream().anyMatch(step -> site.target(farm, step).equals(next));
-			assertEquals(designed, FarmProtection.structuralAt(farm, site, next, Blocks.STONE.getDefaultState()), side.toString());
+			assertFalse(designed);
+			assertFalse(FarmProtection.structuralAt(farm, site, NO_SWAPS, next, Blocks.STONE.getDefaultState()), side.toString());
 		}
-		assertFalse(FarmProtection.structuralAt(farm, site, new BlockPos(500, 70, 500), Blocks.STONE.getDefaultState()));
+		assertFalse(FarmProtection.structuralAt(farm, site, NO_SWAPS, new BlockPos(500, 70, 500), Blocks.STONE.getDefaultState()));
 	}
 
 	@Test
-	void whateverStandsAtAStructuralSpotNowDecidesToo() {
+	void whateverStandsAtAStructuralSpotNowMustStillBeTheDesignsBlock() {
 		FarmTemplate farm = farm();
 		FarmSite site = new FarmSite(TABLE, ANCHOR, Direction.SOUTH, false);
 		BlockPos farmland = site.target(farm, farm.steps().get(1));
-		assertTrue(FarmProtection.structuralAt(farm, site, farmland, Blocks.FARMLAND.getDefaultState()));
-		assertTrue(FarmProtection.structuralAt(farm, site, farmland, Blocks.DIRT.getDefaultState()));
-		assertFalse(FarmProtection.structuralAt(farm, site, farmland, Blocks.AIR.getDefaultState()));
-		assertFalse(FarmProtection.structuralAt(farm, site, farmland, Blocks.WHEAT.getDefaultState()));
-		assertFalse(FarmProtection.structuralAt(farm, site, farmland, Blocks.WATER.getDefaultState()));
+		assertTrue(FarmProtection.structuralAt(farm, site, NO_SWAPS, farmland, Blocks.FARMLAND.getDefaultState()));
+		assertTrue(FarmProtection.structuralAt(farm, site, NO_SWAPS, farmland, Blocks.DIRT.getDefaultState()));
+		assertFalse(FarmProtection.structuralAt(farm, site, NO_SWAPS, farmland, Blocks.AIR.getDefaultState()));
+		assertFalse(FarmProtection.structuralAt(farm, site, NO_SWAPS, farmland, Blocks.WHEAT.getDefaultState()));
+		assertFalse(FarmProtection.structuralAt(farm, site, NO_SWAPS, farmland, Blocks.WATER.getDefaultState()));
+		// Somebody's block in a hole of a damaged farm is not the farm's, so its placer can still break it.
+		assertFalse(FarmProtection.structuralAt(farm, site, NO_SWAPS, farmland, Blocks.COBBLESTONE.getDefaultState()));
+		assertFalse(FarmProtection.structuralAt(farm, site, NO_SWAPS, farmland, Blocks.OAK_PLANKS.getDefaultState()));
+	}
+
+	@Test
+	void theFarmsMaterialSwapsDecideWhichBlockIsTheDesigns() {
+		FarmTemplate farm = farm();
+		FarmSite site = new FarmSite(TABLE, ANCHOR, Direction.NORTH, false);
+		BlockPos planks = site.target(farm, farm.steps().get(3));
+		Map<Item, Item> swaps = Map.of(Items.OAK_PLANKS, Items.SPRUCE_PLANKS);
+		assertTrue(FarmProtection.structuralAt(farm, site, NO_SWAPS, planks, Blocks.OAK_PLANKS.getDefaultState()));
+		assertFalse(FarmProtection.structuralAt(farm, site, NO_SWAPS, planks, Blocks.SPRUCE_PLANKS.getDefaultState()));
+		assertTrue(FarmProtection.structuralAt(farm, site, swaps, planks, Blocks.SPRUCE_PLANKS.getDefaultState()));
+		assertFalse(FarmProtection.structuralAt(farm, site, swaps, planks, Blocks.OAK_PLANKS.getDefaultState()));
 	}
 
 	@Test
 	void mirroringMovesTheProtectedSpotsToTheFlippedSide() {
 		FarmTemplate farm = farm();
-		Set<BlockPos> plain = structure(farm, new FarmSite(TABLE, ANCHOR, Direction.SOUTH, false));
-		Set<BlockPos> mirrored = structure(farm, new FarmSite(TABLE, ANCHOR, Direction.SOUTH, true));
+		FarmSite plainSite = new FarmSite(TABLE, ANCHOR, Direction.SOUTH, false);
+		FarmSite mirroredSite = new FarmSite(TABLE, ANCHOR, Direction.SOUTH, true);
+		Set<BlockPos> plain = structure(farm, plainSite);
+		Set<BlockPos> mirrored = structure(farm, mirroredSite);
 		assertEquals(3, plain.size());
 		assertEquals(3, mirrored.size());
 		assertNotEquals(plain, mirrored);
-		FarmSite mirroredSite = new FarmSite(TABLE, ANCHOR, Direction.SOUTH, true);
 		for (BlockPos pos : plain) {
 			if (!mirrored.contains(pos)) {
-				assertFalse(FarmProtection.structuralAt(farm, mirroredSite, pos, Blocks.STONE.getDefaultState()), pos.toString());
+				assertFalse(FarmProtection.structuralAt(farm, mirroredSite, NO_SWAPS, pos, Blocks.STONE.getDefaultState()), pos.toString());
 			}
 		}
 	}
 
 	private static Set<BlockPos> structure(FarmTemplate farm, FarmSite site) {
 		Set<BlockPos> found = new HashSet<>();
-		for (FarmStep step : farm.steps()) {
-			BlockPos pos = site.target(farm, step);
-			if (FarmProtection.structuralAt(farm, site, pos, Blocks.STONE.getDefaultState())) {
+		for (int index = 0; index < farm.steps().size(); index++) {
+			BlockPos pos = site.target(farm, farm.steps().get(index));
+			if (FarmProtection.structuralAt(farm, site, NO_SWAPS, pos, worldAt(farm, site, index))) {
 				found.add(pos);
 			}
 		}
@@ -212,7 +257,8 @@ class FarmProtectionTest {
 		assertEquals(1, guards.size());
 		assertEquals(OWNER, guards.get(0).ownerUuid());
 		assertEquals(site, guards.get(0).site());
-		assertTrue(FarmProtection.structuralAt(guards.get(0).layout(), guards.get(0).site(), inside, Blocks.STONE.getDefaultState()));
+		assertTrue(FarmProtection.structuralAt(guards.get(0).layout(), guards.get(0).site(), guards.get(0).swaps(), inside,
+				Blocks.STONE.getDefaultState()));
 		assertTrue(areas.guardsAt(new BlockPos(500, 70, 500)).isEmpty());
 		assertTrue(new FarmAreas().guardsAt(inside).isEmpty());
 	}
