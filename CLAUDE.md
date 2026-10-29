@@ -181,7 +181,7 @@ A task or milestone may be declared complete only when:
 
 Trivial changes and read-only questions may use a simplified workflow.
 
-In-game testing (standing user decision, 2026-10-28): the user tests in a Minecraft client only once, on the final release-ready build of an update. Intermediate milestones close on automated verification (`./gradlew build`, tests, dev dedicated server smoke on each loader) and independent review. Each milestone adds its manual checks to the update's consolidated in-game checklist in the task record instead of waiting for them. Fixes found in that final pass follow the normal workflow.
+In-game testing (standing user decision, 2026-10-28): the user tests in a Minecraft client only once, on the final release-ready build of an update. Intermediate milestones close on automated verification (`./gradlew build`, tests) and independent review; the user runs the dev dedicated-server smokes (standing user decision, 2026-10-29). Whenever a build is handed over for testing, its jars go in the main checkout's `build/release/<loader>/` folders (`project-workflow.mdc`, "Test handoff"). Each milestone adds its manual checks to the update's consolidated in-game checklist in the task record instead of waiting for them. Fixes found in that final pass follow the normal workflow.
 
 The skill owns the detailed process, task classification, delegation plan, acceptance criteria, and quality gates.
 
