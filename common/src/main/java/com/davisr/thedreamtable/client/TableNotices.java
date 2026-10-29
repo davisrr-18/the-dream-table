@@ -65,6 +65,27 @@ public final class TableNotices {
 	}
 
 	/**
+	 * The screen row just below the notice that is drawn now over the world, or 0 when none is, so other HUD lines can
+	 * sit under a notice of any number of lines instead of behind it.
+	 */
+	public static int bottom(TextRenderer font, int screenWidth) {
+		long now = Util.getMeasuringTimeMs();
+		NoticeBoard.Notice notice = BOARD.current(now, true);
+		if (notice == null || Math.round(notice.alpha(now) * 255.0F) <= 8) {
+			return 0;
+		}
+		return TOP + height(font.wrapLines(notice.text(), wrapWidth(screenWidth)).size());
+	}
+
+	private static int wrapWidth(int screenWidth) {
+		return Math.min(MAX_WIDTH, screenWidth - 2 * (PADDING + 8));
+	}
+
+	private static int height(int lines) {
+		return lines * LINE + 2 * PADDING - 2;
+	}
+
+	/**
 	 * Draws the current notice, if any, centered at the top of the scaled window. The persistent progress line is left out
 	 * when {@code withProgress} is false, as over the table menu, whose Work page already shows it.
 	 */
@@ -79,13 +100,13 @@ public final class TableNotices {
 			return;
 		}
 		int screenWidth = context.getScaledWindowWidth();
-		List<OrderedText> lines = font.wrapLines(notice.text(), Math.min(MAX_WIDTH, screenWidth - 2 * (PADDING + 8)));
+		List<OrderedText> lines = font.wrapLines(notice.text(), wrapWidth(screenWidth));
 		int textWidth = 0;
 		for (OrderedText line : lines) {
 			textWidth = Math.max(textWidth, font.getWidth(line));
 		}
 		int width = textWidth + 2 * PADDING;
-		int height = lines.size() * LINE + 2 * PADDING - 2;
+		int height = height(lines.size());
 		int x = (screenWidth - width) / 2;
 		boolean problem = notice.severity() == Severity.PROBLEM;
 		context.getMatrices().push();

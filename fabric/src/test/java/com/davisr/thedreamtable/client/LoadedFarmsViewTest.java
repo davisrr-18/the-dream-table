@@ -13,18 +13,39 @@ class LoadedFarmsViewTest {
 		assertTrue(state.requestFarms(0L, false));
 		assertFalse(state.requestFarms(10L, true));
 		assertTrue(state.select("farm-a"));
-		assertTrue(state.requestDetails());
-		assertFalse(state.requestDetails());
-		assertTrue(state.requestAlerts());
-		assertFalse(state.requestAlerts());
+		assertTrue(state.requestDetails(0L, false));
+		assertFalse(state.requestDetails(1L, true));
+		assertTrue(state.requestAlerts(0L, false));
+		assertFalse(state.requestAlerts(1L, true));
 		state.invalidateDetails();
-		assertTrue(state.requestDetails());
-		assertFalse(state.requestDetails());
+		assertTrue(state.requestDetails(2L, false));
+		assertFalse(state.requestDetails(3L, true));
 
 		assertFalse(state.select("farm-a"));
 		assertTrue(state.select("farm-b"));
-		assertTrue(state.requestDetails());
-		assertTrue(state.requestAlerts());
+		assertTrue(state.requestDetails(4L, false));
+		assertTrue(state.requestAlerts(4L, false));
+	}
+
+	@Test
+	void resendsDetailsAndAlertsUntilTheyAreAnswered() {
+		LoadedFarmsView.RequestState state = new LoadedFarmsView.RequestState();
+		long retry = LoadedFarmsView.RequestState.RETRY_MS;
+		state.select("farm-a");
+
+		assertTrue(state.requestDetails(0L, false));
+		assertTrue(state.requestAlerts(0L, false));
+		// A throttled request leaves the details null; nothing is sent inside the retry delay, then it is sent again.
+		assertFalse(state.requestDetails(retry - 1, false));
+		assertFalse(state.requestAlerts(retry - 1, false));
+		assertTrue(state.requestDetails(retry, false));
+		assertTrue(state.requestAlerts(retry, false));
+		assertFalse(state.requestDetails(retry + 1, false));
+		// Answered: quiet forever, until the selection changes.
+		assertFalse(state.requestDetails(10 * retry, true));
+		assertFalse(state.requestAlerts(10 * retry, true));
+		assertTrue(state.select("farm-b"));
+		assertTrue(state.requestDetails(10 * retry, false));
 	}
 
 	@Test

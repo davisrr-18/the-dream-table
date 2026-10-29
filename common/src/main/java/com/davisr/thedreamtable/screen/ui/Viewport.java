@@ -251,12 +251,19 @@ public final class Viewport {
 		return mouseX < originX || mouseY < originY || mouseX >= originX + width || mouseY >= originY + visibleHeight();
 	}
 
-	public void clip(DrawContext context) {
-		if (contentRight() <= contentLeft() || contentBottom() <= contentTop()) {
-			return;
+	/** Whether the content area has any size; when it has none, nothing may be drawn into it. */
+	public boolean hasContentArea() {
+		return contentRight() > contentLeft() && contentBottom() > contentTop();
+	}
+
+	/** Clips drawing to the content area and returns true, or returns false, clipping nothing, when there is no area. */
+	public boolean clip(DrawContext context) {
+		if (!hasContentArea()) {
+			return false;
 		}
 		context.enableScissor(contentLeft(), contentTop(), contentRight(), contentBottom());
 		clipped = true;
+		return true;
 	}
 
 	public void release(DrawContext context) {

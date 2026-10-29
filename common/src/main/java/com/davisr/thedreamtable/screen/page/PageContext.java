@@ -32,6 +32,7 @@ public final class PageContext {
 	private TablePage page;
 	private int pageId;
 	private int controlIndex;
+	private ControlId focusedControl;
 
 	public PageContext(DreamTableScreenHandler handler, Viewport view, Painter painter, ScreenActions actions) {
 		this.handler = handler;
@@ -69,6 +70,11 @@ public final class PageContext {
 		return template == null ? 0 : template.materials().size();
 	}
 
+	/** The control that has keyboard focus and should draw a focus ring, or null when none should. */
+	public void setFocusedControl(ControlId id) {
+		this.focusedControl = id;
+	}
+
 	public void beginControls(int pageId, TablePage page) {
 		this.pageId = pageId;
 		this.page = page;
@@ -94,9 +100,10 @@ public final class PageContext {
 	}
 
 	public void cardAt(String stableKey, DrawContext context, ItemStack icon, Text label, int x, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
-		register(stableKey, label, Text.empty(), x, y, CARD_HEIGHT, selected, enabled);
+		ControlId id = register(stableKey, label, Text.empty(), x, y, CARD_HEIGHT, selected, enabled);
 		boolean hit = cardHit(mouseX, mouseY, x, y);
 		painter.card(context, icon, label, x, y, hit, selected, enabled);
+		focusRing(context, id, x, y, CARD_WIDTH, CARD_HEIGHT);
 	}
 
 	public void card(DrawContext context, ItemStack icon, Text label, Text detail, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
@@ -108,9 +115,10 @@ public final class PageContext {
 	}
 
 	public void cardAt(String stableKey, DrawContext context, ItemStack icon, Text label, Text detail, int x, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
-		register(stableKey, label, detail, x, y, CARD_HEIGHT, selected, enabled);
+		ControlId id = register(stableKey, label, detail, x, y, CARD_HEIGHT, selected, enabled);
 		boolean hit = cardHit(mouseX, mouseY, x, y);
 		painter.card(context, icon, label, detail, x, y, hit, selected, enabled);
+		focusRing(context, id, x, y, CARD_WIDTH, CARD_HEIGHT);
 	}
 
 	public void button(DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
@@ -122,16 +130,18 @@ public final class PageContext {
 	}
 
 	public void buttonAt(String stableKey, DrawContext context, Text label, int x, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
-		register(stableKey, label, Text.empty(), x, y, BUTTON_HEIGHT, false, enabled);
+		ControlId id = register(stableKey, label, Text.empty(), x, y, BUTTON_HEIGHT, false, enabled);
 		boolean hit = buttonHit(mouseX, mouseY, x, y);
 		painter.button(context, label, x, y, hit, enabled, primary);
+		focusRing(context, id, x, y, CARD_WIDTH, BUTTON_HEIGHT);
 	}
 
 	/** A button with a second, smaller line under its label: what it does, or why it is off. */
 	public void button(String stableKey, DrawContext context, Text label, Text detail, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
-		register(stableKey, label, detail, view.cardX(), y, BUTTON_HEIGHT, false, enabled);
+		ControlId id = register(stableKey, label, detail, view.cardX(), y, BUTTON_HEIGHT, false, enabled);
 		boolean hit = buttonHit(mouseX, mouseY, view.cardX(), y);
 		painter.button(context, label, detail, view.cardX(), y, hit, enabled, primary);
+		focusRing(context, id, view.cardX(), y, CARD_WIDTH, BUTTON_HEIGHT);
 	}
 
 	public void destructiveButton(DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled) {
@@ -143,9 +153,10 @@ public final class PageContext {
 	}
 
 	public void destructiveButtonAt(String stableKey, DrawContext context, Text label, int x, int y, int mouseX, int mouseY, boolean enabled) {
-		register(stableKey, label, Text.empty(), x, y, BUTTON_HEIGHT, false, enabled);
+		ControlId id = register(stableKey, label, Text.empty(), x, y, BUTTON_HEIGHT, false, enabled);
 		boolean hit = buttonHit(mouseX, mouseY, x, y);
 		painter.destructiveButton(context, label, x, y, hit, enabled);
+		focusRing(context, id, x, y, CARD_WIDTH, BUTTON_HEIGHT);
 	}
 
 	public void chip(String stableKey, DrawContext context, Text label, int y, int width, int height, int mouseX, int mouseY) {
@@ -160,6 +171,7 @@ public final class PageContext {
 		controlActions.put(id, () -> page.click(bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0));
 		boolean hit = view.hit(mouseX, mouseY, bounds.x(), bounds.y(), bounds.width(), bounds.height());
 		painter.chip(context, label, bounds.x(), bounds.y(), bounds.width(), bounds.height(), hit);
+		focusRing(context, id, bounds.x(), bounds.y(), bounds.width(), bounds.height());
 	}
 
 	/** Draws a non-interactive note centered across the responsive collection area. */
@@ -210,13 +222,24 @@ public final class PageContext {
 		actions.message(Text.translatable(key));
 	}
 
-	private void register(String stableKey, Text label, Text state, int x, int y, int height, boolean selected, boolean enabled) {
+	public void hint(String key, Object... args) {
+		actions.hint(Text.translatable(key, args));
+	}
+
+	private void focusRing(DrawContext context, ControlId id, int x, int y, int width, int height) {
+		if (id.equals(focusedControl)) {
+			painter.focusRing(context, x, y, width, height);
+		}
+	}
+
+	private ControlId register(String stableKey, Text label, Text state, int x, int y, int height, boolean selected, boolean enabled) {
 		int index = controlIndex++;
 		ControlId id = ControlId.of("page." + pageId, stableKey == null ? Integer.toString(index) : stableKey);
 		UiRect bounds = new UiRect(x, y, CARD_WIDTH, height);
 		ControlSpec spec = new ControlSpec(id, ControlGroup.CONTENT, bounds, label, state, enabled, selected,
-				enabled ? Text.empty() : Text.translatable("gui.the_dream_table.narration.disabled"), y, x);
+				Text.empty(), y, x);
 		controls.add(spec);
 		controlActions.put(id, () -> page.click(bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0));
+		return id;
 	}
 }

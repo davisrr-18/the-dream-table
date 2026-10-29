@@ -17,6 +17,12 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
 public final class SwapPage implements TablePage {
 	private final PageContext ui;
 	private final SearchBox search;
+	/** The options for the open material and the ones the search keeps, made once per change instead of per call. */
+	private String cachedFarm;
+	private int cachedMaterial = -1;
+	private String cachedQuery;
+	private List<Item> cachedOptions = List.of();
+	private List<Integer> cachedShown = List.of();
 
 	public SwapPage(PageContext ui, SearchBox search) {
 		this.ui = ui;
@@ -26,8 +32,8 @@ public final class SwapPage implements TablePage {
 	@Override
 	public void draw(DrawContext context, int mouseX, int mouseY) {
 		int material = ui.handler().getSwapMaterial();
-		List<Item> options = ui.handler().swapOptions(material);
-		List<Integer> shown = search.filter(options);
+		List<Integer> shown = shownOptions();
+		List<Item> options = cachedOptions;
 		Item current = ui.handler().materialItem(material);
 		for (int position = 0; position < shown.size(); position++) {
 			int x = cardX(ui.view(), position);
@@ -68,7 +74,17 @@ public final class SwapPage implements TablePage {
 	}
 
 	private List<Integer> shownOptions() {
-		return search.filter(ui.handler().swapOptions(ui.handler().getSwapMaterial()));
+		String farm = ui.farm();
+		int material = ui.handler().getSwapMaterial();
+		String query = search.text();
+		if (!farm.equals(cachedFarm) || material != cachedMaterial || !query.equals(cachedQuery)) {
+			cachedOptions = ui.handler().swapOptions(material);
+			cachedShown = search.filter(cachedOptions);
+			cachedFarm = farm;
+			cachedMaterial = material;
+			cachedQuery = query;
+		}
+		return cachedShown;
 	}
 
 	static int cardX(Viewport view, int index) {

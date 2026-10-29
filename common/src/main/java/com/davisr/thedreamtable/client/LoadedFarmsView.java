@@ -82,9 +82,10 @@ public final class LoadedFarmsView {
 		return details != null && details.key().equals(selected) ? details : null;
 	}
 
-	/** Requests the selected farm's details once for this opening or selection. */
+	/** Requests the selected farm's details for this opening or selection, again every second until they arrive. */
 	public static void ensureDetails() {
-		if (!selected.isEmpty() && Platform.clientNetwork().canSend(FarmDetailsPayload.Request.ID) && requests.requestDetails()) {
+		if (!selected.isEmpty() && Platform.clientNetwork().canSend(FarmDetailsPayload.Request.ID)
+				&& requests.requestDetails(Util.getMeasuringTimeMs(), details() != null)) {
 			Platform.clientNetwork().send(new FarmDetailsPayload.Request(table(), selected));
 		}
 	}
@@ -194,9 +195,10 @@ public final class LoadedFarmsView {
 		return alerts != null && alerts.key().equals(selected) ? alerts : null;
 	}
 
-	/** Requests the selected farm's authorized alert page once for this opening or selection. */
+	/** Requests the selected farm's authorized alert page for this opening or selection, again every second until it arrives. */
 	public static void ensureAlerts() {
-		if (!selected.isEmpty() && Platform.clientNetwork().canSend(FarmAlertsPayload.Request.ID) && requests.requestAlerts()) {
+		if (!selected.isEmpty() && Platform.clientNetwork().canSend(FarmAlertsPayload.Request.ID)
+				&& requests.requestAlerts(Util.getMeasuringTimeMs(), alerts() != null)) {
 			Platform.clientNetwork().send(new FarmAlertsPayload.Request(table(), selected, 0));
 		}
 	}
@@ -280,7 +282,9 @@ public final class LoadedFarmsView {
 		private long farmsSentAt;
 		private String selected = "";
 		private boolean details;
+		private long detailsSentAt;
 		private boolean alerts;
+		private long alertsSentAt;
 
 		boolean requestFarms(long nowMs, boolean answered) {
 			if (farms && (answered || nowMs - farmsSentAt < RETRY_MS)) {
@@ -301,11 +305,13 @@ public final class LoadedFarmsView {
 			return true;
 		}
 
-		boolean requestDetails() {
-			if (details) {
+		/** Like {@link #requestFarms}: sent again after {@link #RETRY_MS} while the server's answer has not arrived. */
+		boolean requestDetails(long nowMs, boolean answered) {
+			if (details && (answered || nowMs - detailsSentAt < RETRY_MS)) {
 				return false;
 			}
 			details = true;
+			detailsSentAt = nowMs;
 			return true;
 		}
 
@@ -313,11 +319,12 @@ public final class LoadedFarmsView {
 			details = false;
 		}
 
-		boolean requestAlerts() {
-			if (alerts) {
+		boolean requestAlerts(long nowMs, boolean answered) {
+			if (alerts && (answered || nowMs - alertsSentAt < RETRY_MS)) {
 				return false;
 			}
 			alerts = true;
+			alertsSentAt = nowMs;
 			return true;
 		}
 

@@ -138,6 +138,16 @@ public final class Painter {
 		fitted(context, label, x + 6, y + (height - 8) / 2, width - 12, NAME, true);
 	}
 
+	/**
+	 * The keyboard focus ring, drawn inside the control's own bounds over its frame: navy, white, then theme cyan, so it
+	 * reads on both the cream panel and a selected (cyan) card.
+	 */
+	public void focusRing(DrawContext context, int x, int y, int w, int h) {
+		ring(context, x, y, w, h, NAVY);
+		ring(context, x + 1, y + 1, w - 2, h - 2, TITLE);
+		ring(context, x + 2, y + 2, w - 4, h - 4, CYAN);
+	}
+
 	public void field(DrawContext context, int x, int y, int width, int height, boolean focused) {
 		ring(context, x, y, width, height, NAVY);
 		ring(context, x + 1, y + 1, width - 2, height - 2, focused ? CYAN : BLUE);

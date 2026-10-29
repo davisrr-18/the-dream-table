@@ -51,6 +51,7 @@ public final class FarmPage implements TablePage {
 	private final SearchBox input;
 	private long confirmUntil;
 	private String acknowledged = "";
+	private Layout layout;
 
 	public FarmPage(PageContext ui, SearchBox input) {
 		this.ui = ui;
@@ -67,6 +68,7 @@ public final class FarmPage implements TablePage {
 		LoadedFarmsView.ensure();
 		LoadedFarmsView.ensureDetails();
 		FarmLoader.Entry farm = farm();
+		syncAlerts(farm);
 		if (farm == null) {
 			ui.flowNote(context, Text.translatable(LoadedFarmsView.received() ? "gui.the_dream_table.farm_gone" : "gui.the_dream_table.loaded_waiting"),
 					ui.view().cardY(0) + 8, HINT);
@@ -197,7 +199,7 @@ public final class FarmPage implements TablePage {
 			} else {
 				confirmUntil = Util.getMeasuringTimeMs() + CONFIRM_MS;
 				ui.actions().click();
-				ui.actions().message(Text.translatable("gui.the_dream_table.take_down_click", LoadedFarmsPage.name(farm)));
+				ui.hint("gui.the_dream_table.take_down_click", LoadedFarmsPage.name(farm));
 			}
 			return true;
 		}
@@ -285,17 +287,19 @@ public final class FarmPage implements TablePage {
 
 	/** The farm's active alerts, in red, as the last lines of its description. */
 	private void drawAlerts(DrawContext context, FarmLoader.Entry farm) {
-		List<Text> alerts = alertLines(farm);
 		int y = alertsY();
-		for (Text alert : alerts) {
+		for (Text alert : AlertText.lines(farm, LoadedFarmsView.alerts())) {
 			y = drawWrapped(context, alert, y, Integer.MAX_VALUE, ERROR);
 		}
 	}
 
-	/** Asks for the farm's alert page when the list says it has an alert, and reads each active one once it arrives. */
-	private List<Text> alertLines(FarmLoader.Entry farm) {
-		if (farm.alerts() <= 0) {
-			return List.of();
+	/**
+	 * Asks for the farm's alert page when the list says it has an alert, and acknowledges the events of the page once it
+	 * arrives and is drawn. Done by {@link #draw} only, never by the height math.
+	 */
+	private void syncAlerts(FarmLoader.Entry farm) {
+		if (farm == null || farm.alerts() <= 0) {
+			return;
 		}
 		LoadedFarmsView.ensureAlerts();
 		FarmAlertsPayload page = LoadedFarmsView.alerts();
@@ -303,7 +307,6 @@ public final class FarmPage implements TablePage {
 			LoadedFarmsView.acknowledgeAlerts(page);
 			acknowledged = page.token();
 		}
-		return AlertText.lines(farm, page);
 	}
 
 	private static Text condition(FarmDetailsPayload details) {
@@ -419,63 +422,101 @@ public final class FarmPage implements TablePage {
 	}
 
 	private int statusY() {
-		return ui.view().cardY(0) + CARD_HEIGHT + 8;
+		return ui.view().cardY(0) + layout().status;
 	}
 
 	private int flowX() {
 		return ui.view().flowX();
 	}
 
-	/** Each text block below the card wraps to as many lines as it needs, and what follows moves down with it. */
 	private int storageY() {
-		FarmLoader.Entry farm = farm();
-		return statusY() + (farm == null ? 1 : lines(summaryText(farm))) * LINE_HEIGHT + 3;
+		return ui.view().cardY(0) + layout().storage;
 	}
 
 	private int itemsY() {
-		return storageY() + lines(storageText(LoadedFarmsView.details())) * LINE_HEIGHT + 2;
+		return ui.view().cardY(0) + layout().items;
 	}
 
 	private int blocksY() {
-		FarmDetailsPayload details = LoadedFarmsView.details();
-		return itemsY() + itemHeight(details == null ? List.of() : details.items());
+		return ui.view().cardY(0) + layout().blocks;
 	}
 
 	private int conditionY() {
-		FarmDetailsPayload details = LoadedFarmsView.details();
-		return blocksY() + (details == null ? 1 : lines(infoText(details))) * LINE_HEIGHT + 2;
+		return ui.view().cardY(0) + layout().condition;
 	}
 
 	private int needsY() {
-		FarmDetailsPayload details = LoadedFarmsView.details();
-		return conditionY() + (details == null ? 1 : lines(condition(details))) * LINE_HEIGHT + 2;
+		return ui.view().cardY(0) + layout().needs;
 	}
 
 	/** Under everything else the farm shows, so a farm without an alert looks as it did before. */
 	private int alertsY() {
-		return needsY() + needsHeight();
-	}
-
-	private int alertsHeight() {
-		FarmLoader.Entry farm = farm();
-		if (farm == null || farm.alerts() <= 0) {
-			return 0;
-		}
-		// At least a line per alert the list announced, so the buttons don't move down when the alert page arrives.
-		int height = 0;
-		for (Text alert : alertLines(farm)) {
-			height += lines(alert) * LINE_HEIGHT;
-		}
-		return Math.max(height, farm.alerts() * LINE_HEIGHT) + 2;
+		return ui.view().cardY(0) + layout().alerts;
 	}
 
 	private int rowY(int row) {
-		return alertsY() + alertsHeight() + 4 + row * (BUTTON_HEIGHT + BUTTON_GAP);
+		return ui.view().cardY(0) + layout().rows + row * (BUTTON_HEIGHT + BUTTON_GAP);
 	}
 
-	private int needsHeight() {
+	/**
+	 * Where each text block below the card starts, relative to the card's top. Each block wraps to as many lines as it
+	 * needs and what follows moves down with it, so the offsets are worked out once per change of the inputs, not on
+	 * every call: they are asked for hundreds of times per frame.
+	 */
+	private Layout layout() {
+		FarmLoader.Entry farm = farm();
 		FarmDetailsPayload details = LoadedFarmsView.details();
-		return Math.max(NEEDS_HEIGHT, itemHeight(details == null ? List.of() : details.needs()));
+		FarmAlertsPayload alertPage = LoadedFarmsView.alerts();
+		String summary = farm == null ? "" : summaryText(farm).getString();
+		Layout current = layout;
+		if (current == null || current.farm != farm || current.details != details || current.alertPage != alertPage || !current.summary.equals(summary)) {
+			current = new Layout(farm, details, alertPage, summary);
+			layout = current;
+		}
+		return current;
+	}
+
+	/** The page's own snapshot of the text offsets for one set of inputs, compared by identity. */
+	private final class Layout {
+		private final FarmLoader.Entry farm;
+		private final FarmDetailsPayload details;
+		private final FarmAlertsPayload alertPage;
+		private final String summary;
+		private final int status;
+		private final int storage;
+		private final int items;
+		private final int blocks;
+		private final int condition;
+		private final int needs;
+		private final int alerts;
+		private final int rows;
+
+		private Layout(FarmLoader.Entry farm, FarmDetailsPayload details, FarmAlertsPayload alertPage, String summary) {
+			this.farm = farm;
+			this.details = details;
+			this.alertPage = alertPage;
+			this.summary = summary;
+			status = CARD_HEIGHT + 8;
+			storage = status + (farm == null ? 1 : lines(summaryText(farm))) * LINE_HEIGHT + 3;
+			items = storage + lines(storageText(details)) * LINE_HEIGHT + 2;
+			blocks = items + itemHeight(details == null ? List.of() : details.items());
+			condition = blocks + (details == null ? 1 : lines(infoText(details))) * LINE_HEIGHT + 2;
+			needs = condition + (details == null ? 1 : lines(condition(details))) * LINE_HEIGHT + 2;
+			alerts = needs + Math.max(NEEDS_HEIGHT, itemHeight(details == null ? List.of() : details.needs()));
+			rows = alerts + alertsHeight(farm, alertPage) + 4;
+		}
+
+		private int alertsHeight(FarmLoader.Entry farm, FarmAlertsPayload alertPage) {
+			if (farm == null || farm.alerts() <= 0) {
+				return 0;
+			}
+			// At least a line per alert the list announced, so the buttons don't move down when the alert page arrives.
+			int height = 0;
+			for (Text alert : AlertText.lines(farm, alertPage)) {
+				height += lines(alert) * LINE_HEIGHT;
+			}
+			return Math.max(height, farm.alerts() * LINE_HEIGHT) + 2;
+		}
 	}
 
 	private List<FarmDetailsPayload.CollaboratorEntry> collaborators() {

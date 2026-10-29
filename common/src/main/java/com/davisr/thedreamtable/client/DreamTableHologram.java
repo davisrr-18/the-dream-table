@@ -118,7 +118,8 @@ public final class DreamTableHologram {
 
 	public static void show(BlockPos pos, String farm, int placedBlocks, boolean nextBlocked) {
 		String nextFarm = farm == null ? "" : farm;
-		if (!nextFarm.equals(farmId)) {
+		// Another farm or another table starts over: a placement made for one table means nothing at the next.
+		if (!nextFarm.equals(farmId) || (tablePos != null && !tablePos.equals(pos))) {
 			aimed = null;
 			anchored = false;
 			previewFacing = null;
@@ -161,12 +162,27 @@ public final class DreamTableHologram {
 
 	/** H switches a running build's hologram between the next layers only and the whole farm. */
 	public static void toggleLayers() {
-		allLayers = !allLayers;
+		if (!flipLayers()) {
+			return;
+		}
 		PlayerEntity player = MinecraftClient.getInstance().player;
 		if (player != null) {
 			player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5F, allLayers ? 1.2F : 0.9F);
 			TableNotices.info(Text.translatable(allLayers ? "gui.the_dream_table.layers_all" : "gui.the_dream_table.layers_current"));
 		}
+	}
+
+	/** Flips the layer mode, only while a table and farm are being followed: H does nothing without a hologram. */
+	static boolean flipLayers() {
+		if (tablePos == null || farmId.isEmpty()) {
+			return false;
+		}
+		allLayers = !allLayers;
+		return true;
+	}
+
+	static boolean allLayers() {
+		return allLayers;
 	}
 
 	public static Direction previewFacing() {
@@ -202,6 +218,7 @@ public final class DreamTableHologram {
 		anchored = false;
 		previewFacing = null;
 		previewMirrored = false;
+		allLayers = false;
 		checked = null;
 		problem = "";
 		existing = 0;

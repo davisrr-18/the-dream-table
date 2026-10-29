@@ -59,6 +59,7 @@ public final class ClipboardDraw {
 		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 		BufferRenderer.drawWithGlobalProgram(built);
 		RenderSystem.enableCull();
+		RenderSystem.disableBlend();
 	}
 
 	public static void board(MatrixStack matrices) {
@@ -139,6 +140,7 @@ public final class ClipboardDraw {
 		RenderSystem.enableDepthTest();
 		client.getItemRenderer().renderItem(stack, ModelTransformationMode.NONE, false, matrices, consumers, LIGHT, OverlayTexture.DEFAULT_UV, model);
 		consumers.draw();
+		RenderSystem.disableBlend();
 		matrices.pop();
 	}
 }

@@ -2,7 +2,6 @@ package com.davisr.thedreamtable.screen;
 
 import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.DreamTableKeys;
-import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.screen.page.MaterialsPage;
 import com.davisr.thedreamtable.screen.page.CategoryPage;
 import com.davisr.thedreamtable.screen.page.FarmPage;
@@ -45,10 +44,8 @@ import net.minecraft.item.Items;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.WorldSavePath;
 import org.lwjgl.glfw.GLFW;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -66,6 +63,8 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private List<ControlSpec> chromeControls = List.of();
 	private int controlsPage = -1;
 	private ControlId pendingFocusRestore;
+	/** The focus ring shows only after keyboard navigation, like vanilla, and hides on a mouse click. */
+	private boolean keyboardFocus;
 	private static final ControlId SEARCH_CONTROL = new ControlId("toolbar.search");
 	private Painter painter;
 	private ScreenGeometry geometry;
@@ -90,10 +89,8 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		this.backgroundWidth = PANEL_WIDTH;
 		this.backgroundHeight = HEADER + Viewport.DESIGN_VIEW;
 		this.playerInventoryTitleY = 10_000;
-		Path worldRoot = this.client != null && this.client.getServer() != null ? this.client.getServer().getSavePath(WorldSavePath.ROOT) : null;
-		if (worldRoot != null) {
-			FarmTemplates.reloadImports(worldRoot);
-		}
+		// Once per opening: init() also runs on every resize, which must not throw the farm data away.
+		LoadedFarmsView.invalidate();
 	}
 
 	@Override
@@ -125,7 +122,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		loaded = new LoadedFarmsPage(ui, search);
 		farm = new FarmPage(ui, search);
 		invites = new InvitesPage(ui);
-		LoadedFarmsView.invalidate();
 		materials = new MaterialsPage(ui);
 		swap = new SwapPage(ui, search);
 		layout();
@@ -159,9 +155,13 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		drawTabs(context, mouseX, mouseY);
 		view.drawScrollbar(context, painter, mouseX, mouseY);
 		search.draw(context, painter, searchX(), geometry.toolbar().y() + 4, searchWidth());
-		view.clip(context);
+		boolean drawable = view.clip(context);
 		ui.beginControls(this.handler.getPage(), page);
-		page.draw(context, mouseX, mouseY);
+		ui.setFocusedControl(keyboardFocus && getFocused() instanceof UiControl focused ? focused.id() : null);
+		// Without a content area nothing may be drawn, since there is no scissor to keep it off the header and tabs.
+		if (drawable) {
+			page.draw(context, mouseX, mouseY);
+		}
 		syncPageControls();
 	}
 
@@ -192,6 +192,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		layout();
+		keyboardFocus = false;
 		if (button == 0 && view.beginDrag(mouseX, mouseY)) {
 			return true;
 		}
@@ -256,11 +257,16 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			return true;
 		}
 		if (keyCode == GLFW.GLFW_KEY_TAB) {
+			keyboardFocus = true;
 			controls.moveTab((modifiers & GLFW.GLFW_MOD_SHIFT) != 0).ifPresent(this::focusControl);
 			revealFocused();
 			return true;
 		}
 		if (getFocused() instanceof UiControl) {
+			if (keyCode == GLFW.GLFW_KEY_LEFT || keyCode == GLFW.GLFW_KEY_RIGHT
+					|| keyCode == GLFW.GLFW_KEY_UP || keyCode == GLFW.GLFW_KEY_DOWN) {
+				keyboardFocus = true;
+			}
 			if (keyCode == GLFW.GLFW_KEY_LEFT || keyCode == GLFW.GLFW_KEY_RIGHT) {
 				controls.moveHorizontal(keyCode == GLFW.GLFW_KEY_RIGHT ? 1 : -1).ifPresent(this::focusControl);
 				return true;
@@ -294,6 +300,13 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	public void message(Text text) {
 		if (this.client != null && this.client.player != null) {
 			TableNotices.problem(text);
+		}
+	}
+
+	@Override
+	public void hint(Text text) {
+		if (this.client != null && this.client.player != null) {
+			TableNotices.info(text);
 		}
 	}
 
@@ -397,6 +410,9 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			ControlSpec spec = chromeControls.get(tab.ordinal());
 			painter.tab(context, tabIcon(tab), tabLabel(tab), spec.bounds(), control.isMouseOver(mouseX, mouseY) || control.isFocused(),
 					spec.selected(), geometry.mode() == LayoutMode.COMPACT);
+			if (keyboardFocus && control.isFocused()) {
+				painter.focusRing(context, spec.bounds().x(), spec.bounds().y(), spec.bounds().width(), spec.bounds().height());
+			}
 		}
 	}
 
@@ -452,8 +468,11 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	}
 
 	private void focusPageControlAt(double mouseX, double mouseY) {
+		if (!view.inContent(mouseX, mouseY)) {
+			return;
+		}
 		for (ControlSpec spec : ui.controls()) {
-			if (spec.bounds().contains(mouseX, mouseY)) {
+			if (view.visible(spec.bounds()) && spec.bounds().contains(mouseX, mouseY)) {
 				controls.focus(spec.id());
 				focusControl(spec.id());
 				return;

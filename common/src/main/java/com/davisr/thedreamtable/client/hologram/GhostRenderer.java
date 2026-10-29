@@ -48,6 +48,7 @@ public final class GhostRenderer {
 		BufferRenderer.drawWithGlobalProgram(built);
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
+		RenderSystem.disableBlend();
 	}
 
 	/**
@@ -99,6 +100,8 @@ public final class GhostRenderer {
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
 		BufferRenderer.drawWithGlobalProgram(built);
+		// The world render after this stage must not inherit blending.
+		RenderSystem.disableBlend();
 	}
 
 	private record Tint(float red, float green, float blue, int alpha) {
