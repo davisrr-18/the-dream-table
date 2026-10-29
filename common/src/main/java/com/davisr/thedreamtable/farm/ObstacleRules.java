@@ -13,6 +13,7 @@ import net.minecraft.block.TntBlock;
 import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
@@ -83,8 +84,8 @@ final class ObstacleRules {
 			return;
 		}
 		world.syncWorldEvent(WorldEvents.BLOCK_BROKEN, pos, Block.getRawIdFromState(state));
-		// The table breaks with bare hands: a block that only drops with the right tool (stone, ores, obsidian) drops nothing.
-		if (drop && !dropState.isToolRequired()) {
+		// Ores, obsidian and other blocks that need a tool drop nothing, so clearing isn't free mining; plain stone still drops.
+		if (drop && (!dropState.isToolRequired() || dropState.isIn(BlockTags.BASE_STONE_OVERWORLD) || dropState.isIn(BlockTags.BASE_STONE_NETHER))) {
 			Block.dropStacks(dropState, world, dropPos);
 		}
 	}

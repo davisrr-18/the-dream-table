@@ -134,6 +134,7 @@
 	"gui.the_dream_table.deliver_none": "Nada no seu inventário é necessário",
 	"gui.the_dream_table.deliver_nearby_none": "Nenhum item necessário nos contêineres próximos",
 	"gui.the_dream_table.deliver_nearby_none_skipped": "Nenhum item necessário nos contêineres próximos. %s contêineres trancados, fechados ou protegidos foram ignorados",
+	"gui.the_dream_table.deliver_nearby_wait": "Aguarde um instante antes de entregar de novo",
 	"gui.the_dream_table.farm_busy": "Descarte a farm atual antes de começar outra",
 	"gui.the_dream_table.build": "Construir",
 	"gui.the_dream_table.discard": "Descartar",
