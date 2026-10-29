@@ -15,8 +15,8 @@ import java.util.List;
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /**
- * My Schematics: the farms read from schematic files, then the files that can't be used, greyed out with the reason.
- * Pointing at a farm with warnings, or at a file that can't be used, shows the full text.
+ * My Schematics: the farms read from schematic files, then the files that can't be used, greyed out. A file that can't
+ * be used says why in the detail line of its card, which scrolls when it is longer than the card.
  */
 public final class SchemesPage implements TablePage {
 	private static final int EMPTY_HEIGHT = 48;

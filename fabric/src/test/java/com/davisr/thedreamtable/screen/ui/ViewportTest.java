@@ -191,4 +191,16 @@ class ViewportTest {
 		maxScroll.setAccessible(true);
 		assertEquals(217, maxScroll.invoke(viewport));
 	}
+
+	@Test
+	void aViewportWithoutAContentAreaReportsItSoNothingIsDrawn() {
+		Viewport empty = new Viewport();
+		// A toolbar taller than the whole panel leaves the content area with no height.
+		empty.layout(320, 240, 0, 1000, 100);
+		assertFalse(empty.hasContentArea());
+
+		Viewport normal = new Viewport();
+		normal.layout(ScreenGeometry.calculate(320, 240, 0, false), 0, 100);
+		assertTrue(normal.hasContentArea());
+	}
 }

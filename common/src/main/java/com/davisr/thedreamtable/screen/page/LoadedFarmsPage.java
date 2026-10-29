@@ -18,6 +18,7 @@ import net.minecraft.util.Identifier;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
@@ -41,6 +42,15 @@ public final class LoadedFarmsPage implements TablePage {
 
 	private final PageContext ui;
 	private final SearchBox search;
+	/** The last filtered and sorted result with the inputs it was made from, so a frame filters and sorts once. */
+	private List<Integer> shownCache = List.of();
+	private List<FarmLoader.Entry> shownFarms;
+	private String shownQuery;
+	private FarmListing.Show shownShow;
+	private FarmListing.Sort shownSort;
+	private boolean shownFavorites;
+	private String shownDimension;
+	private FarmListing.Viewer shownViewer;
 
 	public LoadedFarmsPage(PageContext ui, SearchBox search) {
 		this.ui = ui;
@@ -57,7 +67,26 @@ public final class LoadedFarmsPage implements TablePage {
 	}
 
 	private List<Integer> shown() {
-		return listing() ? LoadedFarmsView.shown(search.text(), farm -> name(farm).getString()) : List.of();
+		if (!listing()) {
+			return List.of();
+		}
+		List<FarmLoader.Entry> farms = LoadedFarmsView.farms();
+		String query = search.text();
+		FarmListing.Viewer viewer = LoadedFarmsView.viewer();
+		if (farms != shownFarms || !query.equals(shownQuery) || LoadedFarmsView.show() != shownShow || LoadedFarmsView.sort() != shownSort
+				|| LoadedFarmsView.favoritesOnly() != shownFavorites || !LoadedFarmsView.dimension().equals(shownDimension)
+				|| !Objects.equals(viewer, shownViewer)) {
+			shownCache = LoadedFarmsView.shown(query, farm -> name(farm).getString());
+			shownFarms = farms;
+			shownQuery = query;
+			shownShow = LoadedFarmsView.show();
+			shownSort = LoadedFarmsView.sort();
+			shownFavorites = LoadedFarmsView.favoritesOnly();
+			// Read after the call: it clears a dimension the player has no farm in anymore.
+			shownDimension = LoadedFarmsView.dimension();
+			shownViewer = viewer;
+		}
+		return shownCache;
 	}
 
 	@Override

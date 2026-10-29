@@ -20,6 +20,13 @@ class TrackedFarmHudTest {
 		assertEquals("N", TrackedFarmHud.direction(3, -8));
 	}
 
+	@Test
+	void theLineSitsUnderATallerNoticeAndKeepsItsPlaceOtherwise() {
+		assertEquals(28, TrackedFarmHud.lineY(0), "no notice");
+		assertEquals(28, TrackedFarmHud.lineY(26), "a one-line notice ends above the usual place");
+		assertEquals(54 + 2, TrackedFarmHud.lineY(54), "a three-line notice pushes the line down");
+	}
+
 	private static FarmLoader.Entry entry(String key, boolean tracked) {
 		return new FarmLoader.Entry(key, "farm-" + key, "", "Name " + key, "minecraft:the_nether", new BlockPos(1, 2, 3), FarmRole.OWNER,
 				false, tracked, false, false, 0, 0, true, -1);

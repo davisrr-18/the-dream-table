@@ -8,7 +8,11 @@ public interface ScreenActions {
 
 	void click();
 
+	/** A problem or refusal, shown as a red table notice. */
 	void message(Text text);
+
+	/** A neutral hint, such as "click again to confirm", shown as a green table notice. */
+	void hint(Text text);
 
 	void close();
 

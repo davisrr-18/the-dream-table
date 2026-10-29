@@ -20,7 +20,8 @@ public final class AlertText {
 
 	/** The farm's list name, led by the warning sign when it has an active alert. */
 	public static Text listName(FarmLoader.Entry farm, Text name) {
-		return farm.alerts() > 0 ? Text.literal(SIGN + " ").setStyle(RED).append(name) : name;
+		// The sign is a sibling of the name, not its parent, so the red does not reach the name.
+		return farm.alerts() > 0 ? Text.empty().append(Text.literal(SIGN + " ").setStyle(RED)).append(name) : name;
 	}
 
 	/** "⚠ Alert: 12 blocks missing", in red. */

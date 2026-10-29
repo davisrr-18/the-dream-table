@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** My Farms shows alerts as a red sign before the farm's name and red "Alert:" lines last in its details. */
@@ -34,7 +35,11 @@ class AlertTextTest {
 		assertEquals("Iron farm", AlertText.listName(farm("a", 0), name).getString());
 		Text marked = AlertText.listName(farm("a", 2), name);
 		assertEquals(AlertText.SIGN + " Iron farm", marked.getString());
-		assertEquals(Theme.ERROR & 0xFFFFFF, marked.getStyle().getColor().getRgb());
+		assertNull(marked.getStyle().getColor(), "the whole name must not be red");
+		assertEquals(2, marked.getSiblings().size());
+		assertEquals(Theme.ERROR & 0xFFFFFF, marked.getSiblings().get(0).getStyle().getColor().getRgb(), "the sign is red");
+		assertEquals("Iron farm", marked.getSiblings().get(1).getString());
+		assertNull(marked.getSiblings().get(1).getStyle().getColor(), "the name keeps the label color");
 	}
 
 	@Test

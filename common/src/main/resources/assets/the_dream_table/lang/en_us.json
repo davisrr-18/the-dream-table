@@ -186,7 +186,7 @@
 	"gui.the_dream_table.issue.protected": "You can't build at %s, %s, %s",
 	"gui.the_dream_table.issue.protected.fix": "Spawn protection, the world border or a land claim covers this spot. Get permission, then press Try Again",
 	"gui.the_dream_table.issue.material": "Needs %s",
-	"gui.the_dream_table.issue.material.fix": "Deliver it on the clipboard and the build continues by itself",
+	"gui.the_dream_table.issue.material.fix": "Deliver it on the clipboard, or with Deliver All on the Materials page, and the build continues by itself",
 	"gui.the_dream_table.issue.entity_blocked": "The entity spot at %s, %s, %s is occupied or ambiguous",
 	"gui.the_dream_table.issue.entity_blocked.fix": "Leave exactly one free passenger or one empty vanilla minecart there, then press Try Again",
 	"gui.the_dream_table.issue.farm_changed": "The farm file was changed or removed since this build started",

@@ -12,9 +12,10 @@ import net.minecraft.text.Text;
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /**
- * The options: Build Speed, which opens {@link SpeedPage}; Keep Farms Loaded, which opens {@link LoadedFarmsPage} to pick
- * which finished farms stay loaded; and the "Show Other Farms", tracker and "Deliver from Nearby" switches, kept on this player's computer, and the "Protect My Farms" and "Viewers Can Break" switches, which the
- * server keeps because it enforces them.
+ * The options: Build Speed, which opens {@link SpeedPage}; the "Show Other Farms", tracker and "Deliver from Nearby"
+ * switches, kept on this player's computer; and the "Protect My Farms" and "Viewers Can Break" switches, which the
+ * server keeps because it enforces them. Each card carries its own description, or the reason it is off, as its detail
+ * line, never as hover text.
  */
 public final class OptionsPage implements TablePage {
 	private static final int SPEED = 0;

@@ -76,4 +76,40 @@ class DreamTableHologramTest {
 		assertFalse(DreamTableHologram.hasPlacement());
 		assertEquals(TABLE, DreamTableHologram.trackedTable());
 	}
+
+	@Test
+	void anotherTableForSameFarmStartsOver() {
+		DreamTableHologram.show(TABLE, FARM, 0, false);
+		DreamTableHologram.anchor(ANCHOR);
+
+		DreamTableHologram.show(TABLE.east(), FARM, 0, false);
+
+		assertFalse(DreamTableHologram.hasPlacement());
+		assertEquals(TABLE.east(), DreamTableHologram.trackedTable());
+	}
+
+	@Test
+	void theSameTableKeepsItsPlacementWhenShownAgain() {
+		DreamTableHologram.show(TABLE, FARM, 0, false);
+		DreamTableHologram.anchor(ANCHOR);
+
+		DreamTableHologram.show(TABLE, FARM, 3, false);
+
+		assertTrue(DreamTableHologram.hasPlacement());
+	}
+
+	@Test
+	void layerToggleNeedsAFollowedFarmAndClearResetsIt() {
+		assertFalse(DreamTableHologram.flipLayers(), "no table, nothing to toggle");
+		assertFalse(DreamTableHologram.allLayers());
+
+		DreamTableHologram.show(TABLE, FARM, 5, false);
+		assertTrue(DreamTableHologram.flipLayers());
+		assertTrue(DreamTableHologram.allLayers());
+
+		DreamTableHologram.clear();
+		assertFalse(DreamTableHologram.allLayers(), "a new farm starts on the next layers only");
+		assertFalse(DreamTableHologram.flipLayers());
+		assertFalse(DreamTableHologram.allLayers());
+	}
 }

@@ -43,6 +43,8 @@ public final class WorkPage implements TablePage {
 
 	private final PageContext ui;
 	private long confirmUntil;
+	/** Height of the status block as last measured by {@link #measureStatus}, which each draw and height query refreshes. */
+	private int statusHeight = STATUS_LINES * LINE_HEIGHT;
 
 	public WorkPage(PageContext ui) {
 		this.ui = ui;
@@ -112,7 +114,7 @@ public final class WorkPage implements TablePage {
 		if (started) {
 			confirmUntil = Util.getMeasuringTimeMs() + CONFIRM_MS;
 			ui.actions().click();
-			ui.message("gui.the_dream_table.discard_warning");
+			ui.hint("gui.the_dream_table.discard_warning");
 			return;
 		}
 		discardNow();
@@ -132,6 +134,7 @@ public final class WorkPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
+		measureStatus(new ArrayList<>());
 		int lastRow = confirming() ? CONFIRM_DISCARD : DISCARD;
 		return rowY(lastRow) - ui.view().cardY(0) + PAD + BUTTON_HEIGHT + 8;
 	}
@@ -178,7 +181,7 @@ public final class WorkPage implements TablePage {
 	 */
 	private void drawStatus(DrawContext context) {
 		List<Integer> colors = new ArrayList<>();
-		List<OrderedText> lines = statusLines(colors);
+		List<OrderedText> lines = measureStatus(colors);
 		for (int line = 0; line < Math.min(MAX_STATUS_LINES, lines.size()); line++) {
 			context.drawText(ui.painter().text(), lines.get(line), flowX(), statusY() + line * LINE_HEIGHT, colors.get(line), false);
 		}
@@ -202,9 +205,11 @@ public final class WorkPage implements TablePage {
 		return lines;
 	}
 
-	private int statusHeight() {
-		int count = statusLines(new ArrayList<>()).size();
-		return Math.max(STATUS_LINES, Math.min(MAX_STATUS_LINES, count)) * LINE_HEIGHT;
+	/** Wraps the status once and remembers its height, so the rows below it don't wrap it again on every query. */
+	private List<OrderedText> measureStatus(List<Integer> colors) {
+		List<OrderedText> lines = statusLines(colors);
+		statusHeight = Math.max(STATUS_LINES, Math.min(MAX_STATUS_LINES, lines.size())) * LINE_HEIGHT;
+		return lines;
 	}
 
 	private void addLines(List<OrderedText> lines, List<Integer> colors, Text text, int color) {
@@ -294,7 +299,7 @@ public final class WorkPage implements TablePage {
 	}
 
 	private int barY() {
-		return statusY() + statusHeight() + 4;
+		return statusY() + statusHeight + 4;
 	}
 
 	private int rowY(int row) {

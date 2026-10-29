@@ -35,8 +35,12 @@ public record ControlSpec(
 			append(narration, Text.translatable("gui.the_dream_table.narration.selected"));
 		}
 		if (!enabled) {
-			append(narration, Text.translatable("gui.the_dream_table.narration.disabled"));
-			append(narration, disabledReason);
+			Text unavailable = Text.translatable("gui.the_dream_table.narration.disabled");
+			append(narration, unavailable);
+			// A reason that only repeats the generic word is not read twice.
+			if (!disabledReason.getString().equals(unavailable.getString())) {
+				append(narration, disabledReason);
+			}
 		}
 		return narration;
 	}
