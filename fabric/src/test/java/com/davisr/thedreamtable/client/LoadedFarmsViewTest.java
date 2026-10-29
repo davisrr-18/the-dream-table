@@ -86,4 +86,18 @@ class LoadedFarmsViewTest {
 		LoadedFarmsView.toggleFavorites();
 		assertFalse(LoadedFarmsView.favoritesOnly());
 	}
+
+	@Test
+	void aRefusedFarmIsNotAskedForAgainUntilAnotherIsChosen() {
+		LoadedFarmsView.RequestState state = new LoadedFarmsView.RequestState();
+		long retry = LoadedFarmsView.RequestState.RETRY_MS;
+		state.select("a");
+		assertTrue(state.requestDetails(0, false));
+		assertTrue(state.requestAlerts(0, false));
+		state.refuse();
+		assertFalse(state.requestDetails(10 * retry, false));
+		assertFalse(state.requestAlerts(10 * retry, false));
+		state.select("b");
+		assertTrue(state.requestDetails(10 * retry, false));
+	}
 }

@@ -56,8 +56,27 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 
 - `.litematic` files saved by Litematica are now read correctly. Before, their regions could be read with no size, so the file imported as empty.
 - In `.litematic` files with several regions, chest contents, signs and other block data now land on their own region's blocks, and entities are placed relative to their own region.
-- Huge or damaged schematic files are refused right away instead of freezing the server or running out of memory. Files whose bounding box holds more than 33 million cells are refused, even when most of it is air.
+- Huge or damaged schematic files are refused right away instead of freezing the server or running out of memory. A schematic may be at most 512 blocks on any side.
+- Schematics that need more than 54 different materials or place two blocks in the same spot now say so, instead of "Can't be read".
+- Dream Table blocks inside an imported schematic are left out with a warning, and click events on imported signs are removed so a sign can't run commands.
+- A schematic with an extremely long block name can no longer stop a server's My Schematics list from loading.
 - On a dedicated server, editing or replacing a schematic file sends the new version to players instead of keeping the old copy. A farm the server didn't answer for is asked for again after a moment, and farm requests are rate-limited per player.
+
+## Fixes and performance
+
+- Fixed a build getting stuck waiting for materials when two different materials were swapped to the same block.
+- Fixed Take Down sometimes skipping a refund after an error.
+- When the table clears obstacles, ores, obsidian and ancient debris no longer drop items, so clearing isn't free mining. Every other cleared block still drops as before.
+- Deliver From Nearby tells you to wait a moment when pressed too quickly, instead of doing nothing.
+- Farm details and alerts no longer get stuck on "Looking..." after resizing the window.
+- Keyboard navigation shows a clear focus outline on cards, buttons, filters and tabs, and screen readers announce a disabled button as "Unavailable" once.
+- The H key no longer toggles hologram layers when no farm is being previewed, and opening another table with the same farm starts a fresh placement.
+- Only the ⚠ sign next to a farm with an alert is red, not the whole name.
+- The tracked-farm line moves down instead of overlapping a long notice.
+- "Click again to take down" and other confirmation hints are shown as normal notices instead of red errors, and the missing-material hint mentions Deliver All.
+- Large farms and imported schematics build, repair and save much faster; farm alerts, My Farms and the swap list cost less on servers and clients with many farms.
+- Placement checks and My Farms requests are rate-limited more tightly, and repeated identical requests no longer rescan every farm.
+- A server setting with a value other than true or false (for example `yes`) is reported in the log and uses its default. Before, such a value counted as false.
 
 ## Known limitations
 

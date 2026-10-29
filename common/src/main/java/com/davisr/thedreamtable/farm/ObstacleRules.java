@@ -84,10 +84,18 @@ final class ObstacleRules {
 			return;
 		}
 		world.syncWorldEvent(WorldEvents.BLOCK_BROKEN, pos, Block.getRawIdFromState(state));
-		// Ores, obsidian and other blocks that need a tool drop nothing, so clearing isn't free mining; plain stone still drops.
-		if (drop && (!dropState.isToolRequired() || dropState.isIn(BlockTags.BASE_STONE_OVERWORLD) || dropState.isIn(BlockTags.BASE_STONE_NETHER))) {
+		// Ores, obsidian and ancient debris drop nothing, so clearing isn't free mining; everything else drops as before.
+		if (drop && !minedResource(dropState)) {
 			Block.dropStacks(dropState, world, dropPos);
 		}
+	}
+
+	/** Blocks whose drops are a mining reward: every vanilla ore tag, nether quartz ore, obsidian and ancient debris. */
+	static boolean minedResource(BlockState state) {
+		return state.isIn(BlockTags.COAL_ORES) || state.isIn(BlockTags.IRON_ORES) || state.isIn(BlockTags.COPPER_ORES)
+				|| state.isIn(BlockTags.GOLD_ORES) || state.isIn(BlockTags.REDSTONE_ORES) || state.isIn(BlockTags.LAPIS_ORES)
+				|| state.isIn(BlockTags.DIAMOND_ORES) || state.isIn(BlockTags.EMERALD_ORES) || state.isOf(Blocks.NETHER_QUARTZ_ORE)
+				|| state.isOf(Blocks.OBSIDIAN) || state.isOf(Blocks.CRYING_OBSIDIAN) || state.isOf(Blocks.ANCIENT_DEBRIS);
 	}
 
 	private static boolean isOtherHalf(BlockState state, BlockState other) {
