@@ -55,6 +55,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_DELIVER_NEARBY = 107;
 	public static final int BUTTON_PROTECT_FARMS = 108;
 	public static final int BUTTON_VIEWERS_BREAK = 109;
+	public static final int BUTTON_ACCEPT_INVITES = 112;
 	public static final int BUTTON_SCHEMES = 110;
 	public static final int BUTTON_SCHEMES_BACK = 111;
 	public static final int BUTTON_OPTIONS = 120;
@@ -99,6 +100,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private int previewSwap = -1;
 	private int nearbyDelivery;
 	private int farmProtection;
+	private int social;
 
 	/** Protect My Farms for this player, as synced from the server: off, on, or {@link #PROTECTION_OFF_SERVER}. */
 	public static final int PROTECTION_OFF = 0;
@@ -107,6 +109,9 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	/** Bits of the synced state: the Protect My Farms value, and "Viewers Can Break" on top of it. */
 	private static final int PROTECTION_MASK = 3;
 	private static final int VIEWERS_BREAK_BIT = 4;
+	/** Bits of the synced social state; zero (nothing synced yet) reads as "allowed" for both. */
+	private static final int OTHER_FARMS_OFF_SERVER_BIT = 1;
+	private static final int INVITES_OFF_BIT = 2;
 
 	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, TableSession session) {
 		this(syncId, inventory, session.getPos(), session.getMaterials(), session.getSelectedFarm(), session.getPage(), phaseOf(session.getPhase()), session.getBuildIndex());
@@ -207,6 +212,31 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	/** Whether this player's Viewers may also break their protected farms, as the server holds it. */
 	public boolean viewersMayBreak() {
 		return (farmProtection & VIEWERS_BREAK_BIT) != 0;
+	}
+
+	/** Whether the server lets players see other players' farm areas; synced so the Options card can say why it is off. */
+	public boolean otherFarmsAllowed() {
+		return (social & OTHER_FARMS_OFF_SERVER_BIT) == 0;
+	}
+
+	/** This player's "Accept Farm Invites" as the server holds it. */
+	public boolean acceptsFarmInvites() {
+		return (social & INVITES_OFF_BIT) == 0;
+	}
+
+	/** The synced social state for the server's switch and this player's invite choice. */
+	static int socialState(boolean otherFarmsEnabled, boolean acceptsInvites) {
+		return (otherFarmsEnabled ? 0 : OTHER_FARMS_OFF_SERVER_BIT) | (acceptsInvites ? 0 : INVITES_OFF_BIT);
+	}
+
+	private int socialOnServer() {
+		boolean[] accepts = {true};
+		context.run((world, pos) -> {
+			if (world.getServer() != null) {
+				accepts[0] = FarmPreferences.of(world.getServer()).acceptsInvites(playerId);
+			}
+		});
+		return socialState(DreamTableConfig.showOtherFarmsEnabled(), accepts[0]);
 	}
 
 	private int farmProtectionOnServer() {
@@ -387,7 +417,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		return template == null ? 0 : template.steps().size();
 	}
 
-	/** Page, build index, phase, step total, speed level, actual rate, server limit, loaded farms, whether nearby delivery is on and this player's Protect My Farms state (with the Viewers Can Break bit), read from the table on the server and stored on the client. */
+	/** Page, build index, phase, step total, speed level, actual rate, server limit, loaded farms, whether nearby delivery is on and this player's Protect My Farms state (with the Viewers Can Break bit) and the social state (server's Show Other Farms switch, this player's Accept Farm Invites), read from the table on the server and stored on the client. */
 	private final class Properties implements PropertyDelegate {
 		@Override
 		public int get(int index) {
@@ -405,6 +435,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 					case 8 -> DreamTableConfig.maxLoadedFarms();
 					case 9 -> DreamTableConfig.deliverFromNearby() ? 1 : 0;
 					case 10 -> farmProtectionOnServer();
+					case 11 -> socialOnServer();
 					default -> 0;
 				};
 			}
@@ -420,6 +451,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 				case 8 -> loadedLimit;
 				case 9 -> nearbyDelivery;
 				case 10 -> farmProtection;
+				case 11 -> social;
 				default -> 0;
 			};
 		}
@@ -438,6 +470,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 				case 8 -> loadedLimit = value;
 				case 9 -> nearbyDelivery = value;
 				case 10 -> farmProtection = value;
+				case 11 -> social = value;
 				default -> {
 				}
 			}
@@ -445,7 +478,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 		@Override
 		public int size() {
-			return 11;
+			return 12;
 		}
 	}
 

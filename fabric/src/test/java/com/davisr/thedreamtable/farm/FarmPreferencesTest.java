@@ -103,6 +103,48 @@ class FarmPreferencesTest {
 	}
 
 	@Test
+	void acceptFarmInvitesIsOnByDefaultAndWorldsWithoutItReadAsOn() {
+		FarmPreferences preferences = new FarmPreferences();
+		assertTrue(preferences.acceptsInvites(ALICE));
+		NbtCompound untouched = preferences.writeNbt(new NbtCompound(), null);
+		assertFalse(untouched.contains("DecliningInvites"));
+		assertTrue(FarmPreferences.read(untouched, null).acceptsInvites(ALICE));
+		assertTrue(FarmPreferences.read(new NbtCompound(), null).acceptsInvites(ALICE));
+	}
+
+	@Test
+	void acceptFarmInvitesRoundTripsPerPlayerAndTurningItBackOnForgetsIt() {
+		FarmPreferences preferences = new FarmPreferences();
+		preferences.setFavorite(BOB, FIRST, true);
+		preferences.setDirty(false);
+		assertTrue(preferences.setAcceptsInvites(ALICE, false));
+		assertTrue(preferences.isDirty());
+		preferences.setDirty(false);
+		assertTrue(preferences.setAcceptsInvites(ALICE, false));
+		assertFalse(preferences.isDirty());
+
+		FarmPreferences restored = FarmPreferences.read(preferences.writeNbt(new NbtCompound(), null), null);
+
+		assertFalse(restored.acceptsInvites(ALICE));
+		assertTrue(restored.acceptsInvites(BOB));
+		assertTrue(restored.isFavorite(BOB, FIRST));
+		assertTrue(restored.setAcceptsInvites(ALICE, true));
+		assertTrue(FarmPreferences.read(restored.writeNbt(new NbtCompound(), null), null).acceptsInvites(ALICE));
+	}
+
+	@Test
+	void acceptFarmInvitesStopsAddingPlayersAtTheLimitButStillTurnsBackOn() {
+		FarmPreferences preferences = new FarmPreferences();
+		for (int index = 0; index < FarmPreferences.MAX_SAVED_PLAYERS; index++) {
+			assertTrue(preferences.setAcceptsInvites(new UUID(0L, index + 1L), false));
+		}
+		assertFalse(preferences.setAcceptsInvites(ALICE, false));
+		assertTrue(preferences.acceptsInvites(ALICE));
+		assertTrue(preferences.setAcceptsInvites(new UUID(0L, 1L), true));
+		assertTrue(preferences.setAcceptsInvites(ALICE, false));
+	}
+
+	@Test
 	void theSwitchesStopAddingPlayersAtTheSavedPlayerLimitButStillTurnOff() {
 		FarmPreferences preferences = new FarmPreferences();
 		for (int index = 0; index < FarmPreferences.MAX_SAVED_PLAYERS; index++) {

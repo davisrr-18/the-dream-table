@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.network;
 
+import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.platform.Platform;
@@ -20,7 +21,8 @@ import java.util.UUID;
 
 /**
  * Other players' farm areas near a player who turned on "Show Other Farms", sent every two seconds.
- * Only the box and whether it is still being built go out: no owner, farm or materials.
+ * Only the box and whether it is still being built go out: no owner, farm or materials. The server switch
+ * {@code show_other_farms_enabled} (default on) stops all of it: no watcher is kept and no area is ever sent.
  */
 public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 	public static final Id<FarmAreasPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_areas"));
@@ -61,6 +63,9 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 		STARTS.forgetOnDisconnect();
 		Platform.network().registerClientToServer(WatchAreasPayload.ID, WatchAreasPayload.CODEC, (payload, player) -> {
 			if (payload.watch()) {
+				if (!DreamTableConfig.showOtherFarmsEnabled()) {
+					return;
+				}
 				WATCHERS.add(player.getUuid());
 				if (STARTS.allow(player.getUuid(), player.getServer().getTicks())) {
 					send(player);
@@ -74,7 +79,21 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 	}
 
 	private static void tick(MinecraftServer server) {
-		if (WATCHERS.isEmpty() || server.getTicks() % INTERVAL_TICKS != 0) {
+		if (WATCHERS.isEmpty()) {
+			return;
+		}
+		if (!DreamTableConfig.showOtherFarmsEnabled()) {
+			// Turned off while players were watching: clear what they still draw and stop sending anything.
+			for (UUID watcher : List.copyOf(WATCHERS)) {
+				ServerPlayerEntity player = server.getPlayerManager().getPlayer(watcher);
+				if (player != null) {
+					Platform.network().send(player, new FarmAreasPayload(List.of()));
+				}
+			}
+			WATCHERS.clear();
+			return;
+		}
+		if (server.getTicks() % INTERVAL_TICKS != 0) {
 			return;
 		}
 		for (UUID watcher : List.copyOf(WATCHERS)) {
@@ -86,6 +105,9 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 	}
 
 	private static void send(ServerPlayerEntity player) {
+		if (!DreamTableConfig.showOtherFarmsEnabled()) {
+			return;
+		}
 		List<Area> areas = new ArrayList<>();
 		for (FarmAreas.View view : FarmAreas.of(player.getServerWorld()).near(player.getBlockPos(), RADIUS, player.getUuid())) {
 			if (areas.size() >= MAX_AREAS) {

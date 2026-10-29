@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.neoforge;
 
+import com.davisr.thedreamtable.network.NetworkProtocol;
 import com.davisr.thedreamtable.platform.ServerNetwork;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -19,8 +20,8 @@ import java.util.function.Consumer;
  * registrations made at startup are kept and applied, in the same order, when that event fires.
  */
 final class NeoForgeServerNetwork implements ServerNetwork {
-	/** Bumped when a payload's id or codec changes, so mismatched installs refuse to connect. */
-	private static final String PROTOCOL = "2";
+	/** Shared with Fabric's handshake; bumped when a payload's id or codec changes, so mismatched installs refuse to connect. */
+	private static final String PROTOCOL = NetworkProtocol.VERSION;
 
 	private final List<Consumer<PayloadRegistrar>> registrations = new ArrayList<>();
 

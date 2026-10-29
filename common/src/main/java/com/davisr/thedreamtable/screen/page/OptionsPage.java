@@ -15,7 +15,8 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
  * The options: Build Speed, which opens {@link SpeedPage}; the "Show Other Farms", tracker and "Deliver from Nearby"
  * switches, kept on this player's computer; and the "Protect My Farms" and "Viewers Can Break" switches, which the
  * server keeps because it enforces them. Each card carries its own description, or the reason it is off, as its detail
- * line, never as hover text.
+ * line, never as hover text. "Show Other Farms" is also off, and says so, when the server sends no other farms (a privacy
+ * switch); "Accept Farm Invites" is the server-kept choice of whether other players may invite this player.
  */
 public final class OptionsPage implements TablePage {
 	private static final int SPEED = 0;
@@ -24,7 +25,8 @@ public final class OptionsPage implements TablePage {
 	private static final int NEARBY = 3;
 	private static final int PROTECT = 4;
 	private static final int VIEWERS = 5;
-	private static final int CARDS = 6;
+	private static final int INVITES = 6;
+	private static final int CARDS = 7;
 
 	private final PageContext ui;
 
@@ -39,10 +41,17 @@ public final class OptionsPage implements TablePage {
 				Text.translatable("gui.the_dream_table.pace_share", BuildPace.percent(handler.getPace())));
 		ui.cardAt("speed", context, new ItemStack(Items.CLOCK), Text.translatable("gui.the_dream_table.speed"), speed,
 				ui.view().gridCardX(SPEED), ui.view().gridCardY(SPEED), mouseX, mouseY, false, true);
-		boolean shown = ClientSettings.showOtherFarms();
+		boolean othersAllowed = handler.otherFarmsAllowed();
+		boolean shown = othersAllowed && ClientSettings.showOtherFarms();
 		Text others = Text.translatable(shown ? "gui.the_dream_table.show_others_on" : "gui.the_dream_table.show_others_off");
-		ui.cardAt("show_other_farms", context, new ItemStack(Items.SPYGLASS), others,
-				ui.view().gridCardX(OTHERS), ui.view().gridCardY(OTHERS), mouseX, mouseY, shown, true);
+		if (othersAllowed) {
+			ui.cardAt("show_other_farms", context, new ItemStack(Items.SPYGLASS), others,
+					ui.view().gridCardX(OTHERS), ui.view().gridCardY(OTHERS), mouseX, mouseY, shown, true);
+		} else {
+			ui.cardAt("show_other_farms", context, new ItemStack(Items.SPYGLASS), others,
+					Text.translatable("gui.the_dream_table.show_others_off_server"),
+					ui.view().gridCardX(OTHERS), ui.view().gridCardY(OTHERS), mouseX, mouseY, false, false);
+		}
 		boolean tracker = ClientSettings.showTrackedFarm();
 		ui.cardAt("show_tracked_farm", context, new ItemStack(Items.COMPASS),
 				Text.translatable(tracker ? "gui.the_dream_table.show_tracker_on" : "gui.the_dream_table.show_tracker_off"),
@@ -66,6 +75,11 @@ public final class OptionsPage implements TablePage {
 				Text.translatable(viewers ? "gui.the_dream_table.viewers_break_on" : "gui.the_dream_table.viewers_break_off"),
 				Text.translatable(viewersAllowed ? "gui.the_dream_table.viewers_break_hint" : viewersBreakReason(protection)),
 				ui.view().gridCardX(VIEWERS), ui.view().gridCardY(VIEWERS), mouseX, mouseY, viewers, viewersAllowed);
+		boolean invites = handler.acceptsFarmInvites();
+		ui.cardAt("accept_invites", context, new ItemStack(Items.WRITABLE_BOOK),
+				Text.translatable(invites ? "gui.the_dream_table.accept_invites_on" : "gui.the_dream_table.accept_invites_off"),
+				Text.translatable("gui.the_dream_table.accept_invites_hint"),
+				ui.view().gridCardX(INVITES), ui.view().gridCardY(INVITES), mouseX, mouseY, invites, true);
 	}
 
 	/** Why "Viewers Can Break" can't be changed now: the server turned protection off, or the player has not turned it on. */
@@ -81,6 +95,10 @@ public final class OptionsPage implements TablePage {
 			return true;
 		}
 		if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(OTHERS), ui.view().gridCardY(OTHERS))) {
+			if (!ui.handler().otherFarmsAllowed()) {
+				ui.message("gui.the_dream_table.show_others_off_server");
+				return true;
+			}
 			OtherFarms.setShown(!ClientSettings.showOtherFarms());
 			ui.actions().click();
 			return true;
@@ -114,6 +132,10 @@ public final class OptionsPage implements TablePage {
 				return true;
 			}
 			ui.actions().press(DreamTableScreenHandler.BUTTON_VIEWERS_BREAK);
+			return true;
+		}
+		if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(INVITES), ui.view().gridCardY(INVITES))) {
+			ui.actions().press(DreamTableScreenHandler.BUTTON_ACCEPT_INVITES);
 			return true;
 		}
 		return false;
