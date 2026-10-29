@@ -72,6 +72,7 @@ final class TableButtons {
 			case BUTTON_DELIVER_NEARBY -> table.deliverNearby(player);
 			case BUTTON_PROTECT_FARMS -> toggleFarmProtection(player);
 			case BUTTON_VIEWERS_BREAK -> toggleViewersBreak(player);
+			case BUTTON_ACCEPT_INVITES -> toggleAcceptInvites(player);
 			case BUTTON_DISCARD -> {
 				table.discard(player);
 				yield true;
@@ -120,6 +121,12 @@ final class TableButtons {
 			return false;
 		}
 		return savedOrTold(player, preferences.setViewersMayBreak(player.getUuid(), !preferences.viewersMayBreak(player.getUuid())));
+	}
+
+	/** The player's own "Accept Farm Invites" switch, stored on the server because the server enforces it. */
+	private static boolean toggleAcceptInvites(ServerPlayerEntity player) {
+		FarmPreferences preferences = FarmPreferences.of(player.getServer());
+		return savedOrTold(player, preferences.setAcceptsInvites(player.getUuid(), !preferences.acceptsInvites(player.getUuid())));
 	}
 
 	/** A switch refused for the saved-player limit is told to the player instead of doing nothing. */

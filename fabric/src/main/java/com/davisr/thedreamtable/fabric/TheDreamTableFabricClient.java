@@ -8,6 +8,7 @@ public final class TheDreamTableFabricClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		FabricPlatform.installClient();
+		FabricHandshakeClient.register();
 		TheDreamTableClient.init();
 	}
 }

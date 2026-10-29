@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmDirectory;
+import com.davisr.thedreamtable.farm.FarmPreferences;
 import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.farm.FarmSharing;
 import com.davisr.thedreamtable.platform.Platform;
@@ -19,6 +20,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /** Owner invitation by a bounded player name; profile lookup is followed by full server-thread revalidation. */
 public record FarmInvitePayload(BlockPos table, String key, String playerName, FarmRole role) implements CustomPayload {
@@ -85,6 +87,12 @@ public record FarmInvitePayload(BlockPos table, String key, String playerName, F
 		if (authorized == null) {
 			return;
 		}
+		// A player who opted out of invitations is refused here, before anything is stored. Invitations that were already
+		// pending stay as they are, and can still be accepted or declined, because the choice only covers new ones.
+		if (!acceptsInvites(FarmPreferences.of(player.getServer()), player.getUuid(), profile.getId())) {
+			FarmNetwork.result(player, payload.key(), FarmActionResultPayload.Action.INVITE, FarmActionResultPayload.Result.INVITES_DISABLED);
+			return;
+		}
 		List<FarmAreas> states = new ArrayList<>();
 		player.getServer().getWorlds().forEach(world -> states.add(FarmAreas.of(world)));
 		long now = System.currentTimeMillis();
@@ -105,6 +113,11 @@ public record FarmInvitePayload(BlockPos table, String key, String playerName, F
 		if (invited != null) {
 			FarmNetwork.refresh(invited);
 		}
+	}
+
+	/** Whether {@code invited} takes invitations from {@code inviter}; inviting oneself is left to the normal self check. */
+	static boolean acceptsInvites(FarmPreferences preferences, UUID inviter, UUID invited) {
+		return inviter.equals(invited) || preferences.acceptsInvites(invited);
 	}
 
 	@Override

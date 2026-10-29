@@ -8,6 +8,7 @@ public final class TheDreamTableFabric implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		FabricPlatform.install();
+		FabricHandshake.register();
 		TheDreamTableMod.init();
 	}
 }

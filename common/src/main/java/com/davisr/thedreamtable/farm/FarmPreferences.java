@@ -44,6 +44,9 @@ public final class FarmPreferences extends PersistentState {
 	/** Players whose Viewers may also break their protected farms ("Viewers Can Break"). Absent means off. */
 	private final Set<UUID> viewersBreak = new LinkedHashSet<>();
 
+	/** Players who turned off "Accept Farm Invites". Absent means on, so worlds saved before the option read as on. */
+	private final Set<UUID> decliningInvites = new LinkedHashSet<>();
+
 	public static FarmPreferences of(MinecraftServer server) {
 		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
 	}
@@ -104,6 +107,16 @@ public final class FarmPreferences extends PersistentState {
 	/** Turns "Viewers Can Break" on or off; refuses only to add a player beyond the saved-player limit. */
 	public boolean setViewersMayBreak(UUID playerUuid, boolean allow) {
 		return setMember(viewersBreak, playerUuid, allow);
+	}
+
+	/** Whether other players may invite this player to their farms. Default on. */
+	public boolean acceptsInvites(UUID playerUuid) {
+		return !decliningInvites.contains(playerUuid);
+	}
+
+	/** Turns "Accept Farm Invites" on or off; refuses only to add a player beyond the saved-player limit. */
+	public boolean setAcceptsInvites(UUID playerUuid, boolean accept) {
+		return setMember(decliningInvites, playerUuid, !accept);
 	}
 
 	private boolean setMember(Set<UUID> members, UUID playerUuid, boolean member) {
@@ -298,6 +311,7 @@ public final class FarmPreferences extends PersistentState {
 		nbt.put("Players", list);
 		writePlayers(nbt, "Protecting", protecting);
 		writePlayers(nbt, "ViewersBreak", viewersBreak);
+		writePlayers(nbt, "DecliningInvites", decliningInvites);
 		return nbt;
 	}
 
@@ -363,6 +377,7 @@ public final class FarmPreferences extends PersistentState {
 		}
 		readPlayers(nbt, "Protecting", state.protecting);
 		readPlayers(nbt, "ViewersBreak", state.viewersBreak);
+		readPlayers(nbt, "DecliningInvites", state.decliningInvites);
 		return state;
 	}
 

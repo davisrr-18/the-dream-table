@@ -25,7 +25,9 @@ public record FarmActionResultPayload(String key, Action action, Result result) 
 	}
 
 	public enum Result {
-		SUCCESS, NOT_FOUND, FORBIDDEN, LIMIT_REACHED, EXPIRED, BUSY, INVALID_INPUT
+		SUCCESS, NOT_FOUND, FORBIDDEN, LIMIT_REACHED, EXPIRED, BUSY, INVALID_INPUT,
+		/** The invited player turned off "Accept Farm Invites". Appended last: the wire format is the ordinal. */
+		INVITES_DISABLED
 	}
 
 	public static void register() {
