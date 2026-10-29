@@ -3,7 +3,9 @@ package com.davisr.thedreamtable.screen.ui;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
+import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
+import net.minecraft.util.Util;
 import com.davisr.thedreamtable.screen.ui.layout.UiRect;
 import com.davisr.thedreamtable.screen.ui.layout.ScreenGeometry;
 
@@ -50,8 +52,8 @@ public final class Painter {
 
 		mark(context, x + 12, y + 14);
 		int textLimit = w - 46;
-		context.drawText(text, trim(title, textLimit), x + 34, y + 10, TITLE, false);
-		context.drawText(text, trim(subtitle, textLimit), x + 34, y + 24, SUBTITLE, false);
+		fitted(context, title, x + 34, y + 10, textLimit, TITLE, false);
+		fitted(context, subtitle, x + 34, y + 24, textLimit, SUBTITLE, false);
 	}
 
 	public void tab(DrawContext context, ItemStack icon, Text label, UiRect bounds, boolean hovered, boolean selected, boolean compact) {
@@ -63,8 +65,7 @@ public final class Painter {
 		int iconX = compact ? bounds.x() + (bounds.width() - 16) / 2 : bounds.x() + 7;
 		context.drawItem(icon, iconX, bounds.y() + 7);
 		if (!compact) {
-			String shown = trim(label, bounds.width() - 31);
-			context.drawText(text, shown, bounds.x() + 27, bounds.y() + 11, NAME, false);
+			fitted(context, label, bounds.x() + 27, bounds.y() + 11, bounds.width() - 31, NAME, false);
 		}
 	}
 
@@ -84,14 +85,14 @@ public final class Painter {
 		}
 		iconBox(context, x + 7, y + 6);
 		context.drawItem(icon, x + 9, y + 8);
-		context.drawText(text, trim(label, CARD_TEXT_WIDTH), x + 34, y + 12, enabled ? NAME : MUTED, false);
+		fitted(context, label, x + 34, y + 12, CARD_TEXT_WIDTH, enabled ? NAME : MUTED, false);
 	}
 
 	/** A card with a second, smaller line under the name, such as what an option does. */
 	public void card(DrawContext context, ItemStack icon, Text label, Text detail, int x, int y, boolean hovered, boolean selected, boolean enabled) {
 		card(context, icon, Text.empty(), x, y, hovered, selected, enabled);
-		context.drawText(text, trim(label, CARD_TEXT_WIDTH), x + 34, y + 7, enabled ? NAME : MUTED, false);
-		context.drawText(text, trim(detail, CARD_TEXT_WIDTH), x + 34, y + 19, HINT, false);
+		fitted(context, label, x + 34, y + 7, CARD_TEXT_WIDTH, enabled ? NAME : MUTED, false);
+		fitted(context, detail, x + 34, y + 19, CARD_TEXT_WIDTH, HINT, false);
 	}
 
 	public void button(DrawContext context, Text label, int x, int y, boolean hovered, boolean enabled, boolean primary) {
@@ -108,8 +109,7 @@ public final class Painter {
 			frame(context, x, y, w, BUTTON_HEIGHT, NAVY, hover ? BLUE_HOVER : BLUE, NAVY, hover ? CARD_FILL_HOVER : CARD_FILL, CARD_SHADE, 0xFFFFFFFF);
 			color = NAME;
 		}
-		String shown = trim(label, w - 16);
-		context.drawText(text, shown, x + (w - text.getWidth(shown)) / 2, y + 10, color, false);
+		fitted(context, label, x + 8, y + 10, w - 16, color, true);
 	}
 
 	public void destructiveButton(DrawContext context, Text label, int x, int y, boolean hovered, boolean enabled) {
@@ -120,15 +120,13 @@ public final class Painter {
 			frame(context, x, y, CARD_WIDTH, BUTTON_HEIGHT, 0xFF5B1714, hovered ? 0xFFD65A52 : ERROR,
 					0xFF5B1714, hovered ? 0xFFC64A43 : 0xFFA8322D, 0xFF76221E, 0xFFE97B74);
 		}
-		String shown = trim(label, CARD_WIDTH - 16);
-		context.drawText(text, shown, x + (CARD_WIDTH - text.getWidth(shown)) / 2, y + 10, color, false);
+		fitted(context, label, x + 8, y + 10, CARD_WIDTH - 16, color, true);
 	}
 
 	/** A small button, {@code height} pixels tall, for filters and sorting. */
 	public void chip(DrawContext context, Text label, int x, int y, int width, int height, boolean hovered) {
 		frame(context, x, y, width, height, NAVY, hovered ? BLUE_HOVER : BLUE, NAVY, hovered ? CARD_FILL_HOVER : CARD_FILL, CARD_SHADE, 0xFFFFFFFF);
-		String shown = trim(label, width - 12);
-		context.drawText(text, shown, x + (width - text.getWidth(shown)) / 2, y + (height - 8) / 2, NAME, false);
+		fitted(context, label, x + 6, y + (height - 8) / 2, width - 12, NAME, true);
 	}
 
 	public void field(DrawContext context, int x, int y, int width, int height, boolean focused) {
@@ -165,6 +163,22 @@ public final class Painter {
 		context.fill(x + 1, y + h - 1, x + w - 1, y + h, color);
 		context.fill(x, y + 1, x + 1, y + h - 1, color);
 		context.fill(x + w - 1, y + 1, x + w, y + h - 1, color);
+	}
+
+	/**
+	 * Draws the text in a box {@code width} wide: as is when it fits (centered in the box when asked), otherwise scrolling
+	 * back and forth inside the box like vanilla button labels, so long text in any language stays readable.
+	 */
+	public void fitted(DrawContext context, Text label, int x, int y, int width, int color, boolean centered) {
+		OrderedText line = label.asOrderedText();
+		int textWidth = text.getWidth(line);
+		if (textWidth <= width) {
+			context.drawText(text, line, centered ? x + (width - textWidth) / 2 : x, y, color, false);
+			return;
+		}
+		context.enableScissor(x, y - 1, x + width, y + 10);
+		context.drawText(text, line, x - Marquee.offset(textWidth, width, Util.getMeasuringTimeMs()), y, color, false);
+		context.disableScissor();
 	}
 
 	public boolean fits(Text label, int width) {

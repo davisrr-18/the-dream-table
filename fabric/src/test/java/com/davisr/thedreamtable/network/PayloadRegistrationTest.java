@@ -6,6 +6,7 @@ import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.client.OtherFarms;
 import com.davisr.thedreamtable.client.OwnSessions;
 import com.davisr.thedreamtable.client.ServerSchematics;
+import com.davisr.thedreamtable.client.TableNotices;
 import com.davisr.thedreamtable.client.TrackedFarmHud;
 import com.davisr.thedreamtable.platform.ClientEvents;
 import com.davisr.thedreamtable.platform.ClientNetwork;
@@ -71,6 +72,7 @@ class PayloadRegistrationTest {
 		LoadedFarmsPayload.register();
 		ServerSchematicsPayload.register();
 		FarmDetailsPayload.register();
+		TableNoticePayload.register();
 		// The client registrations of TheDreamTableClient.init() that add payload receivers.
 		Platform.installClient(new RecordingClientNetwork(), stub(ClientEvents.class), stub(ClientRendering.class));
 		DreamTableHologram.registerChecks();
@@ -79,6 +81,7 @@ class PayloadRegistrationTest {
 		LoadedFarmsView.register();
 		TrackedFarmHud.register();
 		ServerSchematics.register();
+		TableNotices.register();
 	}
 
 	@AfterAll
@@ -118,6 +121,7 @@ class PayloadRegistrationTest {
 				"the_dream_table:schematic_farm",
 				"the_dream_table:server_schematics",
 				"the_dream_table:session_sync",
+				"the_dream_table:table_notice",
 				"the_dream_table:tracked_farm")), new TreeSet<>(SERVER_TO_CLIENT));
 	}
 
@@ -131,7 +135,7 @@ class PayloadRegistrationTest {
 	@Test
 	void directionsHoldTheExpectedCounts() {
 		assertEquals(16, CLIENT_TO_SERVER.size());
-		assertEquals(10, SERVER_TO_CLIENT.size());
+		assertEquals(11, SERVER_TO_CLIENT.size());
 	}
 
 	@Test

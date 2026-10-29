@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmDismantler;
 import com.davisr.thedreamtable.farm.FarmKey;
@@ -34,15 +35,15 @@ public final class FarmCare {
 		}
 		FarmSite site = farm.farm().site();
 		if (site.anchor() == null) {
-			player.sendMessage(Text.translatable("gui.the_dream_table.repair_unsupported"), true);
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.repair_unsupported"));
 			return false;
 		}
 		if (session.hasProgress() || session.isBusy()) {
-			player.sendMessage(Text.translatable("gui.the_dream_table.repair_busy"), true);
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.repair_busy"));
 			return false;
 		}
 		if (FarmLoader.missing(farm, template) == 0) {
-			player.sendMessage(Text.translatable("gui.the_dream_table.repair_nothing"), true);
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.repair_nothing"));
 			return false;
 		}
 		ServerWorld world = farm.world();
@@ -50,7 +51,7 @@ public final class FarmCare {
 		UUID operationId = UUID.randomUUID();
 		// The lease comes first: a refused Repair must leave the player's current selection and placement alone.
 		if (areas.beginRepair(farm.farm().instanceId(), player.getUuid(), session.getPos(), operationId).isEmpty()) {
-			player.sendMessage(Text.translatable("gui.the_dream_table.repair_busy"), true);
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.repair_busy"));
 			return false;
 		}
 		session.setSelectedFarm(template.id(), player);
@@ -62,13 +63,13 @@ public final class FarmCare {
 			return false;
 		}
 		session.setPage(DreamTableScreenHandler.PAGE_WORK);
-		player.sendMessage(Text.translatable("gui.the_dream_table.repairing"), true);
+		TableNoticePayload.info(player, Text.translatable("gui.the_dream_table.repairing"));
 		return true;
 	}
 
 	public static boolean takeDown(TableSession session, ServerPlayerEntity player, FarmLoader.Located farm) {
 		if (farm.farm().operation() != FarmOperation.READY) {
-			player.sendMessage(Text.translatable("gui.the_dream_table.repair_busy"), true);
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.repair_busy"));
 			return false;
 		}
 		FarmTemplate template = checked(session, player, farm);
@@ -79,7 +80,7 @@ public final class FarmCare {
 		BitSet placed = farm.farm().placed();
 		// Refused before the record is released: a farm that can't be taken apart must stay listed and protected.
 		if (!FarmDismantler.mayTakeDown(farm.world(), player, template, site, farm.farm().swaps(), placed)) {
-			player.sendMessage(Text.translatable("gui.the_dream_table.take_down_denied"), true);
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.take_down_denied"));
 			return false;
 		}
 		// The job and its area claim belong to this table, which ticks and keeps them, not to the table the farm came from.
@@ -92,7 +93,7 @@ public final class FarmCare {
 		areas.release(farm.farm().key());
 		areas.claim(job.areaKey(), site.footprint(template));
 		session.table().startDismantling(job);
-		player.sendMessage(Text.translatable("gui.the_dream_table.taking_down"), true);
+		TableNoticePayload.info(player, Text.translatable("gui.the_dream_table.taking_down"));
 		return true;
 	}
 
@@ -102,12 +103,12 @@ public final class FarmCare {
 	 */
 	private static FarmTemplate checked(TableSession session, ServerPlayerEntity player, FarmLoader.Located farm) {
 		if (session.table().getWorld() != farm.world()) {
-			player.sendMessage(Text.translatable("gui.the_dream_table.other_dimension"), true);
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.other_dimension"));
 			return null;
 		}
 		FarmTemplate template = farm.farm().layout();
 		if (template == null) {
-			player.sendMessage(Text.translatable("gui.the_dream_table.farm_design_lost"), true);
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.farm_design_lost"));
 		}
 		return template;
 	}

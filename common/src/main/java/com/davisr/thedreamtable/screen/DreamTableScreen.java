@@ -8,8 +8,8 @@ import com.davisr.thedreamtable.screen.page.CategoryPage;
 import com.davisr.thedreamtable.screen.page.FarmPage;
 import com.davisr.thedreamtable.screen.page.LoadedFarmsPage;
 import com.davisr.thedreamtable.screen.page.InvitesPage;
-import com.davisr.thedreamtable.screen.page.AlertsPage;
 import com.davisr.thedreamtable.client.LoadedFarmsView;
+import com.davisr.thedreamtable.client.TableNotices;
 import com.davisr.thedreamtable.screen.page.OptionsPage;
 import com.davisr.thedreamtable.screen.page.SpeedPage;
 import com.davisr.thedreamtable.screen.page.PageContext;
@@ -29,6 +29,7 @@ import com.davisr.thedreamtable.screen.ui.ControlRegistry;
 import com.davisr.thedreamtable.screen.ui.ControlSpec;
 import com.davisr.thedreamtable.screen.ui.Painter;
 import com.davisr.thedreamtable.screen.ui.SearchBox;
+import com.davisr.thedreamtable.screen.ui.Tooltips;
 import com.davisr.thedreamtable.screen.ui.UiControl;
 import com.davisr.thedreamtable.screen.ui.Viewport;
 import com.davisr.thedreamtable.screen.ui.layout.ScreenGeometry;
@@ -79,7 +80,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private TablePage loaded;
 	private TablePage farm;
 	private TablePage invites;
-	private TablePage alerts;
 	private TablePage materials;
 	private TablePage swap;
 	private PageContext ui;
@@ -124,7 +124,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		loaded = new LoadedFarmsPage(ui, search);
 		farm = new FarmPage(ui, search);
 		invites = new InvitesPage(ui);
-		alerts = new AlertsPage(ui);
 		LoadedFarmsView.invalidate();
 		materials = new MaterialsPage(ui);
 		swap = new SwapPage(ui, search);
@@ -140,17 +139,19 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		drawMouseoverTooltip(context, mouseX, mouseY);
 		List<Text> tooltip = ui.takeTooltip();
 		if (tooltip != null && view.inContent(mouseX, mouseY)) {
-			context.drawTooltip(this.textRenderer, tooltip, mouseX, mouseY);
+			Tooltips.draw(context, this.textRenderer, tooltip, mouseX, mouseY);
 		}
 		if (geometry.mode() == LayoutMode.COMPACT) {
 			for (PrimaryTab tab : PrimaryTab.values()) {
 				UiControl control = tabControls.get(tab);
 				if (control.isMouseOver(mouseX, mouseY)) {
-					context.drawTooltip(this.textRenderer, tabLabel(tab), mouseX, mouseY);
+					Tooltips.draw(context, this.textRenderer, tabLabel(tab), mouseX, mouseY);
 					break;
 				}
 			}
 		}
+		// Last, so a message is never hidden behind the panel or a tooltip.
+		TableNotices.draw(context, this.textRenderer);
 	}
 
 	@Override
@@ -295,7 +296,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	@Override
 	public void message(Text text) {
 		if (this.client != null && this.client.player != null) {
-			this.client.inGameHud.setOverlayMessage(text, false);
+			TableNotices.problem(text);
 		}
 	}
 
@@ -324,7 +325,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			case DreamTableScreenHandler.PAGE_LOADED -> loaded;
 			case DreamTableScreenHandler.PAGE_FARM -> farm;
 			case DreamTableScreenHandler.PAGE_INVITES -> invites;
-			case DreamTableScreenHandler.PAGE_ALERTS -> alerts;
 			case DreamTableScreenHandler.PAGE_MATERIALS -> materials;
 			case DreamTableScreenHandler.PAGE_SWAP -> swap;
 			default -> selection;
@@ -430,7 +430,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			case DreamTableScreenHandler.PAGE_SPEED -> DreamTableScreenHandler.BUTTON_SPEED_BACK;
 			case DreamTableScreenHandler.PAGE_FARM -> DreamTableScreenHandler.BUTTON_FARM_BACK;
 			case DreamTableScreenHandler.PAGE_INVITES -> DreamTableScreenHandler.BUTTON_LOADED_FARMS;
-			case DreamTableScreenHandler.PAGE_ALERTS -> DreamTableScreenHandler.BUTTON_FARM_OPEN;
 			default -> throw new IllegalStateException("No back button for page " + page);
 		};
 		handler.preview(handler.getSelectedFarm(), parent);

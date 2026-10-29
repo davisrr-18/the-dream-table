@@ -1,5 +1,7 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
@@ -42,6 +44,8 @@ import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
  */
 public final class TableSession {
 	private static final int MAX_SKIPS_PER_TICK = 4096;
+	/** The Alerts page of earlier 1.1.0 builds, gone now; a table saved on it reopens on the farm page. */
+	private static final int REMOVED_ALERTS_PAGE = 21;
 
 	private final DreamTableBlockEntity table;
 	private final MaterialDesk desk;
@@ -335,7 +339,8 @@ public final class TableSession {
 		int accepted = desk.accept(stack, creative);
 		if (accepted <= 0) {
 			if (giver instanceof ServerPlayerEntity refused && !MaterialLedger.plain(stack) && desk.wants(stack)) {
-				refused.sendMessage(MaterialDelivery.summary(new MaterialDelivery.Tally(0, 1), false, 0), true);
+				MaterialDelivery.Tally tally = new MaterialDelivery.Tally(0, 1);
+				TableNoticePayload.send(refused, MaterialDelivery.summary(tally, false, 0), MaterialDelivery.severity(tally));
 			}
 			return false;
 		}
@@ -365,7 +370,7 @@ public final class TableSession {
 			return false;
 		}
 		if (!DreamTableConfig.deliverFromNearby()) {
-			giver.sendMessage(Text.translatable("gui.the_dream_table.deliver_nearby_off_server"), true);
+			TableNoticePayload.problem(giver, Text.translatable("gui.the_dream_table.deliver_nearby_off_server"));
 			return false;
 		}
 		if (!MaterialDelivery.NEARBY_REQUESTS.allow(giver.getUuid(), world.getServer().getTicks())) {
@@ -385,7 +390,7 @@ public final class TableSession {
 			return false;
 		}
 		if (giver.getAbilities().creativeMode) {
-			giver.sendMessage(Text.translatable("gui.the_dream_table.deliver_creative"), true);
+			TableNoticePayload.problem(giver, Text.translatable("gui.the_dream_table.deliver_creative"));
 			return false;
 		}
 		return true;
@@ -406,7 +411,7 @@ public final class TableSession {
 	}
 
 	private boolean finishBulk(ServerPlayerEntity giver, MaterialDelivery.Tally tally, boolean nearby, int skippedContainers) {
-		giver.sendMessage(MaterialDelivery.summary(tally, nearby, skippedContainers), true);
+		TableNoticePayload.send(giver, MaterialDelivery.summary(tally, nearby, skippedContainers), MaterialDelivery.severity(tally));
 		if (tally.delivered() <= 0) {
 			return false;
 		}
@@ -514,7 +519,9 @@ public final class TableSession {
 		if (takeApart && table.getWorld() instanceof ServerWorld serverWorld && template != null && !progress.is(PHASE_DONE) && progress.index() > 0) {
 			if (!progress.matches(template.signature())) {
 				if (discarder != null) {
-					discarder.sendMessage(Text.translatable("gui.the_dream_table.discard_changed"), true);
+					if (discarder instanceof ServerPlayerEntity serverDiscarder) {
+						TableNoticePayload.problem(serverDiscarder, Text.translatable("gui.the_dream_table.discard_changed"));
+					}
 				}
 			} else {
 				FarmSite site = FarmBuilder.site(this);
@@ -523,7 +530,9 @@ public final class TableSession {
 				FarmAreas.of(serverWorld).claim(job.areaKey(), site.footprint(template));
 				table.startDismantling(job);
 				if (discarder != null) {
-					discarder.sendMessage(Text.translatable("gui.the_dream_table.dismantling"), true);
+					if (discarder instanceof ServerPlayerEntity serverDiscarder) {
+						TableNoticePayload.info(serverDiscarder, Text.translatable("gui.the_dream_table.dismantling"));
+					}
 				}
 			}
 		}
@@ -577,6 +586,9 @@ public final class TableSession {
 	void read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		selectedFarm = nbt.getString("SelectedFarm");
 		page = nbt.getInt("Page");
+		if (page == REMOVED_ALERTS_PAGE) {
+			page = DreamTableScreenHandler.PAGE_FARM;
+		}
 		requirementsBoard = nbt.getBoolean("RequirementsBoard");
 		swapMaterial = nbt.contains("SwapMaterial", NbtElement.INT_TYPE) ? nbt.getInt("SwapMaterial") : -1;
 		progress.read(nbt);
@@ -600,8 +612,8 @@ public final class TableSession {
 		clientDirty = true;
 	}
 
-	void tell(Text text) {
-		table.tell(player, text);
+	void tell(Text text, TableNoticePayload.Severity severity) {
+		table.tell(player, text, severity);
 	}
 
 	void sync() {

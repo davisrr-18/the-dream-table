@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.network;
 
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
@@ -52,7 +53,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 			Direction facing = horizontal(payload.facing(), player);
 			BlockPos anchor = payload.anchor();
 			if (!inRange(table.getPos(), anchor, player)) {
-				player.sendMessage(Text.translatable("gui.the_dream_table.place_first"), true);
+				TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.place_first"));
 				return;
 			}
 			table.setPlacement(anchor, facing, payload.mirrored());

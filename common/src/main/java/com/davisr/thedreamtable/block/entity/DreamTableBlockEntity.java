@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
@@ -341,11 +342,11 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		sessions.put(shared.player(), shared);
 	}
 
-	void tell(UUID player, Text text) {
+	void tell(UUID player, Text text, TableNoticePayload.Severity severity) {
 		if (world instanceof ServerWorld serverWorld) {
 			ServerPlayerEntity online = serverWorld.getServer().getPlayerManager().getPlayer(player);
 			if (online != null) {
-				online.sendMessage(text, true);
+				TableNoticePayload.send(online, text, severity);
 			}
 		}
 	}

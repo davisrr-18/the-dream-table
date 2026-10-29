@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable;
 
+import com.davisr.thedreamtable.client.TableNotices;
 import com.davisr.thedreamtable.client.ClientLifecycle;
 import com.davisr.thedreamtable.client.ClientSettings;
 import com.davisr.thedreamtable.client.DreamTableClipboard;
@@ -35,6 +36,7 @@ public final class TheDreamTableClient {
 		OwnSessions.register();
 		OtherFarms.register();
 		TrackedFarmHud.register();
+		TableNotices.register();
 		LoadedFarmsView.register();
 		FarmFaces.register();
 		ServerSchematics.register();

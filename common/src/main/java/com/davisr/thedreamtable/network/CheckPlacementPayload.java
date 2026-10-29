@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.network;
 
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
@@ -64,7 +65,7 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 			int existing = problem != null ? 0 : payload.announce() ? table.existingPercent(world, site) : PlacementResultPayload.UNCHANGED;
 			Platform.network().send(player, new PlacementResultPayload(payload.table(), payload.anchor(), facing, site.mirrored(), problem == null ? "" : problem, existing));
 			if (problem != null && payload.announce()) {
-				player.sendMessage(Text.translatable(problem), true);
+				TableNoticePayload.problem(player, Text.translatable(problem));
 			}
 		});
 	}

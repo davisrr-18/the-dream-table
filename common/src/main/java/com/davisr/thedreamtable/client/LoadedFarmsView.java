@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.farm.FarmListing;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.network.FarmCarePayload;
 import com.davisr.thedreamtable.network.FarmActionResultPayload;
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.network.FarmCollaboratorPayload;
 import com.davisr.thedreamtable.network.FarmDetailsPayload;
 import com.davisr.thedreamtable.network.FarmInvitePayload;
@@ -71,11 +72,8 @@ public final class LoadedFarmsView {
 				details = null;
 				requests.invalidateDetails();
 			}
-			MinecraftClient client = MinecraftClient.getInstance();
-			if (client.player != null) {
-				client.inGameHud.setOverlayMessage(Text.translatable("gui.the_dream_table.action_result."
-						+ payload.result().name().toLowerCase(Locale.ROOT)), false);
-			}
+			TableNotices.show(Text.translatable("gui.the_dream_table.action_result." + payload.result().name().toLowerCase(Locale.ROOT)),
+					payload.result() == FarmActionResultPayload.Result.SUCCESS ? TableNoticePayload.Severity.INFO : TableNoticePayload.Severity.PROBLEM);
 		});
 	}
 

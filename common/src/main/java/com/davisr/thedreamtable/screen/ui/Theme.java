@@ -37,6 +37,11 @@ public final class Theme {
 	public static final int SUCCESS = 0xFF2E8B57;
 	public static final int WARNING = 0xFFD08A18;
 	public static final int ERROR = 0xFFB53B35;
+	/** Table notice colors, on a dark bar: bright green for success and information, bright red for problems (also outlined). */
+	public static final int NOTICE_INFO = 0x55FF55;
+	public static final int NOTICE_PROBLEM = 0xFF5555;
+	public static final int NOTICE_PROBLEM_EDGE = 0xFF5555;
+	public static final int NOTICE_INFO_EDGE = 0x55FF55;
 	public static final int TRACK_EDGE = 0xFF04203F;
 	public static final int TRACK_FILL = 0xFF0B3560;
 	public static final int THUMB_EDGE = 0xFF0A2A52;

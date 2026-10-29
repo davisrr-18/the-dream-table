@@ -73,7 +73,14 @@ public final class FarmLoader extends PersistentState {
 	 * when part of the farm is not loaded; storage also when the farm has none.
 	 */
 	public record Entry(String key, String farmId, String layoutId, String customName, String dimension, BlockPos where, FarmRole role,
-			boolean favorite, boolean tracked, boolean loaded, boolean ownerQuotaFull, int status, int missing, boolean available, int storage) {
+			boolean favorite, boolean tracked, boolean loaded, boolean ownerQuotaFull, int status, int missing, boolean available, int storage,
+			int alerts) {
+		/** An entry with no active alert. */
+		public Entry(String key, String farmId, String layoutId, String customName, String dimension, BlockPos where, FarmRole role,
+				boolean favorite, boolean tracked, boolean loaded, boolean ownerQuotaFull, int status, int missing, boolean available, int storage) {
+			this(key, farmId, layoutId, customName, dimension, where, role, favorite, tracked, loaded, ownerQuotaFull, status, missing, available, storage, 0);
+		}
+
 		/** The exact saved design when available, otherwise the base id for older list data and display fallbacks. */
 		public String designId() {
 			return layoutId.isEmpty() ? farmId : layoutId;
@@ -208,7 +215,8 @@ public final class FarmLoader extends PersistentState {
 					located.key().dimension().toString(), finished.where(), authorized.role(), preferences.isFavorite(player, located.key()),
 					preferences.tracked(player).filter(located.key()::equals).isPresent(), loaded,
 					!loaded && ownerSelections.size() >= DreamTableConfig.maxLoadedFarms(), status, missing(farm, layout), layout != null,
-					storagePercent(farm, layout, status)));
+					storagePercent(farm, layout, status),
+					FarmAreas.of(located.world()).alerts(finished.instanceId()).map(alerts -> alerts.active().size()).orElse(0)));
 		}
 		entries.sort(Comparator.comparingLong((Entry entry) -> finishedAt.getOrDefault(entry.key(), 0L)).reversed());
 		return entries;

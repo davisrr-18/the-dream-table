@@ -155,7 +155,7 @@ public final class DreamTableHologram {
 		PlayerEntity player = MinecraftClient.getInstance().player;
 		if (player != null) {
 			player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5F, previewMirrored ? 1.25F : 1.05F);
-			player.sendMessage(Text.translatable(previewMirrored ? "gui.the_dream_table.mirror_on" : "gui.the_dream_table.mirror_off"), true);
+			TableNotices.info(Text.translatable(previewMirrored ? "gui.the_dream_table.mirror_on" : "gui.the_dream_table.mirror_off"));
 		}
 	}
 
@@ -165,7 +165,7 @@ public final class DreamTableHologram {
 		PlayerEntity player = MinecraftClient.getInstance().player;
 		if (player != null) {
 			player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5F, allLayers ? 1.2F : 0.9F);
-			player.sendMessage(Text.translatable(allLayers ? "gui.the_dream_table.layers_all" : "gui.the_dream_table.layers_current"), true);
+			TableNotices.info(Text.translatable(allLayers ? "gui.the_dream_table.layers_all" : "gui.the_dream_table.layers_current"));
 		}
 	}
 
