@@ -41,16 +41,18 @@ final class BlockMatch {
 
 	/**
 	 * Like {@link #sameShape}, but also accepts what the game turns the block into by itself: farmland that dried
-	 * into dirt, a bamboo shoot that grew into bamboo. Used to tell whether a block is still the farm's, when taking it
-	 * down or counting what a repair would place.
+	 * into dirt, grass or mycelium spreading over dirt, a bamboo shoot that grew into bamboo. Used to tell whether a block
+	 * is still the farm's, when taking it down, counting what a repair would place, or protecting it.
 	 */
 	static boolean stillFarm(BlockState existing, BlockState expected) {
-		return sameShape(existing, expected) || sameFamily(existing, expected, Blocks.FARMLAND, Blocks.DIRT)
-				|| sameFamily(existing, expected, Blocks.BAMBOO_SAPLING, Blocks.BAMBOO);
+		return sameShape(existing, expected) || sameFamily(existing, expected, SOIL) || sameFamily(existing, expected, BAMBOO);
 	}
 
-	private static boolean sameFamily(BlockState existing, BlockState expected, Block first, Block second) {
-		return (expected.isOf(first) || expected.isOf(second)) && (existing.isOf(first) || existing.isOf(second));
+	private static final Set<Block> SOIL = Set.of(Blocks.FARMLAND, Blocks.DIRT, Blocks.GRASS_BLOCK, Blocks.MYCELIUM);
+	private static final Set<Block> BAMBOO = Set.of(Blocks.BAMBOO_SAPLING, Blocks.BAMBOO);
+
+	private static boolean sameFamily(BlockState existing, BlockState expected, Set<Block> family) {
+		return family.contains(expected.getBlock()) && family.contains(existing.getBlock());
 	}
 
 	/** Liquids are told apart by level, since a source and flowing water are different steps. Composters and cauldrons are not: players fill them. */

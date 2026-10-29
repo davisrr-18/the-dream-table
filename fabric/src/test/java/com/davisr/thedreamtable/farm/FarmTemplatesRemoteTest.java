@@ -74,6 +74,18 @@ class FarmTemplatesRemoteTest {
 	}
 
 	@Test
+	void aFileEditedAfterTheListIsTakenOnTheSecondMatchingReply() {
+		FarmTemplate fetched = template();
+		list(7L);
+
+		assertFalse(FarmTemplates.putRemote(template(), 8L), "could still be an answer from before the list");
+		assertTrue(FarmTemplates.putRemote(fetched, 8L), "the server answered 8 twice: the list is the stale side");
+		assertSame(fetched, FarmTemplates.get(ID));
+		assertFalse(FarmTemplates.putRemote(template(), 7L), "the older file no longer replaces it");
+		assertSame(fetched, FarmTemplates.get(ID));
+	}
+
+	@Test
 	void aReplyForTheListedVersionIsStored() {
 		FarmTemplate fetched = template();
 		list(8L);
