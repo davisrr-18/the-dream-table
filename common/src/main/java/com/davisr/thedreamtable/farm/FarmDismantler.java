@@ -244,16 +244,27 @@ public final class FarmDismantler {
 		if (!current.getFluidState().isEmpty()) {
 			batch.liquids.add(pos);
 		}
+		// Contents are copied and the inventory emptied before the block goes, and the batch hands them over even if this step fails,
+		// so a retry finds the inventory already empty. The refund and the count are recorded exactly when the block is gone:
+		// a step that throws while the block still stands is retried whole, one that throws after removing it is not repeated.
 		takeContents(world, pos, batch.contents);
 		batch.cleared.add(pos);
-		world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
-		if (batch.removed == 0) {
-			world.spawnParticles(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 4, 0.25, 0.25, 0.25, 0.01);
-		}
-		batch.removed++;
-		// Water, and lava or powder snow placed since they too hand back their empty bucket, refund nothing; see FarmSpawns.recordsAsPaid.
-		if (FarmSpawns.refundsOnTakeDown(step.item(), paid.get(index))) {
-			batch.refunds.merge(swaps.getOrDefault(step.item(), step.item()), 1, Integer::sum);
+		boolean gone = false;
+		try {
+			world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+			gone = true;
+		} finally {
+			if (gone || !BlockMatch.stillFarm(world.getBlockState(pos), expected(step, swaps, site))) {
+				boolean first = batch.removed == 0;
+				batch.removed++;
+				// Water, and lava or powder snow placed since they too hand back their empty bucket, refund nothing; see FarmSpawns.recordsAsPaid.
+				if (FarmSpawns.refundsOnTakeDown(step.item(), paid.get(index))) {
+					batch.refunds.merge(swaps.getOrDefault(step.item(), step.item()), 1, Integer::sum);
+				}
+				if (first) {
+					world.spawnParticles(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 4, 0.25, 0.25, 0.25, 0.01);
+				}
+			}
 		}
 		return true;
 	}
@@ -315,12 +326,15 @@ public final class FarmDismantler {
 		if (!(world.getBlockEntity(pos) instanceof Inventory inventory)) {
 			return;
 		}
+		// Copied in full before anything is emptied, so a failure while reading leaves both sides as they were.
+		List<ItemStack> taken = new ArrayList<>();
 		for (int slot = 0; slot < inventory.size(); slot++) {
 			ItemStack stack = inventory.getStack(slot);
 			if (!stack.isEmpty()) {
-				contents.add(stack.copy());
+				taken.add(stack.copy());
 			}
 		}
+		contents.addAll(taken);
 		inventory.clear();
 	}
 

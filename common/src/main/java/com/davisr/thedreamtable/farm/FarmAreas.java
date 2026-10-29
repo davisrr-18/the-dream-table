@@ -43,6 +43,10 @@ public final class FarmAreas extends PersistentState {
 	private final Map<Key, Area> areas = new LinkedHashMap<>();
 	private final Map<UUID, RepairLease> repairLeases = new LinkedHashMap<>();
 	private final Map<UUID, FarmAlerts> alerts = new LinkedHashMap<>();
+	/** Where each finished farm's record is, found without scanning the areas. Rebuilt on demand after the set of records changes. */
+	private @Nullable Map<UUID, Key> byInstance;
+	/** The saved form of each design, since a finished farm's design never changes and encoding it is the costly part of a save. */
+	private static final IdentityCache<FarmTemplate, NbtCompound> ENCODED_LAYOUTS = new IdentityCache<>();
 	/**
 	 * Records that could not be read, kept as they were saved and written back unchanged, so a farm and its grants are not
 	 * lost for good to a bug or a missing mod: a later version that can read them gets them back.
@@ -104,7 +108,11 @@ public final class FarmAreas extends PersistentState {
 
 	public void claim(Key key, Box box) {
 		Area area = new Area(box, null);
-		if (!area.equals(areas.put(key, area))) {
+		Area previous = areas.put(key, area);
+		if (!area.equals(previous)) {
+			if (previous != null && previous.built() != null) {
+				byInstance = null;
+			}
 			markDirty();
 		}
 	}
@@ -141,6 +149,7 @@ public final class FarmAreas extends PersistentState {
 			areas.put(key, new Area(site.footprint(template), new Built(instanceId, FarmTemplates.baseId(template.id()), template.signature(), site, Map.copyOf(swaps),
 					customName, Map.copyOf(collaborators), Map.copyOf(pending), System.currentTimeMillis(), layout,
 					(BitSet) placed.clone(), (BitSet) paid.clone())));
+			byInstance = null;
 			markDirty();
 		}
 	}
@@ -156,17 +165,51 @@ public final class FarmAreas extends PersistentState {
 	}
 
 	public java.util.Optional<Finished> finished(UUID instanceId) {
-		return finished().stream().filter(farm -> farm.instanceId().equals(instanceId)).findFirst();
+		Key key = keyOf(instanceId);
+		return key == null ? java.util.Optional.empty() : java.util.Optional.of(view(key, areas.get(key)));
+	}
+
+	/** Whether a finished farm with this identity is on record. */
+	public boolean hasFinished(UUID instanceId) {
+		return keyOf(instanceId) != null;
+	}
+
+	/**
+	 * The record key of a finished farm, from an index built on first use. The index is checked against the record before
+	 * it is trusted and rebuilt when it is out of date, so a change to the areas can never make it answer wrongly.
+	 */
+	private @Nullable Key keyOf(UUID instanceId) {
+		for (int attempt = 0; attempt < 2; attempt++) {
+			if (byInstance == null) {
+				Map<UUID, Key> index = new java.util.HashMap<>();
+				for (Map.Entry<Key, Area> entry : areas.entrySet()) {
+					if (entry.getValue().built() != null) {
+						index.put(entry.getValue().built().instanceId(), entry.getKey());
+					}
+				}
+				byInstance = index;
+			}
+			Key key = byInstance.get(instanceId);
+			if (key == null) {
+				return null;
+			}
+			Area area = areas.get(key);
+			if (area != null && area.built() != null && area.built().instanceId().equals(instanceId)) {
+				return key;
+			}
+			byInstance = null;
+		}
+		return null;
 	}
 
 	/** Persisted alert state belongs to the immutable finished-farm identity, not a table position. */
 	public java.util.Optional<FarmAlerts> alerts(UUID instanceId) {
-		return finished(instanceId).map(ignored -> alerts.computeIfAbsent(instanceId, key -> new FarmAlerts()));
+		return hasFinished(instanceId) ? java.util.Optional.of(alerts.computeIfAbsent(instanceId, key -> new FarmAlerts())) : java.util.Optional.empty();
 	}
 
 	/** Puts back the alert state of a record that was released and restored, so a partial Take Down doesn't erase it. */
 	public void restoreAlerts(UUID instanceId, FarmAlerts restored) {
-		if (finished(instanceId).isPresent()) {
+		if (hasFinished(instanceId)) {
 			alerts.put(instanceId, restored);
 			markDirty();
 		}
@@ -193,7 +236,7 @@ public final class FarmAreas extends PersistentState {
 
 	/** Atomically changes a READY farm to REPAIRING and returns the persisted lease. */
 	public java.util.Optional<RepairLease> beginRepair(UUID instanceId, UUID actorUuid, BlockPos tablePos, UUID operationId) {
-		if (repairLeases.containsKey(instanceId) || finished(instanceId).isEmpty()) {
+		if (repairLeases.containsKey(instanceId) || !hasFinished(instanceId)) {
 			return java.util.Optional.empty();
 		}
 		RepairLease lease = new RepairLease(operationId, actorUuid, tablePos);
@@ -403,16 +446,15 @@ public final class FarmAreas extends PersistentState {
 	}
 
 	private void updateBuilt(UUID instanceId, UnaryOperator<Built> operation) {
-		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
-			Built built = entry.getValue().built();
-			if (built != null && built.instanceId().equals(instanceId)) {
-				Built changed = operation.apply(built);
-				if (!changed.equals(built)) {
-					entry.setValue(new Area(entry.getValue().box(), changed));
-					markDirty();
-				}
-				return;
-			}
+		Key key = keyOf(instanceId);
+		if (key == null) {
+			return;
+		}
+		Area area = areas.get(key);
+		Built changed = operation.apply(area.built());
+		if (!changed.equals(area.built())) {
+			areas.put(key, new Area(area.box(), changed));
+			markDirty();
 		}
 	}
 
@@ -420,6 +462,7 @@ public final class FarmAreas extends PersistentState {
 		Area removed = areas.remove(key);
 		if (removed != null) {
 			if (removed.built() != null) {
+				byInstance = null;
 				FarmLoader.requestRenewal();
 			}
 			if (removed.built() != null) {
@@ -433,6 +476,7 @@ public final class FarmAreas extends PersistentState {
 	/** A broken table frees its builds and take-aparts. Its finished farms are still standing, so they stay. */
 	public void releaseTable(BlockPos table) {
 		if (areas.keySet().removeIf(key -> key.table() == table.asLong() && key.kind() != Kind.FINISHED)) {
+			byInstance = null;
 			markDirty();
 		}
 	}
@@ -452,6 +496,7 @@ public final class FarmAreas extends PersistentState {
 			}
 			if (forgotten(world, entry.getKey(), entry.getValue())) {
 				entries.remove();
+				byInstance = null;
 				markDirty();
 				continue;
 			}
@@ -464,23 +509,36 @@ public final class FarmAreas extends PersistentState {
 	}
 
 	public List<Finished> finishedBy(UUID player) {
-		return finished().stream().filter(farm -> farm.ownerUuid().equals(player)).toList();
+		List<Finished> farms = new ArrayList<>();
+		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
+			if (entry.getValue().built() != null && entry.getKey().player().equals(player)) {
+				farms.add(view(entry.getKey(), entry.getValue()));
+			}
+		}
+		return farms;
 	}
 
 	public List<Finished> finished() {
 		List<Finished> farms = new ArrayList<>();
 		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
-			Built built = entry.getValue().built();
-			if (built != null) {
-				Key key = entry.getKey();
-				BlockPos where = built.site().anchor() != null ? built.site().anchor() : built.site().table();
-				RepairLease lease = repairLeases.get(built.instanceId());
-				farms.add(new Finished(key.table() + "/" + key.spot(), key, built.instanceId(), key.player(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(), built.grants(), built.invites(), where,
-						entry.getValue().box(), built.finishedAt(), built.layout(), lease == null ? FarmOperation.READY : FarmOperation.REPAIRING, lease,
-						(BitSet) built.placed().clone(), (BitSet) built.paid().clone()));
+			if (entry.getValue().built() != null) {
+				farms.add(view(entry.getKey(), entry.getValue()));
 			}
 		}
 		return farms;
+	}
+
+	/**
+	 * A finished record as the rest of the mod sees it. Its {@code placed} and {@code paid} sets are the record's own and
+	 * are never changed once stored, so they are shared instead of copied: callers must treat them as read-only.
+	 */
+	private Finished view(Key key, Area area) {
+		Built built = area.built();
+		BlockPos where = built.site().anchor() != null ? built.site().anchor() : built.site().table();
+		RepairLease lease = repairLeases.get(built.instanceId());
+		return new Finished(key.table() + "/" + key.spot(), key, built.instanceId(), key.player(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(), built.grants(), built.invites(), where,
+				area.box(), built.finishedAt(), built.layout(), lease == null ? FarmOperation.READY : FarmOperation.REPAIRING, lease,
+				built.placed(), built.paid());
 	}
 
 	/** What block protection needs from a finished farm: who may break it and its design at its site. */
@@ -542,6 +600,7 @@ public final class FarmAreas extends PersistentState {
 			}
 			if (entry.getKey().kind() != Kind.FINISHED && tableGone(world, entry.getKey())) {
 				entries.remove();
+				byInstance = null;
 				markDirty();
 				continue;
 			}
@@ -615,9 +674,10 @@ public final class FarmAreas extends PersistentState {
 		int missing = 0;
 		boolean unloaded = false;
 		Map<Item, Integer> needs = new LinkedHashMap<>();
+		BitSet growth = FarmGrowth.growth(template);
 		for (int index = 0; index < template.steps().size(); index++) {
 			FarmStep step = template.steps().get(index);
-			if (step.isEntity() || step.state() == null || FarmGrowth.isGrowth(template, index)) {
+			if (step.isEntity() || step.state() == null || growth.get(index)) {
 				continue;
 			}
 			BlockPos pos = site.target(template, step);
@@ -679,7 +739,7 @@ public final class FarmAreas extends PersistentState {
 				item.putLong("FinishedAt", built.finishedAt());
 				if (built.layout() != null) {
 					item.putString("LayoutId", built.layout().id());
-					item.put("Layout", TemplateCodec.encode(built.layout(), true));
+					item.put("Layout", ENCODED_LAYOUTS.get(built.layout(), layout -> TemplateCodec.encode(layout, true)).copy());
 				}
 				item.putLongArray("PlacedSteps", built.placed().toLongArray());
 				item.putLongArray("PaidSteps", built.paid().toLongArray());

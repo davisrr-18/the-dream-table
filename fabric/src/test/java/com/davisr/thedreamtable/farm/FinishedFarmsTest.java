@@ -163,6 +163,46 @@ class FinishedFarmsTest {
 	}
 
 	@Test
+	void aFarmIsFoundByItsInstanceIdAcrossTheChangesToItsRecords() {
+		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
+		FarmSite otherSite = new FarmSite(new BlockPos(0, 64, 0), new BlockPos(60, 64, 60), Direction.NORTH);
+		FarmAreas areas = new FarmAreas();
+		assertTrue(areas.finished(UUID.randomUUID()).isEmpty());
+		areas.recordFinished(PLAYER, cane, SITE, Map.of());
+		UUID first = areas.finishedBy(PLAYER).getFirst().instanceId();
+		assertEquals(first, areas.finished(first).orElseThrow().instanceId());
+		areas.recordFinished(PLAYER, cane, otherSite, Map.of());
+		UUID second = areas.finishedBy(PLAYER).stream().map(FarmAreas.Finished::instanceId).filter(id -> !id.equals(first)).findFirst().orElseThrow();
+		assertEquals(second, areas.finished(second).orElseThrow().instanceId());
+		assertTrue(areas.hasFinished(first));
+
+		areas.setCustomName(second, "Second");
+		assertEquals("Second", areas.finished(second).orElseThrow().customName());
+		assertNull(areas.finished(first).orElseThrow().customName());
+
+		areas.release(areas.finished(first).orElseThrow().key());
+		assertTrue(areas.finished(first).isEmpty());
+		assertFalse(areas.hasFinished(first));
+		assertTrue(areas.alerts(first).isEmpty());
+		assertEquals(second, areas.finished(second).orElseThrow().instanceId());
+
+		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null);
+		assertEquals("Second", restored.finished(second).orElseThrow().customName());
+		assertTrue(restored.finished(first).isEmpty());
+	}
+
+	@Test
+	void savingTwiceWritesTheSameLayoutEvenIfTheFirstSaveWasChanged() {
+		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
+		FarmAreas areas = new FarmAreas();
+		areas.recordFinished(PLAYER, cane, SITE, Map.of());
+		NbtCompound first = areas.writeNbt(new NbtCompound(), null);
+		first.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0).getCompound("Layout").putIntArray("State", new int[0]);
+		NbtCompound second = areas.writeNbt(new NbtCompound(), null);
+		assertEquals(cane.steps(), FarmAreas.read(second, null).finishedBy(PLAYER).getFirst().layout().steps());
+	}
+
+	@Test
 	void finishedFarmKeepsItsAlertStateThroughASave() {
 		FarmAreas areas = new FarmAreas();
 		areas.recordFinished(PLAYER, FarmTemplates.get(FarmOptions.SUGAR_CANE.id()), SITE, Map.of());

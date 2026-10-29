@@ -110,6 +110,31 @@ class MaterialLedgerTest {
 	}
 
 	@Test
+	void twoMaterialsSwappedToTheSameItemKeepFillingAfterOneHasBeenUsed() {
+		List<FarmStep> steps = new ArrayList<>();
+		for (int x = 0; x < 3; x++) {
+			steps.add(FarmStep.block(x, 0, 0, Blocks.STONE.getDefaultState(), Items.STONE));
+			steps.add(FarmStep.block(x, 1, 0, Blocks.COBBLESTONE.getDefaultState(), Items.COBBLESTONE));
+		}
+		FarmTemplate both = FarmTemplate.of("both", steps);
+		MaterialLedger ledger = new MaterialLedger();
+		int stone = 0;
+		assertEquals(Items.STONE, both.materials().get(stone).item());
+		assertTrue(ledger.swap(both, stone, ledger.swapOptions(both, stone).indexOf(Items.COBBLESTONE)));
+
+		assertEquals(3, ledger.accept(both, new ItemStack(Items.COBBLESTONE, 3), false));
+		for (int step = 0; step < 3; step++) {
+			assertTrue(ledger.consume(both, Items.STONE));
+		}
+		assertEquals(3, ledger.remaining(both, Items.COBBLESTONE));
+		assertEquals(3, ledger.accept(both, new ItemStack(Items.COBBLESTONE, 3), false));
+		assertEquals(0, ledger.deposited(0), "the used material takes no more than it needs");
+		assertEquals(3, ledger.deposited(1));
+		assertTrue(ledger.has(both, Items.COBBLESTONE));
+		assertEquals(0, ledger.remaining(both, Items.COBBLESTONE));
+	}
+
+	@Test
 	void saveAndLoadKeepsCountsCreativeItemsAndSwaps() {
 		MaterialLedger ledger = new MaterialLedger();
 		ledger.accept(farm, new ItemStack(Items.STONE, 2), true);

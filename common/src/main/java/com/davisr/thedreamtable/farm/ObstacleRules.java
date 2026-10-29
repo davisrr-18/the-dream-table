@@ -83,7 +83,8 @@ final class ObstacleRules {
 			return;
 		}
 		world.syncWorldEvent(WorldEvents.BLOCK_BROKEN, pos, Block.getRawIdFromState(state));
-		if (drop) {
+		// The table breaks with bare hands: a block that only drops with the right tool (stone, ores, obsidian) drops nothing.
+		if (drop && !dropState.isToolRequired()) {
 			Block.dropStacks(dropState, world, dropPos);
 		}
 	}

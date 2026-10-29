@@ -28,10 +28,7 @@ public final class FarmDirectory {
 		if (world == null) {
 			return Optional.empty();
 		}
-		return FarmAreas.of(world).finished().stream()
-				.filter(farm -> farm.instanceId().equals(key.instanceId()))
-				.findFirst()
-				.map(farm -> located(key, world, farm));
+		return FarmAreas.of(world).finished(key.instanceId()).map(farm -> located(key, world, farm));
 	}
 
 	public static Optional<Authorized> authorize(MinecraftServer server, FarmKey key, UUID actorUuid, FarmAction action, boolean sharingEnabled) {

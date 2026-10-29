@@ -374,6 +374,7 @@ public final class TableSession {
 			return false;
 		}
 		if (!MaterialDelivery.NEARBY_REQUESTS.allow(giver.getUuid(), world.getServer().getTicks())) {
+			TableNoticePayload.problem(giver, Text.translatable("gui.the_dream_table.deliver_nearby_wait"));
 			return false;
 		}
 		NearbyContainers.Found found = NearbyContainers.find(world, giver, getPos());
