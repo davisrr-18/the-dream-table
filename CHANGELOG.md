@@ -38,6 +38,7 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 ## Table, HUD and My Farms
 
 - Table messages (delivery results, missing materials, farm protection, the mirror toggle and more) now appear in a notice at the top center of the screen for a few seconds, even while the table is open: green for success, red for problems, on a translucent panel with rounded corners. Before, they used the action bar, which is hidden behind the table and easy to miss.
+- While your build or repair runs and you are near its table, a green "Building n/total" line stays at the top of the screen and counts up live, with the time left once you have opened the table. It hides while the table is open, when you walk away, and when the build pauses, stops or finishes.
 - Farm alerts moved into My Farms: a farm with an alert shows a red ⚠ before its name, and its page lists each alert in red at the bottom ("⚠ Alert: storage full"). The separate Alerts page is gone.
 - Long text in the table's header, tabs, cards and buttons now scrolls so it can always be read in full, in every language, instead of being cut with "...". Cards and buttons no longer pop up tooltips over the options below them; the few remaining tooltips (icon-only tabs, item slots) wrap to fit the window.
 - The Deliver buttons show what they do, or why they are unavailable, right on the button, and rejected schematic files show their reason on their card.
