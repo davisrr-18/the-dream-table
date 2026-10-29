@@ -34,6 +34,10 @@ public record TableNoticePayload(Text text, Severity severity) implements Custom
 
 	/** Shows the notice to the player, or falls back to the action bar when their client cannot receive it. */
 	public static void send(ServerPlayerEntity player, Text text, Severity severity) {
+		// A fake player (a mod's bot) has no connection: there is nobody to show the notice to, and the action bar fallback would fail on it.
+		if (player != null && player.networkHandler == null) {
+			return;
+		}
 		if (Platform.network().canSend(player, ID)) {
 			Platform.network().send(player, new TableNoticePayload(text, severity));
 		} else {

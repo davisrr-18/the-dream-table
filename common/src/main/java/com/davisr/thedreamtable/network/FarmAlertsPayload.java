@@ -22,6 +22,8 @@ public record FarmAlertsPayload(String key, String token, List<Entry> entries) i
 	public static final Id<FarmAlertsPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_alerts"));
 	private static final int MAX_ENTRIES = 50;
 	private static final FarmAlertPageTokens TOKENS = new FarmAlertPageTokens();
+	/** A page asks once per selection and each request builds a page of up to 50 alerts: four a second is far above a person's use. */
+	private static final RequestThrottle THROTTLE = new RequestThrottle(4, RequestThrottle.DEFAULT_WINDOW_TICKS);
 
 	public record Entry(long eventId, String type, int quantity, long time, boolean active) {
 	}
@@ -55,7 +57,13 @@ public record FarmAlertsPayload(String key, String token, List<Entry> entries) i
 
 	public static void register() {
 		Platform.network().registerServerToClient(ID, CODEC);
-		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> send(player, payload));
+		THROTTLE.forgetOnDisconnect();
+		Platform.serverEvents().onPlayerDisconnect((player, server) -> server.execute(() -> TOKENS.forget(player.getUuid())));
+		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
+			if (THROTTLE.allow(player.getUuid(), player.getServer().getTicks())) {
+				send(player, payload);
+			}
+		});
 	}
 
 	private static void send(ServerPlayerEntity player, Request request) {

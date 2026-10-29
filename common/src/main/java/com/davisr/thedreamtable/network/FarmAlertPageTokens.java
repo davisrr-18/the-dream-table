@@ -28,6 +28,11 @@ final class FarmAlertPageTokens {
 		return token;
 	}
 
+	/** Drops a leaving player's page, so the map holds only the players who are online. */
+	void forget(UUID playerUuid) {
+		current.remove(playerUuid);
+	}
+
 	boolean accept(UUID playerUuid, String token, String key, List<Long> references) {
 		Page page = current.get(playerUuid);
 		if (page == null || !page.token().equals(token) || !page.key().equals(key) || references.size() > MAX_REFERENCES) {

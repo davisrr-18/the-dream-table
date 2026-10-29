@@ -21,7 +21,11 @@ final class SpongeReader {
 		int width = NbtReading.number(root, "Width");
 		int height = NbtReading.number(root, "Height");
 		int length = NbtReading.number(root, "Length");
-		if (width <= 0 || height <= 0 || length <= 0 || !steps.reserve(width, height, length)) {
+		if (width <= 0 || height <= 0 || length <= 0) {
+			return;
+		}
+		// Every side is checked, so the report names the longest; a file within the span still has its cells counted.
+		if (!(steps.side(width) & steps.side(height) & steps.side(length)) || !steps.reserve(width, height, length)) {
 			return;
 		}
 		NbtCompound paletteNbt = blocks.contains("Palette", NbtElement.COMPOUND_TYPE) ? blocks.getCompound("Palette") : root.getCompound("Palette");

@@ -289,5 +289,9 @@
 	"gui.the_dream_table.action_result.limit_reached": "The server limit was reached",
 	"gui.the_dream_table.action_result.expired": "That invitation expired",
 	"gui.the_dream_table.action_result.busy": "That operation is currently unavailable",
-	"gui.the_dream_table.action_result.invalid_input": "Check the entered value and try again"
+	"gui.the_dream_table.action_result.invalid_input": "Check the entered value and try again",
+	"gui.the_dream_table.import.too_wide": "Is %s blocks long on one side, more than the table reads (512)",
+	"gui.the_dream_table.import.too_many_materials": "Needs more than %s different materials, more than a table holds",
+	"gui.the_dream_table.import.overlap": "Places two blocks in the same spot, so it can't be built",
+	"gui.the_dream_table.import.table_blocks": "%s Dream Table blocks are left out"
 }

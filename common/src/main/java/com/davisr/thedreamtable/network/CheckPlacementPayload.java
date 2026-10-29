@@ -36,16 +36,29 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 	/** The player may stand anywhere they can aim the hologram from. */
 	private static final double MAX_DISTANCE = FarmGeometry.AIM_RANGE + 16.0;
 
-	private static final RequestThrottle THROTTLE = new RequestThrottle();
+	/**
+	 * Each accepted check walks the whole template, so only a few scans a second are allowed per player. The client asks
+	 * on a change of the placement and every two seconds, and a missed answer is asked again by that recheck.
+	 */
+	static final int BUDGET = 4;
+	/** The same question asked again within a second gets the same answer without a new scan. */
+	static final int CACHE_TICKS = 20;
+	private static final RequestThrottle THROTTLE = new RequestThrottle(BUDGET, RequestThrottle.DEFAULT_WINDOW_TICKS);
+	private static final RecentResults<Question, PlacementResultPayload> RECENT = new RecentResults<>(CACHE_TICKS);
+
+	/** Everything the answer depends on besides the world, which the short time to live covers. */
+	record Question(BlockPos table, BlockPos anchor, Direction facing, boolean mirrored, boolean announce, String farm) {
+	}
 
 	/**
 	 * The client sends this from the world while aiming, usually with the menu closed, so no open menu is required:
-	 * distance, a non-spectator player and a request budget guard it instead.
+	 * distance, a non-spectator player, a repeat cache and a request budget guard it instead.
 	 */
 	public static void register() {
 		THROTTLE.forgetOnDisconnect();
+		RECENT.forgetOnDisconnect();
 		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> {
-			if (player.isSpectator() || !THROTTLE.allow(player.getUuid(), player.getServer().getTicks())) {
+			if (player.isSpectator()) {
 				return;
 			}
 			if (player.squaredDistanceTo(payload.table().toCenterPos()) > MAX_DISTANCE * MAX_DISTANCE || !(player.getWorld() instanceof ServerWorld world)) {
@@ -60,12 +73,22 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 				return;
 			}
 			Direction facing = PlaceFarmPayload.horizontal(payload.facing(), player);
-			FarmSite site = new FarmSite(table.getPos(), payload.anchor(), facing, payload.mirrored());
-			String problem = table.problemAt(world, player, site);
-			int existing = problem != null ? 0 : payload.announce() ? table.existingPercent(world, site) : PlacementResultPayload.UNCHANGED;
-			Platform.network().send(player, new PlacementResultPayload(payload.table(), payload.anchor(), facing, site.mirrored(), problem == null ? "" : problem, existing));
-			if (problem != null && payload.announce()) {
-				TableNoticePayload.problem(player, Text.translatable(problem));
+			long now = player.getServer().getTicks();
+			Question question = new Question(payload.table(), payload.anchor(), facing, payload.mirrored(), payload.announce(), table.getSelectedFarm());
+			PlacementResultPayload result = RECENT.get(player.getUuid(), question, now);
+			if (result == null) {
+				if (!THROTTLE.allow(player.getUuid(), now)) {
+					return;
+				}
+				FarmSite site = new FarmSite(table.getPos(), payload.anchor(), facing, payload.mirrored());
+				String problem = table.problemAt(world, player, site);
+				int existing = problem != null ? 0 : payload.announce() ? table.existingPercent(world, site) : PlacementResultPayload.UNCHANGED;
+				result = new PlacementResultPayload(payload.table(), payload.anchor(), facing, site.mirrored(), problem == null ? "" : problem, existing);
+				RECENT.put(player.getUuid(), question, result, now);
+			}
+			Platform.network().send(player, result);
+			if (!result.problem().isEmpty() && payload.announce()) {
+				TableNoticePayload.problem(player, Text.translatable(result.problem()));
 			}
 		});
 	}

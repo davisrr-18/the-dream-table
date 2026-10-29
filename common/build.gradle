@@ -12,7 +12,7 @@ dependencies {
 tasks.register('verifyNoLoaderImports') {
 	def sources = fileTree('src/main/java') { include '**/*.java' }
 	def serverSafeSeams = [
-			'Platform', 'PlatformPaths', 'BlockBreakGuard', 'ServerNetwork', 'ClientNetwork',
+			'Platform', 'PlatformPaths', 'BlockBreakGuard', 'BlockPlaceGuard', 'ServerNetwork', 'ClientNetwork',
 			'ServerEvents', 'Menus', 'ExtendedMenuProvider', 'Content'
 	].collect { "com/davisr/thedreamtable/platform/${it}.java".toString() }
 	inputs.files(sources)

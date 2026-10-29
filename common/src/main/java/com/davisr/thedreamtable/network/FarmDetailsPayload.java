@@ -40,7 +40,13 @@ public record FarmDetailsPayload(String key, boolean loaded, int stored, int cap
 	public static final Id<FarmDetailsPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_details"));
 	private static final int SHOWN_ITEMS = 8;
 	private static final int MAX_COLLABORATORS = 64;
-	private static final RequestThrottle THROTTLE = new RequestThrottle();
+	/**
+	 * Each accepted request scans one farm's storage and presence. A page asks once per selection, so four a second is far
+	 * above a person's use. The answer is not cached: a repeat right after a change, like a removed collaborator, must
+	 * see the change.
+	 */
+	static final int BUDGET = 4;
+	private static final RequestThrottle THROTTLE = new RequestThrottle(BUDGET, RequestThrottle.DEFAULT_WINDOW_TICKS);
 
 	public record CollaboratorEntry(UUID playerUuid, String playerName, FarmRole role) {
 	}

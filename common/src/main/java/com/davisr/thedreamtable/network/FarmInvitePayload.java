@@ -66,7 +66,13 @@ public record FarmInvitePayload(BlockPos table, String key, String playerName, F
 				return;
 			}
 			complete(player, payload, profile.orElseThrow());
-		}));
+		})).exceptionally(failure -> {
+			// A lookup that fails (the profile service is down or refused) still answers, so the page never waits forever.
+			TheDreamTableMod.LOGGER.warn("Could not look up a player for a farm invitation", failure);
+			player.getServer().execute(() -> FarmNetwork.result(player, payload.key(), FarmActionResultPayload.Action.INVITE,
+					FarmActionResultPayload.Result.BUSY));
+			return null;
+		});
 	}
 
 	private static void complete(ServerPlayerEntity player, FarmInvitePayload payload, GameProfile profile) {
