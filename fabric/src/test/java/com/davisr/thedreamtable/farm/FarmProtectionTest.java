@@ -216,4 +216,19 @@ class FarmProtectionTest {
 		assertTrue(areas.guardsAt(new BlockPos(500, 70, 500)).isEmpty());
 		assertTrue(new FarmAreas().guardsAt(inside).isEmpty());
 	}
+
+	@Test
+	void theModsOwnProbesAnswerQuietlyAndEndEvenWhenTheyThrow() {
+		assertFalse(FarmProtection.probing());
+		assertTrue(FarmProtection.quietly(() -> FarmProtection.quietly(FarmProtection::probing)));
+		assertFalse(FarmProtection.quietly(() -> false));
+		try {
+			FarmProtection.quietly(() -> {
+				throw new IllegalStateException();
+			});
+		} catch (IllegalStateException expected) {
+			// The probe's own failure is not the point here.
+		}
+		assertFalse(FarmProtection.probing());
+	}
 }

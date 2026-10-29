@@ -42,8 +42,24 @@ import java.util.function.BooleanSupplier;
 public final class FarmProtection {
 	/** Permission level from which a player bypasses the protection, like the vanilla command operators. */
 	static final int OPERATOR_LEVEL = 2;
+	/** Nesting depth of the mod's own permission probes (server thread only), during which a denial tells nobody. */
+	private static int probes;
 
 	private FarmProtection() {
+	}
+
+	/** Runs one of the mod's own permission probes: protection still answers, but no message is shown for a break nobody tried. */
+	static boolean quietly(BooleanSupplier probe) {
+		probes++;
+		try {
+			return probe.getAsBoolean();
+		} finally {
+			probes--;
+		}
+	}
+
+	static boolean probing() {
+		return probes > 0;
 	}
 
 	public static void register() {
@@ -51,6 +67,9 @@ public final class FarmProtection {
 			UUID owner = blockedOwner(world, player, pos, state);
 			if (owner == null) {
 				return true;
+			}
+			if (probing()) {
+				return false;
 			}
 			player.sendMessage(Text.translatable("gui.the_dream_table.farm_protected", ownerName(world.getServer(), owner)), true);
 			return false;

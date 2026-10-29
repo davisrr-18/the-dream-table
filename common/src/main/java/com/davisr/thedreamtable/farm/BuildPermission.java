@@ -23,12 +23,12 @@ public final class BuildPermission {
 
 	/** The vanilla checks plus the loader's place probe for the block about to go there. Asked per step, never for a whole farm. */
 	public static boolean canPlace(ServerWorld world, PlayerEntity player, BlockPos pos, BlockState placed) {
-		return canPlace(world, player, pos) && Platform.blockPlaces().allowsPlace(world, player, pos, placed);
+		return canPlace(world, player, pos) && FarmProtection.quietly(() -> Platform.blockPlaces().allowsPlace(world, player, pos, placed));
 	}
 
 	public static boolean canBreak(ServerWorld world, PlayerEntity player, BlockPos pos, BlockState state) {
 		return canPlace(world, player, pos)
-				&& Platform.blockBreaks().allowsBreak(world, player, pos, state);
+				&& FarmProtection.quietly(() -> Platform.blockBreaks().allowsBreak(world, player, pos, state));
 	}
 
 	/**
