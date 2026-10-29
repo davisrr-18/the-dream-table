@@ -170,6 +170,6 @@ Ao final de cada marco, registrar:
 
 Depois de registrar e verificar, commitar tudo e dar push direto na `main` (automático, CLAUDE.md seção 5), sem esperar pedido.
 
-Release no GitHub e changelog final só depois de todos os ajustes da atualização e quando o usuário disser que vai postar no CurseForge (CLAUDE.md seção 5).
+O `CHANGELOG.md` acompanha a versão em desenvolvimento: atualizar no mesmo commit de cada mudança visível ao jogador. Release no GitHub só depois de todos os ajustes da atualização e quando o usuário disser que vai postar no CurseForge (CLAUDE.md seção 5).
 
 Não duplicar informações já registradas no ledger existente.
