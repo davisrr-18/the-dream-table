@@ -3,6 +3,7 @@ package com.davisr.thedreamtable.block.entity;
 import com.davisr.thedreamtable.GameSetup;
 import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ContainerComponent;
@@ -24,6 +25,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Bulk delivery moves exactly what the farm still needs, and never a stack whose data a refund would destroy. */
 class MaterialDeliveryTest {
 	private static FarmTemplate farm;
+
+	@Test
+	void onlyAFullDeliveryIsPlainInformation() {
+		assertEquals(TableNoticePayload.Severity.INFO, MaterialDelivery.severity(new MaterialDelivery.Tally(5, 0)));
+		assertEquals(TableNoticePayload.Severity.PROBLEM, MaterialDelivery.severity(new MaterialDelivery.Tally(5, 2)));
+		assertEquals(TableNoticePayload.Severity.PROBLEM, MaterialDelivery.severity(new MaterialDelivery.Tally(0, 1)));
+		assertEquals(TableNoticePayload.Severity.PROBLEM, MaterialDelivery.severity(MaterialDelivery.Tally.NONE));
+	}
 
 	@BeforeAll
 	static void setUp() {

@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.ChunkKeeper;
@@ -73,7 +74,7 @@ public final class SessionBuild {
 		}
 		if (ownerAway) {
 			ownerAway = false;
-			session.tell(Text.translatable("gui.the_dream_table.build_continues", progress.index(), session.totalSteps()));
+			session.tell(Text.translatable("gui.the_dream_table.build_continues", progress.index(), session.totalSteps()), TableNoticePayload.Severity.INFO);
 		}
 		if (ticks++ % BuildPace.TICKS_PER_SECOND == 0) {
 			ChunkKeeper.keepTable(world, session.getPos());
@@ -212,7 +213,7 @@ public final class SessionBuild {
 		}
 		if (template == null) {
 			if (!fromScratch) {
-				starter.sendMessage(Text.translatable("gui.the_dream_table.farm_changed"), true);
+				TableNoticePayload.problem(starter, Text.translatable("gui.the_dream_table.farm_changed"));
 			}
 			return false;
 		}
@@ -224,12 +225,12 @@ public final class SessionBuild {
 					repair == null ? null : repair.farmKey().instanceId());
 			if (problem != null) {
 				session.clearPlacement();
-				starter.sendMessage(Text.translatable(problem), true);
+				TableNoticePayload.problem(starter, Text.translatable(problem));
 				return false;
 			}
 		}
 		if (!fromScratch && !progress.matches(template.signature())) {
-			starter.sendMessage(Text.translatable("gui.the_dream_table.farm_changed"), true);
+			TableNoticePayload.problem(starter, Text.translatable("gui.the_dream_table.farm_changed"));
 			return false;
 		}
 		BuildIssue previous = fromScratch ? null : progress.issue();
@@ -238,7 +239,7 @@ public final class SessionBuild {
 			if (now != null) {
 				progress.setIssue(now);
 				session.sync();
-				session.tell(Text.translatable("gui.the_dream_table.still_blocked", now.what()));
+				session.tell(Text.translatable("gui.the_dream_table.still_blocked", now.what()), TableNoticePayload.Severity.PROBLEM);
 				session.table().sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), now.where(), 0.8F, 0.5F);
 				return false;
 			}
@@ -257,7 +258,7 @@ public final class SessionBuild {
 		waitingSince = -1;
 		session.sync();
 		String started = previous != null && !previous.temporary() ? "gui.the_dream_table.issue_solved" : "gui.the_dream_table.building";
-		session.tell(Text.translatable(started, progress.index(), session.totalSteps()));
+		session.tell(Text.translatable(started, progress.index(), session.totalSteps()), TableNoticePayload.Severity.INFO);
 		return true;
 	}
 
@@ -327,7 +328,7 @@ public final class SessionBuild {
 			BuildIssue issue = BuildIssue.at(BuildIssue.Kind.UNLOADED, where);
 			progress.setIssue(issue);
 			session.sync();
-			session.tell(issue.what());
+			session.tell(issue.what(), TableNoticePayload.Severity.PROBLEM);
 		}
 	}
 
@@ -336,7 +337,7 @@ public final class SessionBuild {
 		progress.setIssue(issue);
 		recordRepairAlert(issue.kind() == BuildIssue.Kind.ERROR ? FarmAlertType.REPAIR_FAILED : FarmAlertType.REPAIR_BLOCKED);
 		session.sync();
-		session.tell(issue.what());
+		session.tell(issue.what(), TableNoticePayload.Severity.PROBLEM);
 		session.table().sound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), issue.where(), 0.8F, 0.5F);
 	}
 
@@ -347,7 +348,7 @@ public final class SessionBuild {
 		}
 		progress.stop(PHASE_PAUSED);
 		session.sync();
-		session.tell(Text.translatable("gui.the_dream_table.paused_build", progress.index(), session.totalSteps()));
+		session.tell(Text.translatable("gui.the_dream_table.paused_build", progress.index(), session.totalSteps()), TableNoticePayload.Severity.INFO);
 		return true;
 	}
 
@@ -361,7 +362,7 @@ public final class SessionBuild {
 		Text done = !progress.repair() ? Text.translatable("gui.the_dream_table.done")
 				: progress.kept() > 0 ? Text.translatable("gui.the_dream_table.repair_done_kept", progress.kept())
 				: Text.translatable("gui.the_dream_table.repair_done");
-		session.tell(done);
+		session.tell(done, TableNoticePayload.Severity.INFO);
 		session.table().sound(SoundEvents.BLOCK_BEACON_ACTIVATE, session.getPos(), 0.6F, 1.2F);
 	}
 

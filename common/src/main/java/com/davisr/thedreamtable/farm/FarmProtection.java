@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.platform.Platform;
 import com.mojang.authlib.GameProfile;
@@ -74,7 +75,7 @@ public final class FarmProtection {
 			if (probing()) {
 				return false;
 			}
-			player.sendMessage(Text.translatable("gui.the_dream_table.farm_protected", ownerName(world.getServer(), owner)), true);
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.farm_protected", ownerName(world.getServer(), owner)));
 			return false;
 		});
 	}

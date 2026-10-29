@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.MaterialLedger;
 import com.davisr.thedreamtable.farm.alert.FarmAlerts;
@@ -125,7 +126,7 @@ public final class FarmDismantler {
 		ServerPlayerEntity online = world.getServer().getPlayerManager().getPlayer(player);
 		if (template == null || template.signature() != signature) {
 			if (online != null) {
-				online.sendMessage(Text.translatable("gui.the_dream_table.discard_changed"), true);
+				TableNoticePayload.problem(online, Text.translatable("gui.the_dream_table.discard_changed"));
 			}
 			return true;
 		}
@@ -135,7 +136,7 @@ public final class FarmDismantler {
 		}
 		if (playerAway) {
 			playerAway = false;
-			online.sendMessage(Text.translatable("gui.the_dream_table.dismantle_continues"), true);
+			TableNoticePayload.info(online, Text.translatable("gui.the_dream_table.dismantle_continues"));
 		}
 		ChunkKeeper.keepTable(world, host);
 		Batch batch = new Batch();
@@ -159,7 +160,7 @@ public final class FarmDismantler {
 			return false;
 		}
 		if (removed > 0) {
-			online.sendMessage(Text.translatable("gui.the_dream_table.dismantled", removed), true);
+			TableNoticePayload.info(online, Text.translatable("gui.the_dream_table.dismantled", removed));
 			world.playSound(null, online.getBlockPos(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS, 0.8F, 0.8F);
 		}
 		if (!standing.isEmpty()) {

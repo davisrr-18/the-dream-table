@@ -47,7 +47,8 @@ class PayloadIdsTest {
 				ServerSchematicsPayload.Farm.ID,
 				FarmDetailsPayload.ID,
 				FarmDetailsPayload.Request.ID,
-				TrackedFarmPayload.ID);
+				TrackedFarmPayload.ID,
+				TableNoticePayload.ID);
 		Set<String> actual = ids.stream().map(id -> id.id().toString()).collect(Collectors.toCollection(TreeSet::new));
 
 		assertEquals(ids.size(), actual.size(), "payload ids must be unique");
@@ -76,6 +77,7 @@ class PayloadIdsTest {
 				"the_dream_table:schematic_request",
 				"the_dream_table:server_schematics",
 				"the_dream_table:session_sync",
+				"the_dream_table:table_notice",
 				"the_dream_table:tracked_farm",
 				"the_dream_table:watch_areas")), actual);
 	}

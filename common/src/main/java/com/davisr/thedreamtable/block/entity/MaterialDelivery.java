@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.network.RequestThrottle;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
@@ -70,7 +71,12 @@ public final class MaterialDelivery {
 		return new Tally(delivered, refused);
 	}
 
-	/** The action-bar line for a bulk delivery; skipped containers are only mentioned when nothing could be taken. */
+	/** Plain information only when everything wanted was taken; skipped stacks and empty-handed tries are problems. */
+	static TableNoticePayload.Severity severity(Tally tally) {
+		return tally.delivered() > 0 && tally.refused() == 0 ? TableNoticePayload.Severity.INFO : TableNoticePayload.Severity.PROBLEM;
+	}
+
+	/** The notice line for a bulk delivery; skipped containers are only mentioned when nothing could be taken. */
 	static Text summary(Tally tally, boolean nearby, int skippedContainers) {
 		if (tally.delivered() > 0) {
 			return tally.refused() > 0

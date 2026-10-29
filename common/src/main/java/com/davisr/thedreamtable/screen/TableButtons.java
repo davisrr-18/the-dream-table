@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.screen;
 
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.DreamTableConfig;
@@ -56,7 +57,6 @@ final class TableButtons {
 			case BUTTON_SPEED_OPEN -> page(table, PAGE_SPEED);
 			case BUTTON_LOADED_FARMS, BUTTON_FARM_BACK -> page(table, PAGE_LOADED);
 			case BUTTON_INVITES -> page(table, PAGE_INVITES);
-			case BUTTON_ALERTS -> page(table, PAGE_ALERTS);
 			case BUTTON_FARM_OPEN -> page(table, PAGE_FARM);
 			case BUTTON_REQUIREMENTS -> {
 				table.setRequirementsBoard(true);
@@ -125,7 +125,7 @@ final class TableButtons {
 	/** A switch refused for the saved-player limit is told to the player instead of doing nothing. */
 	private static boolean savedOrTold(ServerPlayerEntity player, boolean saved) {
 		if (!saved) {
-			player.sendMessage(Text.translatable("gui.the_dream_table.protect_farms_full"), true);
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.protect_farms_full"));
 		}
 		return saved;
 	}

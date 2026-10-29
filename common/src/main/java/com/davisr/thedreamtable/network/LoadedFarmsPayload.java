@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.network;
 
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmLoader;
@@ -51,10 +52,11 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 				buf.writeVarInt(entry.missing() + 1);
 				buf.writeBoolean(entry.available());
 				buf.writeVarInt(entry.storage() + 1);
+				buf.writeVarInt(entry.alerts());
 			},
 			buf -> new FarmLoader.Entry(buf.readString(256), buf.readString(MAX_ID), buf.readString(MAX_ID), buf.readString(128), buf.readString(256), buf.readBlockPos(),
 					buf.readEnumConstant(com.davisr.thedreamtable.farm.FarmRole.class), buf.readBoolean(), buf.readBoolean(), buf.readBoolean(), buf.readBoolean(),
-					buf.readVarInt(), buf.readVarInt() - 1, buf.readBoolean(), buf.readVarInt() - 1));
+					buf.readVarInt(), buf.readVarInt() - 1, buf.readBoolean(), buf.readVarInt() - 1, buf.readVarInt()));
 	private static final PacketCodec<RegistryByteBuf, InviteEntry> INVITE = PacketCodec.of(
 			(invite, buf) -> {
 				buf.writeString(invite.key(), 256);
@@ -103,9 +105,9 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 				};
 				FarmNetwork.result(player, payload.toggle(), FarmActionResultPayload.Action.KEEP_LOADED, response);
 				if (result == FarmLoader.ToggleResult.OWNER_QUOTA_FULL) {
-					player.sendMessage(Text.translatable("gui.the_dream_table.loaded_full", DreamTableConfig.maxLoadedFarms()), true);
+					TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.loaded_full", DreamTableConfig.maxLoadedFarms()));
 				} else if (result == FarmLoader.ToggleResult.TOO_LARGE) {
-					player.sendMessage(Text.translatable("gui.the_dream_table.loaded_too_large", FarmLoader.MAX_CHUNKS_PER_FARM), true);
+					TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.loaded_too_large", FarmLoader.MAX_CHUNKS_PER_FARM));
 				}
 			}
 			// The full scan after a toggle, granted or denied, runs only through the shared per-player refresh budget.

@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.farm.FarmListing;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.network.FarmAlertsPayload;
 import com.davisr.thedreamtable.network.FarmCarePayload;
 import com.davisr.thedreamtable.network.FarmDetailsPayload;
 import com.davisr.thedreamtable.network.FarmPreferencePayload;
@@ -30,15 +31,14 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
  * can only be forgotten.
  */
 public final class FarmPage implements TablePage {
-	private static final int ALERTS = 0;
-	private static final int FAVORITE = 1;
-	private static final int TRACK = 2;
-	private static final int LOADED = 3;
-	private static final int REPAIR = 4;
-	private static final int RENAME = 5;
-	private static final int INVITE_VIEWER = 6;
-	private static final int INVITE_OPERATOR = 7;
-	private static final int COLLABORATORS = 8;
+	private static final int FAVORITE = 0;
+	private static final int TRACK = 1;
+	private static final int LOADED = 2;
+	private static final int REPAIR = 3;
+	private static final int RENAME = 4;
+	private static final int INVITE_VIEWER = 5;
+	private static final int INVITE_OPERATOR = 6;
+	private static final int COLLABORATORS = 7;
 	private static final long CONFIRM_MS = 3000L;
 	private static final int ITEM_SPACING = 21;
 	private static final int ITEM_SIZE = 16;
@@ -50,6 +50,7 @@ public final class FarmPage implements TablePage {
 	private final PageContext ui;
 	private final SearchBox input;
 	private long confirmUntil;
+	private String acknowledged = "";
 
 	public FarmPage(PageContext ui, SearchBox input) {
 		this.ui = ui;
@@ -78,7 +79,7 @@ public final class FarmPage implements TablePage {
 		drawWrapped(context, summaryText(farm), statusY(), Integer.MAX_VALUE, HINT);
 		drawStorage(context);
 		drawCondition(context, farm);
-		ui.buttonAt("alerts", context, Text.translatable("gui.the_dream_table.alerts"), flowX(), rowY(ALERTS), mouseX, mouseY, true, false);
+		drawAlerts(context, farm);
 		ui.buttonAt("favorite", context, Text.translatable(farm.favorite() ? "gui.the_dream_table.unfavorite" : "gui.the_dream_table.favorite"),
 				flowX(), rowY(FAVORITE), mouseX, mouseY, true, farm.favorite());
 		ui.buttonAt("track", context, Text.translatable(farm.tracked() ? "gui.the_dream_table.untrack" : "gui.the_dream_table.track"),
@@ -126,10 +127,6 @@ public final class FarmPage implements TablePage {
 		}
 		if (farm == null) {
 			return false;
-		}
-		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(ALERTS))) {
-			ui.go(DreamTableScreenHandler.PAGE_ALERTS, DreamTableScreenHandler.BUTTON_ALERTS);
-			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(FAVORITE))) {
 			LoadedFarmsView.preference(farm.key(), farm.favorite() ? FarmPreferencePayload.Operation.UNFAVORITE : FarmPreferencePayload.Operation.FAVORITE);
@@ -286,6 +283,29 @@ public final class FarmPage implements TablePage {
 		drawItems(context, details.needs(), details.needCounts(), needsY());
 	}
 
+	/** The farm's active alerts, in red, as the last lines of its description. */
+	private void drawAlerts(DrawContext context, FarmLoader.Entry farm) {
+		List<Text> alerts = alertLines(farm);
+		int y = alertsY();
+		for (Text alert : alerts) {
+			y = drawWrapped(context, alert, y, Integer.MAX_VALUE, ERROR);
+		}
+	}
+
+	/** Asks for the farm's alert page when the list says it has an alert, and reads each active one once it arrives. */
+	private List<Text> alertLines(FarmLoader.Entry farm) {
+		if (farm.alerts() <= 0) {
+			return List.of();
+		}
+		LoadedFarmsView.ensureAlerts();
+		FarmAlertsPayload page = LoadedFarmsView.alerts();
+		if (page != null && !acknowledged.equals(page.token())) {
+			LoadedFarmsView.acknowledgeAlerts(page);
+			acknowledged = page.token();
+		}
+		return AlertText.lines(farm, page);
+	}
+
 	private static Text condition(FarmDetailsPayload details) {
 		if (details.missing() == FarmLoader.UNKNOWN) {
 			return Text.translatable("gui.the_dream_table.condition_unloaded");
@@ -431,8 +451,22 @@ public final class FarmPage implements TablePage {
 		return conditionY() + (details == null ? 1 : lines(condition(details))) * LINE_HEIGHT + 2;
 	}
 
+	/** Under everything else the farm shows, so a farm without an alert looks as it did before. */
+	private int alertsY() {
+		return needsY() + needsHeight();
+	}
+
+	private int alertsHeight() {
+		FarmLoader.Entry farm = farm();
+		int height = 0;
+		for (Text alert : farm == null ? List.<Text>of() : alertLines(farm)) {
+			height += lines(alert) * LINE_HEIGHT;
+		}
+		return height == 0 ? 0 : height + 2;
+	}
+
 	private int rowY(int row) {
-		return needsY() + needsHeight() + 4 + row * (BUTTON_HEIGHT + BUTTON_GAP);
+		return alertsY() + alertsHeight() + 4 + row * (BUTTON_HEIGHT + BUTTON_GAP);
 	}
 
 	private int needsHeight() {

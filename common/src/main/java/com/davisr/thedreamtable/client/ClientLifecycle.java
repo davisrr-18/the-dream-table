@@ -35,5 +35,6 @@ public final class ClientLifecycle {
 	static void leaveServer() {
 		LoadedFarmsView.reset();
 		TrackedFarmHud.clear();
+		TableNotices.clear();
 	}
 }

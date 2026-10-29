@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block;
 
+import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
@@ -134,7 +135,9 @@ public class DreamTableBlock extends BlockWithEntity {
 	@Override
 	protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
 		if (!world.isClient() && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table && table.hasBuildInProgress()) {
-			player.sendMessage(Text.translatable("gui.the_dream_table.break_warning"), true);
+			if (player instanceof ServerPlayerEntity serverPlayer) {
+				TableNoticePayload.problem(serverPlayer, Text.translatable("gui.the_dream_table.break_warning"));
+			}
 		}
 	}
 

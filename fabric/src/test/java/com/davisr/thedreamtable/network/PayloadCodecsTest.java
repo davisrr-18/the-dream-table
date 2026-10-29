@@ -10,6 +10,7 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.BeforeAll;
@@ -90,6 +91,16 @@ class PayloadCodecsTest {
 				FarmActionResultPayload.Result.LIMIT_REACHED));
 	}
 
+	@Test
+	void tableNoticeRoundTripsItsTextAndSeverity() {
+		roundTrip(TableNoticePayload.CODEC, new TableNoticePayload(Text.translatable("gui.the_dream_table.break_warning"), TableNoticePayload.Severity.PROBLEM));
+		roundTrip(TableNoticePayload.CODEC, new TableNoticePayload(Text.translatable("gui.the_dream_table.delivered", "12"), TableNoticePayload.Severity.INFO));
+		byte[] problem = roundTrip(TableNoticePayload.CODEC, new TableNoticePayload(Text.literal("x"), TableNoticePayload.Severity.PROBLEM));
+		byte[] info = roundTrip(TableNoticePayload.CODEC, new TableNoticePayload(Text.literal("x"), TableNoticePayload.Severity.INFO));
+		assertEquals(problem.length, info.length);
+		assertEquals(1, problem[problem.length - 1] - info[info.length - 1], "severity is the last byte, as the enum ordinal");
+	}
+
 	private static FarmLoader.Entry entry(String layoutId) {
 		return new FarmLoader.Entry(KEY, "nbt:big", layoutId, "", "minecraft:overworld", TABLE, FarmRole.OWNER, false, false, false, false, 0, 0, true, 0);
 	}
@@ -104,6 +115,9 @@ class PayloadCodecsTest {
 		assertEquals(ByteBufUtil.hexDump(expected), ByteBufUtil.hexDump(actual));
 
 		roundTrip(LoadedFarmsPayload.CODEC, new LoadedFarmsPayload(List.of(entry(old)), List.of(), 3));
+		FarmLoader.Entry alerted = entry(old);
+		roundTrip(LoadedFarmsPayload.CODEC, new LoadedFarmsPayload(List.of(new FarmLoader.Entry(alerted.key(), alerted.farmId(), alerted.layoutId(), "", alerted.dimension(),
+				alerted.where(), alerted.role(), false, false, false, false, 0, 0, true, 0, 2)), List.of(), 3));
 		roundTrip(LoadedFarmsPayload.CODEC, new LoadedFarmsPayload(List.of(entry("saved:nbt:" + "b".repeat(300) + "@" + UUID.randomUUID())), List.of(), 3));
 	}
 

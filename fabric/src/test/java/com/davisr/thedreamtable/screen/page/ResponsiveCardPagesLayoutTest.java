@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ResponsiveCardPagesLayoutTest {
-	private static final List<Class<?>> CARD_PAGES = List.of(CategoryPage.class, MaterialsPage.class, SwapPage.class, AlertsPage.class);
+	private static final List<Class<?>> CARD_PAGES = List.of(CategoryPage.class, MaterialsPage.class, SwapPage.class);
 
 	@Test
 	void cardCollectionsAndBackControlsUseTheSameResponsiveGrid() throws ReflectiveOperationException {
@@ -31,14 +31,6 @@ class ResponsiveCardPagesLayoutTest {
 			assertTrue(invoke(page, "contentHeight", wide, 2) >= invoke(page, "backY", wide, 2) - wide.contentTop() + BUTTON_HEIGHT,
 					page.getSimpleName());
 		}
-	}
-
-	@Test
-	void alertsBackControlFollowsTheLastCardInItsGridRow() throws ReflectiveOperationException {
-		Viewport wide = new Viewport();
-		wide.layout(ScreenGeometry.calculate(420, 240, 0, false), 0, 300);
-
-		assertEquals(wide.gridCardY(1) + CARD_HEIGHT + 10, invoke(AlertsPage.class, "backY", wide, 2));
 	}
 
 	private static int invoke(Class<?> page, String methodName, Viewport view, int count) throws ReflectiveOperationException {
