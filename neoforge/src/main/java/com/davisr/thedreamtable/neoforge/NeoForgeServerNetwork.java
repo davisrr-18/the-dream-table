@@ -48,7 +48,10 @@ final class NeoForgeServerNetwork implements ServerNetwork {
 
 	@Override
 	public void send(ServerPlayerEntity player, CustomPayload payload) {
-		PacketDistributor.sendToPlayer(player, payload);
+		// A fake player has no connection to send on.
+		if (player.networkHandler != null) {
+			PacketDistributor.sendToPlayer(player, payload);
+		}
 	}
 
 	@Override

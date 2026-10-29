@@ -1,6 +1,9 @@
 package com.davisr.thedreamtable.farm.schematic;
 
+import com.davisr.thedreamtable.TheDreamTableMod;
+import com.davisr.thedreamtable.block.DreamTableBlock;
 import com.davisr.thedreamtable.farm.FarmStep;
+import com.davisr.thedreamtable.farm.ImportNote;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -38,6 +41,8 @@ final class StepCollector {
 	/** Block entity keys that hold items; a player's file loses them so a built chest, hopper or lectern isn't a free stack. */
 	private static final List<String> CONTENT_KEYS = List.of("Items", "RecordItem", "Book", "item");
 
+	private static final String TABLE_ID = TheDreamTableMod.MOD_ID + ":dream_table";
+
 	private final boolean stripContents;
 	private final List<FarmStep> steps = new ArrayList<>();
 	/** Where each block step is in {@link #steps}, so block data finds its block at once in big files. */
@@ -49,6 +54,9 @@ final class StepCollector {
 	/** The cells the file's regions declare to hold, summed, checked before any of them is walked. */
 	private long cells;
 	private boolean oversized;
+	/** The longest side the file declared past {@link SchematicReader#MAX_SPAN}, 0 while none did. */
+	private long widest;
+	private int tableBlocks;
 	private final Set<String> creativeNames = new LinkedHashSet<>();
 
 	/** @param stripContents true for a player's file; bundled farms keep the items their designer put in. */
@@ -61,6 +69,8 @@ final class StepCollector {
 		NbtCompound copy = data.copy();
 		if (stripContents) {
 			CONTENT_KEYS.forEach(copy::remove);
+			// Sign click events run commands for whoever clicks the sign.
+			SignText.strip(copy);
 		}
 		return copy;
 	}
@@ -94,6 +104,26 @@ final class StepCollector {
 		return !oversized;
 	}
 
+	/** Checks one declared side against {@link SchematicReader#MAX_SPAN}. Returns false, and marks the file too wide, when it is longer. */
+	boolean side(long length) {
+		if (length <= SchematicReader.MAX_SPAN) {
+			return true;
+		}
+		widest = Math.max(widest, length);
+		oversized = true;
+		return false;
+	}
+
+	/** The longest side that passed the span limit, 0 when none did. */
+	long widest() {
+		return widest;
+	}
+
+	/** Dream Table blocks left out of the file. */
+	int tableBlocks() {
+		return tableBlocks;
+	}
+
 	/** Marks the file too big for a limit other than its cells, like regions or palette entries. */
 	void overflow() {
 		oversized = true;
@@ -122,14 +152,25 @@ final class StepCollector {
 
 	/** A cell whose block isn't in this game, like one from a mod that isn't installed. It is left out. */
 	void unknown(String name) {
+		if (TABLE_ID.equals(NbtReading.name(name).trim())) {
+			// A game that lacks the mod's own registry entry must still not list its table as a foreign block.
+			tableBlocks++;
+			return;
+		}
 		unknownBlocks++;
-		unknownNames.add(name);
+		// A palette name can be as long as the file; the notes only ever show the start.
+		unknownNames.add(ImportNote.clean(name));
 	}
 
 	/** Air and structure helpers are skipped, and so is flowing liquid: it comes from the source block. A null state is an unknown block. */
 	void block(int x, int y, int z, BlockState state, NbtCompound blockNbt) {
 		if (state == null || state.isAir() || state.isOf(Blocks.STRUCTURE_VOID) || state.isOf(Blocks.JIGSAW) || state.isOf(Blocks.STRUCTURE_BLOCK)
 				|| TECHNICAL.contains(state.getBlock())) {
+			return;
+		}
+		if (state.getBlock() instanceof DreamTableBlock) {
+			// Its block entity data could carry delivered materials, and a farm never places another table.
+			tableBlocks++;
 			return;
 		}
 		boolean liquid = state.isOf(Blocks.WATER) || state.isOf(Blocks.LAVA);

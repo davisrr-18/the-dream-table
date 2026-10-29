@@ -8,17 +8,20 @@ import com.davisr.thedreamtable.farm.ImportNote;
 import com.davisr.thedreamtable.farm.ImportedStructures;
 import com.davisr.thedreamtable.farm.TemplateCodec;
 import com.davisr.thedreamtable.platform.Platform;
+import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The server's My Schematics list, sent when a player opens a table, so a client on another computer shows the
@@ -28,6 +31,7 @@ import java.util.List;
 public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStructures.Rejected> rejected) implements CustomPayload {
 	public static final Id<ServerSchematicsPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "server_schematics"));
 	private static final int MAX_SCHEMATICS = 1024;
+	private static final AtomicBoolean WARNED = new AtomicBoolean();
 
 	private static final int MAX_NOTES = 8;
 	/** Each request encodes a whole farm; a client fetches one per farm it draws, so this is far above a person's use. */
@@ -90,7 +94,39 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 					notes.subList(0, Math.min(MAX_NOTES, notes.size()))));
 		}
 		List<ImportedStructures.Rejected> rejected = FarmTemplates.rejected();
-		Platform.network().send(player, new ServerSchematicsPayload(entries, rejected.subList(0, Math.min(MAX_SCHEMATICS, rejected.size()))));
+		Platform.network().send(player, encodable(entries, List.copyOf(rejected.subList(0, Math.min(MAX_SCHEMATICS, rejected.size()))),
+				player.getRegistryManager()));
+	}
+
+	/**
+	 * The list as it can be written to the wire. A list that fails to encode would fail again on every table open and keep
+	 * the whole screen from opening, so it falls back to the same schematics without their notes, then to an empty list,
+	 * and says so once in the log.
+	 */
+	static ServerSchematicsPayload encodable(List<Entry> entries, List<ImportedStructures.Rejected> rejected, DynamicRegistryManager registries) {
+		ServerSchematicsPayload full = new ServerSchematicsPayload(entries, rejected);
+		if (encodes(full, registries)) {
+			return full;
+		}
+		if (WARNED.compareAndSet(false, true)) {
+			TheDreamTableMod.LOGGER.warn("The schematic list could not be encoded; sending it without the notes about each file");
+		}
+		ServerSchematicsPayload bare = new ServerSchematicsPayload(
+				entries.stream().map(entry -> new Entry(entry.id(), entry.icon(), entry.name(), entry.steps(), entry.version(), List.of())).toList(),
+				rejected.stream().map(file -> new ImportedStructures.Rejected(file.name(), ImportNote.of(file.reason().kind()))).toList());
+		return encodes(bare, registries) ? bare : new ServerSchematicsPayload(List.of(), List.of());
+	}
+
+	private static boolean encodes(ServerSchematicsPayload payload, DynamicRegistryManager registries) {
+		RegistryByteBuf trial = new RegistryByteBuf(Unpooled.buffer(), registries);
+		try {
+			CODEC.encode(trial, payload);
+			return true;
+		} catch (RuntimeException failure) {
+			return false;
+		} finally {
+			trial.release();
+		}
 	}
 
 	@Override

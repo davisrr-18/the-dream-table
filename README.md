@@ -19,8 +19,8 @@ Lapis lazuli on the top row and in the center, paper on the sides, and oak plank
 1. Place the table, pick a category (Plant Farms, Mob Farms or Resource Farms), then a farm. Each farm shows its block count and how long it takes at your build speed. My Schematics shows the same for your own files.
 2. A small turning model of the chosen farm floats above the table. Close the menu. A yellow marker follows the crosshair.
 3. Right-click the ground to anchor the hologram. Right-click again to move it.
-4. **R** rotates the farm and **M** mirrors it. While it builds, the hologram shows only the layer being built and the one above; **H** switches to the whole farm and back. Both keys can be changed in Controls, under The Dream Table.
-5. Hold the material and right-click the clipboard to deliver it. The line is struck through when the count is met.
+4. **R** rotates the farm and **M** mirrors it (eight orientations together; the mirror is saved with the farm, so building, Repair and Take Down follow it). While it builds, the hologram shows only the layer being built and the one above; **H** switches to the whole farm and back. Both keys can be changed in Controls, under The Dream Table.
+5. Hold the material and right-click the clipboard to deliver it. The line is struck through when the count is met. On the Materials page, **Deliver All** moves every item the farm still needs from your inventory and offhand in one click, and **Deliver From Nearby** takes them from chests, trapped chests, barrels and placed shulker boxes within 6 blocks of the table (locked, never-opened loot and protected containers are skipped). Both are off in Creative, where builds are free, and Deliver From Nearby can be turned off in Settings.
 6. Return to the table and click Build. The position locks. The build can start before every material is on the clipboard, and it waits at the next missing block instead of skipping it. In Creative mode, the build needs no materials and runs at the server's fastest rate. While it builds, the same button reads **Pause**; press it to stop after the current block, and **Resume** to pick up from the next one.
 
 **Materials**, on the farm screen, swaps a block for another of the same shape: full block for full block, stairs for stairs, slab for slab, glass for glass, bed for bed, and so on. Type in the search box at the top of the list to find a block by name. Pick the swap before delivering that material or starting the build. The hologram, the clipboard, and the build all use the new block. Options, on the farm list, opens Build Speed: Slow, Normal (the default) or Fast, which are 25%, 50% and 100% of the server's fastest rate (64, 128 and 256 blocks per second by default). Each option shows its share and how long the chosen farm would take. Custom has a slider: drag it to any share from 1% to 100%. Blocks are spread evenly over each second. While building or paused, the farm screen shows the time left, like "~4 min". Blocks already in place are skipped instantly and don't count against the pace. When the build waits for a missing block, delivering it on the clipboard continues the build on its own.
@@ -45,7 +45,20 @@ When a build stops, the menu says what happened and where (the block, its coordi
 
 Each player's table data is sent only to that player.
 
-Server owners can set `max_blocks_per_second` (1 to 1024, default 256) in `config/the_dream_table.properties`. It caps every build, including Creative ones.
+Server owners can change these in `config/the_dream_table.properties`, which is written with the defaults the first time and read when the server starts:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `max_blocks_per_second` | 256 | Fastest any build may go, 1 to 1024. Caps every build, including Creative ones. |
+| `max_loaded_farms_per_player` | 3 | Farms each player may keep loaded, 0 to 16. |
+| `load_farms_while_offline` | false | Keep loaded farms loaded after their player logs off. |
+| `farm_sharing_enabled` | true | Allow inviting collaborators to farms. |
+| `max_collaborators_per_farm` | 8 | Collaborators per farm, 0 to 64. |
+| `max_pending_invites_per_player` | 32 | Pending invitations a player may have, 0 to 256. |
+| `deliver_from_nearby_enabled` | true | Allow Deliver From Nearby for every player. |
+| `farm_protection_enabled` | true | Allow players to turn on Protect My Farms. |
+
+The true or false keys accept only `true` or `false`; anything else is logged and the default is used.
 
 **My Farms**, in Options, lists every farm you finished, in every dimension. Each card shows whether the farm is running and how full its storage is, whether its storage is full or it is not loaded, how many blocks are missing, and how far away it is (or its dimension). Highlighted cards are the farms kept loaded. Type in the search box to find a farm by name, and use the filters above the list to show only farms that need attention (full storage, missing blocks, or a lost design), running, not loaded or full ones, or one dimension, and to sort by newest, name, attention first, fullest storage or nearest. Click one to open it:
 
@@ -57,6 +70,8 @@ Server owners can set `max_blocks_per_second` (1 to 1024, default 256) in `confi
 - **Take Down**, after a second click that names the farm and its coordinates, removes the whole farm a few blocks per tick and gives its blocks and the contents of its chests back, as mining it would. Blocks you changed or added stay.
 - If you log off during a build or while a farm is being removed, it waits and tells you when it continues after you return. An unexpected error stops only that operation, with a message, and its details go to the game log.
 - Items handed back never get lost: when your inventory is full, the rest drops at your feet and you get a message. Set `load_farms_while_offline=true` to keep them loaded after you log off. Mob farms are the exception: the game only spawns mobs within 128 blocks of a player, loaded or not. Build them above sea level and away from caves; the table reminds you when you place one lower.
+
+**Protect My Farms**, in Settings (off by default), stops other players from breaking the structure of your finished farms by hand; they see who protects it. You, the farm's Operators and server operators can still break it, and Viewers can too if you turn on **Viewers Can Break**. Crops, sugar cane, cactus, bamboo, kelp, pumpkins, melons and other produce stay harvestable for everyone, and only the farm's own blocks are protected. Explosions, pistons, mobs, fluids, fire and other mods that remove blocks are not blocked.
 
 A finished farm has a permanent identity, so its name, sharing, alerts, and saved design survive Repair and world restarts. Its owner can invite a player as a Viewer (read-only) or Operator (Repair and Keep Loaded); invitations must be accepted and can expire. Shared farms remain private to authorized players. Favorite or track a farm from its page: My Farms can show only favorites or sort them first, and tracked farms show a direction and distance HUD. The selected farm page shows its role, operating state, Keep Loaded state, distance or dimension, storage, condition, and repair needs. Alerts report missing blocks, full storage, unavailable designs, and Repair problems: a farm with an active alert is marked with a warning sign in My Farms and its page ends with a red "Alert" line for each one. Active farm problems are visible to every authorized collaborator.
 
@@ -70,7 +85,7 @@ Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` file
 - `config/the_dream_table/structures`
 - `schematics` inside the world folder
 
-Each file is checked when the list is read, before anyone builds it. A file that can't be used is still listed, greyed out, with the reason: it can't be read or is damaged, it isn't in one of these formats, it has no blocks, more than 16,384 blocks, more than 64 MB of data, or it is taller than any world. A farm the table can build may come with warnings, shown on its card and on the farm screen before you press Build: blocks from mods that aren't installed, which are left out, and blocks a survival player can't get, like bedrock or spawners, so only Creative can finish it. On a server, players see the same reasons and warnings for the server's files. New or changed files show up within a second.
+Each file is checked when the list is read, before anyone builds it. A file that can't be used is still listed, greyed out, with the reason: it can't be read or is damaged, it isn't in one of these formats, it has no blocks, more than 16,384 blocks, more than 64 MB of data, it is taller than any world or longer than 512 blocks on a side, it needs more than 54 different materials, or it places two blocks in the same spot. A farm the table can build may come with warnings, shown on its card and on the farm screen before you press Build: blocks from mods that aren't installed, which are left out, blocks a survival player can't get, like bedrock or spawners, so only Creative can finish it, and Dream Table blocks, which are left out. Click events on signs in a file are removed, so a sign can't run commands. On a server, players see the same reasons and warnings for the server's files. New or changed files show up within a second.
 
 A finished farm keeps everything its blocks held in the schematic, like a hopper's filter items, so a repair puts them back as they were.
 
@@ -79,11 +94,11 @@ A finished farm keeps everything its blocks held in the schematic, like a hopper
 - Minecraft 1.21.1
 - Java 21
 - Fabric: Fabric Loader 0.16 or newer and Fabric API
-- NeoForge: NeoForge 21.1 or newer
+- NeoForge: NeoForge 21.1 (the 21.1 series, for Minecraft 1.21.1)
 
-Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides.
+Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides, and the client and the server must run the same version (1.1.0).
 
-1.0.0 is the first stable release. It follows 2.2.0-beta; the lower number is intentional.
+Worlds, finished farms, builds in progress and shared farms from 1.0.0 carry over to 1.1.0. 1.0.0 was the first stable release and followed 2.2.0-beta; the lower number is intentional.
 
 ## Known limitations
 
@@ -91,7 +106,8 @@ Put the jar for your loader in the `mods` folder of the game and, on a server, o
 - A farm built in Creative gives back no blocks on Take Down, even in Survival. Chest contents still come back.
 - Claim mods are respected through Fabric API's block break event on Fabric and through block break and place events on NeoForge. Claim mods that use other hooks are not seen.
 - Keep Loaded can't hold a farm that spans more than 64 chunks.
-- Only English text is included.
+- Text is available in English and Brazilian Portuguese only.
+- Protect My Farms only stops players breaking blocks by hand.
 
 ## Build
 

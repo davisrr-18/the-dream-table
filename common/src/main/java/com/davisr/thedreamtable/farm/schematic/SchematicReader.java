@@ -12,6 +12,7 @@ import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.nbt.NbtSizeValidationException;
+import net.minecraft.util.math.BlockPos;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -21,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -36,6 +38,8 @@ public final class SchematicReader {
 	public static final int MAX_PALETTE = 1 << 17;
 	/** The tallest a world can be: from -64 to 320 in the Overworld. */
 	public static final int MAX_HEIGHT = 384;
+	/** The longest a file may be on any axis, for every format; far past any farm, and keeps every coordinate far inside the int range. */
+	public static final int MAX_SPAN = 512;
 	/** The most data a file may hold, so a huge or crafted file can't take the server's memory. Farms within the block limit need far less. */
 	public static final long MAX_BYTES = 64L * 1024 * 1024;
 
@@ -103,6 +107,10 @@ public final class SchematicReader {
 			return Result.rejected(ImportNote.Kind.UNKNOWN_FORMAT, 0);
 		}
 		List<FarmStep> steps = collector.steps();
+		if (collector.widest() > MAX_SPAN) {
+			TheDreamTableMod.LOGGER.warn("{} is {} blocks long on one side; the limit is {}", id, collector.widest(), MAX_SPAN);
+			return Result.rejected(ImportNote.Kind.TOO_WIDE, (int) Math.min(Integer.MAX_VALUE, collector.widest()));
+		}
 		if (collector.total() > MAX_BLOCKS) {
 			TheDreamTableMod.LOGGER.warn("{} has {} blocks or cells; the limit is {}", id, collector.total(), MAX_BLOCKS);
 			return Result.rejected(ImportNote.Kind.TOO_MANY_BLOCKS, collector.total());
@@ -111,34 +119,67 @@ public final class SchematicReader {
 			TheDreamTableMod.LOGGER.warn("{} has no blocks to build", id);
 			return Result.rejected(ImportNote.Kind.EMPTY, 0);
 		}
-		int height = height(steps);
-		if (height > MAX_HEIGHT) {
-			TheDreamTableMod.LOGGER.warn("{} is {} blocks tall; the most a world allows is {}", id, height, MAX_HEIGHT);
-			return Result.rejected(ImportNote.Kind.TOO_TALL, height);
+		// The real extent of the steps, whatever the header said; longs because the coordinates of a crafted file can span the whole int range.
+		long[] extent = extent(steps);
+		if (extent[1] > MAX_HEIGHT) {
+			TheDreamTableMod.LOGGER.warn("{} is {} blocks tall; the most a world allows is {}", id, extent[1], MAX_HEIGHT);
+			return Result.rejected(ImportNote.Kind.TOO_TALL, (int) Math.min(Integer.MAX_VALUE, extent[1]));
+		}
+		long wide = Math.max(extent[0], extent[2]);
+		if (wide > MAX_SPAN) {
+			TheDreamTableMod.LOGGER.warn("{} is {} blocks long on one side; the limit is {}", id, wide, MAX_SPAN);
+			return Result.rejected(ImportNote.Kind.TOO_WIDE, (int) Math.min(Integer.MAX_VALUE, wide));
 		}
 		steps.sort(BUILD_ORDER);
+		FarmTemplate template;
+		try {
+			template = FarmTemplate.of(id, steps);
+		} catch (IllegalStateException conflict) {
+			// Said in the file's own words to the player; the cause is in the log without a stack trace.
+			ImportNote.Kind kind = overlaps(steps) ? ImportNote.Kind.OVERLAP : ImportNote.Kind.TOO_MANY_MATERIALS;
+			TheDreamTableMod.LOGGER.warn("{} can't be built: {}", id, conflict.getMessage());
+			return Result.rejected(kind, 0);
+		}
 		List<ImportNote> notes = new ArrayList<>();
+		if (collector.tableBlocks() > 0) {
+			notes.add(ImportNote.of(ImportNote.Kind.TABLE_BLOCKS, collector.tableBlocks()));
+		}
 		if (collector.unknownBlocks() > 0) {
 			notes.add(new ImportNote(ImportNote.Kind.UNKNOWN_BLOCKS, collector.unknownBlocks(), first(collector.unknownNames())));
 		}
 		if (!collector.creativeNames().isEmpty()) {
 			notes.add(new ImportNote(ImportNote.Kind.CREATIVE_ONLY, collector.creativeNames().size(), first(collector.creativeNames())));
 		}
-		return new Result(FarmTemplate.of(id, steps), List.copyOf(notes));
+		return new Result(template, List.copyOf(notes));
 	}
 
 	private static List<String> first(Set<String> names) {
 		return names.stream().limit(ImportNote.SHOWN_NAMES).toList();
 	}
 
-	private static int height(List<FarmStep> steps) {
-		int min = Integer.MAX_VALUE;
-		int max = Integer.MIN_VALUE;
+	/** How many blocks the steps cover on x, y and z. */
+	private static long[] extent(List<FarmStep> steps) {
+		long[] min = {Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE};
+		long[] max = {Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE};
 		for (FarmStep step : steps) {
-			min = Math.min(min, step.y());
-			max = Math.max(max, step.y());
+			int[] at = {step.x(), step.y(), step.z()};
+			for (int axis = 0; axis < 3; axis++) {
+				min[axis] = Math.min(min[axis], at[axis]);
+				max[axis] = Math.max(max[axis], at[axis]);
+			}
 		}
-		return max - min + 1;
+		return new long[]{max[0] - min[0] + 1, max[1] - min[1] + 1, max[2] - min[2] + 1};
+	}
+
+	/** True when two block steps share a spot, the other thing besides too many materials that {@link FarmTemplate#of} refuses. */
+	private static boolean overlaps(List<FarmStep> steps) {
+		Set<Long> occupied = new HashSet<>();
+		for (FarmStep step : steps) {
+			if (!step.isEntity() && !occupied.add(BlockPos.asLong(step.x(), step.y(), step.z()))) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static int priority(FarmStep step) {

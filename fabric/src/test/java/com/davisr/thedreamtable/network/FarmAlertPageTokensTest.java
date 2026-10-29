@@ -23,6 +23,15 @@ class FarmAlertPageTokensTest {
 	}
 
 	@Test
+	void aLeavingPlayersPageIsForgotten() {
+		FarmAlertPageTokens tokens = new FarmAlertPageTokens();
+		String token = tokens.issue(ALICE, "minecraft:overworld|10000000-0000-0000-0000-000000000010", List.of(4L));
+		tokens.forget(ALICE);
+
+		assertFalse(tokens.accept(ALICE, token, "minecraft:overworld|10000000-0000-0000-0000-000000000010", List.of(4L)));
+	}
+
+	@Test
 	void rejectsTokensSupersededByANewerPage() {
 		FarmAlertPageTokens tokens = new FarmAlertPageTokens();
 		String old = tokens.issue(ALICE, "minecraft:overworld|10000000-0000-0000-0000-000000000010", List.of(4L));

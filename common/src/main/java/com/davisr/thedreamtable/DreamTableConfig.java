@@ -91,12 +91,12 @@ public final class DreamTableConfig {
 		}
 		maxBlocksPerSecond = BuildPace.clampMax(parse(properties.getProperty(MAX_RATE), BuildPace.MAX_RATE));
 		maxLoadedFarms = Math.max(0, Math.min(MAX_LOADED_LIMIT, parse(properties.getProperty(MAX_LOADED), MAX_LOADED_DEFAULT)));
-		loadWhileOffline = Boolean.parseBoolean(properties.getProperty(LOAD_OFFLINE, "false").trim());
-		farmSharingEnabled = Boolean.parseBoolean(properties.getProperty(FARM_SHARING, "true").trim());
+		loadWhileOffline = flag(properties, LOAD_OFFLINE, false);
+		farmSharingEnabled = flag(properties, FARM_SHARING, true);
 		maxCollaboratorsPerFarm = clamped(properties, MAX_COLLABORATORS, MAX_COLLABORATORS_DEFAULT, MAX_COLLABORATORS_LIMIT);
 		maxPendingInvitesPerPlayer = clamped(properties, MAX_PENDING_INVITES, MAX_PENDING_INVITES_DEFAULT, MAX_PENDING_INVITES_LIMIT);
-		deliverFromNearby = Boolean.parseBoolean(properties.getProperty(DELIVER_NEARBY, "true").trim());
-		farmProtection = Boolean.parseBoolean(properties.getProperty(FARM_PROTECTION, "true").trim());
+		deliverFromNearby = flag(properties, DELIVER_NEARBY, true);
+		farmProtection = flag(properties, FARM_PROTECTION, true);
 		properties.setProperty(MAX_RATE, Integer.toString(maxBlocksPerSecond));
 		properties.setProperty(MAX_LOADED, Integer.toString(maxLoadedFarms));
 		properties.setProperty(LOAD_OFFLINE, Boolean.toString(loadWhileOffline));
@@ -119,6 +119,29 @@ public final class DreamTableConfig {
 		} catch (IOException exception) {
 			TheDreamTableMod.LOGGER.warn("Could not write {}", path, exception);
 		}
+	}
+
+	private static boolean flag(Properties properties, String key, boolean fallback) {
+		return flag(key, properties.getProperty(key), fallback);
+	}
+
+	/**
+	 * {@code true} or {@code false}, in any case. A missing value is the default without a word; anything else, like
+	 * {@code yes}, is logged and also becomes the default, instead of silently switching the option off.
+	 */
+	static boolean flag(String key, String value, boolean fallback) {
+		if (value == null) {
+			return fallback;
+		}
+		String trimmed = value.trim();
+		if (trimmed.equalsIgnoreCase("true")) {
+			return true;
+		}
+		if (trimmed.equalsIgnoreCase("false")) {
+			return false;
+		}
+		TheDreamTableMod.LOGGER.warn("{} in {} must be true or false, not \"{}\"; using the default, {}", key, FILE, trimmed, fallback);
+		return fallback;
 	}
 
 	private static int parse(String value, int fallback) {

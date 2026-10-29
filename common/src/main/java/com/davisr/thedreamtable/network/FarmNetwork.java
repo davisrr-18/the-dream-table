@@ -72,7 +72,9 @@ final class FarmNetwork {
 	/**
 	 * Sends the player's My Farms list now, or merges the request into one later send when the last one went out less
 	 * than {@link RefreshCoalescer#DEFAULT_INTERVAL_TICKS} ago. Every handler that changes a farm calls this, including
-	 * for a third party, so no sequence of requests can force more than a few full scans a second for one player.
+	 * for a third party, so the refreshes those mutations cause cost at most two full scans a second for one player. It
+	 * does not bound the plain list read, which has its own budget and short repeat cache in {@link LoadedFarmsPayload},
+	 * nor the other handlers' scans, which each have their own {@link RequestThrottle}.
 	 */
 	static void refresh(ServerPlayerEntity player) {
 		if (REFRESHES.request(player.getUuid(), player.getServer().getTicks())) {

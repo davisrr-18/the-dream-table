@@ -289,5 +289,9 @@
 	"gui.the_dream_table.action_result.limit_reached": "O limite do servidor foi atingido",
 	"gui.the_dream_table.action_result.expired": "Esse convite expirou",
 	"gui.the_dream_table.action_result.busy": "Essa operação está indisponível no momento",
-	"gui.the_dream_table.action_result.invalid_input": "Confira o valor digitado e tente de novo"
+	"gui.the_dream_table.action_result.invalid_input": "Confira o valor digitado e tente de novo",
+	"gui.the_dream_table.import.too_wide": "Tem %s blocos de comprimento em um dos lados, mais do que a mesa lê (512)",
+	"gui.the_dream_table.import.too_many_materials": "Precisa de mais de %s materiais diferentes, mais do que uma mesa comporta",
+	"gui.the_dream_table.import.overlap": "Coloca dois blocos no mesmo lugar, então não dá para construir",
+	"gui.the_dream_table.import.table_blocks": "%s blocos da The Dream Table foram deixados de fora"
 }

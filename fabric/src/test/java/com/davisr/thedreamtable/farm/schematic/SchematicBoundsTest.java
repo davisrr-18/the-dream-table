@@ -56,11 +56,18 @@ class SchematicBoundsTest {
 		assertTrue(result.notes().get(0).count() > SchematicReader.MAX_BLOCKS);
 	}
 
+	private static void assertTooWide(SchematicReader.Result result) {
+		assertNull(result.template());
+		assertEquals(1, result.notes().size());
+		assertEquals(ImportNote.Kind.TOO_WIDE, result.notes().get(0).kind());
+		assertTrue(result.notes().get(0).count() > SchematicReader.MAX_SPAN);
+	}
+
 	@Test
 	void litematicaDimensionsFarAboveTheLimitAreRefusedWithoutWalkingThem() {
 		NbtCompound regions = new NbtCompound();
 		regions.put("Huge", region(new int[]{0, 0, 0}, new int[]{100000, 100000, 100000}));
-		assertTooMany(read(regions));
+		assertTooWide(read(regions));
 	}
 
 	@Test
@@ -74,7 +81,7 @@ class SchematicBoundsTest {
 	void litematicaSmallestIntSizeCannotWrapToANegativeCount() {
 		NbtCompound regions = new NbtCompound();
 		regions.put("Wrapped", region(new int[]{0, 0, 0}, new int[]{Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE}));
-		assertTooMany(read(regions));
+		assertTooWide(read(regions));
 	}
 
 	@Test
@@ -100,7 +107,7 @@ class SchematicBoundsTest {
 		NbtCompound regions = new NbtCompound();
 		regions.put("Near", region(new int[]{0, 0, 0}, new int[]{1, 1, 1}));
 		regions.put("Far", region(new int[]{Integer.MAX_VALUE - 10, 0, 0}, new int[]{1, 1, 1}));
-		assertTooMany(read(regions));
+		assertTooWide(read(regions));
 	}
 
 	@Test
@@ -134,7 +141,7 @@ class SchematicBoundsTest {
 		palette.putInt("minecraft:air", 0);
 		palette.putInt("minecraft:stone", 1);
 		root.put("Palette", palette);
-		assertTooMany(assertTimeoutPreemptively(QUICK, () -> SchematicReader.fromRoot("nbt:crafted", root, true)));
+		assertTooWide(assertTimeoutPreemptively(QUICK, () -> SchematicReader.fromRoot("nbt:crafted", root, true)));
 	}
 
 	@Test
@@ -204,6 +211,6 @@ class SchematicBoundsTest {
 		root.put("Regions", regions);
 		Path file = folder.resolve("huge.litematic");
 		NbtIo.writeCompressed(root, file);
-		assertTooMany(assertTimeoutPreemptively(QUICK, () -> SchematicReader.read("nbt:huge", file)));
+		assertTooWide(assertTimeoutPreemptively(QUICK, () -> SchematicReader.read("nbt:huge", file)));
 	}
 }

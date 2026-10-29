@@ -30,7 +30,15 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 	private static final int MAX_INVITES = 512;
 	/** Farm and layout ids embed imported file names; the limit is far above any real one and encodes the same below 256. */
 	static final int MAX_ID = 1024;
-	private static final RequestThrottle THROTTLE = new RequestThrottle();
+	/**
+	 * A plain list read scans every farm the player may see. The page asks once per visit and again every second until
+	 * the list arrives, so four a second leaves room for retries and nothing more.
+	 */
+	static final int LIST_BUDGET = 4;
+	/** A list built less than this many ticks ago answers a plain list read without a new scan; every send, refreshes included, replaces it. */
+	static final int LIST_CACHE_TICKS = 10;
+	private static final RequestThrottle THROTTLE = new RequestThrottle(LIST_BUDGET, RequestThrottle.DEFAULT_WINDOW_TICKS);
+	private static final RecentResults<Boolean, LoadedFarmsPayload> RECENT = new RecentResults<>(LIST_CACHE_TICKS);
 	/** A toggle is a button click that changes server state and gets a reply: six a second is more than a person makes. */
 	private static final RequestThrottle TOGGLE_THROTTLE = new RequestThrottle(6, RequestThrottle.DEFAULT_WINDOW_TICKS);
 	public record InviteEntry(String key, UUID inviteId, String farmName, FarmRole role, long expiresAt) {
@@ -77,6 +85,7 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 		Platform.network().registerServerToClient(ID, CODEC);
 		THROTTLE.forgetOnDisconnect();
 		TOGGLE_THROTTLE.forgetOnDisconnect();
+		RECENT.forgetOnDisconnect();
 		FarmNetwork.register();
 		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
 			boolean toggling = !payload.toggle().isEmpty();
@@ -90,7 +99,12 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 				return;
 			}
 			if (route == LoadedFarmsGate.Route.LIST) {
-				send(player);
+				LoadedFarmsPayload recent = RECENT.get(player.getUuid(), Boolean.TRUE, now);
+				if (recent != null) {
+					Platform.network().send(player, recent);
+				} else {
+					send(player);
+				}
 				return;
 			}
 			FarmNetwork.Checked checked = FarmNetwork.authorize(player, payload.table(), payload.toggle(), FarmAction.KEEP_LOADED,
@@ -116,6 +130,10 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 	}
 
 	public static void send(ServerPlayerEntity player) {
+		// A player whose client can't take the list (or who has no connection, like a fake player) costs no scan.
+		if (!Platform.network().canSend(player, ID)) {
+			return;
+		}
 		List<FarmLoader.Entry> farms = FarmLoader.of(player.getServer()).farmsOf(player.getServer(), player.getUuid());
 		List<InviteEntry> invites = new ArrayList<>();
 		long now = System.currentTimeMillis();
@@ -129,8 +147,10 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, List<InviteEntry>
 				}
 			}
 		}
-		Platform.network().send(player, new LoadedFarmsPayload(farms.subList(0, Math.min(MAX_FARMS, farms.size())), List.copyOf(invites),
-				DreamTableConfig.maxLoadedFarms()));
+		LoadedFarmsPayload list = new LoadedFarmsPayload(List.copyOf(farms.subList(0, Math.min(MAX_FARMS, farms.size()))), List.copyOf(invites),
+				DreamTableConfig.maxLoadedFarms());
+		RECENT.put(player.getUuid(), Boolean.TRUE, list, player.getServer().getTicks());
+		Platform.network().send(player, list);
 	}
 
 	@Override

@@ -12,8 +12,6 @@ import java.util.List;
 final class LitematicaReader {
 	/** Litematica projects hold a handful of regions; more is a crafted file. */
 	private static final int MAX_REGIONS = 1024;
-	/** The farthest apart a file's regions may reach, so offsets stay far inside the int range. */
-	private static final long MAX_SPAN = 1L << 20;
 
 	private LitematicaReader() {
 	}
@@ -40,11 +38,13 @@ final class LitematicaReader {
 			}
 			regionList.add(region);
 		}
+		boolean fits = true;
 		for (int axis = 0; axis < 3 && !regionList.isEmpty(); axis++) {
-			if (far[axis] - origin[axis] > MAX_SPAN) {
-				steps.overflow();
-				return;
-			}
+			// Every axis is checked so the report names the longest side.
+			fits &= steps.side(far[axis] - origin[axis]);
+		}
+		if (!fits) {
+			return;
 		}
 		for (NbtCompound region : regionList) {
 			readRegion(region, origin, steps);
