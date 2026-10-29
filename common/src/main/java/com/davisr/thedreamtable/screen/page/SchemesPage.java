@@ -3,7 +3,6 @@ package com.davisr.thedreamtable.screen.page;
 import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmTemplates;
-import com.davisr.thedreamtable.farm.ImportNote;
 import com.davisr.thedreamtable.farm.ImportedStructures;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.minecraft.client.gui.DrawContext;
@@ -11,7 +10,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
@@ -44,13 +42,6 @@ public final class SchemesPage implements TablePage {
 			int x = cardX(ui.view(), index);
 			int y = cardY(ui.view(), index);
 			drawCard(option, x, y, context, mouseX, mouseY, selected, !locked || selected);
-			List<ImportNote> notes = FarmTemplates.notes(option.id());
-			if (!notes.isEmpty() && ui.cardHit(mouseX, mouseY, x, y)) {
-				List<Text> lines = new ArrayList<>();
-				lines.add(option.title());
-				notes.forEach(note -> lines.add(note.text()));
-				ui.tooltip(lines.toArray(Text[]::new));
-			}
 		}
 		if (!rejected.isEmpty()) {
 			ui.collectionNote(context, Text.translatable("gui.the_dream_table.schemes_rejected"), rejectedNoteY(), HINT);
@@ -59,9 +50,6 @@ public final class SchemesPage implements TablePage {
 				int x = cardX(ui.view(), index);
 				int y = rejectedY(index);
 				ui.cardAt(null, context, new ItemStack(Items.BARRIER), Text.literal(file.name()), file.reason().text(), x, y, mouseX, mouseY, false, false);
-				if (ui.cardHit(mouseX, mouseY, x, y)) {
-					ui.tooltip(Text.literal(file.name()), file.reason().text());
-				}
 			}
 		}
 	}

@@ -81,9 +81,16 @@ public final class TableNotices {
 		boolean problem = notice.severity() == Severity.PROBLEM;
 		context.getMatrices().push();
 		context.getMatrices().translate(0.0F, 0.0F, 500.0F);
-		context.fill(x, TOP, x + width, TOP + height, withOpacity(0xFF101820, Math.round(opacity * 0.85F)));
+		// Translucent rounded panel; the text stays fully opaque (until the fade) so it reads on any background.
+		int fill = NoticeShape.withAlpha(0x101820, opacity, NoticeShape.FILL_OPACITY);
+		for (NoticeShape.Rect rect : NoticeShape.fill(x, TOP, width, height)) {
+			context.fill(rect.x1(), rect.y1(), rect.x2(), rect.y2(), fill);
+		}
 		// The outline carries the severity as well as the color.
-		context.drawBorder(x, TOP, width, height, withOpacity(problem ? NOTICE_PROBLEM_EDGE : NOTICE_INFO_EDGE, opacity));
+		int edge = NoticeShape.withAlpha(problem ? NOTICE_PROBLEM_EDGE : NOTICE_INFO_EDGE, opacity, NoticeShape.EDGE_OPACITY);
+		for (NoticeShape.Rect rect : NoticeShape.outline(x, TOP, width, height)) {
+			context.fill(rect.x1(), rect.y1(), rect.x2(), rect.y2(), edge);
+		}
 		int color = withOpacity(problem ? NOTICE_PROBLEM : NOTICE_INFO, opacity);
 		int y = TOP + PADDING - 1;
 		for (OrderedText line : lines) {

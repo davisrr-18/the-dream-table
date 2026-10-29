@@ -27,7 +27,6 @@ public final class PageContext {
 	private final Viewport view;
 	private final Painter painter;
 	private final ScreenActions actions;
-	private List<Text> tooltip;
 	private final List<ControlSpec> controls = new ArrayList<>();
 	private final Map<ControlId, Runnable> controlActions = new LinkedHashMap<>();
 	private TablePage page;
@@ -98,9 +97,6 @@ public final class PageContext {
 		register(stableKey, label, Text.empty(), x, y, CARD_HEIGHT, selected, enabled);
 		boolean hit = cardHit(mouseX, mouseY, x, y);
 		painter.card(context, icon, label, x, y, hit, selected, enabled);
-		if (hit && !painter.fits(label, CARD_TEXT_WIDTH)) {
-			tooltip(label);
-		}
 	}
 
 	public void card(DrawContext context, ItemStack icon, Text label, Text detail, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
@@ -115,9 +111,6 @@ public final class PageContext {
 		register(stableKey, label, detail, x, y, CARD_HEIGHT, selected, enabled);
 		boolean hit = cardHit(mouseX, mouseY, x, y);
 		painter.card(context, icon, label, detail, x, y, hit, selected, enabled);
-		if (hit && (!painter.fits(label, CARD_TEXT_WIDTH) || !painter.fits(detail, CARD_TEXT_WIDTH))) {
-			tooltip(label, detail);
-		}
 	}
 
 	public void button(DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
@@ -132,9 +125,13 @@ public final class PageContext {
 		register(stableKey, label, Text.empty(), x, y, BUTTON_HEIGHT, false, enabled);
 		boolean hit = buttonHit(mouseX, mouseY, x, y);
 		painter.button(context, label, x, y, hit, enabled, primary);
-		if (hit && !painter.fits(label, CARD_WIDTH - 16)) {
-			tooltip(label);
-		}
+	}
+
+	/** A button with a second, smaller line under its label: what it does, or why it is off. */
+	public void button(String stableKey, DrawContext context, Text label, Text detail, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
+		register(stableKey, label, detail, view.cardX(), y, BUTTON_HEIGHT, false, enabled);
+		boolean hit = buttonHit(mouseX, mouseY, view.cardX(), y);
+		painter.button(context, label, detail, view.cardX(), y, hit, enabled, primary);
 	}
 
 	public void destructiveButton(DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled) {
@@ -163,14 +160,6 @@ public final class PageContext {
 		controlActions.put(id, () -> page.click(bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0));
 		boolean hit = view.hit(mouseX, mouseY, bounds.x(), bounds.y(), bounds.width(), bounds.height());
 		painter.chip(context, label, bounds.x(), bounds.y(), bounds.width(), bounds.height(), hit);
-		if (hit && !painter.fits(label, width - 12)) {
-			tooltip(label);
-		}
-	}
-
-	/** Text shown by the mouse after the page is drawn, for labels cut short with "...". The last one asked for wins. */
-	public void tooltip(Text... lines) {
-		tooltip = List.of(lines);
 	}
 
 	/** Draws a non-interactive note centered across the responsive collection area. */
@@ -189,13 +178,6 @@ public final class PageContext {
 			y += 11;
 		}
 		return y;
-	}
-
-	/** The tooltip asked for during this frame, once. */
-	public List<Text> takeTooltip() {
-		List<Text> lines = tooltip;
-		tooltip = null;
-		return lines;
 	}
 
 	public boolean cardHit(double mouseX, double mouseY, int y) {

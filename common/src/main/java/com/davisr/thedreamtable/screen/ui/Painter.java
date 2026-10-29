@@ -112,6 +112,15 @@ public final class Painter {
 		fitted(context, label, x + 8, y + 10, w - 16, color, true);
 	}
 
+	/** A button with a smaller second line under the label, such as what it does or why it is off. */
+	public void button(DrawContext context, Text label, Text detail, int x, int y, boolean hovered, boolean enabled, boolean primary) {
+		button(context, Text.empty(), x, y, hovered, enabled, primary);
+		int w = CARD_WIDTH;
+		int color = !enabled ? MUTED : primary ? TITLE : NAME;
+		fitted(context, label, x + 8, y + 5, w - 16, color, true);
+		fitted(context, detail, x + 8, y + 15, w - 16, primary && enabled ? TITLE : HINT, true);
+	}
+
 	public void destructiveButton(DrawContext context, Text label, int x, int y, boolean hovered, boolean enabled) {
 		int color = enabled ? TITLE : MUTED;
 		if (!enabled) {
