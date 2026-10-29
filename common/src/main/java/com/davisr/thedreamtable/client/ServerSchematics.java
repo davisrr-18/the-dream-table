@@ -14,17 +14,15 @@ import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * On a server that runs on another computer, My Schematics lists the server's files, and each farm is fetched when the
  * hologram, clipboard or miniature first needs it. In singleplayer the client and server share the same files already.
  */
 public final class ServerSchematics {
-	private static final Set<String> REQUESTED = new HashSet<>();
+	private static final PendingRequests REQUESTED = new PendingRequests();
 
 	private ServerSchematics() {
 	}
@@ -51,7 +49,7 @@ public final class ServerSchematics {
 		});
 		Platform.clientNetwork().registerReceiver(ServerSchematicsPayload.Farm.ID, payload -> {
 			if (!onThisComputer(MinecraftClient.getInstance())) {
-				FarmTemplates.putRemote(TemplateCodec.decode(payload.id(), payload.data()));
+				FarmTemplates.putRemote(TemplateCodec.decode(payload.id(), payload.data()), payload.version());
 			}
 		});
 		FarmTemplates.onMissing(ServerSchematics::request);
@@ -68,7 +66,7 @@ public final class ServerSchematics {
 	}
 
 	private static void request(String id) {
-		if (REQUESTED.add(id) && Platform.clientNetwork().canSend(ServerSchematicsPayload.Request.ID)) {
+		if (Platform.clientNetwork().canSend(ServerSchematicsPayload.Request.ID) && REQUESTED.shouldSend(id, System.currentTimeMillis())) {
 			Platform.clientNetwork().send(new ServerSchematicsPayload.Request(id));
 		}
 	}

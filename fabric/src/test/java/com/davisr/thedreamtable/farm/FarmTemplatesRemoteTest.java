@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -61,6 +63,51 @@ class FarmTemplatesRemoteTest {
 
 		assertNull(FarmTemplates.get(ID));
 		assertEquals(List.of(ID), asked);
+	}
+
+	@Test
+	void aReplyForAnOlderVersionThanTheListIsNotStoredAsCurrent() {
+		list(8L);
+
+		assertFalse(FarmTemplates.putRemote(template(), 7L));
+		assertNull(FarmTemplates.get(ID));
+	}
+
+	@Test
+	void aReplyForTheListedVersionIsStored() {
+		FarmTemplate fetched = template();
+		list(8L);
+
+		assertTrue(FarmTemplates.putRemote(fetched, 8L));
+		assertSame(fetched, FarmTemplates.get(ID));
+	}
+
+	@Test
+	void theStaleReplyIsDroppedWhenTheNewListArrivesAfterTheRequest() {
+		FarmTemplates.onMissing(asked::add);
+		list(7L);
+		assertNull(FarmTemplates.get(ID));
+		assertEquals(List.of(ID), asked);
+		// The list announces a newer file before the answer to the version-7 request lands.
+		list(8L);
+
+		assertFalse(FarmTemplates.putRemote(template(), 7L));
+		assertNull(FarmTemplates.get(ID));
+		assertEquals(List.of(ID, ID), asked, "still missing, so it is asked for again");
+	}
+
+	@Test
+	void aSavedDesignTheListDoesNotVersionIsAlwaysKept() {
+		FarmTemplates.useRemote(List.of(), Map.of(), Map.of(), Map.of(), List.of());
+		FarmTemplate saved = FarmTemplate.of("saved:x#1", List.of(FarmStep.block(0, 0, 0, Blocks.STONE.getDefaultState(), Items.STONE, null)));
+
+		assertTrue(FarmTemplates.putRemote(saved, 0L));
+		assertSame(saved, FarmTemplates.get("saved:x#1"));
+	}
+
+	@Test
+	void nothingIsStoredWhilePlayingOnThisComputersFiles() {
+		assertFalse(FarmTemplates.putRemote(template(), 0L));
 	}
 
 	@Test

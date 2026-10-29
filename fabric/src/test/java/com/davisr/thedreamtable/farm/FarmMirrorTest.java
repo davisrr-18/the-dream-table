@@ -53,11 +53,13 @@ class FarmMirrorTest {
 	void mirroredPositionsAreTheFlippedOffsetsThenTurned() {
 		FarmTemplate farm = lopsided();
 		BlockPos center = farm.center();
+		assertEquals(4, farm.mirrorSum());
 		for (Direction facing : Direction.Type.HORIZONTAL) {
 			FarmSite plain = new FarmSite(TABLE, ANCHOR, facing, false);
 			FarmSite mirrored = new FarmSite(TABLE, ANCHOR, facing, true);
 			for (FarmStep step : farm.steps()) {
 				BlockPos offset = new BlockPos(step.x() - center.getX(), step.y() - center.getY(), step.z() - center.getZ());
+				// An odd width flips about the center column itself; the even-width case is covered separately.
 				BlockPos flipped = new BlockPos(-offset.getX(), offset.getY(), offset.getZ());
 				assertEquals(ANCHOR.add(offset.rotate(FarmGeometry.rotation(facing))), plain.target(farm, step), facing.asString());
 				assertEquals(ANCHOR.add(flipped.rotate(FarmGeometry.rotation(facing))), mirrored.target(farm, step), facing.asString());
@@ -97,6 +99,74 @@ class FarmMirrorTest {
 			assertEquals(plain.minY, mirrored.minY, 1.0E-6, facing.asString());
 			assertTrue(mirrored.contains(ANCHOR.getX() + 0.5, ANCHOR.getY() + 0.5, ANCHOR.getZ() + 0.5), facing.asString());
 		}
+	}
+
+	/** A solid block of the given size: its mirror image is itself, so mirroring must not move a single cell. */
+	private static FarmTemplate solid(int width, int depth) {
+		List<FarmStep> steps = new java.util.ArrayList<>();
+		for (int x = 0; x < width; x++) {
+			for (int z = 0; z < depth; z++) {
+				steps.add(FarmStep.block(x, 0, z, Blocks.STONE.getDefaultState(), Items.STONE));
+			}
+		}
+		return FarmTemplate.of("solid_" + width + "x" + depth, steps);
+	}
+
+	private static java.util.Set<BlockPos> cells(FarmTemplate farm, FarmSite site) {
+		java.util.Set<BlockPos> cells = new java.util.HashSet<>();
+		for (FarmStep step : farm.steps()) {
+			cells.add(site.target(farm, step));
+		}
+		return cells;
+	}
+
+	@Test
+	void mirroredFootprintCoversTheSameCellsForEvenAndOddWidths() {
+		for (int width = 1; width <= 8; width++) {
+			FarmTemplate farm = solid(width, 3);
+			for (Direction facing : Direction.Type.HORIZONTAL) {
+				assertEquals(cells(farm, new FarmSite(TABLE, ANCHOR, facing, false)), cells(farm, new FarmSite(TABLE, ANCHOR, facing, true)),
+						"width " + width + " facing " + facing.asString());
+			}
+		}
+	}
+
+	@Test
+	void mirroredLopsidedFarmOfEvenWidthStaysInsideTheSameBox() {
+		// Width 4 (x 0..3) with the blocks at both ends and a taller one at the low-x end.
+		FarmTemplate farm = FarmTemplate.of("even_lopsided", List.of(
+				FarmStep.block(0, 0, 0, Blocks.STONE.getDefaultState(), Items.STONE),
+				FarmStep.block(3, 0, 1, Blocks.STONE.getDefaultState(), Items.STONE),
+				FarmStep.block(0, 3, 1, Blocks.STONE.getDefaultState(), Items.STONE)));
+		assertEquals(3, farm.mirrorSum());
+		for (Direction facing : Direction.Type.HORIZONTAL) {
+			assertEquals(new FarmSite(TABLE, ANCHOR, facing, false).footprint(farm), new FarmSite(TABLE, ANCHOR, facing, true).footprint(farm), facing.asString());
+		}
+		// The block at the low-x end lands at the high-x end of the same box.
+		FarmSite plain = new FarmSite(TABLE, ANCHOR, Direction.SOUTH, false);
+		FarmSite mirrored = new FarmSite(TABLE, ANCHOR, Direction.SOUTH, true);
+		FarmStep low = farm.steps().get(0);
+		assertEquals(plain.target(farm, low).getX() + 3, mirrored.target(farm, low).getX());
+	}
+
+	@Test
+	void everyBuiltInFarmMirrorsInsideItsOwnBox() {
+		for (FarmOptions.FarmOption option : FarmOptions.ALL) {
+			FarmTemplate farm = FarmTemplates.get(option.id());
+			for (Direction facing : Direction.Type.HORIZONTAL) {
+				assertEquals(new FarmSite(TABLE, ANCHOR, facing, false).footprint(farm), new FarmSite(TABLE, ANCHOR, facing, true).footprint(farm),
+						option.id() + " " + facing.asString());
+			}
+		}
+	}
+
+	@Test
+	void mirrorSumIsDerivedFromTheStepsSoOlderConstructionsKeepWorking() {
+		FarmTemplate farm = solid(4, 2);
+		FarmTemplate copy = new FarmTemplate("copy", farm.steps(), farm.materials(), farm.center());
+		assertEquals(farm.mirrorSum(), copy.mirrorSum());
+		assertEquals(3, copy.mirrorSum());
+		assertEquals(0, FarmTemplate.of("empty", List.of()).mirrorSum());
 	}
 
 	@Test

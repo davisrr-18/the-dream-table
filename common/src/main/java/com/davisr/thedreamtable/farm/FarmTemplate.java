@@ -14,10 +14,17 @@ import java.util.Set;
 
 /**
  * A farm as an ordered list of steps plus the materials they add up to.
- * {@code center} is the footprint middle on x and z and the lowest y; the farm is anchored by it when aimed.
+ * {@code center} is the footprint middle on x and z (rounded down) and the lowest y; the farm is anchored by it when aimed.
+ * {@code mirrorSum} is the lowest plus the highest step x: a block at x lands at {@code mirrorSum - x} when the farm is
+ * mirrored, so the mirrored footprint covers exactly the cells of the plain one even when the width is even. It is
+ * derived from the steps, so it never has to be stored.
  */
-public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> materials, BlockPos center) {
+public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> materials, BlockPos center, int mirrorSum) {
 	public static final int MAX_SLOTS = 54;
+
+	public FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> materials, BlockPos center) {
+		this(id, steps, materials, center, mirrorSumOf(steps));
+	}
 
 	public static FarmTemplate of(String id, List<FarmStep> steps) {
 		Map<Item, Integer> totals = new LinkedHashMap<>();
@@ -77,6 +84,16 @@ public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> m
 		return !step.isEntity() && step.state() != null && (step.state().isOf(Blocks.SUGAR_CANE) || step.state().isOf(Blocks.CACTUS)
 				|| step.state().isOf(Blocks.BAMBOO) || step.state().isOf(Blocks.BAMBOO_SAPLING)
 				|| step.state().isOf(Blocks.KELP) || step.state().isOf(Blocks.KELP_PLANT));
+	}
+
+	private static int mirrorSumOf(List<FarmStep> steps) {
+		int minX = Integer.MAX_VALUE;
+		int maxX = Integer.MIN_VALUE;
+		for (FarmStep step : steps) {
+			minX = Math.min(minX, step.x());
+			maxX = Math.max(maxX, step.x());
+		}
+		return steps.isEmpty() ? 0 : minX + maxX;
 	}
 
 	private static BlockPos centerOf(List<FarmStep> steps) {

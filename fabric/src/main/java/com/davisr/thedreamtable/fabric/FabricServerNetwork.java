@@ -25,4 +25,9 @@ final class FabricServerNetwork implements ServerNetwork {
 	public void send(ServerPlayerEntity player, CustomPayload payload) {
 		ServerPlayNetworking.send(player, payload);
 	}
+
+	@Override
+	public boolean canSend(ServerPlayerEntity player, CustomPayload.Id<?> id) {
+		return ServerPlayNetworking.canSend(player, id);
+	}
 }

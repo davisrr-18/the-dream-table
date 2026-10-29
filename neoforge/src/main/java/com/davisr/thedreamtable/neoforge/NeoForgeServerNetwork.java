@@ -50,4 +50,9 @@ final class NeoForgeServerNetwork implements ServerNetwork {
 	public void send(ServerPlayerEntity player, CustomPayload payload) {
 		PacketDistributor.sendToPlayer(player, payload);
 	}
+
+	@Override
+	public boolean canSend(ServerPlayerEntity player, CustomPayload.Id<?> id) {
+		return player.networkHandler != null && player.networkHandler.hasChannel(id);
+	}
 }

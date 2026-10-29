@@ -15,6 +15,9 @@ public interface ServerNetwork {
 
 	void send(ServerPlayerEntity player, CustomPayload payload);
 
+	/** True when the player's client registered a receiver for the payload, so sending it will not be refused or ignored. */
+	boolean canSend(ServerPlayerEntity player, CustomPayload.Id<?> id);
+
 	@FunctionalInterface
 	interface Handler<T extends CustomPayload> {
 		void handle(T payload, ServerPlayerEntity player);

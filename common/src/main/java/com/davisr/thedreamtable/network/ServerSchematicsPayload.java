@@ -69,9 +69,11 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 			if (!FarmTemplates.isImported(payload.id()) && !FarmTemplates.isSaved(payload.id())) {
 				return;
 			}
+			// The version is read first: a file edited in between only makes the client see an older tag and ask again.
+			long version = FarmTemplates.version(payload.id());
 			FarmTemplate template = FarmTemplates.get(payload.id());
 			if (template != null) {
-				Platform.network().send(player, new Farm(payload.id(), TemplateCodec.encode(template)));
+				Platform.network().send(player, new Farm(payload.id(), version, TemplateCodec.encode(template)));
 			}
 		});
 	}
@@ -110,11 +112,12 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 		}
 	}
 
-	/** One of the server's schematics, encoded by {@link TemplateCodec}. */
-	public record Farm(String id, NbtCompound data) implements CustomPayload {
+	/** One of the server's schematics, encoded by {@link TemplateCodec}, with the file version it was read at (0 for a saved design). */
+	public record Farm(String id, long version, NbtCompound data) implements CustomPayload {
 		public static final Id<Farm> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "schematic_farm"));
 		public static final PacketCodec<RegistryByteBuf, Farm> CODEC = PacketCodec.tuple(
 				PacketCodecs.STRING, Farm::id,
+				PacketCodecs.VAR_LONG, Farm::version,
 				PacketCodecs.NBT_COMPOUND, Farm::data,
 				Farm::new
 		);
