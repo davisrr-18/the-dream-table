@@ -71,4 +71,15 @@ class BlockMatchTest {
 		assertFalse(BlockMatch.sameBlock(flowing, source));
 		assertTrue(BlockMatch.sameBlock(source, source));
 	}
+
+	@Test
+	void soilTheGameTurnsIntoAnotherSoilIsStillTheFarms() {
+		BlockState dirt = Blocks.DIRT.getDefaultState();
+		assertTrue(BlockMatch.stillFarm(Blocks.GRASS_BLOCK.getDefaultState(), dirt));
+		assertTrue(BlockMatch.stillFarm(Blocks.MYCELIUM.getDefaultState(), dirt));
+		assertTrue(BlockMatch.stillFarm(dirt, Blocks.FARMLAND.getDefaultState()));
+		assertTrue(BlockMatch.stillFarm(Blocks.BAMBOO.getDefaultState(), Blocks.BAMBOO_SAPLING.getDefaultState()));
+		assertFalse(BlockMatch.stillFarm(Blocks.COARSE_DIRT.getDefaultState(), dirt));
+		assertFalse(BlockMatch.stillFarm(Blocks.STONE.getDefaultState(), dirt));
+	}
 }

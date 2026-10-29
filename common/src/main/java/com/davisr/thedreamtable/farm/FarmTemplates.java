@@ -35,6 +35,8 @@ public final class FarmTemplates {
 	private static final Map<String, Integer> REMOTE_STEPS = new ConcurrentHashMap<>();
 	/** The file version the server listed for each imported farm, to tell a farm held in {@link #REMOTE} from an edited file. */
 	private static final Map<String, Long> REMOTE_VERSIONS = new ConcurrentHashMap<>();
+	/** The last reply version dropped per farm for not matching the list; the same one again means the list is the stale side. */
+	private static final Map<String, Long> DROPPED_VERSIONS = new ConcurrentHashMap<>();
 	private static volatile Consumer<String> missing = id -> {
 	};
 	/**
@@ -163,6 +165,7 @@ public final class FarmTemplates {
 		REMOTE.keySet().removeIf(id -> isImported(id) && !(versions.containsKey(id) && Objects.equals(versions.get(id), REMOTE_VERSIONS.get(id))));
 		REMOTE_VERSIONS.clear();
 		REMOTE_VERSIONS.putAll(versions);
+		DROPPED_VERSIONS.clear();
 		remoteNotes = Map.copyOf(notes);
 		remoteRejected = List.copyOf(rejected);
 		remoteOptions = List.copyOf(options);
@@ -175,6 +178,7 @@ public final class FarmTemplates {
 		REMOTE.clear();
 		REMOTE_STEPS.clear();
 		REMOTE_VERSIONS.clear();
+		DROPPED_VERSIONS.clear();
 	}
 
 	public static void putRemote(FarmTemplate template) {
@@ -186,15 +190,22 @@ public final class FarmTemplates {
 	/**
 	 * Stores a farm the server sent together with the file version it was read at. A reply for a different version than
 	 * the list announced (the file was edited while the request was on its way) is dropped, not stored as current; it is
-	 * asked for again. Farms the list doesn't version, like a table's saved design, are always kept.
+	 * asked for again. If the answer to that comes back at the same different version, the file changed after the list was
+	 * sent, so the reply is the current one and becomes the listed version. Farms the list doesn't version, like a table's
+	 * saved design, are always kept.
 	 *
 	 * @return true when the farm was stored
 	 */
 	public static boolean putRemote(FarmTemplate template, long version) {
-		Long listed = REMOTE_VERSIONS.get(template.id());
+		String id = template.id();
+		Long listed = REMOTE_VERSIONS.get(id);
 		if (listed != null && listed != version) {
-			return false;
+			if (!Objects.equals(DROPPED_VERSIONS.put(id, version), version)) {
+				return false;
+			}
+			REMOTE_VERSIONS.put(id, version);
 		}
+		DROPPED_VERSIONS.remove(id);
 		putRemote(template);
 		return remoteOptions != null;
 	}
