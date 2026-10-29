@@ -310,7 +310,7 @@ public final class DreamTableHologram {
 	 * Whether the chunk is loaded on the client. {@code ClientWorld.isChunkLoaded} is hard-wired to true, so the world's
 	 * own answer says nothing here; the client chunk manager only holds the chunks the server has sent.
 	 */
-	private static boolean chunkLoaded(World world, BlockPos pos) {
+	static boolean chunkLoaded(World world, BlockPos pos) {
 		return world.getChunkManager().isChunkLoaded(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()));
 	}
 

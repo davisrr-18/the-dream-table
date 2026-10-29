@@ -257,8 +257,10 @@ public final class SessionBuild {
 		}
 		waitingSince = -1;
 		session.sync();
-		String started = previous != null && !previous.temporary() ? "gui.the_dream_table.issue_solved" : "gui.the_dream_table.building";
-		session.tell(Text.translatable(started, progress.index(), session.totalSteps()), TableNoticePayload.Severity.INFO);
+		// A fresh start needs no notice: the client shows the live "Building" progress line from the first synced block.
+		if (previous != null && !previous.temporary()) {
+			session.tell(Text.translatable("gui.the_dream_table.issue_solved", progress.index(), session.totalSteps()), TableNoticePayload.Severity.INFO);
+		}
 		return true;
 	}
 
