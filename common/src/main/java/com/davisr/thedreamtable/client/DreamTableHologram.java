@@ -23,6 +23,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -210,7 +211,8 @@ public final class DreamTableHologram {
 		if (tablePos == null || context.world() == null || context.matrixStack() == null || !tableStillThere(context.world())) {
 			return;
 		}
-		TableSession table = localSession(context.world().getBlockEntity(tablePos));
+		BlockEntity tableEntity = context.world().getBlockEntity(tablePos);
+		TableSession table = localSession(tableEntity);
 		boolean synced = table != null && !table.getSelectedFarm().isEmpty();
 		FarmTemplate template = FarmTemplates.get(synced ? table.getSelectedFarm() : farmId);
 		if (template == null) {
@@ -220,7 +222,8 @@ public final class DreamTableHologram {
 		boolean shownBlocked = synced ? DreamTableBlockEntity.PHASE_BLOCKED.equals(table.getPhase()) : blocked;
 		boolean idle = table == null || DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase());
 		Placement placement = placement(table);
-		BlockPos cursor = idle ? aim(context) : null;
+		// A table whose chunk just loaded again reads as idle until the server sends the session, so no aim marker yet.
+		BlockPos cursor = idle && !awaitingSession(tableEntity) ? aim(context) : null;
 		if (placement == null && cursor == null) {
 			return;
 		}
@@ -253,33 +256,67 @@ public final class DreamTableHologram {
 
 	private static boolean locked() {
 		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.world == null || tablePos == null || !client.world.isChunkLoaded(tablePos)) {
+		if (client.world == null || tablePos == null || !chunkLoaded(client.world, tablePos)) {
 			return true;
 		}
-		TableSession table = localSession(client.world.getBlockEntity(tablePos));
+		BlockEntity tableEntity = client.world.getBlockEntity(tablePos);
+		if (awaitingSession(tableEntity)) {
+			return true;
+		}
+		TableSession table = localSession(tableEntity);
 		if (table == null) {
 			return false;
 		}
 		return table.hasAnchor() && !DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase());
 	}
 
+	/** Where the followed table is, as far as this client can tell. */
+	enum TableView {
+		/** Its chunk is not loaded on the client (the player walked away): nothing can be seen, so nothing is forgotten. */
+		AWAY,
+		STANDING,
+		/** Its chunk is loaded and holds no table: it was broken. */
+		GONE
+	}
+
+	static TableView viewOf(boolean chunkLoaded, boolean tableBlock) {
+		if (!chunkLoaded) {
+			return TableView.AWAY;
+		}
+		return tableBlock ? TableView.STANDING : TableView.GONE;
+	}
+
 	/**
-	 * Whether the followed table stands. While its chunk is not loaded on the client (the player walked away) it reads as
-	 * air, so the choice is kept and nothing is drawn; only a table seen gone from a loaded chunk forgets the farm.
+	 * Whether the followed table stands. While its chunk is not loaded on the client it reads as air, so the placement is
+	 * kept and nothing is drawn; only a table seen gone from a loaded chunk forgets the farm.
 	 */
 	private static boolean tableStillThere(World world) {
 		if (tablePos == null) {
 			return false;
 		}
-		if (!world.isChunkLoaded(tablePos)) {
-			return false;
+		boolean loaded = chunkLoaded(world, tablePos);
+		return settle(viewOf(loaded, loaded && world.getBlockState(tablePos).getBlock() instanceof DreamTableBlock));
+	}
+
+	static boolean settle(TableView view) {
+		if (view == TableView.GONE) {
+			clear();
+			DreamTableClipboard.close();
 		}
-		if (world.getBlockState(tablePos).getBlock() instanceof DreamTableBlock) {
-			return true;
-		}
-		clear();
-		DreamTableClipboard.close();
-		return false;
+		return view == TableView.STANDING;
+	}
+
+	/**
+	 * Whether the chunk is loaded on the client. {@code ClientWorld.isChunkLoaded} is hard-wired to true, so the world's
+	 * own answer says nothing here; the client chunk manager only holds the chunks the server has sent.
+	 */
+	private static boolean chunkLoaded(World world, BlockPos pos) {
+		return world.getChunkManager().isChunkLoaded(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()));
+	}
+
+	/** The table is here but the server has not yet sent this player's session, as after its chunk loaded again. */
+	private static boolean awaitingSession(BlockEntity blockEntity) {
+		return blockEntity instanceof DreamTableBlockEntity table && !table.hasOwnSession();
 	}
 
 	private static boolean tryPlace(PlayerEntity player, BlockHitResult hit) {
@@ -297,12 +334,16 @@ public final class DreamTableHologram {
 			return true;
 		}
 		lastPlaceAge = player.age;
-		aimed = anchor;
-		anchored = true;
+		anchor(anchor);
 		check();
 		player.swingHand(Hand.MAIN_HAND);
 		player.playSound(SoundEvents.BLOCK_AMETHYST_BLOCK_PLACE, 0.7F, 1.4F);
 		return true;
+	}
+
+	static void anchor(BlockPos anchor) {
+		aimed = anchor;
+		anchored = true;
 	}
 
 	private static Placement placement(TableSession table) {
