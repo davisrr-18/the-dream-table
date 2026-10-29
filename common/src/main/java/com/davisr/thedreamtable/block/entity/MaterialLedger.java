@@ -162,7 +162,7 @@ public final class MaterialLedger {
 		int accepted = 0;
 		for (int index = 0; index < template.materials().size() && accepted < take; index++) {
 			MaterialSpec spec = template.materials().get(index);
-			int room = spec.count() - deposited[index];
+			int room = spec.count() - deposited[index] - consumed[index];
 			if (!stack.isOf(resolve(spec.item())) || !compatible(index, stack.getItem()) || room <= 0) {
 				continue;
 			}

@@ -77,7 +77,7 @@ public final class FarmCare {
 			return false;
 		}
 		FarmSite site = farm.farm().site();
-		BitSet placed = farm.farm().placed();
+		BitSet placed = (BitSet) farm.farm().placed().clone();
 		// Refused before the record is released: a farm that can't be taken apart must stay listed and protected.
 		if (!FarmDismantler.mayTakeDown(farm.world(), player, template, site, farm.farm().swaps(), placed)) {
 			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.take_down_denied"));

@@ -8,7 +8,6 @@ import net.minecraft.util.math.BlockPos;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
 
 /**
  * Plants a farm harvests and that grow back by themselves: sugar cane, bamboo, cactus and kelp. A segment standing on
@@ -16,14 +15,26 @@ import java.util.WeakHashMap;
  * and never repaired, since the farm breaks it on purpose. The plant's lowest block still is.
  */
 public final class FarmGrowth {
-	private static final Map<FarmTemplate, BitSet> TOPS = new WeakHashMap<>();
+	/**
+	 * The growth steps of each template, found once per template object. The cache is keyed by identity because
+	 * {@link FarmTemplate} is a record: its own hash covers every step and would be recomputed on each lookup.
+	 */
+	private static final IdentityCache<FarmTemplate, BitSet> TOPS = new IdentityCache<>();
 
 	private FarmGrowth() {
 	}
 
 	/** True when this step is a plant segment standing on the same plant in the farm's own layout. */
-	public static synchronized boolean isGrowth(FarmTemplate template, int step) {
-		return TOPS.computeIfAbsent(template, FarmGrowth::tops).get(step);
+	public static boolean isGrowth(FarmTemplate template, int step) {
+		return growth(template).get(step);
+	}
+
+	/**
+	 * The growth steps of a template, computed once. The set is shared and must not be changed; loops over many steps
+	 * should fetch it once instead of calling {@link #isGrowth} per step.
+	 */
+	public static BitSet growth(FarmTemplate template) {
+		return TOPS.get(template, FarmGrowth::tops);
 	}
 
 	private static BitSet tops(FarmTemplate template) {
