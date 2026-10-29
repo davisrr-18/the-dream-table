@@ -23,6 +23,7 @@ public final class OwnSessions {
 			MinecraftClient client = MinecraftClient.getInstance();
 			if (client.world != null && client.player != null && client.world.getBlockEntity(payload.table()) instanceof DreamTableBlockEntity table) {
 				table.receiveOwnSession(client.player.getUuid(), payload.session());
+				BuildProgressLine.observe(payload.table(), table.session(client.player));
 			}
 		});
 		Platform.clientEvents().onTickEnd(OwnSessions::requestMissing);
@@ -35,6 +36,7 @@ public final class OwnSessions {
 		cooldown = RETRY_TICKS;
 		request(client, DreamTableHologram.trackedTable());
 		request(client, DreamTableClipboard.pinnedTable());
+		request(client, BuildProgressLine.watched());
 	}
 
 	private static void request(MinecraftClient client, BlockPos pos) {

@@ -9,6 +9,7 @@ import com.davisr.thedreamtable.screen.page.FarmPage;
 import com.davisr.thedreamtable.screen.page.LoadedFarmsPage;
 import com.davisr.thedreamtable.screen.page.InvitesPage;
 import com.davisr.thedreamtable.client.LoadedFarmsView;
+import com.davisr.thedreamtable.client.BuildProgressLine;
 import com.davisr.thedreamtable.client.TableNotices;
 import com.davisr.thedreamtable.screen.page.OptionsPage;
 import com.davisr.thedreamtable.screen.page.SpeedPage;
@@ -147,7 +148,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			}
 		}
 		// Last, so a message is never hidden behind the panel or a tooltip.
-		TableNotices.draw(context, this.textRenderer);
+		TableNotices.draw(context, this.textRenderer, false);
 	}
 
 	@Override
@@ -535,5 +536,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			return;
 		}
 		DreamTableHologram.show(this.handler.getTablePos(), this.handler.getSelectedFarm(), this.handler.getBuildIndex(), this.handler.getPhase() == ProjectState.BLOCKED);
+		BuildProgressLine.noteRate(this.handler.getTablePos(), this.handler.getBlocksPerSecond());
 	}
 }

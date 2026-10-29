@@ -28,6 +28,7 @@ public final class ClientLifecycle {
 
 	static void leaveWorld() {
 		DreamTableHologram.clear();
+		BuildProgressLine.clear();
 		DreamTableClipboard.close();
 		OtherFarms.clear();
 	}

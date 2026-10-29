@@ -63,4 +63,55 @@ class NoticeBoardTest {
 		board.clear();
 		assertNull(board.current(1));
 	}
+
+	@Test
+	void aTemporaryNoticeShowsOverThePersistentLineAndThenItComesBack() {
+		NoticeBoard board = new NoticeBoard();
+		Text progress = Text.literal("Building 1/9");
+		board.setPersistent(progress, Severity.INFO);
+		assertSame(progress, board.current(10).text());
+
+		board.show(Text.literal("Paused"), Severity.PROBLEM, 1000);
+		assertEquals("Paused", board.current(1500).text().getString());
+		assertSame(progress, board.current(1000 + NoticeBoard.LIFETIME_MS).text());
+	}
+
+	@Test
+	void thePersistentLineNeverExpiresOrFades() {
+		NoticeBoard board = new NoticeBoard();
+		board.setPersistent(Text.literal("x"), Severity.INFO);
+
+		NoticeBoard.Notice line = board.current(10_000_000);
+		assertEquals(1.0F, line.alpha(10_000_000));
+		assertTrue(line.persistent());
+	}
+
+	@Test
+	void thePersistentLineIsReplacedInPlaceAndRemovedWithNull() {
+		NoticeBoard board = new NoticeBoard();
+		board.setPersistent(Text.literal("Building 1/9"), Severity.INFO);
+		board.setPersistent(Text.literal("Building 2/9"), Severity.INFO);
+		assertEquals("Building 2/9", board.current(0).text().getString());
+
+		board.setPersistent(null, Severity.INFO);
+		assertNull(board.current(0));
+	}
+
+	@Test
+	void theMenuLeavesThePersistentLineOutButStillShowsOrdinaryNotices() {
+		NoticeBoard board = new NoticeBoard();
+		board.setPersistent(Text.literal("Building 1/9"), Severity.INFO);
+		assertNull(board.current(0, false));
+
+		board.show(Text.literal("hello"), Severity.INFO, 0);
+		assertEquals("hello", board.current(1, false).text().getString());
+	}
+
+	@Test
+	void clearingAlsoDropsThePersistentLine() {
+		NoticeBoard board = new NoticeBoard();
+		board.setPersistent(Text.literal("x"), Severity.INFO);
+		board.clear();
+		assertNull(board.current(0));
+	}
 }

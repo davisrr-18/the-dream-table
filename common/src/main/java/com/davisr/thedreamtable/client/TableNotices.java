@@ -10,6 +10,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -36,7 +37,7 @@ public final class TableNotices {
 			MinecraftClient client = MinecraftClient.getInstance();
 			// While the table is open it draws the notice itself, above the screen.
 			if (!client.options.hudHidden && !(client.currentScreen instanceof DreamTableScreen)) {
-				draw(context, client.textRenderer);
+				draw(context, client.textRenderer, true);
 			}
 		});
 	}
@@ -58,14 +59,22 @@ public final class TableNotices {
 		BOARD.clear();
 	}
 
-	/** Draws the current notice, if any, centered at the top of the scaled window. */
-	public static void draw(DrawContext context, TextRenderer font) {
+	/** Sets or removes the persistent live line shown while no ordinary notice is (see {@link BuildProgressLine}). */
+	static void setProgress(@Nullable Text text) {
+		BOARD.setPersistent(text, Severity.INFO);
+	}
+
+	/**
+	 * Draws the current notice, if any, centered at the top of the scaled window. The persistent progress line is left out
+	 * when {@code withProgress} is false, as over the table menu, whose Work page already shows it.
+	 */
+	public static void draw(DrawContext context, TextRenderer font, boolean withProgress) {
 		long now = Util.getMeasuringTimeMs();
-		NoticeBoard.Notice notice = BOARD.current(now);
+		NoticeBoard.Notice notice = BOARD.current(now, withProgress);
 		if (notice == null) {
 			return;
 		}
-		int opacity = Math.round(NoticeBoard.alpha(now - notice.shownAt()) * 255.0F);
+		int opacity = Math.round(notice.alpha(now) * 255.0F);
 		if (opacity <= 8) {
 			return;
 		}
