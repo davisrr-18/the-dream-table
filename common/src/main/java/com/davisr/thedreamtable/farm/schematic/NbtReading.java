@@ -12,6 +12,8 @@ import net.minecraft.util.Identifier;
 
 /** Small readers shared by the schematic formats: block states, numbers, and coordinate arrays. */
 final class NbtReading {
+	private static final String[] AXES = {"x", "y", "z"};
+
 	private NbtReading() {
 	}
 
@@ -69,7 +71,11 @@ final class NbtReading {
 		return compound.get(key) instanceof AbstractNbtNumber number ? number.intValue() : 0;
 	}
 
+	/** One coordinate of a position or size stored as an int array, an int list, or Litematica's {@code {x, y, z}} compound. */
 	static int numberAt(NbtCompound compound, String key, int index) {
+		if (compound.contains(key, NbtElement.COMPOUND_TYPE)) {
+			return index < 3 ? number(compound.getCompound(key), AXES[index]) : 0;
+		}
 		if (compound.contains(key, NbtElement.INT_ARRAY_TYPE)) {
 			int[] values = compound.getIntArray(key);
 			return index < values.length ? values[index] : 0;

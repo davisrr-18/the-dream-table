@@ -76,6 +76,10 @@ final class LitematicaReader {
 		int sizeX = (int) size(region, 0);
 		int sizeY = (int) size(region, 1);
 		int sizeZ = (int) size(region, 2);
+		// An empty axis holds no cells, but the outer loops would still turn over the other two.
+		if (sizeX == 0 || sizeY == 0 || sizeZ == 0) {
+			return;
+		}
 		long[] packed = region.getLongArray("BlockStates");
 		int bits = Math.max(2, 32 - Integer.numberOfLeadingZeros(Math.max(1, palette.size()) - 1));
 		long mask = (1L << bits) - 1L;

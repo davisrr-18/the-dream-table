@@ -50,6 +50,24 @@ class LitematicaRegionsTest {
 		return step.blockNbt() == null ? null : step.blockNbt().getString("CustomName");
 	}
 
+	private static NbtCompound xyz(int x, int y, int z) {
+		NbtCompound position = new NbtCompound();
+		position.putInt("x", x);
+		position.putInt("y", y);
+		position.putInt("z", z);
+		return position;
+	}
+
+	@Test
+	void positionAndSizeAreReadFromLitematicasXyzCompounds() {
+		NbtCompound region = region(new int[0], new int[0], pack(2, 1, 2, 1), PALETTE);
+		region.put("Position", xyz(4, 0, 0));
+		region.put("Size", xyz(3, 1, 1));
+		List<FarmStep> steps = read(region);
+		assertEquals(3, steps.size());
+		assertEquals(Blocks.CHEST, at(steps, 1, 0, 0).state().getBlock());
+	}
+
 	@Test
 	void aTileReachesItsOwnRegionsBlockNotAnotherRegionsBlockAtTheSameNumbers() {
 		NbtCompound first = region(new int[]{0, 0, 0}, new int[]{3, 1, 1}, pack(2, 1, 2, 1), PALETTE);

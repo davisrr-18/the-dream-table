@@ -64,6 +64,13 @@ class SchematicBoundsTest {
 	}
 
 	@Test
+	void litematicaRegionWithAnEmptyAxisIsNotWalked() {
+		NbtCompound regions = new NbtCompound();
+		regions.put("Flat", region(new int[]{0, 0, 0}, new int[]{0, 1 << 20, 1 << 20}));
+		assertNull(read(regions).template());
+	}
+
+	@Test
 	void litematicaSmallestIntSizeCannotWrapToANegativeCount() {
 		NbtCompound regions = new NbtCompound();
 		regions.put("Wrapped", region(new int[]{0, 0, 0}, new int[]{Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE}));

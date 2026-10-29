@@ -113,7 +113,7 @@ public final class DreamTableConfig {
 						+ MAX_LOADED_LIMIT + " (default " + MAX_LOADED_DEFAULT + "). " + LOAD_OFFLINE + ": keep them loaded while the player is offline. "
 						+ FARM_SHARING + ": allow accepted farm collaborators. " + MAX_COLLABORATORS + ": 0 to " + MAX_COLLABORATORS_LIMIT
 						+ " (default " + MAX_COLLABORATORS_DEFAULT + "). " + MAX_PENDING_INVITES + ": 0 to " + MAX_PENDING_INVITES_LIMIT
-						+ " (default " + MAX_PENDING_INVITES_DEFAULT + "). " + DELIVER_NEARBY + ": let players deliver materials from chests, barrels and shulker boxes near the table. "
+						+ " (default " + MAX_PENDING_INVITES_DEFAULT + "). " + DELIVER_NEARBY + ": let players deliver materials from chests, barrels and shulker boxes within 6 blocks of the table (only vanilla locks and claim mods' break checks keep a container out). "
 						+ FARM_PROTECTION + ": let players stop others from breaking the structure of their finished farms.");
 			}
 		} catch (IOException exception) {
