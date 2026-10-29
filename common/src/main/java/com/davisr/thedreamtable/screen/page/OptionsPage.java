@@ -13,8 +13,8 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /**
  * The options: Build Speed, which opens {@link SpeedPage}; Keep Farms Loaded, which opens {@link LoadedFarmsPage} to pick
- * which finished farms stay loaded; and the "Show Other Farms", tracker and "Deliver from Nearby" switches, kept on this player's computer, and the "Protect My Farms" switch, which the
- * server keeps because it enforces it.
+ * which finished farms stay loaded; and the "Show Other Farms", tracker and "Deliver from Nearby" switches, kept on this player's computer, and the "Protect My Farms" and "Viewers Can Break" switches, which the
+ * server keeps because it enforces them.
  */
 public final class OptionsPage implements TablePage {
 	private static final int SPEED = 0;
@@ -22,7 +22,8 @@ public final class OptionsPage implements TablePage {
 	private static final int TRACKER = 2;
 	private static final int NEARBY = 3;
 	private static final int PROTECT = 4;
-	private static final int CARDS = 5;
+	private static final int VIEWERS = 5;
+	private static final int CARDS = 6;
 
 	private final PageContext ui;
 
@@ -58,6 +59,18 @@ public final class OptionsPage implements TablePage {
 				Text.translatable(protecting ? "gui.the_dream_table.protect_farms_on" : "gui.the_dream_table.protect_farms_off"),
 				Text.translatable(protectionAllowed ? "gui.the_dream_table.protect_farms_hint" : "gui.the_dream_table.protect_farms_off_server"),
 				ui.view().gridCardX(PROTECT), ui.view().gridCardY(PROTECT), mouseX, mouseY, protecting, protectionAllowed);
+		boolean viewersAllowed = protecting;
+		boolean viewers = viewersAllowed && handler.viewersMayBreak();
+		ui.cardAt("viewers_break", context, new ItemStack(Items.ENDER_EYE),
+				Text.translatable(viewers ? "gui.the_dream_table.viewers_break_on" : "gui.the_dream_table.viewers_break_off"),
+				Text.translatable(viewersAllowed ? "gui.the_dream_table.viewers_break_hint" : viewersBreakReason(protection)),
+				ui.view().gridCardX(VIEWERS), ui.view().gridCardY(VIEWERS), mouseX, mouseY, viewers, viewersAllowed);
+	}
+
+	/** Why "Viewers Can Break" can't be changed now: the server turned protection off, or the player has not turned it on. */
+	private static String viewersBreakReason(int protection) {
+		return protection == DreamTableScreenHandler.PROTECTION_OFF_SERVER
+				? "gui.the_dream_table.protect_farms_off_server" : "gui.the_dream_table.viewers_break_needs_protection";
 	}
 
 	@Override
@@ -91,6 +104,15 @@ public final class OptionsPage implements TablePage {
 				return true;
 			}
 			ui.actions().press(DreamTableScreenHandler.BUTTON_PROTECT_FARMS);
+			return true;
+		}
+		if (ui.cardHit(mouseX, mouseY, ui.view().gridCardX(VIEWERS), ui.view().gridCardY(VIEWERS))) {
+			int protection = ui.handler().farmProtection();
+			if (protection != DreamTableScreenHandler.PROTECTION_ON) {
+				ui.message(viewersBreakReason(protection));
+				return true;
+			}
+			ui.actions().press(DreamTableScreenHandler.BUTTON_VIEWERS_BREAK);
 			return true;
 		}
 		return false;

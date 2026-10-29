@@ -18,6 +18,7 @@ import net.minecraft.block.CropBlock;
 import net.minecraft.block.FluidBlock;
 import net.minecraft.block.PlantBlock;
 import net.minecraft.block.StemBlock;
+import net.minecraft.item.Item;
 import net.minecraft.block.SugarCaneBlock;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.MinecraftServer;
@@ -28,6 +29,7 @@ import net.minecraft.util.UserCache;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
@@ -35,9 +37,10 @@ import java.util.function.BooleanSupplier;
 /**
  * "Protect My Farms": other players can't break the structure of a finished farm whose owner turned the option on.
  * The structure is every block of the farm's saved design at its saved site (turned and mirrored the way it was built)
- * except what grows or is harvested there; produce stays breakable by anyone. The owner, players the farm is shared
- * with, and server operators are never blocked. Explosions, pistons, mobs, fluids and fire don't go through the player
- * break event and are not covered.
+ * that is still there as designed, except what grows or is harvested there; produce stays breakable by anyone, and so
+ * does a block someone put in a hole of a damaged farm. The owner, collaborators who may repair the farm (Operators),
+ * and server operators are never blocked; Viewers are, unless the owner turned on "Viewers Can Break". Explosions,
+ * pistons, mobs, fluids and fire don't go through the player break event and are not covered.
  */
 public final class FarmProtection {
 	/** Permission level from which a player bypasses the protection, like the vanilla command operators. */
@@ -89,8 +92,9 @@ public final class FarmProtection {
 		boolean operator = player.hasPermissionLevel(OPERATOR_LEVEL);
 		for (FarmAreas.Guard guard : guards) {
 			FarmRecord record = new FarmRecord(FarmKey.of(world, guard.instanceId()), guard.ownerUuid(), guard.grants());
-			if (denies(true, preferences.protectsFarms(guard.ownerUuid()), operator, player.getUuid(), record,
-					DreamTableConfig.farmSharingEnabled(), () -> structuralAt(guard.layout(), guard.site(), pos, state))) {
+			if (denies(true, preferences.protectsFarms(guard.ownerUuid()), preferences.viewersMayBreak(guard.ownerUuid()), operator,
+					player.getUuid(), record, DreamTableConfig.farmSharingEnabled(),
+					() -> structuralAt(guard.layout(), guard.site(), guard.swaps(), pos, state))) {
 				return guard.ownerUuid();
 			}
 		}
@@ -103,27 +107,34 @@ public final class FarmProtection {
 	 *
 	 * @param serverEnabled   the server's {@code farm_protection_enabled}
 	 * @param ownerProtects   the farm owner's "Protect My Farms" switch
+	 * @param viewersMayBreak the farm owner's "Viewers Can Break" switch
 	 * @param structuralHere  whether the position is a structural block of the farm
 	 */
-	public static boolean denies(boolean serverEnabled, boolean ownerProtects, boolean actorOperator, UUID actor, FarmRecord farm,
-			boolean sharingEnabled, BooleanSupplier structuralHere) {
+	public static boolean denies(boolean serverEnabled, boolean ownerProtects, boolean viewersMayBreak, boolean actorOperator,
+			UUID actor, FarmRecord farm, boolean sharingEnabled, BooleanSupplier structuralHere) {
 		if (!serverEnabled || !ownerProtects || actorOperator) {
 			return false;
 		}
-		if (FarmAccess.role(farm, actor, sharingEnabled).isPresent()) {
+		Optional<FarmRole> role = FarmAccess.role(farm, actor, sharingEnabled);
+		if (role.isPresent() && (FarmAccess.allows(role.get(), FarmAction.REPAIR) || viewersMayBreak)) {
 			return false;
 		}
 		return structuralHere.getAsBoolean();
 	}
 
-	/** Whether the position holds a block of the farm's design at the site, and the block there is structure, not produce. */
-	public static boolean structuralAt(FarmTemplate template, FarmSite site, BlockPos pos, BlockState current) {
+	/**
+	 * Whether the position holds a block of the farm's design at the site, the block there is still the design's (as
+	 * Repair and Take Down see it, with the farm's material swaps), and it is structure, not produce. A different block
+	 * someone put in a hole of a damaged farm is not the farm's, so it stays breakable.
+	 */
+	public static boolean structuralAt(FarmTemplate template, FarmSite site, Map<Item, Item> swaps, BlockPos pos, BlockState current) {
 		if (current.isAir() || current.getBlock() instanceof FluidBlock || harvestable(current)) {
 			return false;
 		}
 		for (FarmStep step : template.steps()) {
 			if (!step.isEntity() && step.state() != null && site.target(template, step).equals(pos)) {
-				return structural(step.state());
+				return structural(step.state())
+						&& BlockMatch.stillFarm(current, site.orient(MaterialSwaps.apply(step.state(), swaps)));
 			}
 		}
 		return false;

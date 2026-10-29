@@ -55,6 +55,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_DELIVER_ALL = 106;
 	public static final int BUTTON_DELIVER_NEARBY = 107;
 	public static final int BUTTON_PROTECT_FARMS = 108;
+	public static final int BUTTON_VIEWERS_BREAK = 109;
 	public static final int BUTTON_SCHEMES = 110;
 	public static final int BUTTON_SCHEMES_BACK = 111;
 	public static final int BUTTON_OPTIONS = 120;
@@ -105,6 +106,9 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int PROTECTION_OFF = 0;
 	public static final int PROTECTION_ON = 1;
 	public static final int PROTECTION_OFF_SERVER = 2;
+	/** Bits of the synced state: the Protect My Farms value, and "Viewers Can Break" on top of it. */
+	private static final int PROTECTION_MASK = 3;
+	private static final int VIEWERS_BREAK_BIT = 4;
 
 	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, TableSession session) {
 		this(syncId, inventory, session.getPos(), session.getMaterials(), session.getSelectedFarm(), session.getPage(), phaseOf(session.getPhase()), session.getBuildIndex());
@@ -199,7 +203,12 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	/** This player's "Protect My Farms" as the server holds it; {@link #PROTECTION_OFF_SERVER} when the server turned the feature off. */
 	public int farmProtection() {
-		return farmProtection;
+		return farmProtection & PROTECTION_MASK;
+	}
+
+	/** Whether this player's Viewers may also break their protected farms, as the server holds it. */
+	public boolean viewersMayBreak() {
+		return (farmProtection & VIEWERS_BREAK_BIT) != 0;
 	}
 
 	private int farmProtectionOnServer() {
@@ -208,8 +217,10 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		}
 		int[] state = {PROTECTION_OFF};
 		context.run((world, pos) -> {
-			if (world.getServer() != null && FarmPreferences.of(world.getServer()).protectsFarms(playerId)) {
-				state[0] = PROTECTION_ON;
+			if (world.getServer() != null) {
+				FarmPreferences preferences = FarmPreferences.of(world.getServer());
+				state[0] = (preferences.protectsFarms(playerId) ? PROTECTION_ON : PROTECTION_OFF)
+						| (preferences.viewersMayBreak(playerId) ? VIEWERS_BREAK_BIT : 0);
 			}
 		});
 		return state[0];
@@ -378,7 +389,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		return template == null ? 0 : template.steps().size();
 	}
 
-	/** Page, build index, phase, step total, speed level, actual rate, server limit, loaded farms, whether nearby delivery is on and this player's Protect My Farms state, read from the table on the server and stored on the client. */
+	/** Page, build index, phase, step total, speed level, actual rate, server limit, loaded farms, whether nearby delivery is on and this player's Protect My Farms state (with the Viewers Can Break bit), read from the table on the server and stored on the client. */
 	private final class Properties implements PropertyDelegate {
 		@Override
 		public int get(int index) {

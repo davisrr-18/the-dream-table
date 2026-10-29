@@ -41,6 +41,8 @@ public final class FarmPreferences extends PersistentState {
 	private final Map<UUID, FarmKey> tracked = new HashMap<>();
 	/** Players who turned on "Protect My Farms". Absent means off, so worlds saved before the option read as off. */
 	private final Set<UUID> protecting = new LinkedHashSet<>();
+	/** Players whose Viewers may also break their protected farms ("Viewers Can Break"). Absent means off. */
+	private final Set<UUID> viewersBreak = new LinkedHashSet<>();
 
 	public static FarmPreferences of(MinecraftServer server) {
 		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
@@ -91,14 +93,28 @@ public final class FarmPreferences extends PersistentState {
 
 	/** Turns "Protect My Farms" on or off; refuses only to add a player beyond the saved-player limit. */
 	public boolean setProtectsFarms(UUID playerUuid, boolean protect) {
-		if (protect) {
-			if (!protecting.contains(playerUuid) && protecting.size() >= MAX_SAVED_PLAYERS) {
+		return setMember(protecting, playerUuid, protect);
+	}
+
+	/** Whether this owner's Viewers may also break the structure of their protected farms. Default off. */
+	public boolean viewersMayBreak(UUID playerUuid) {
+		return viewersBreak.contains(playerUuid);
+	}
+
+	/** Turns "Viewers Can Break" on or off; refuses only to add a player beyond the saved-player limit. */
+	public boolean setViewersMayBreak(UUID playerUuid, boolean allow) {
+		return setMember(viewersBreak, playerUuid, allow);
+	}
+
+	private boolean setMember(Set<UUID> members, UUID playerUuid, boolean member) {
+		if (member) {
+			if (!members.contains(playerUuid) && members.size() >= MAX_SAVED_PLAYERS) {
 				return false;
 			}
-			if (protecting.add(playerUuid)) {
+			if (members.add(playerUuid)) {
 				markDirty();
 			}
-		} else if (protecting.remove(playerUuid)) {
+		} else if (members.remove(playerUuid)) {
 			markDirty();
 		}
 		return true;
@@ -280,16 +296,32 @@ public final class FarmPreferences extends PersistentState {
 			list.add(item);
 		}
 		nbt.put("Players", list);
-		if (!protecting.isEmpty()) {
-			NbtList protectors = new NbtList();
-			for (UUID playerUuid : protecting) {
-				NbtCompound item = new NbtCompound();
-				item.putUuid("Player", playerUuid);
-				protectors.add(item);
-			}
-			nbt.put("Protecting", protectors);
-		}
+		writePlayers(nbt, "Protecting", protecting);
+		writePlayers(nbt, "ViewersBreak", viewersBreak);
 		return nbt;
+	}
+
+	private static void writePlayers(NbtCompound nbt, String key, Set<UUID> members) {
+		if (members.isEmpty()) {
+			return;
+		}
+		NbtList list = new NbtList();
+		for (UUID playerUuid : members) {
+			NbtCompound item = new NbtCompound();
+			item.putUuid("Player", playerUuid);
+			list.add(item);
+		}
+		nbt.put(key, list);
+	}
+
+	private static void readPlayers(NbtCompound nbt, String key, Set<UUID> members) {
+		NbtList list = nbt.getList(key, NbtElement.COMPOUND_TYPE);
+		for (int index = 0; index < Math.min(list.size(), MAX_SAVED_PLAYERS); index++) {
+			NbtCompound item = list.getCompound(index);
+			if (item.containsUuid("Player")) {
+				members.add(item.getUuid("Player"));
+			}
+		}
 	}
 
 	static FarmPreferences read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
@@ -329,13 +361,8 @@ public final class FarmPreferences extends PersistentState {
 				}
 			});
 		}
-		NbtList protectors = nbt.getList("Protecting", NbtElement.COMPOUND_TYPE);
-		for (int index = 0; index < Math.min(protectors.size(), MAX_SAVED_PLAYERS); index++) {
-			NbtCompound item = protectors.getCompound(index);
-			if (item.containsUuid("Player")) {
-				state.protecting.add(item.getUuid("Player"));
-			}
-		}
+		readPlayers(nbt, "Protecting", state.protecting);
+		readPlayers(nbt, "ViewersBreak", state.viewersBreak);
 		return state;
 	}
 

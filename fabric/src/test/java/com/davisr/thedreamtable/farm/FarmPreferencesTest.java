@@ -70,6 +70,55 @@ class FarmPreferencesTest {
 	}
 
 	@Test
+	void viewersCanBreakIsOffByDefaultAndWorldsWithoutItReadAsOff() {
+		FarmPreferences preferences = new FarmPreferences();
+		assertFalse(preferences.viewersMayBreak(ALICE));
+		preferences.setProtectsFarms(ALICE, true);
+		NbtCompound saved = preferences.writeNbt(new NbtCompound(), null);
+		assertFalse(saved.contains("ViewersBreak"));
+		assertFalse(FarmPreferences.read(saved, null).viewersMayBreak(ALICE));
+		assertFalse(FarmPreferences.read(new NbtCompound(), null).viewersMayBreak(ALICE));
+	}
+
+	@Test
+	void viewersCanBreakRoundTripsPerPlayerAndIsIndependentOfProtection() {
+		FarmPreferences preferences = new FarmPreferences();
+		preferences.setProtectsFarms(BOB, true);
+		preferences.setDirty(false);
+		assertTrue(preferences.setViewersMayBreak(ALICE, true));
+		assertTrue(preferences.isDirty());
+		preferences.setDirty(false);
+		assertTrue(preferences.setViewersMayBreak(ALICE, true));
+		assertFalse(preferences.isDirty());
+
+		FarmPreferences restored = FarmPreferences.read(preferences.writeNbt(new NbtCompound(), null), null);
+
+		assertTrue(restored.viewersMayBreak(ALICE));
+		assertFalse(restored.protectsFarms(ALICE));
+		assertTrue(restored.protectsFarms(BOB));
+		assertFalse(restored.viewersMayBreak(BOB));
+
+		assertTrue(restored.setViewersMayBreak(ALICE, false));
+		assertFalse(FarmPreferences.read(restored.writeNbt(new NbtCompound(), null), null).viewersMayBreak(ALICE));
+	}
+
+	@Test
+	void theSwitchesStopAddingPlayersAtTheSavedPlayerLimitButStillTurnOff() {
+		FarmPreferences preferences = new FarmPreferences();
+		for (int index = 0; index < FarmPreferences.MAX_SAVED_PLAYERS; index++) {
+			UUID player = new UUID(0L, index + 1L);
+			assertTrue(preferences.setProtectsFarms(player, true));
+			assertTrue(preferences.setViewersMayBreak(player, true));
+		}
+		assertFalse(preferences.setProtectsFarms(ALICE, true));
+		assertFalse(preferences.setViewersMayBreak(ALICE, true));
+		assertFalse(preferences.protectsFarms(ALICE));
+		assertTrue(preferences.setViewersMayBreak(new UUID(0L, 1L), true));
+		assertTrue(preferences.setViewersMayBreak(new UUID(0L, 1L), false));
+		assertTrue(preferences.setViewersMayBreak(ALICE, true));
+	}
+
+	@Test
 	void turningProtectMyFarmsOffForgetsIt() {
 		FarmPreferences preferences = new FarmPreferences();
 		preferences.setProtectsFarms(ALICE, true);
