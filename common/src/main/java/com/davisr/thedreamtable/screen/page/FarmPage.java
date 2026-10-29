@@ -458,11 +458,15 @@ public final class FarmPage implements TablePage {
 
 	private int alertsHeight() {
 		FarmLoader.Entry farm = farm();
+		if (farm == null || farm.alerts() <= 0) {
+			return 0;
+		}
+		// At least a line per alert the list announced, so the buttons don't move down when the alert page arrives.
 		int height = 0;
-		for (Text alert : farm == null ? List.<Text>of() : alertLines(farm)) {
+		for (Text alert : alertLines(farm)) {
 			height += lines(alert) * LINE_HEIGHT;
 		}
-		return height == 0 ? 0 : height + 2;
+		return Math.max(height, farm.alerts() * LINE_HEIGHT) + 2;
 	}
 
 	private int rowY(int row) {
