@@ -42,7 +42,12 @@ public record TrackedFarmPayload(String farmId, String customName, String dimens
 
 	public static void register() {
 		Platform.network().registerServerToClient(ID, CODEC);
-		Platform.serverEvents().onPlayerJoin((player, server) -> Platform.network().send(player, resolve(player, server)));
+		Platform.serverEvents().onPlayerJoin((player, server) -> {
+			// A client without the mod (or an older one) cannot receive it; sending anyway is refused or ignored.
+			if (Platform.network().canSend(player, ID)) {
+				Platform.network().send(player, resolve(player, server));
+			}
+		});
 	}
 
 	/** Re-checks the saved choice against the directory and the player's access, as every list entry is. */

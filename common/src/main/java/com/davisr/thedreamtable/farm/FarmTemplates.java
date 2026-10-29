@@ -183,6 +183,22 @@ public final class FarmTemplates {
 		}
 	}
 
+	/**
+	 * Stores a farm the server sent together with the file version it was read at. A reply for a different version than
+	 * the list announced (the file was edited while the request was on its way) is dropped, not stored as current; it is
+	 * asked for again. Farms the list doesn't version, like a table's saved design, are always kept.
+	 *
+	 * @return true when the farm was stored
+	 */
+	public static boolean putRemote(FarmTemplate template, long version) {
+		Long listed = REMOTE_VERSIONS.get(template.id());
+		if (listed != null && listed != version) {
+			return false;
+		}
+		putRemote(template);
+		return remoteOptions != null;
+	}
+
 	/** Called on the client with an imported farm it doesn't have yet, so it can ask the server for it. */
 	public static void onMissing(Consumer<String> listener) {
 		missing = listener;

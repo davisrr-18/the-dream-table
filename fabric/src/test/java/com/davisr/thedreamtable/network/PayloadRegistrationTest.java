@@ -178,6 +178,11 @@ class PayloadRegistrationTest {
 		@Override
 		public void send(ServerPlayerEntity player, CustomPayload payload) {
 		}
+
+		@Override
+		public boolean canSend(ServerPlayerEntity player, CustomPayload.Id<?> id) {
+			return false;
+		}
 	}
 
 	private static final class IgnoringServerEvents implements ServerEvents {

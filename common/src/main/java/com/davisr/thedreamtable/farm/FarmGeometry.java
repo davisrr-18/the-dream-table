@@ -28,16 +28,21 @@ public final class FarmGeometry {
 		};
 	}
 
-	/** Position of a step when the farm sits in front of the table. */
+	/**
+	 * Position of a step when the farm sits in front of the table. Here a mirror negates x about the table-side origin
+	 * (there is no footprint to keep in place), which is not used for aimed farms.
+	 */
 	public static BlockPos toWorld(BlockPos table, Direction facing, boolean mirrored, FarmStep step) {
 		BlockPos local = turn(step.x(), step.y(), step.z(), facing, mirrored);
 		return table.offset(facing, FORWARD_GAP).add(local);
 	}
 
-	/** Position of a step when the farm is anchored at a block the player aimed at. */
+	/** Position of a step when the farm is anchored at a block the player aimed at. Mirroring keeps the footprint in place. */
 	public static BlockPos toAimed(BlockPos anchor, Direction facing, boolean mirrored, FarmTemplate template, FarmStep step) {
 		BlockPos center = template.center();
-		BlockPos local = turn(step.x() - center.getX(), step.y() - center.getY(), step.z() - center.getZ(), facing, mirrored);
+		// Mirror inside the footprint (x -> mirrorSum - x), then measure from the center, so both orientations cover the same cells.
+		int x = mirrored ? template.mirrorSum() - step.x() : step.x();
+		BlockPos local = turn(x - center.getX(), step.y() - center.getY(), step.z() - center.getZ(), facing, false);
 		return anchor.add(local);
 	}
 

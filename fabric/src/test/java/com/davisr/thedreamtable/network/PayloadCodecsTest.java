@@ -65,6 +65,14 @@ class PayloadCodecsTest {
 	}
 
 	@Test
+	void schematicFarmReplyCarriesTheFileVersion() {
+		NbtCompound data = new NbtCompound();
+		data.putString("Name", "x");
+		roundTrip(ServerSchematicsPayload.Farm.CODEC, new ServerSchematicsPayload.Farm("nbt:a", 1_700_000_000_123L, data));
+		roundTrip(ServerSchematicsPayload.Farm.CODEC, new ServerSchematicsPayload.Farm("saved:a#1", 0L, data));
+	}
+
+	@Test
 	void placementPayloadsRoundTrip() {
 		roundTrip(PlaceFarmPayload.CODEC, new PlaceFarmPayload(TABLE, new BlockPos(4, 5, 6), Direction.EAST, true));
 		roundTrip(CheckPlacementPayload.CODEC, new CheckPlacementPayload(TABLE, new BlockPos(4, 5, 6), Direction.NORTH, true, false));
