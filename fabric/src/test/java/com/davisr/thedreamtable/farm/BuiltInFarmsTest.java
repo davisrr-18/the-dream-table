@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Reads every bundled farm schematic and checks what the build relies on. */
 class BuiltInFarmsTest {
-	private static final String[] FILES = {"sugar_cane_farm", "bamboo_farm", "cactus_farm", "crop_farm", "honey_farm", "mob_farm", "creeper_farm", "iron_farm"};
+	private static final String[] FILES = {"sugar_cane_farm", "bamboo_farm", "cactus_farm", "crop_farm", "honey_farm", "mob_farm", "creeper_farm", "iron_farm", "gold_farm"};
 
 	@BeforeAll
 	static void setUp() {
