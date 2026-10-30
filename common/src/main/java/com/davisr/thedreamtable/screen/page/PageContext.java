@@ -161,6 +161,20 @@ public final class PageContext {
 		focusRing(context, id, x, y, CARD_WIDTH, BUTTON_HEIGHT);
 	}
 
+	/** The Back button of a card grid: it spans the whole collection width, from the first column to the last. */
+	public void backButton(DrawContext context, int y, int mouseX, int mouseY) {
+		Text label = Text.translatable("gui.the_dream_table.back");
+		int x = view.collectionX();
+		int width = view.collectionWidth();
+		ControlId id = register("back", label, Text.empty(), Text.empty(), x, y, width, BUTTON_HEIGHT, false, true);
+		painter.button(context, label, x, y, width, backHit(mouseX, mouseY, y), true, false);
+		focusRing(context, id, x, y, width, BUTTON_HEIGHT);
+	}
+
+	public boolean backHit(double mouseX, double mouseY, int y) {
+		return view.hit(mouseX, mouseY, view.collectionX(), y, view.collectionWidth(), BUTTON_HEIGHT);
+	}
+
 	/** A button with a second, smaller line under its label: what it does, or why it is off. */
 	public void button(String stableKey, DrawContext context, Text label, Text detail, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
 		buttonAt(stableKey, context, label, detail, view.cardX(), y, mouseX, mouseY, enabled, primary);
@@ -288,9 +302,13 @@ public final class PageContext {
 	}
 
 	private ControlId register(String stableKey, Text label, Text state, Text disabledReason, int x, int y, int height, boolean selected, boolean enabled) {
+		return register(stableKey, label, state, disabledReason, x, y, CARD_WIDTH, height, selected, enabled);
+	}
+
+	private ControlId register(String stableKey, Text label, Text state, Text disabledReason, int x, int y, int width, int height, boolean selected, boolean enabled) {
 		int index = controlIndex++;
 		ControlId id = ControlId.of("page." + pageId, stableKey == null ? Integer.toString(index) : stableKey);
-		UiRect bounds = new UiRect(x, y, CARD_WIDTH, height);
+		UiRect bounds = new UiRect(x, y, width, height);
 		ControlSpec spec = new ControlSpec(id, ControlGroup.CONTENT, bounds, label, state, enabled, selected,
 				disabledReason, y, x);
 		controls.add(spec);

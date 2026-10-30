@@ -36,7 +36,7 @@ public final class MaterialsPage implements TablePage {
 				creative ? "gui.the_dream_table.deliver_creative" : null, mouseX, mouseY);
 		drawDelivery(context, deliverNearbyY(ui.view(), count), "deliver_nearby", "gui.the_dream_table.deliver_nearby", "gui.the_dream_table.deliver_nearby_tip",
 				nearbyBlocker(creative), mouseX, mouseY);
-		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(ui.view(), count), mouseX, mouseY, true, false);
+		ui.backButton(context, backY(ui.view(), count), mouseX, mouseY);
 	}
 
 	/** Why Deliver from Nearby is off, or null: the server setting wins over this player's own switch. */
@@ -86,7 +86,7 @@ public final class MaterialsPage implements TablePage {
 			}
 			return true;
 		}
-		if (ui.buttonHit(mouseX, mouseY, backY(ui.view(), count))) {
+		if (ui.backHit(mouseX, mouseY, backY(ui.view(), count))) {
 			ui.go(DreamTableScreenHandler.PAGE_WORK, DreamTableScreenHandler.BUTTON_MATERIALS_BACK);
 			return true;
 		}

@@ -7,6 +7,7 @@ import com.davisr.thedreamtable.client.DreamTableKeys;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmInfo;
 import com.davisr.thedreamtable.farm.FarmOptions;
+import com.davisr.thedreamtable.farm.FarmOptions.Category;
 import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.ImportNote;
@@ -23,6 +24,7 @@ import net.minecraft.util.Util;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
@@ -66,7 +68,7 @@ public final class WorkPage implements TablePage {
 		drawStatus(context);
 		ui.painter().progress(context, flowX(), barY(), CARD_WIDTH, handler.getBuildIndex(), handler.getTotal());
 
-		ui.buttonAt("menu", context, Text.translatable("gui.the_dream_table.menu"), flowX(), rowY(MENU), mouseX, mouseY, true, false);
+		ui.buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), flowX(), rowY(MENU), mouseX, mouseY, true, false);
 		ui.buttonAt("requirements", context, Text.translatable("gui.the_dream_table.requirements"), flowX(), rowY(REQUIREMENTS), mouseX, mouseY, true, false);
 		ui.buttonAt("materials", context, Text.translatable("gui.the_dream_table.materials"), flowX(), rowY(MATERIALS), mouseX, mouseY, true, false);
 		if (showsInfo()) {
@@ -84,7 +86,13 @@ public final class WorkPage implements TablePage {
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(MENU))) {
-			ui.go(DreamTableScreenHandler.PAGE_SELECT, DreamTableScreenHandler.BUTTON_MENU);
+			Optional<Category> category = Category.of(FarmTemplates.baseId(ui.farm()));
+			if (category.isPresent()) {
+				int index = category.get().ordinal();
+				ui.go(DreamTableScreenHandler.PAGE_CATEGORY + index, DreamTableScreenHandler.BUTTON_CATEGORY + index);
+			} else {
+				ui.go(DreamTableScreenHandler.PAGE_SCHEMES, DreamTableScreenHandler.BUTTON_SCHEMES);
+			}
 			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(REQUIREMENTS))) {

@@ -46,7 +46,7 @@ public final class SwapPage implements TablePage {
 		if (shown.isEmpty()) {
 			ui.collectionNote(context, Text.translatable("gui.the_dream_table.search_empty"), cardY(ui.view(), 0), HINT);
 		}
-		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(ui.view(), shown.size()), mouseX, mouseY, true, false);
+		ui.backButton(context, backY(ui.view(), shown.size()), mouseX, mouseY);
 	}
 
 	@Override
@@ -58,7 +58,7 @@ public final class SwapPage implements TablePage {
 				return true;
 			}
 		}
-		if (ui.buttonHit(mouseX, mouseY, backY(ui.view(), shown.size()))) {
+		if (ui.backHit(mouseX, mouseY, backY(ui.view(), shown.size()))) {
 			ui.go(DreamTableScreenHandler.PAGE_MATERIALS, DreamTableScreenHandler.BUTTON_SWAP_BACK);
 			return true;
 		}
