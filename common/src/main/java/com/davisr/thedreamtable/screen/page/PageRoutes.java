@@ -14,7 +14,7 @@ public final class PageRoutes {
 			return PrimaryTab.BUILD;
 		}
 		return switch (page) {
-			case PAGE_SELECT, PAGE_WORK, PAGE_REQUIREMENTS, PAGE_MATERIALS, PAGE_SWAP -> PrimaryTab.BUILD;
+			case PAGE_SELECT, PAGE_WORK, PAGE_REQUIREMENTS, PAGE_MATERIALS, PAGE_SWAP, PAGE_FARM_INFO -> PrimaryTab.BUILD;
 			case PAGE_SCHEMES -> PrimaryTab.SCHEMATICS;
 			case PAGE_OPTIONS, PAGE_SPEED -> PrimaryTab.SETTINGS;
 			case PAGE_LOADED, PAGE_FARM, PAGE_INVITES -> PrimaryTab.FARMS;
@@ -37,7 +37,7 @@ public final class PageRoutes {
 		}
 		return switch (page) {
 			case PAGE_WORK -> PAGE_SELECT;
-			case PAGE_REQUIREMENTS, PAGE_MATERIALS -> PAGE_WORK;
+			case PAGE_REQUIREMENTS, PAGE_MATERIALS, PAGE_FARM_INFO -> PAGE_WORK;
 			case PAGE_SWAP -> PAGE_MATERIALS;
 			case PAGE_SPEED -> PAGE_OPTIONS;
 			case PAGE_FARM, PAGE_INVITES -> PAGE_LOADED;

@@ -13,7 +13,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class CenteredFlowPagesLayoutTest {
-	private static final List<Class<?>> FLOW_PAGES = List.of(WorkPage.class, SpeedPage.class, FarmPage.class, InvitesPage.class);
+	private static final List<Class<?>> FLOW_PAGES = List.of(WorkPage.class, SpeedPage.class, FarmPage.class, InvitesPage.class, FarmInfoPage.class);
 
 	@BeforeAll
 	static void bootstrap() {

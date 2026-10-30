@@ -35,6 +35,7 @@ class PageRoutesTest {
 		assertEquals(PrimaryTab.FARMS, PageRoutes.tabFor(PAGE_LOADED));
 		assertEquals(PrimaryTab.FARMS, PageRoutes.tabFor(PAGE_FARM));
 		assertEquals(PrimaryTab.FARMS, PageRoutes.tabFor(PAGE_INVITES));
+		assertEquals(PrimaryTab.BUILD, PageRoutes.tabFor(PAGE_FARM_INFO));
 		for (int index = 0; index < PageRoutes.CATEGORY_PAGE_COUNT; index++) {
 			assertEquals(PrimaryTab.BUILD, PageRoutes.tabFor(PAGE_CATEGORY + index));
 		}
@@ -54,6 +55,7 @@ class PageRoutesTest {
 		assertEquals(PAGE_SELECT, PageRoutes.parentOf(PAGE_WORK));
 		assertEquals(PAGE_WORK, PageRoutes.parentOf(PAGE_REQUIREMENTS));
 		assertEquals(PAGE_WORK, PageRoutes.parentOf(PAGE_MATERIALS));
+		assertEquals(PAGE_WORK, PageRoutes.parentOf(PAGE_FARM_INFO));
 		assertEquals(PAGE_MATERIALS, PageRoutes.parentOf(PAGE_SWAP));
 		assertEquals(PAGE_OPTIONS, PageRoutes.parentOf(PAGE_SPEED));
 		assertEquals(PAGE_LOADED, PageRoutes.parentOf(PAGE_FARM));
@@ -72,6 +74,7 @@ class PageRoutesTest {
 		assertFalse(PageRoutes.isRoot(PAGE_WORK));
 		assertFalse(PageRoutes.isRoot(PAGE_FARM));
 		assertFalse(PageRoutes.isRoot(PAGE_INVITES));
+		assertFalse(PageRoutes.isRoot(PAGE_FARM_INFO));
 	}
 
 	@Test

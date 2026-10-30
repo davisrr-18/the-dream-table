@@ -73,3 +73,5 @@ The Dream Table ships the essential vanilla farms, one design each, made or chos
 2. Handle the buttons in `TableButtons`.
 3. Create a `TablePage` in `screen/page` that draws through `PageContext` (`card`, `button`, `go`).
 4. Register the page in `DreamTableScreen.page()`.
+
+Built-in farm help (`farm/FarmInfo`, pure): the texts live only in the language files, one key per section, `farm.the_dream_table.<id>.info.how`, `.works`, `.output`, `.tips`, each with bullet lines separated by `\n` (avoid `%`); a language that lacks a key falls back to English through vanilla, a farm without keys (imported ones) has no help and `WorkPage` hides its "How It Works" button. `FarmInfoPage` (`PAGE_FARM_INFO`, child of the Work page) shows them through `FarmInfoText`, which wraps to the card width. A new built-in farm needs its four keys in `en_us.json` and `pt_br.json`; `FarmInfoTest` fails on an info key that names no built-in farm.
