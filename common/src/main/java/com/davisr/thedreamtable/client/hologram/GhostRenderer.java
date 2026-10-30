@@ -57,6 +57,8 @@ public final class GhostRenderer {
 	/** Half width of the frame per block of distance (about four pixels across), and the plane it is cut at in front of the camera. */
 	private static final double RIBBON_HALF_WIDTH = 0.0026;
 	private static final double RIBBON_NEAR = 0.1;
+	/** The cross on the aimed block is this many times wider than the frame, since it is small and must read at a glance. */
+	private static final double CROSS_WIDTH_FACTOR = 2.5;
 	/** The frame sits this far outside the footprint so the ghost blocks never hide it. */
 	private static final double OUTLINE_GROW = 0.01;
 	private static final Matrix4f IDENTITY = new Matrix4f();
@@ -96,7 +98,7 @@ public final class GhostRenderer {
 			fill(matrices, floor, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
 		}
 		if (anchor != null) {
-			emit(solid, matrices.peek().getPositionMatrix(), PlacementOutline.cross(anchor, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH), rgb);
+			emit(solid, matrices.peek().getPositionMatrix(), PlacementOutline.cross(anchor, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * CROSS_WIDTH_FACTOR), rgb);
 		}
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
