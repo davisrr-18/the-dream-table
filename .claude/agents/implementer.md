@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: Implements approved, isolated Java changes and focused regression tests.
-model: sonnet
+model: haiku
 effort: high
 ---
 
