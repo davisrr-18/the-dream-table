@@ -74,7 +74,7 @@ Delegation is adaptive, not unconditional:
 - Trivial tasks may be completed directly.
 - Do not spawn agents merely to reach a fixed count.
 - Do not delegate work whose coordination overhead exceeds its likely benefit.
-- Use at most five concurrent subagents, subject to the actual environment configuration.
+- Use at most five concurrent subagents, subject to the actual environment configuration. Exception: up to eight concurrent read-only `investigator` subagents, all on Haiku, for bounded investigations with no overlapping scope.
 - Split work into independent, well-scoped units (by subsystem, package, or file set) so subagents can run in parallel without overlapping edits.
 - Parallelize independent tasks only.
 - Execute dependent activities sequentially.
