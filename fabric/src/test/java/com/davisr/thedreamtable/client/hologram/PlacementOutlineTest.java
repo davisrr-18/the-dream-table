@@ -77,7 +77,7 @@ class PlacementOutlineTest {
 	}
 
 	@Test
-	void edgesAreTwelveThinBoxesRunningAlongTheBoxEdges() {
+	void edgesAreTwelveBarsThatMeetInSolidCorners() {
 		Box box = new Box(1, 2, 3, 6, 5, 5);
 		double thickness = 0.25;
 		List<Box> edges = PlacementOutline.edges(box, thickness);
@@ -89,8 +89,8 @@ class PlacementOutlineTest {
 			for (Direction.Axis axis : axes) {
 				String label = "edge " + index + " axis " + axis.name();
 				if (axis == longAxis) {
-					assertEquals(box.getMin(axis), edge.getMin(axis), DELTA, label);
-					assertEquals(box.getMax(axis), edge.getMax(axis), DELTA, label);
+					assertEquals(box.getMin(axis) - thickness / 2.0, edge.getMin(axis), DELTA, label);
+					assertEquals(box.getMax(axis) + thickness / 2.0, edge.getMax(axis), DELTA, label);
 				} else {
 					assertEquals(thickness, edge.getMax(axis) - edge.getMin(axis), DELTA, label);
 					double centre = (edge.getMin(axis) + edge.getMax(axis)) / 2.0;

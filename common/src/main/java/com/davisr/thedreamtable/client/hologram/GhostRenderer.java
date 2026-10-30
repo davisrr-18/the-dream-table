@@ -55,8 +55,6 @@ public final class GhostRenderer {
 	private static final WeightedCache<String, Planned> PLANS = new WeightedCache<>(PLAN_CHUNKS, (key, planned) -> { });
 	/** Edge width of the footprint outline, in blocks: thick enough to read from across the farm. */
 	private static final double OUTLINE_THICKNESS = 0.1;
-	private static final double CORNER_THICKNESS = 0.22;
-	private static final double CORNER_HEIGHT = 2.5;
 	private static final Matrix4f IDENTITY = new Matrix4f();
 	private static final Matrix4f SCRATCH = new Matrix4f();
 	private static final Tint NEUTRAL = new Tint(1.0F, 1.0F, 1.0F, 255);
@@ -80,7 +78,7 @@ public final class GhostRenderer {
 	}
 
 	/**
-	 * The farm's footprint as thick edges with taller corner posts and a translucent floor, coloured by what the server said about the spot, and the
+	 * The farm's footprint as thick edges meeting in solid corners and a translucent floor, coloured by what the server said about the spot, and the
 	 * anchor marked with a flat cross when the player is still aiming (a null footprint draws only that mark). Thick, bright edges keep it readable on dark ground and water.
 	 */
 	public static void drawOutline(MatrixStack matrices, Box footprint, BlockPos anchor, PlacementOutline.Status status, float wave) {
@@ -91,14 +89,6 @@ public final class GhostRenderer {
 		if (footprint != null) {
 			for (Box part : PlacementOutline.edges(footprint, OUTLINE_THICKNESS)) {
 				fill(matrices, solid, part, rgb, 1.0F);
-			}
-			// Corner posts, taller than the edges, give the area a clear frame from far away.
-			double post = Math.min(footprint.getLengthY(), CORNER_HEIGHT);
-			double half = CORNER_THICKNESS / 2.0;
-			for (double x : new double[] {footprint.minX, footprint.maxX}) {
-				for (double z : new double[] {footprint.minZ, footprint.maxZ}) {
-					fill(matrices, solid, new Box(x - half, footprint.minY, z - half, x + half, footprint.minY + post, z + half), rgb, 1.0F);
-				}
 			}
 			fill(matrices, floor, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
 		}
