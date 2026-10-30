@@ -49,3 +49,25 @@ Pick the smallest N whose recall is within about 10 percentage points of the bes
 - `/usage` percentages are coarse; one run per N is a weak sample. If results are close, repeat the closest two.
 - The main-session cost includes the merge step, which grows with N. That is intended: it is part of the real price.
 - Do not run other work in these chats. Do not reuse a chat across runs.
+
+## Results (2026-10-29)
+
+Status: Complete. Six runs (N=3, 5, 5 repeat, 8, 10, 12), Haiku high investigators, Sonnet medium orchestrator. Two independent read-only verification passes (Sonnet medium reviewer) checked 43 claims against the code: 10 CONFIRMED, 20 PARTIAL, 13 FALSE. Quota is from `/usage`; tokens are the sum reported for the run.
+
+| N | Tokens | 5h quota | Verified claims reported | Confirmed | Partial | False | Recall (of 10 confirmed) | Precision (confirmed + partial) |
+|---|---|---|---|---|---|---|---|---|
+| 3 | 548k | 4% | 18 | 8 | 9 | 1 | 8/10 | 94% |
+| 5 | 790k | 7% | 16 | 8 | 8 | 0 | 8/10 | 100% |
+| 5 (repeat) | 734k | 5% | 25 | 8 | 11 | 6 | 8/10 | 76% |
+| 8 | 920k | 4% | 16 | 4 | 9 | 3 | 4/10 | 81% |
+| 10 | 873k | 3% | 23 | 4 | 14 | 5 | 4/10 | 78% |
+| 12 | 1.07M | 3% | 20 | 4 | 9 | 7 | 4/10 | 65% |
+
+Findings:
+- Tokens grow with N (548k to 1.07M). The 5h percentage does not track N (3% to 7%, and two N=5 runs gave 7% and 5%), so it is too noisy to use.
+- N=3 and N=5 found the same share of confirmed defects (8/10). N>=8 found 4/10 and produced more false positives, mostly from shards missing context outside their files.
+- N=3 cost about 25% fewer tokens than N=5 for the same recall.
+
+Caveats: one run per N (two for N=5); the claim sample was chosen from the reports (cross-run, contradictory, and run-unique findings), so recall is relative to this sample, not to all real defects; every agent hit the 8-finding cap, which limits N=3 to 24 findings.
+
+Verification passes counted one claim per issue per run; the line-balanced shards mix packages.
