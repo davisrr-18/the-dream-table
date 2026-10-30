@@ -191,7 +191,7 @@
 	"farm.the_dream_table.honey.info.how": "As abelhas enchem as colmeias de mel enquanto há papoulas por perto.\nDispensadores tiram o mel das colmeias cheias e funis o levam ao baú.",
 	"farm.the_dream_table.honey.info.works": "Você colocou abelhas nas colmeias: a mesa não as coloca.\nVocê abasteceu os dispensadores com garrafas de vidro.\nA farm está carregada (você está perto ou Manter Carregada está ligado).\nO baú tem espaço.",
 	"farm.the_dream_table.honey.info.output": "Garrafas de mel.",
-	"farm.the_dream_table.honey.info.tips": "Quebre uma colmeia com uma picareta de Toque Suave para manter as abelhas dentro e coloque-a aqui. As abelhas também seguem uma flor e podem ser levadas com uma guia.",
+	"farm.the_dream_table.honey.info.tips": "Quebre uma colmeia com uma picareta de Toque Suave para manter as abelhas dentro e coloque-a aqui.\nAbelhas podem ser guiadas com uma flor, assim você consegue capturá-las.",
 	"farm.the_dream_table.mob_dark_room.info.how": "Os mobs nascem na plataforma do topo e a água os leva torre abaixo.\nFunis no fundo coletam o que eles soltam e levam ao baú.",
 	"farm.the_dream_table.mob_dark_room.info.works": "Um jogador está a até 128 blocos da farm. O jogo não gera mobs mais longe, mesmo com a área carregada.\nA torre está escura: não coloque luz nela.",
 	"farm.the_dream_table.mob_dark_room.info.output": "O que os mobs soltam: ossos, fios, pólvora, flechas, carne podre.",

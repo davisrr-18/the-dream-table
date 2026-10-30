@@ -191,7 +191,7 @@
 	"farm.the_dream_table.honey.info.how": "Bees fill the nests with honey while poppies are close.\nDispensers take the honey out of full nests, and hoppers carry it to the chest.",
 	"farm.the_dream_table.honey.info.works": "You put bees in the bee nests: the table does not place them.\nYou loaded the dispensers with glass bottles.\nThe farm is loaded (you are near, or Keep Loaded is on).\nThe chest has room.",
 	"farm.the_dream_table.honey.info.output": "Honey bottles.",
-	"farm.the_dream_table.honey.info.tips": "Break a bee nest with a Silk Touch pickaxe to keep the bees inside it, then place it here. Bees also follow a flower and can be led with a lead.",
+	"farm.the_dream_table.honey.info.tips": "Break a bee nest with a Silk Touch pickaxe to keep the bees inside it, then place it here.\nBees can be led with a flower, so you can capture them.",
 	"farm.the_dream_table.mob_dark_room.info.how": "Mobs spawn on the top platform and are carried by water down the tall tower.\nHoppers at the bottom collect what they drop into the chest.",
 	"farm.the_dream_table.mob_dark_room.info.works": "A player is within 128 blocks of the farm. The game spawns nothing farther away, even if it is loaded.\nThe tower is dark: keep it free of light you added.",
 	"farm.the_dream_table.mob_dark_room.info.output": "Whatever the mobs drop: bones, string, gunpowder, arrows, rotten flesh.",
