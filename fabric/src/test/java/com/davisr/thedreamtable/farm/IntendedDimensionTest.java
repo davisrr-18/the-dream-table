@@ -12,8 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** A farm may declare the dimension it is designed for; without one it never warns. */
 class IntendedDimensionTest {
 	@Test
-	void currentCatalogDeclaresNoDimensionSoNothingWarns() {
+	void onlyTheGoldFarmDeclaresADimensionAndItIsTheNether() {
 		for (FarmOption option : FarmOptions.ALL) {
+			if (option == FarmOptions.GOLD) {
+				assertEquals(World.NETHER, option.intendedDimension());
+				assertFalse(option.outsideIntendedDimension(World.NETHER));
+				assertTrue(option.outsideIntendedDimension(World.OVERWORLD));
+				continue;
+			}
 			assertNull(option.intendedDimension(), option.id());
 			assertFalse(option.outsideIntendedDimension(World.OVERWORLD), option.id());
 			assertFalse(option.outsideIntendedDimension(World.NETHER), option.id());
