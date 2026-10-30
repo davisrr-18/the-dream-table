@@ -54,10 +54,13 @@ public final class GhostRenderer {
 	private static final FrameBudget BUDGET = new FrameBudget(BUILD_NANOS, System::nanoTime);
 	private static final WeightedCache<MeshKey, Mesh> MESHES = new WeightedCache<>(BAKED_PARTS, (key, mesh) -> mesh.close());
 	private static final WeightedCache<String, Planned> PLANS = new WeightedCache<>(PLAN_CHUNKS, (key, planned) -> { });
-	/** Edge width of the footprint outline, in blocks: thick enough to read from across the farm. */
+	/** Narrowest bar of the footprint outline, in blocks. */
 	private static final double OUTLINE_THICKNESS = 0.1;
+	/** Bar width per block of distance (about four pixels), so a far bar is not thinner than a pixel and flickers. */
+	private static final double OUTLINE_PER_BLOCK = 0.006;
+	private static final double OUTLINE_SEGMENT = 4.0;
 	/** A bar is skipped while the camera is this close to it, in blocks. */
-	private static final double CAMERA_CLEARANCE = 0.3;
+	private static final double CAMERA_CLEARANCE = 0.12;
 	private static final Matrix4f IDENTITY = new Matrix4f();
 	private static final Matrix4f SCRATCH = new Matrix4f();
 	private static final Tint NEUTRAL = new Tint(1.0F, 1.0F, 1.0F, 255);
@@ -90,7 +93,7 @@ public final class GhostRenderer {
 		BufferBuilder solid = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		BufferBuilder floor = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		if (footprint != null) {
-			for (Box part : PlacementOutline.edges(footprint, OUTLINE_THICKNESS)) {
+			for (Box part : PlacementOutline.bars(footprint, camera, OUTLINE_THICKNESS, OUTLINE_PER_BLOCK, OUTLINE_SEGMENT)) {
 				// A bar the camera is touching would be cut by the near plane and show its back faces as split strips.
 				if (!part.expand(CAMERA_CLEARANCE).contains(camera)) {
 					fill(matrices, solid, part, rgb, 1.0F);
