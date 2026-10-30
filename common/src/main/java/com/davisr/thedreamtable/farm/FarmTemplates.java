@@ -62,6 +62,7 @@ public final class FarmTemplates {
 		register(FarmOptions.CROP, "crop_farm", () -> PlantFarms.crop(FarmOptions.CROP.id()));
 		register(FarmOptions.HONEY, "honey_farm");
 		register(FarmOptions.MOB_DARK_ROOM, "mob_farm", () -> MobFarms.darkRoom(FarmOptions.MOB_DARK_ROOM.id()));
+		register(FarmOptions.CREEPER, "creeper_farm");
 		register(FarmOptions.IRON_GOLEM, "iron_farm", () -> MobFarms.iron(FarmOptions.IRON_GOLEM.id()));
 	}
 

@@ -78,6 +78,7 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 - The custom build speed slider works from the keyboard: Tab to it, Left and Right change it by 1%, Home and End set the minimum and maximum.
 - Large schematic previews draw much faster: the hologram is built once and reused instead of being redrawn block by block every frame, and the first preview of a big farm is spread over a few frames.
 - New **How It Works** page on each built-in farm: how it works, what it needs to run (loaded chunks, bees, villagers, seeds, space in the chest), what it produces and tips.
+- New built-in **Creeper Farm** under Mob Farms: a tall tower that gathers gunpowder (and other mob drops) in a chest.
 - The farm page's Main Menu button is now Back and returns to that farm's category (or My Schematics for your own files), and the Back button on farm lists, Materials and Swap pages spans the full width. Single-column pages (farm page, build page, How It Works, build speed) now use the full width of the window for their cards, buttons, text and the speed slider; card grids keep their layout. A leftover empty text field on the farm page is gone.
 
 ## Fixes and performance
