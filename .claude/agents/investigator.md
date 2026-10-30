@@ -1,7 +1,7 @@
 ---
 name: investigator
 description: Investigates code, dependencies, architecture and regression risks before implementing changes.
-model: sonnet
+model: haiku
 effort: high
 tools: Read, Grep, Glob
 ---
