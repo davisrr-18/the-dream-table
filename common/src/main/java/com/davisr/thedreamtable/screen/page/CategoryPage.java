@@ -91,7 +91,7 @@ public final class CategoryPage implements TablePage {
 	}
 
 	static int contentHeight(Viewport view, int count) {
-		return view.gridContentHeight(count) + BUTTON_HEIGHT + 4;
+		return view.gridContentHeight(count) + BUTTON_HEIGHT + 8;
 	}
 
 	private void drawCard(DrawContext context, FarmOption option, int x, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {

@@ -190,7 +190,7 @@ public final class SpeedPage implements TablePage {
 	@Override
 	public int contentHeight() {
 		int cards = LEVELS.length + 1;
-		return PAD + cards * CARD_HEIGHT + (cards - 1) * CARD_GAP + 8 + SLIDER_HEIGHT + 10 + BUTTON_HEIGHT + 4;
+		return PAD + cards * CARD_HEIGHT + (cards - 1) * CARD_GAP + 8 + SLIDER_HEIGHT + 10 + BUTTON_HEIGHT + 8;
 	}
 
 	@Override
