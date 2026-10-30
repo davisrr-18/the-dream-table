@@ -85,40 +85,47 @@ public final class GhostRenderer {
 	 */
 	public static void drawOutline(MatrixStack matrices, Box footprint, BlockPos anchor, PlacementOutline.Status status, float wave) {
 		float[] rgb = status.rgb();
-		BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+		// Edges, posts and the cross are solid and write depth, so nothing shows through them; only the floor is translucent.
+		BufferBuilder solid = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+		BufferBuilder floor = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		if (footprint != null) {
 			for (Box part : PlacementOutline.edges(footprint, OUTLINE_THICKNESS)) {
-				fill(matrices, buffer, part, rgb, 0.95F);
+				fill(matrices, solid, part, rgb, 1.0F);
 			}
 			// Corner posts, taller than the edges, give the area a clear frame from far away.
 			double post = Math.min(footprint.getLengthY(), CORNER_HEIGHT);
+			double half = CORNER_THICKNESS / 2.0;
 			for (double x : new double[] {footprint.minX, footprint.maxX}) {
 				for (double z : new double[] {footprint.minZ, footprint.maxZ}) {
-					double half = CORNER_THICKNESS / 2.0;
-					fill(matrices, buffer, new Box(x - half, footprint.minY, z - half, x + half, footprint.minY + post, z + half), rgb, 1.0F);
+					fill(matrices, solid, new Box(x - half, footprint.minY, z - half, x + half, footprint.minY + post, z + half), rgb, 1.0F);
 				}
 			}
-			fill(matrices, buffer, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
+			fill(matrices, floor, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
 		}
 		if (anchor != null) {
 			// A flat cross on the aimed block: it reads as "here" without looking like a block.
 			double x = anchor.getX() + 0.5;
 			double z = anchor.getZ() + 0.5;
 			double y = anchor.getY() + 0.02;
-			fill(matrices, buffer, new Box(x - 0.4, y, z - 0.05, x + 0.4, y + 0.04, z + 0.05), rgb, 1.0F);
-			fill(matrices, buffer, new Box(x - 0.05, y, z - 0.4, x + 0.05, y + 0.04, z + 0.4), rgb, 1.0F);
+			fill(matrices, solid, new Box(x - 0.4, y, z - 0.05, x + 0.4, y + 0.04, z + 0.05), rgb, 1.0F);
+			fill(matrices, solid, new Box(x - 0.05, y, z - 0.4, x + 0.05, y + 0.04, z + 0.4), rgb, 1.0F);
 		}
-		BuiltBuffer built = buffer.endNullable();
-		if (built == null) {
-			return;
-		}
-		RenderSystem.enableBlend();
-		RenderSystem.defaultBlendFunc();
 		RenderSystem.enableDepthTest();
-		RenderSystem.depthMask(false);
 		RenderSystem.disableCull();
 		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-		BufferRenderer.drawWithGlobalProgram(built);
+		BuiltBuffer solidBuilt = solid.endNullable();
+		if (solidBuilt != null) {
+			RenderSystem.disableBlend();
+			RenderSystem.depthMask(true);
+			BufferRenderer.drawWithGlobalProgram(solidBuilt);
+		}
+		BuiltBuffer floorBuilt = floor.endNullable();
+		if (floorBuilt != null) {
+			RenderSystem.enableBlend();
+			RenderSystem.defaultBlendFunc();
+			RenderSystem.depthMask(false);
+			BufferRenderer.drawWithGlobalProgram(floorBuilt);
+		}
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
 		RenderSystem.disableBlend();
