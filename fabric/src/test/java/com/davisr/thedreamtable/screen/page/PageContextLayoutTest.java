@@ -1,9 +1,11 @@
 package com.davisr.thedreamtable.screen.page;
 
+import com.davisr.thedreamtable.GameSetup;
 import com.davisr.thedreamtable.screen.ui.ControlSpec;
 import com.davisr.thedreamtable.screen.ui.Viewport;
 import com.davisr.thedreamtable.screen.ui.layout.ScreenGeometry;
 import net.minecraft.text.Text;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -14,6 +16,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PageContextLayoutTest {
+	@BeforeAll
+	static void bootstrap() {
+		GameSetup.bootstrap();
+	}
+
 	@Test
 	void registeredFlowControlsUseTheirVisibleBoundsForHitFocusAndActivationAtEveryResolution() throws ReflectiveOperationException {
 		for (int[] resolution : java.util.List.of(
@@ -35,8 +42,10 @@ class PageContextLayoutTest {
 			context.action(control.id()).run();
 			assertEquals(x + 84, page.x);
 			assertEquals(y + BUTTON_HEIGHT / 2, page.y);
+			// Buttons placed in the flow column span the whole collection; cards keep their own width.
+			assertTrue(context.buttonHit(view.collectionX() + 1, y + 1, x, y));
 			if (view.collectionWidth() > 168) {
-				assertFalse(context.buttonHit(view.collectionX() + 1, y + 1, x, y));
+				assertFalse(context.cardHit(view.collectionX() + 1, y + 1, x, y));
 			}
 		}
 	}

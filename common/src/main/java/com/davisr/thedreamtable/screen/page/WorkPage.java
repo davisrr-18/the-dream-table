@@ -66,7 +66,7 @@ public final class WorkPage implements TablePage {
 		Text name = option == null ? Text.literal(ui.farm()) : option.title();
 		ui.cardAt("farm", context, icon, name, flowX(), ui.view().cardY(0), mouseX, mouseY, true, true);
 		drawStatus(context);
-		ui.painter().progress(context, flowX(), barY(), CARD_WIDTH, handler.getBuildIndex(), handler.getTotal());
+		ui.painter().progress(context, ui.view().collectionX(), barY(), ui.view().collectionWidth(), handler.getBuildIndex(), handler.getTotal());
 
 		ui.buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), flowX(), rowY(MENU), mouseX, mouseY, true, false);
 		ui.buttonAt("requirements", context, Text.translatable("gui.the_dream_table.requirements"), flowX(), rowY(REQUIREMENTS), mouseX, mouseY, true, false);

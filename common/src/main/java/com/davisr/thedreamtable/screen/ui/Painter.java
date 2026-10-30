@@ -117,22 +117,29 @@ public final class Painter {
 
 	/** A button with a smaller second line under the label, such as what it does or why it is off. */
 	public void button(DrawContext context, Text label, Text detail, int x, int y, boolean hovered, boolean enabled, boolean primary) {
-		button(context, Text.empty(), x, y, hovered, enabled, primary);
-		int w = CARD_WIDTH;
+		button(context, label, detail, x, y, CARD_WIDTH, hovered, enabled, primary);
+	}
+
+	public void button(DrawContext context, Text label, Text detail, int x, int y, int w, boolean hovered, boolean enabled, boolean primary) {
+		button(context, Text.empty(), x, y, w, hovered, enabled, primary);
 		int color = !enabled ? MUTED : primary ? TITLE : NAME;
 		fitted(context, label, x + 8, y + 5, w - 16, color, true);
 		fitted(context, detail, x + 8, y + 15, w - 16, primary && enabled ? TITLE : HINT, true);
 	}
 
 	public void destructiveButton(DrawContext context, Text label, int x, int y, boolean hovered, boolean enabled) {
+		destructiveButton(context, label, x, y, CARD_WIDTH, hovered, enabled);
+	}
+
+	public void destructiveButton(DrawContext context, Text label, int x, int y, int w, boolean hovered, boolean enabled) {
 		int color = enabled ? TITLE : MUTED;
 		if (!enabled) {
-			disabledFrame(context, x, y, CARD_WIDTH, BUTTON_HEIGHT);
+			disabledFrame(context, x, y, w, BUTTON_HEIGHT);
 		} else {
-			frame(context, x, y, CARD_WIDTH, BUTTON_HEIGHT, 0xFF5B1714, hovered ? 0xFFD65A52 : ERROR,
+			frame(context, x, y, w, BUTTON_HEIGHT, 0xFF5B1714, hovered ? 0xFFD65A52 : ERROR,
 					0xFF5B1714, hovered ? 0xFFC64A43 : 0xFFA8322D, 0xFF76221E, 0xFFE97B74);
 		}
-		fitted(context, label, x + 8, y + 10, CARD_WIDTH - 16, color, true);
+		fitted(context, label, x + 8, y + 10, w - 16, color, true);
 	}
 
 	/** A small button, {@code height} pixels tall, for filters and sorting. */
