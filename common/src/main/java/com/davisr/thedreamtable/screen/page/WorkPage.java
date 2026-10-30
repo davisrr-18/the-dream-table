@@ -273,10 +273,6 @@ public final class WorkPage implements TablePage {
 		if (!problem.isEmpty()) {
 			return Text.translatable(problem);
 		}
-		Text dimension = wrongDimension();
-		if (dimension != null) {
-			return Text.translatable("gui.the_dream_table.wrong_dimension", dimension);
-		}
 		if (lowMobFarm()) {
 			return Text.translatable("gui.the_dream_table.mob_low");
 		}
@@ -290,18 +286,6 @@ public final class WorkPage implements TablePage {
 		return ProjectState.hasAllMaterials(ui.handler())
 				? Text.translatable("gui.the_dream_table.ready")
 				: Text.translatable("gui.the_dream_table.partial");
-	}
-
-	/** The dimension a farm was designed for when the player is placing it elsewhere, or null; farms without one never warn. */
-	private Text wrongDimension() {
-		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.world == null) {
-			return null;
-		}
-		return FarmOptions.byId(ui.farm())
-				.filter(option -> option.outsideIntendedDimension(client.world.getRegistryKey()))
-				.map(option -> LoadedFarmsPage.dimension(option.intendedDimension().getValue().toString()))
-				.orElse(null);
 	}
 
 	/** Mob farms below sea level fill with bats and glow squids and compete with caves for spawns. */
