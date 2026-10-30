@@ -100,4 +100,17 @@ class PlacementOutlineTest {
 		Box box = new Box(0, 0, 0, 2, 2, 2);
 		assertTrue(PlacementOutline.ribbons(box, new Vec3d(10, 1, 1), new Vec3d(1, 0, 0), 0.1, 0.0026).isEmpty());
 	}
+
+	@Test
+	void theCrossIsTwoRibbonsCentredOnTheAimedBlock() {
+		BlockPos anchor = new BlockPos(4, 70, -3);
+		List<Vec3d[]> arms = PlacementOutline.cross(anchor, new Vec3d(4.5, 75, 0), new Vec3d(0, -1, 0), 0.1, 0.0026);
+		assertEquals(2, arms.size());
+		for (Vec3d[] arm : arms) {
+			double x = (arm[0].x + arm[1].x + arm[2].x + arm[3].x) / 4.0;
+			double z = (arm[0].z + arm[1].z + arm[2].z + arm[3].z) / 4.0;
+			assertEquals(4.5, x, 0.01);
+			assertEquals(-2.5, z, 0.01);
+		}
+	}
 }
