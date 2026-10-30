@@ -58,7 +58,7 @@ class FarmAreaKeyTest {
 		FarmTemplate layout = new FarmTemplate(FarmTemplates.newSavedId(cane.id(), cane.signature()), cane.steps(), cane.materials(), cane.center());
 		BitSet placed = new BitSet();
 		placed.set(0, 2);
-		FarmDismantler job = new FarmDismantler(player, layout, site, Map.of(), placed, new BitSet(), StepPayers.NONE, host, identity(player));
+		FarmDismantler job = new FarmDismantler(player, layout, site, Map.of(), placed, new BitSet(), host, identity(player));
 		NbtCompound saved = new NbtCompound();
 		job.write(saved);
 
@@ -92,7 +92,7 @@ class FarmAreaKeyTest {
 		FarmSite site = new FarmSite(new BlockPos(0, 64, 0), new BlockPos(10, 64, 10), Direction.NORTH);
 		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
 		FarmTemplate layout = new FarmTemplate(FarmTemplates.newSavedId(cane.id(), cane.signature()), cane.steps(), cane.materials(), cane.center());
-		FarmDismantler job = new FarmDismantler(player, layout, site, Map.of(), new BitSet(), new BitSet(), StepPayers.NONE, site.table(), identity(player));
+		FarmDismantler job = new FarmDismantler(player, layout, site, Map.of(), new BitSet(), new BitSet(), site.table(), identity(player));
 		NbtCompound saved = new NbtCompound();
 		job.write(saved);
 
@@ -120,7 +120,7 @@ class FarmAreaKeyTest {
 		FarmSite site = new FarmSite(new BlockPos(0, 64, 0), new BlockPos(10, 64, 10), Direction.NORTH);
 		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
 		FarmTemplate layout = new FarmTemplate(FarmTemplates.newSavedId(cane.id(), cane.signature()), cane.steps(), cane.materials(), cane.center());
-		FarmDismantler job = new FarmDismantler(player, layout, site, Map.of(), new BitSet(), new BitSet(), StepPayers.NONE, host, identity(player));
+		FarmDismantler job = new FarmDismantler(player, layout, site, Map.of(), new BitSet(), new BitSet(), host, identity(player));
 		NbtCompound saved = new NbtCompound();
 		job.write(saved);
 		NbtCompound broken = new NbtCompound();
@@ -136,7 +136,7 @@ class FarmAreaKeyTest {
 	}
 
 	private static FarmDismantler.Identity identity(UUID owner) {
-		return new FarmDismantler.Identity(UUID.nameUUIDFromBytes("farm".getBytes()), owner, "Sugar Farm", Map.of(), Map.of());
+		return new FarmDismantler.Identity(UUID.nameUUIDFromBytes("farm".getBytes()), owner, "Sugar Farm");
 	}
 
 	private static FarmDismantler job(UUID player, FarmSite site) {
@@ -151,8 +151,8 @@ class FarmAreaKeyTest {
 		FarmTemplate layout = new FarmTemplate(FarmTemplates.newSavedId(cane.id(), cane.signature()), cane.steps(), cane.materials(), cane.center());
 		NbtCompound alerts = new com.davisr.thedreamtable.farm.alert.FarmAlerts().write(new NbtCompound());
 		alerts.putLong("NextAlertEvent", 7L);
-		FarmDismantler.Identity identity = new FarmDismantler.Identity(UUID.nameUUIDFromBytes("farm".getBytes()), player, null, Map.of(), Map.of(), alerts);
-		FarmDismantler job = new FarmDismantler(player, layout, site, Map.of(), new BitSet(), new BitSet(), StepPayers.NONE, site.table(), identity);
+		FarmDismantler.Identity identity = new FarmDismantler.Identity(UUID.nameUUIDFromBytes("farm".getBytes()), player, null, alerts);
+		FarmDismantler job = new FarmDismantler(player, layout, site, Map.of(), new BitSet(), new BitSet(), site.table(), identity);
 		NbtCompound saved = new NbtCompound();
 		job.write(saved);
 

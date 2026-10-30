@@ -52,9 +52,6 @@ Server owners can change these in `config/the_dream_table.properties`, which is 
 | `max_blocks_per_second` | 256 | Fastest any build may go, 1 to 1024. Caps every build, including Creative ones. |
 | `max_loaded_farms_per_player` | 3 | Farms each player may keep loaded, 0 to 16. |
 | `load_farms_while_offline` | false | Keep loaded farms loaded after their player logs off. |
-| `farm_sharing_enabled` | true | Allow inviting collaborators to farms. |
-| `max_collaborators_per_farm` | 8 | Collaborators per farm, 0 to 64. |
-| `max_pending_invites_per_player` | 32 | Pending invitations a player may have, 0 to 256. |
 | `deliver_from_nearby_enabled` | true | Allow Deliver From Nearby for every player. |
 | `farm_protection_enabled` | true | Allow players to turn on Protect My Farms. |
 
@@ -71,9 +68,9 @@ The true or false keys accept only `true` or `false`; anything else is logged an
 - If you log off during a build or while a farm is being removed, it waits and tells you when it continues after you return. An unexpected error stops only that operation, with a message, and its details go to the game log.
 - Items handed back never get lost: when your inventory is full, the rest drops at your feet and you get a message. Set `load_farms_while_offline=true` to keep them loaded after you log off. Mob farms are the exception: the game only spawns mobs within 128 blocks of a player, loaded or not. Build them above sea level and away from caves; the table reminds you when you place one lower.
 
-**Protect My Farms**, in Settings (off by default), stops other players from breaking the structure of your finished farms by hand; they see who protects it. You, the farm's Operators and server operators can still break it, and Viewers can too if you turn on **Viewers Can Break**. Crops, sugar cane, cactus, bamboo, kelp, pumpkins, melons and other produce stay harvestable for everyone, and only the farm's own blocks are protected. Explosions, pistons, mobs, fluids, fire and other mods that remove blocks are not blocked.
+**Protect My Farms**, in Settings (off by default), stops other players from breaking the structure of your finished farms by hand; they see who protects it. You and server operators can still break it. Crops, sugar cane, cactus, bamboo, kelp, pumpkins, melons and other produce stay harvestable for everyone, and only the farm's own blocks are protected. Explosions, pistons, mobs, fluids, fire and other mods that remove blocks are not blocked.
 
-A finished farm has a permanent identity, so its name, sharing, alerts, and saved design survive Repair and world restarts. Its owner can invite a player as a Viewer (read-only) or Operator (Repair and Keep Loaded); invitations must be accepted and can expire. Shared farms remain private to authorized players. Favorite or track a farm from its page: My Farms can show only favorites or sort them first, and tracked farms show a direction and distance HUD. The selected farm page shows its role, operating state, Keep Loaded state, distance or dimension, storage, condition, and repair needs. Alerts report missing blocks, full storage, unavailable designs, and Repair problems: a farm with an active alert is marked with a warning sign in My Farms and its page ends with a red "Alert" line for each one. Active farm problems are visible to every authorized collaborator.
+A finished farm has a permanent identity, so its saved design and alerts survive Repair and world restarts. Favorite or track a farm from its page: My Farms can show only favorites or sort them first, and tracked farms show a direction and distance HUD. The selected farm page shows its operating state, Keep Loaded state, distance or dimension, storage, condition, and repair needs. Alerts report missing blocks, full storage, unavailable designs, and Repair problems: a farm with an active alert is marked with a warning sign in My Farms and its page ends with a red "Alert" line for each one.
 
 On a server, My Schematics lists the server's files, and players see the hologram, clipboard and miniature of those farms without having the files themselves.
 
@@ -98,7 +95,7 @@ A finished farm keeps everything its blocks held in the schematic, like a hopper
 
 Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides, and the client and the server must run the same version (1.1.0).
 
-Worlds, finished farms, builds in progress and shared farms from 1.0.0 carry over to 1.1.0. 1.0.0 was the first stable release and followed 2.2.0-beta; the lower number is intentional.
+Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.1.0. Farms that were shared in 1.0.0 keep their owners, and their collaborators are dropped. 1.0.0 was the first stable release and followed 2.2.0-beta; the lower number is intentional.
 
 ## Known limitations
 

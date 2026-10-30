@@ -32,12 +32,11 @@ public final class LoadedFarmsPage implements TablePage {
 	private static final int NOTE_HEIGHT = 36;
 	private static final int CHIP_HEIGHT = 14;
 	private static final int CHIP_GAP = 3;
-	private static final int CHIPS = 5;
-	private static final int INVITES = 0;
-	private static final int SHOW = 1;
-	private static final int SORT = 2;
-	private static final int DIMENSION = 3;
-	private static final int FAVORITES = 4;
+	private static final int CHIPS = 4;
+	private static final int SHOW = 0;
+	private static final int SORT = 1;
+	private static final int DIMENSION = 2;
+	private static final int FAVORITES = 3;
 	private static final int COUNT_HEIGHT = 12;
 
 	private final PageContext ui;
@@ -94,9 +93,8 @@ public final class LoadedFarmsPage implements TablePage {
 		LoadedFarmsView.ensure();
 		List<FarmLoader.Entry> farms = LoadedFarmsView.farms();
 		if (!listing()) {
-			chip(context, Text.translatable("gui.the_dream_table.invites_chip", LoadedFarmsView.invites().size()), INVITES, mouseX, mouseY);
 			String key = !LoadedFarmsView.received() ? "gui.the_dream_table.loaded_waiting" : "gui.the_dream_table.loaded_empty";
-			ui.collectionNote(context, Text.translatable(key), chipY(filterColumns(ui.view())), HINT);
+			ui.collectionNote(context, Text.translatable(key), chipY(0), HINT);
 		} else {
 			List<Integer> shown = shown();
 			drawControls(context, mouseX, mouseY, shown.size(), farms.size());
@@ -114,7 +112,6 @@ public final class LoadedFarmsPage implements TablePage {
 	}
 
 	private void drawControls(DrawContext context, int mouseX, int mouseY, int shown, int total) {
-		chip(context, Text.translatable("gui.the_dream_table.invites_chip", LoadedFarmsView.invites().size()), INVITES, mouseX, mouseY);
 		String showKey = "gui.the_dream_table.show." + LoadedFarmsView.show().name().toLowerCase(Locale.ROOT);
 		String sortKey = "gui.the_dream_table.sort." + LoadedFarmsView.sort().name().toLowerCase(Locale.ROOT);
 		Text where = LoadedFarmsView.dimension().isEmpty() ? Text.translatable("gui.the_dream_table.dimension_all") : dimension(LoadedFarmsView.dimension());
@@ -163,8 +160,7 @@ public final class LoadedFarmsPage implements TablePage {
 
 	/** "Running · 45% full · 12 missing · 120 m": its state, then what needs a look, then how far it is or where. */
 	private static Text detail(FarmLoader.Entry farm, FarmListing.Viewer viewer) {
-		Text role = Text.translatable("gui.the_dream_table.role." + farm.role().name().toLowerCase(Locale.ROOT));
-		Text text = joined(role, state(farm));
+		Text text = state(farm);
 		if (farm.favorite()) {
 			text = joined(Text.translatable("gui.the_dream_table.favorite_short"), text);
 		}
@@ -208,10 +204,6 @@ public final class LoadedFarmsPage implements TablePage {
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
-		if (chipHit(mouseX, mouseY, INVITES)) {
-			ui.go(DreamTableScreenHandler.PAGE_INVITES, DreamTableScreenHandler.BUTTON_INVITES);
-			return true;
-		}
 		if (listing()) {
 			if (chipHit(mouseX, mouseY, SHOW) || chipHit(mouseX, mouseY, SORT) || chipHit(mouseX, mouseY, DIMENSION)
 					|| chipHit(mouseX, mouseY, FAVORITES)) {
@@ -260,7 +252,7 @@ public final class LoadedFarmsPage implements TablePage {
 
 	private int listHeight() {
 		if (!listing()) {
-			return CHIP_HEIGHT + CHIP_GAP + NOTE_HEIGHT;
+			return NOTE_HEIGHT;
 		}
 		return listHeight(ui.view(), shown().size());
 	}

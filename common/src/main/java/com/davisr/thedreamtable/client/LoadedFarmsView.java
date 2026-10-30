@@ -5,16 +5,11 @@ import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.network.FarmCarePayload;
 import com.davisr.thedreamtable.network.FarmActionResultPayload;
 import com.davisr.thedreamtable.network.TableNoticePayload;
-import com.davisr.thedreamtable.network.FarmCollaboratorPayload;
 import com.davisr.thedreamtable.network.FarmDetailsPayload;
-import com.davisr.thedreamtable.network.FarmInvitePayload;
-import com.davisr.thedreamtable.network.FarmInviteResponsePayload;
 import com.davisr.thedreamtable.network.FarmPreferencePayload;
-import com.davisr.thedreamtable.network.FarmRenamePayload;
 import com.davisr.thedreamtable.network.FarmAlertAckPayload;
 import com.davisr.thedreamtable.network.FarmAlertsPayload;
 import com.davisr.thedreamtable.network.LoadedFarmsPayload;
-import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.minecraft.client.MinecraftClient;
@@ -24,7 +19,6 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 import java.util.function.Function;
 
 /**
@@ -33,7 +27,6 @@ import java.util.function.Function;
  */
 public final class LoadedFarmsView {
 	private static List<FarmLoader.Entry> farms = List.of();
-	private static List<LoadedFarmsPayload.InviteEntry> invites = List.of();
 	private static int limit;
 	private static boolean received;
 	private static String selected = "";
@@ -51,7 +44,6 @@ public final class LoadedFarmsView {
 	public static void register() {
 		Platform.clientNetwork().registerReceiver(LoadedFarmsPayload.ID, payload -> {
 			farms = payload.farms();
-			invites = payload.invites();
 			limit = payload.limit();
 			received = true;
 			TrackedFarmHud.follow(farms);
@@ -67,12 +59,7 @@ public final class LoadedFarmsView {
 			}
 		});
 		Platform.clientNetwork().registerReceiver(FarmActionResultPayload.ID, payload -> {
-			if (payload.action() == FarmActionResultPayload.Action.REMOVE_COLLABORATOR
-					&& payload.result() == FarmActionResultPayload.Result.SUCCESS && payload.key().equals(selected)) {
-				details = null;
-				requests.invalidateDetails();
-			}
-			// Refused (gone, no longer shared): stop asking every second, the notice below says why once.
+			// Refused (gone, no longer ours): stop asking every second, the notice below says why once.
 			if (payload.action() == FarmActionResultPayload.Action.DETAILS
 					&& payload.result() != FarmActionResultPayload.Result.SUCCESS && payload.key().equals(selected)) {
 				requests.refuse();
@@ -97,10 +84,6 @@ public final class LoadedFarmsView {
 
 	public static List<FarmLoader.Entry> farms() {
 		return farms;
-	}
-
-	public static List<LoadedFarmsPayload.InviteEntry> invites() {
-		return invites;
 	}
 
 	public static FarmListing.Show show() {
@@ -162,7 +145,7 @@ public final class LoadedFarmsView {
 	}
 
 	public static long loaded() {
-		return farms.stream().filter(farm -> farm.role() == FarmRole.OWNER && farm.loaded()).count();
+		return farms.stream().filter(FarmLoader.Entry::loaded).count();
 	}
 
 	/**
@@ -178,7 +161,6 @@ public final class LoadedFarmsView {
 	/** Forgets everything the previous world or server sent, when the player leaves it. */
 	public static void reset() {
 		farms = List.of();
-		invites = List.of();
 		limit = 0;
 		selected = "";
 		dimension = "";
@@ -234,30 +216,6 @@ public final class LoadedFarmsView {
 	public static void preference(String key, FarmPreferencePayload.Operation operation) {
 		if (Platform.clientNetwork().canSend(FarmPreferencePayload.ID)) {
 			Platform.clientNetwork().send(new FarmPreferencePayload(table(), key, operation));
-		}
-	}
-
-	public static void rename(String key, String name) {
-		if (Platform.clientNetwork().canSend(FarmRenamePayload.ID)) {
-			Platform.clientNetwork().send(new FarmRenamePayload(table(), key, name));
-		}
-	}
-
-	public static void invite(String key, String playerName, FarmRole role) {
-		if (Platform.clientNetwork().canSend(FarmInvitePayload.ID)) {
-			Platform.clientNetwork().send(new FarmInvitePayload(table(), key, playerName, role));
-		}
-	}
-
-	public static void removeCollaborator(String key, UUID collaboratorUuid) {
-		if (Platform.clientNetwork().canSend(FarmCollaboratorPayload.ID)) {
-			Platform.clientNetwork().send(new FarmCollaboratorPayload(table(), key, collaboratorUuid));
-		}
-	}
-
-	public static void respond(String key, UUID inviteId, boolean accept) {
-		if (Platform.clientNetwork().canSend(FarmInviteResponsePayload.ID)) {
-			Platform.clientNetwork().send(new FarmInviteResponsePayload(table(), key, inviteId, accept));
 		}
 	}
 
@@ -320,11 +278,6 @@ public final class LoadedFarmsView {
 			details = true;
 			detailsSentAt = nowMs;
 			return true;
-		}
-
-		void invalidateDetails() {
-			details = false;
-			refused = false;
 		}
 
 		/** The server refused this selection's details or alerts; nothing is asked again until another selection. */

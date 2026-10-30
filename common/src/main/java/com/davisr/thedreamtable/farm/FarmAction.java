@@ -8,8 +8,6 @@ public enum FarmAction {
 	ALERTS,
 	REPAIR,
 	KEEP_LOADED,
-	RENAME,
-	SHARE,
 	TAKE_DOWN,
 	FORGET
 }

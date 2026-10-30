@@ -2,7 +2,6 @@ package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.GameSetup;
 import com.davisr.thedreamtable.farm.FarmLoader;
-import com.davisr.thedreamtable.farm.FarmRole;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.NbtCompound;
@@ -82,11 +81,7 @@ class PayloadCodecsTest {
 
 	@Test
 	void farmActionPayloadsRoundTrip() {
-		UUID id = UUID.fromString("20000000-0000-0000-0000-000000000002");
 		roundTrip(FarmCarePayload.CODEC, new FarmCarePayload(TABLE, KEY, FarmCarePayload.Action.TAKE_DOWN));
-		roundTrip(FarmRenamePayload.CODEC, new FarmRenamePayload(TABLE, KEY, "Iron farm"));
-		roundTrip(FarmCollaboratorPayload.CODEC, new FarmCollaboratorPayload(TABLE, KEY, id));
-		roundTrip(FarmInviteResponsePayload.CODEC, new FarmInviteResponsePayload(TABLE, KEY, id, true));
 		roundTrip(FarmActionResultPayload.CODEC, new FarmActionResultPayload(KEY, FarmActionResultPayload.Action.KEEP_LOADED,
 				FarmActionResultPayload.Result.LIMIT_REACHED));
 	}
@@ -102,7 +97,7 @@ class PayloadCodecsTest {
 	}
 
 	private static FarmLoader.Entry entry(String layoutId) {
-		return new FarmLoader.Entry(KEY, "nbt:big", layoutId, "", "minecraft:overworld", TABLE, FarmRole.OWNER, false, false, false, false, 0, 0, true, 0);
+		return new FarmLoader.Entry(KEY, "nbt:big", layoutId, "", "minecraft:overworld", TABLE, false, false, false, false, 0, 0, true, 0);
 	}
 
 	@Test
@@ -114,11 +109,11 @@ class PayloadCodecsTest {
 		actual.writeString(old, LoadedFarmsPayload.MAX_ID);
 		assertEquals(ByteBufUtil.hexDump(expected), ByteBufUtil.hexDump(actual));
 
-		roundTrip(LoadedFarmsPayload.CODEC, new LoadedFarmsPayload(List.of(entry(old)), List.of(), 3));
+		roundTrip(LoadedFarmsPayload.CODEC, new LoadedFarmsPayload(List.of(entry(old)), 3));
 		FarmLoader.Entry alerted = entry(old);
 		roundTrip(LoadedFarmsPayload.CODEC, new LoadedFarmsPayload(List.of(new FarmLoader.Entry(alerted.key(), alerted.farmId(), alerted.layoutId(), "", alerted.dimension(),
-				alerted.where(), alerted.role(), false, false, false, false, 0, 0, true, 0, 2)), List.of(), 3));
-		roundTrip(LoadedFarmsPayload.CODEC, new LoadedFarmsPayload(List.of(entry("saved:nbt:" + "b".repeat(300) + "@" + UUID.randomUUID())), List.of(), 3));
+				alerted.where(), false, false, false, false, 0, 0, true, 0, 2)), 3));
+		roundTrip(LoadedFarmsPayload.CODEC, new LoadedFarmsPayload(List.of(entry("saved:nbt:" + "b".repeat(300) + "@" + UUID.randomUUID())), 3));
 	}
 
 	@Test

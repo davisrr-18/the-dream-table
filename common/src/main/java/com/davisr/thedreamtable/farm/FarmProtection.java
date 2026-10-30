@@ -39,8 +39,7 @@ import java.util.function.BooleanSupplier;
  * "Protect My Farms": other players can't break the structure of a finished farm whose owner turned the option on.
  * The structure is every block of the farm's saved design at its saved site (turned and mirrored the way it was built)
  * that is still there as designed, except what grows or is harvested there; produce stays breakable by anyone, and so
- * does a block someone put in a hole of a damaged farm. The owner, collaborators who may repair the farm (Operators),
- * and server operators are never blocked; Viewers are, unless the owner turned on "Viewers Can Break". Explosions,
+ * does a block someone put in a hole of a damaged farm. The owner and server operators are never blocked. Explosions,
  * pistons, mobs, fluids and fire don't go through the player break event and are not covered.
  */
 public final class FarmProtection {
@@ -92,10 +91,9 @@ public final class FarmProtection {
 		FarmPreferences preferences = FarmPreferences.of(world.getServer());
 		boolean operator = player.hasPermissionLevel(OPERATOR_LEVEL);
 		for (FarmAreas.Guard guard : guards) {
-			FarmRecord record = new FarmRecord(FarmKey.of(world, guard.instanceId()), guard.ownerUuid(), guard.grants());
-			if (denies(true, preferences.protectsFarms(guard.ownerUuid()), preferences.viewersMayBreak(guard.ownerUuid()), operator,
-					player.getUuid(), record, DreamTableConfig.farmSharingEnabled(),
-					() -> structuralAt(guard.layout(), guard.site(), guard.swaps(), pos, state))) {
+			FarmRecord record = new FarmRecord(FarmKey.of(world, guard.instanceId()), guard.ownerUuid());
+			if (denies(true, preferences.protectsFarms(guard.ownerUuid()), operator,
+					player.getUuid(), record, () -> structuralAt(guard.layout(), guard.site(), guard.swaps(), pos, state))) {
 				return guard.ownerUuid();
 			}
 		}
@@ -106,18 +104,13 @@ public final class FarmProtection {
 	 * Whether a farm stops this actor from breaking one of its blocks. Cheapest questions come first, so the design is
 	 * only searched for a stranger whose target farm is actually protected.
 	 *
-	 * @param serverEnabled   the server's {@code farm_protection_enabled}
-	 * @param ownerProtects   the farm owner's "Protect My Farms" switch
-	 * @param viewersMayBreak the farm owner's "Viewers Can Break" switch
-	 * @param structuralHere  whether the position is a structural block of the farm
+	 * @param serverEnabled  the server's {@code farm_protection_enabled}
+	 * @param ownerProtects  the farm owner's "Protect My Farms" switch
+	 * @param structuralHere whether the position is a structural block of the farm
 	 */
-	public static boolean denies(boolean serverEnabled, boolean ownerProtects, boolean viewersMayBreak, boolean actorOperator,
-			UUID actor, FarmRecord farm, boolean sharingEnabled, BooleanSupplier structuralHere) {
-		if (!serverEnabled || !ownerProtects || actorOperator) {
-			return false;
-		}
-		Optional<FarmRole> role = FarmAccess.role(farm, actor, sharingEnabled);
-		if (role.isPresent() && (FarmAccess.allows(role.get(), FarmAction.REPAIR) || viewersMayBreak)) {
+	public static boolean denies(boolean serverEnabled, boolean ownerProtects, boolean actorOperator,
+			UUID actor, FarmRecord farm, BooleanSupplier structuralHere) {
+		if (!serverEnabled || !ownerProtects || actorOperator || FarmAccess.isOwner(farm, actor)) {
 			return false;
 		}
 		return structuralHere.getAsBoolean();

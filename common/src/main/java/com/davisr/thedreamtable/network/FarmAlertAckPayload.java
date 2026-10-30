@@ -53,7 +53,7 @@ public record FarmAlertAckPayload(BlockPos table, String key, String token, List
 		}
 		long cursor = payload.eventIds().stream().mapToLong(Long::longValue).max().orElse(0L);
 		if (cursor > 0) {
-			FarmPreferences.of(player.getServer()).acknowledge(player.getUuid(), checked.farm().located().key(), cursor);
+			FarmPreferences.of(player.getServer()).acknowledge(player.getUuid(), checked.farm().key(), cursor);
 		}
 	}
 

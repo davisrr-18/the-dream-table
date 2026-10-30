@@ -48,7 +48,7 @@ public final class FarmAreas extends PersistentState {
 	/** The saved form of each design, since a finished farm's design never changes and encoding it is the costly part of a save. */
 	private static final IdentityCache<FarmTemplate, NbtCompound> ENCODED_LAYOUTS = new IdentityCache<>();
 	/**
-	 * Records that could not be read, kept as they were saved and written back unchanged, so a farm and its grants are not
+	 * Records that could not be read, kept as they were saved and written back unchanged, so a farm is not
 	 * lost for good to a bug or a missing mod: a later version that can read them gets them back.
 	 */
 	private final List<NbtCompound> unreadable = new ArrayList<>();
@@ -83,12 +83,10 @@ public final class FarmAreas extends PersistentState {
 	 * outlives updates that change or remove the farm), the spot, swaps, and when it was finished. The layout is null
 	 * only for farms finished by an older version whose design has changed since. {@code placed} and {@code paid} are the
 	 * steps the table placed itself and the ones that used delivered items, so Take Down removes and refunds only those;
-	 * records saved before they existed have every step set. {@code payers} names who paid the paid steps when that was not
-	 * the owner (an Operator's Repair); a step it doesn't list was paid by the owner.
+	 * records saved before they existed have every step set.
 	 */
 	private record Built(UUID instanceId, String farmId, long signature, FarmSite site, Map<Item, Item> swaps,
-			@Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites, long finishedAt,
-			@Nullable FarmTemplate layout, BitSet placed, BitSet paid, StepPayers payers) {
+			@Nullable String customName, long finishedAt, @Nullable FarmTemplate layout, BitSet placed, BitSet paid) {
 	}
 
 	/**
@@ -96,8 +94,8 @@ public final class FarmAreas extends PersistentState {
 	 * the rest is what repairing or taking it down needs.
 	 */
 	public record Finished(String id, Key key, UUID instanceId, UUID ownerUuid, String farmId, long signature, FarmSite site, Map<Item, Item> swaps,
-			@Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites, BlockPos where, Box box, long finishedAt,
-			@Nullable FarmTemplate layout, FarmOperation operation, @Nullable RepairLease repairLease, BitSet placed, BitSet paid, StepPayers payers) {
+			@Nullable String customName, BlockPos where, Box box, long finishedAt, @Nullable FarmTemplate layout, FarmOperation operation,
+			@Nullable RepairLease repairLease, BitSet placed, BitSet paid) {
 	}
 
 	private record Area(Box box, @Nullable Built built) {
@@ -120,42 +118,25 @@ public final class FarmAreas extends PersistentState {
 
 	/** Keeps a finished farm's area after its build key is released. Recording the same farm twice changes nothing. */
 	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps) {
-		recordFinished(player, template, site, swaps, UUID.randomUUID(), null, Map.of(), Map.of());
-	}
-
-	/** Restores a finished record after Repair without changing its public identity or accepted collaborators. */
-	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps, UUID instanceId,
-			Map<UUID, FarmGrant> grants) {
-		recordFinished(player, template, site, swaps, instanceId, null, grants, Map.of());
+		recordFinished(player, template, site, swaps, UUID.randomUUID(), null);
 	}
 
 	/** Records a farm whose placed and paid steps are unknown: every step counts as both. */
 	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps, UUID instanceId,
-			@Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites) {
-		recordFinished(player, template, site, swaps, instanceId, customName, grants, invites, every(template), every(template));
+			@Nullable String customName) {
+		recordFinished(player, template, site, swaps, instanceId, customName, every(template), every(template));
 	}
 
-	/** Restores all owner-managed metadata after an operation that temporarily reconstructs the finished record. */
+	/** Records a finished farm with the steps the table placed and the ones it was paid for. Recording the same farm twice changes nothing. */
 	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps, UUID instanceId,
-			@Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites, BitSet placed, BitSet paid) {
-		recordFinished(player, template, site, swaps, instanceId, customName, grants, invites, placed, paid, StepPayers.NONE);
-	}
-
-	/** As above, with who paid the paid steps when it was not the owner, so a partly finished Take Down keeps its refunds right. */
-	public void recordFinished(UUID player, FarmTemplate template, FarmSite site, Map<Item, Item> swaps, UUID instanceId,
-			@Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites, BitSet placed, BitSet paid, StepPayers payers) {
+			@Nullable String customName, BitSet placed, BitSet paid) {
 		Key key = Key.finished(player, site);
 		if (!areas.containsKey(key)) {
 			String farmId = FarmTemplates.baseId(template.id());
 			String layoutId = FarmTemplates.isSaved(template.id()) ? template.id() : FarmTemplates.newSavedId(farmId, template.signature());
 			FarmTemplate layout = saved(layoutId, template);
-			Map<UUID, FarmGrant> collaborators = new LinkedHashMap<>(grants);
-			collaborators.remove(player);
-			Map<UUID, FarmInvite> pending = new LinkedHashMap<>(invites);
-			pending.values().removeIf(invite -> invite.playerUuid().equals(player));
 			areas.put(key, new Area(site.footprint(template), new Built(instanceId, FarmTemplates.baseId(template.id()), template.signature(), site, Map.copyOf(swaps),
-					customName, Map.copyOf(collaborators), Map.copyOf(pending), System.currentTimeMillis(), layout,
-					(BitSet) placed.clone(), (BitSet) paid.clone(), payers)));
+					customName, System.currentTimeMillis(), layout, (BitSet) placed.clone(), (BitSet) paid.clone())));
 			byInstance = null;
 			markDirty();
 		}
@@ -287,11 +268,11 @@ public final class FarmAreas extends PersistentState {
 	 * Ends the repair and adds what it placed to the farm's own record. A step the repair placed again takes that
 	 * placement's payment, so a free replacement of a paid block doesn't refund; steps it left alone keep theirs.
 	 */
-	public boolean completeRepair(UUID instanceId, UUID operationId, UUID owner, UUID payer, BitSet placed, BitSet paid) {
+	public boolean completeRepair(UUID instanceId, UUID operationId, BitSet placed, BitSet paid) {
 		if (!endRepair(instanceId, operationId)) {
 			return false;
 		}
-		mergePlacement(instanceId, owner, payer, placed, paid);
+		mergePlacement(instanceId, placed, paid);
 		return true;
 	}
 
@@ -299,7 +280,7 @@ public final class FarmAreas extends PersistentState {
 	 * Adds what a repair placed to the farm's record, whether or not its lease is still held: the blocks stand either way.
 	 * Does nothing when the farm has no record any more.
 	 */
-	public void mergePlacement(UUID instanceId, UUID owner, UUID payer, BitSet placed, BitSet paid) {
+	public void mergePlacement(UUID instanceId, BitSet placed, BitSet paid) {
 		updateBuilt(instanceId, built -> {
 			BitSet allPlaced = (BitSet) built.placed().clone();
 			allPlaced.or(placed);
@@ -308,8 +289,7 @@ public final class FarmAreas extends PersistentState {
 				allPaid.set(step, paid.get(step));
 			}
 			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-					built.grants(), built.invites(), built.finishedAt(), built.layout(), allPlaced, allPaid,
-					built.payers().afterPlacing(payer, owner, placed, paid));
+					built.finishedAt(), built.layout(), allPlaced, allPaid);
 		});
 	}
 
@@ -368,116 +348,6 @@ public final class FarmAreas extends PersistentState {
 
 	public boolean repairActive(UUID instanceId, RepairLease expected) {
 		return expected.equals(repairLeases.get(instanceId));
-	}
-
-	void setCustomName(UUID instanceId, @Nullable String customName) {
-		updateBuilt(instanceId, built -> new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(),
-				customName, built.grants(), built.invites(), built.finishedAt(), built.layout(), built.placed(), built.paid(), built.payers()));
-	}
-
-	void putGrant(UUID instanceId, FarmGrant grant) {
-		updateBuilt(instanceId, built -> {
-			Map<UUID, FarmGrant> grants = new LinkedHashMap<>(built.grants());
-			grants.put(grant.playerUuid(), grant);
-			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-					Map.copyOf(grants), built.invites(), built.finishedAt(), built.layout(), built.placed(), built.paid(), built.payers());
-		});
-	}
-
-	void putInvite(UUID instanceId, FarmInvite invite) {
-		updateBuilt(instanceId, built -> {
-			Map<UUID, FarmInvite> invites = new LinkedHashMap<>(built.invites());
-			invites.put(invite.inviteId(), invite);
-			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-					built.grants(), Map.copyOf(invites), built.finishedAt(), built.layout(), built.placed(), built.paid(), built.payers());
-		});
-	}
-
-	void acceptInvite(UUID instanceId, UUID inviteId, FarmGrant grant) {
-		updateBuilt(instanceId, built -> {
-			if (!built.invites().containsKey(inviteId)) {
-				return built;
-			}
-			Map<UUID, FarmInvite> invites = new LinkedHashMap<>(built.invites());
-			invites.remove(inviteId);
-			Map<UUID, FarmGrant> grants = new LinkedHashMap<>(built.grants());
-			grants.put(grant.playerUuid(), grant);
-			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-					Map.copyOf(grants), Map.copyOf(invites), built.finishedAt(), built.layout(), built.placed(), built.paid(), built.payers());
-		});
-	}
-
-	public boolean removeInvite(UUID instanceId, UUID inviteId, UUID invitedPlayer) {
-		boolean[] removed = {false};
-		updateBuilt(instanceId, built -> {
-			FarmInvite invite = built.invites().get(inviteId);
-			if (invite == null || !invite.playerUuid().equals(invitedPlayer)) {
-				return built;
-			}
-			Map<UUID, FarmInvite> invites = new LinkedHashMap<>(built.invites());
-			invites.remove(inviteId);
-			removed[0] = true;
-			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-					built.grants(), Map.copyOf(invites), built.finishedAt(), built.layout(), built.placed(), built.paid(), built.payers());
-		});
-		return removed[0];
-	}
-
-	public boolean removeGrant(UUID instanceId, UUID playerUuid) {
-		boolean[] removed = {false};
-		updateBuilt(instanceId, built -> {
-			if (!built.grants().containsKey(playerUuid)) {
-				return built;
-			}
-			Map<UUID, FarmGrant> grants = new LinkedHashMap<>(built.grants());
-			grants.remove(playerUuid);
-			removed[0] = true;
-			return new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-					Map.copyOf(grants), built.invites(), built.finishedAt(), built.layout(), built.placed(), built.paid(), built.payers());
-		});
-		if (removed[0]) {
-			FarmLoader.requestRenewal();
-		}
-		return removed[0];
-	}
-
-	int removeExpiredInvites(long now) {
-		int removed = 0;
-		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
-			Built built = entry.getValue().built();
-			if (built == null || built.invites().isEmpty()) {
-				continue;
-			}
-			Map<UUID, FarmInvite> invites = new LinkedHashMap<>(built.invites());
-			int before = invites.size();
-			invites.values().removeIf(invite -> invite.expired(now));
-			if (invites.size() != before) {
-				removed += before - invites.size();
-				Built changed = new Built(built.instanceId(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(),
-						built.grants(), Map.copyOf(invites), built.finishedAt(), built.layout(), built.placed(), built.paid(), built.payers());
-				entry.setValue(new Area(entry.getValue().box(), changed));
-			}
-		}
-		if (removed > 0) {
-			markDirty();
-		}
-		return removed;
-	}
-
-	int pendingInvites(UUID playerUuid, long now) {
-		int count = 0;
-		for (Area area : areas.values()) {
-			Built built = area.built();
-			if (built == null) {
-				continue;
-			}
-			for (FarmInvite invite : built.invites().values()) {
-				if (invite.playerUuid().equals(playerUuid) && !invite.expired(now)) {
-					count++;
-				}
-			}
-		}
-		return count;
 	}
 
 	private void updateBuilt(UUID instanceId, UnaryOperator<Built> operation) {
@@ -571,13 +441,13 @@ public final class FarmAreas extends PersistentState {
 		Built built = area.built();
 		BlockPos where = built.site().anchor() != null ? built.site().anchor() : built.site().table();
 		RepairLease lease = repairLeases.get(built.instanceId());
-		return new Finished(key.table() + "/" + key.spot(), key, built.instanceId(), key.player(), built.farmId(), built.signature(), built.site(), built.swaps(), built.customName(), built.grants(), built.invites(), where,
-				area.box(), built.finishedAt(), built.layout(), lease == null ? FarmOperation.READY : FarmOperation.REPAIRING, lease,
-				built.placed(), built.paid(), built.payers());
+		return new Finished(key.table() + "/" + key.spot(), key, built.instanceId(), key.player(), built.farmId(), built.signature(), built.site(), built.swaps(),
+				built.customName(), where, area.box(), built.finishedAt(), built.layout(), lease == null ? FarmOperation.READY : FarmOperation.REPAIRING,
+				lease, built.placed(), built.paid());
 	}
 
-	/** What block protection needs from a finished farm: who may break it and its design at its site. */
-	public record Guard(UUID instanceId, UUID ownerUuid, Map<UUID, FarmGrant> grants, FarmTemplate layout, FarmSite site, Map<Item, Item> swaps) {
+	/** What block protection needs from a finished farm: who owns it and its design at its site. */
+	public record Guard(UUID instanceId, UUID ownerUuid, FarmTemplate layout, FarmSite site, Map<Item, Item> swaps) {
 	}
 
 	/**
@@ -595,7 +465,7 @@ public final class FarmAreas extends PersistentState {
 			if (guards.isEmpty()) {
 				guards = new ArrayList<>(1);
 			}
-			guards.add(new Guard(built.instanceId(), entry.getKey().player(), built.grants(), built.layout(), built.site(), built.swaps()));
+			guards.add(new Guard(built.instanceId(), entry.getKey().player(), built.layout(), built.site(), built.swaps()));
 		}
 		return guards;
 	}
@@ -761,8 +631,6 @@ public final class FarmAreas extends PersistentState {
 				if (built.customName() != null) {
 					item.putString("CustomName", built.customName());
 				}
-				FarmGrant.writeAll(item, "Grants", built.grants());
-				FarmInvite.writeAll(item, "Invites", built.invites());
 				RepairLease lease = repairLeases.get(built.instanceId());
 				if (lease != null) {
 					lease.write(item);
@@ -778,7 +646,6 @@ public final class FarmAreas extends PersistentState {
 				}
 				item.putLongArray("PlacedSteps", built.placed().toLongArray());
 				item.putLongArray("PaidSteps", built.paid().toLongArray());
-				built.payers().write(item, "PaidBy");
 			}
 			list.add(item);
 		}
@@ -848,9 +715,6 @@ public final class FarmAreas extends PersistentState {
 				state.markDirty();
 			}
 		}
-		Map<UUID, FarmGrant> grants = new LinkedHashMap<>(FarmGrant.readAll(item, "Grants"));
-		grants.remove(item.getUuid("Player"));
-		Map<UUID, FarmInvite> invites = readInvites(item, item.getUuid("Player"));
 		String customName = null;
 		if (item.contains("CustomName", NbtElement.STRING_TYPE)) {
 			FarmNames.Validation validation = FarmNames.validate(item.getString("CustomName"));
@@ -870,14 +734,9 @@ public final class FarmAreas extends PersistentState {
 		boolean steps = item.contains("PlacedSteps", NbtElement.LONG_ARRAY_TYPE) && item.contains("PaidSteps", NbtElement.LONG_ARRAY_TYPE);
 		BitSet placed = steps ? BitSet.valueOf(item.getLongArray("PlacedSteps")) : every(layout);
 		BitSet paid = steps ? BitSet.valueOf(item.getLongArray("PaidSteps")) : every(layout);
+		// Collaborator, invite and payer data saved by earlier versions is not read and is dropped on the next save.
 		return new Built(instanceId, farmId, signature, FarmSite.read(item.getCompound("Site")), MaterialLedger.readSwaps(item), customName,
-				Map.copyOf(grants), invites, item.getLong("FinishedAt"), layout, placed, paid, StepPayers.read(item, "PaidBy"));
-	}
-
-	private static Map<UUID, FarmInvite> readInvites(NbtCompound item, UUID ownerUuid) {
-		Map<UUID, FarmInvite> invites = new LinkedHashMap<>(FarmInvite.readAll(item, "Invites"));
-		invites.values().removeIf(invite -> invite.playerUuid().equals(ownerUuid));
-		return Map.copyOf(invites);
+				item.getLong("FinishedAt"), layout, placed, paid);
 	}
 
 	/** A copy of the design under its saved id, kept in {@link FarmTemplates} so builds and take-aparts can find it. */

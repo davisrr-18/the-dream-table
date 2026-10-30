@@ -2,7 +2,6 @@ package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.GameSetup;
 import com.davisr.thedreamtable.farm.FarmLoader;
-import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.network.FarmAlertsPayload;
 import com.davisr.thedreamtable.screen.ui.Theme;
 import net.minecraft.text.Text;
@@ -25,7 +24,7 @@ class AlertTextTest {
 	}
 
 	private static FarmLoader.Entry farm(String key, int alerts) {
-		return new FarmLoader.Entry(key, "farm", "", "", "minecraft:overworld", BlockPos.ORIGIN, FarmRole.OWNER,
+		return new FarmLoader.Entry(key, "farm", "", "", "minecraft:overworld", BlockPos.ORIGIN,
 				false, false, false, false, 0, 0, true, 0, alerts);
 	}
 

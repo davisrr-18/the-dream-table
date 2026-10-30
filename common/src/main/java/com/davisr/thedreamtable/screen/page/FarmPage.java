@@ -3,7 +3,6 @@ package com.davisr.thedreamtable.screen.page;
 import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.farm.FarmListing;
 import com.davisr.thedreamtable.farm.FarmLoader;
-import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.network.FarmAlertsPayload;
 import com.davisr.thedreamtable.network.FarmCarePayload;
@@ -36,10 +35,7 @@ public final class FarmPage implements TablePage {
 	private static final int TRACK = 1;
 	private static final int LOADED = 2;
 	private static final int REPAIR = 3;
-	private static final int RENAME = 4;
-	private static final int INVITE_VIEWER = 5;
-	private static final int INVITE_OPERATOR = 6;
-	private static final int COLLABORATORS = 7;
+	private static final int TAKE_DOWN = 4;
 	private static final long CONFIRM_MS = 3000L;
 	private static final int ITEM_SPACING = 21;
 	private static final int ITEM_SIZE = 16;
@@ -75,7 +71,7 @@ public final class FarmPage implements TablePage {
 		if (farm == null) {
 			ui.flowNote(context, Text.translatable(LoadedFarmsView.received() ? "gui.the_dream_table.farm_gone" : "gui.the_dream_table.loaded_waiting"),
 					ui.view().cardY(0) + 8, HINT);
-			ui.buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), flowX(), rowY(backRow()), mouseX, mouseY, true, false);
+			ui.buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), flowX(), rowY(backRow(null)), mouseX, mouseY, true, false);
 			return;
 		}
 		Text where = Text.translatable("gui.the_dream_table.farm_at", farm.where().getX(), farm.where().getY(), farm.where().getZ(),
@@ -89,45 +85,28 @@ public final class FarmPage implements TablePage {
 				flowX(), rowY(FAVORITE), mouseX, mouseY, true, farm.favorite());
 		ui.buttonAt("track", context, Text.translatable(farm.tracked() ? "gui.the_dream_table.untrack" : "gui.the_dream_table.track"),
 				flowX(), rowY(TRACK), mouseX, mouseY, true, farm.tracked());
-		Text loadedReason = keepLoadedReason(farm.role(), LoadedFarmsView.limit(), farm.loaded(), farm.ownerQuotaFull());
+		Text loadedReason = keepLoadedReason(LoadedFarmsView.limit(), farm.loaded(), farm.ownerQuotaFull());
 		reasonButton("keep_loaded", context, loadedLabel(farm), loadedReason, LOADED, mouseX, mouseY, farm.loaded());
 		if (farm.available()) {
 			boolean busy = ProjectState.locked(ui.handler());
 			reasonButton("repair", context, busy ? Text.translatable("gui.the_dream_table.repair_table_busy") : repairLabel(farm),
-					repairReason(farm.role(), busy, farm.missing()), REPAIR, mouseX, mouseY, false);
-		}
-		if (farm.role() == FarmRole.OWNER) {
-			boolean typed = !input.text().isBlank();
-			reasonButton("rename", context, Text.translatable("gui.the_dream_table.rename_from_field"), typed ? null : Text.translatable("gui.the_dream_table.reason_type_name"),
-					RENAME, mouseX, mouseY, false);
-			reasonButton("invite_viewer", context, Text.translatable("gui.the_dream_table.invite_viewer"), typed ? null : Text.translatable("gui.the_dream_table.reason_type_player"),
-					INVITE_VIEWER, mouseX, mouseY, false);
-			reasonButton("invite_operator", context, Text.translatable("gui.the_dream_table.invite_operator"), typed ? null : Text.translatable("gui.the_dream_table.reason_type_player"),
-					INVITE_OPERATOR, mouseX, mouseY, false);
-			List<FarmDetailsPayload.CollaboratorEntry> collaborators = collaborators();
-			for (int index = 0; index < collaborators.size(); index++) {
-				FarmDetailsPayload.CollaboratorEntry collaborator = collaborators.get(index);
-				Text role = Text.translatable("gui.the_dream_table.role." + collaborator.role().name().toLowerCase(Locale.ROOT));
-				ui.destructiveButtonAt("remove." + collaborator.playerUuid(), context,
-						Text.translatable("gui.the_dream_table.remove_collaborator", collaborator.playerName(), role),
-						flowX(), rowY(COLLABORATORS + index), mouseX, mouseY, true);
-			}
-			if (!farm.available()) {
-				ui.destructiveButtonAt("forget", context, Text.translatable("gui.the_dream_table.forget"), flowX(), rowY(takeDownRow()), mouseX, mouseY, true);
-			} else if (confirming()) {
-				ui.buttonAt("cancel_take_down", context, Text.translatable("gui.the_dream_table.cancel"), flowX(), rowY(takeDownRow()), mouseX, mouseY, true, false);
+					repairReason(busy, farm.missing()), REPAIR, mouseX, mouseY, false);
+			if (confirming()) {
+				ui.buttonAt("cancel_take_down", context, Text.translatable("gui.the_dream_table.cancel"), flowX(), rowY(takeDownRow(farm)), mouseX, mouseY, true, false);
 				ui.destructiveButtonAt("confirm_take_down", context, Text.translatable("gui.the_dream_table.confirm_take_down"), flowX(), rowY(confirmRow()), mouseX, mouseY, true);
 			} else {
-				ui.destructiveButtonAt("take_down", context, Text.translatable("gui.the_dream_table.take_down"), flowX(), rowY(takeDownRow()), mouseX, mouseY, true);
+				ui.destructiveButtonAt("take_down", context, Text.translatable("gui.the_dream_table.take_down"), flowX(), rowY(takeDownRow(farm)), mouseX, mouseY, true);
 			}
+		} else {
+			ui.destructiveButtonAt("forget", context, Text.translatable("gui.the_dream_table.forget"), flowX(), rowY(takeDownRow(farm)), mouseX, mouseY, true);
 		}
-		ui.buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), flowX(), rowY(backRow()), mouseX, mouseY, true, false);
+		ui.buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), flowX(), rowY(backRow(farm)), mouseX, mouseY, true, false);
 	}
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		FarmLoader.Entry farm = farm();
-		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(backRow()))) {
+		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(backRow(farm)))) {
 			confirmUntil = 0L;
 			ui.go(DreamTableScreenHandler.PAGE_LOADED, DreamTableScreenHandler.BUTTON_FARM_BACK);
 			return true;
@@ -144,9 +123,6 @@ public final class FarmPage implements TablePage {
 			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(LOADED)) && LoadedFarmsView.limit() > 0) {
-			if (farm.role() == FarmRole.VIEWER) {
-				return true;
-			}
 			if (!canLoad(farm)) {
 				ui.actions().message(Text.translatable("gui.the_dream_table.loaded_full", LoadedFarmsView.limit()));
 				return true;
@@ -155,7 +131,7 @@ public final class FarmPage implements TablePage {
 			ui.actions().click();
 			return true;
 		}
-		if (farm.available() && farm.role() != FarmRole.VIEWER && ui.buttonHit(mouseX, mouseY, flowX(), rowY(REPAIR)) && farm.missing() != 0) {
+		if (farm.available() && ui.buttonHit(mouseX, mouseY, flowX(), rowY(REPAIR)) && farm.missing() != 0) {
 			if (ProjectState.locked(ui.handler())) {
 				ui.message("gui.the_dream_table.repair_busy");
 				return true;
@@ -165,32 +141,8 @@ public final class FarmPage implements TablePage {
 			ui.actions().click();
 			return true;
 		}
-		if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, flowX(), rowY(RENAME))) {
-			if (!input.text().isBlank()) {
-				LoadedFarmsView.rename(farm.key(), input.text());
-			}
-			return true;
-		}
-		if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, flowX(), rowY(INVITE_VIEWER)) && !input.text().isBlank()) {
-			LoadedFarmsView.invite(farm.key(), input.text(), FarmRole.VIEWER);
-			return true;
-		}
-		if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, flowX(), rowY(INVITE_OPERATOR)) && !input.text().isBlank()) {
-			LoadedFarmsView.invite(farm.key(), input.text(), FarmRole.OPERATOR);
-			return true;
-		}
-		if (farm.role() == FarmRole.OWNER) {
-			List<FarmDetailsPayload.CollaboratorEntry> collaborators = collaborators();
-			for (int index = 0; index < collaborators.size(); index++) {
-				if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(COLLABORATORS + index))) {
-					LoadedFarmsView.removeCollaborator(farm.key(), collaborators.get(index).playerUuid());
-					ui.actions().click();
-					return true;
-				}
-			}
-		}
 		if (!farm.available()) {
-			if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, flowX(), rowY(takeDownRow()))) {
+			if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(takeDownRow(farm)))) {
 				LoadedFarmsView.care(ui.handler().getTablePos(), farm.key(), FarmCarePayload.Action.FORGET);
 				ui.actions().click();
 				ui.go(DreamTableScreenHandler.PAGE_LOADED, DreamTableScreenHandler.BUTTON_FARM_BACK);
@@ -198,7 +150,7 @@ public final class FarmPage implements TablePage {
 			}
 			return false;
 		}
-		if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, flowX(), rowY(takeDownRow()))) {
+		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(takeDownRow(farm)))) {
 			if (confirming()) {
 				confirmUntil = 0L;
 				ui.actions().click();
@@ -210,7 +162,7 @@ public final class FarmPage implements TablePage {
 			}
 			return true;
 		}
-		if (farm.role() == FarmRole.OWNER && confirming() && ui.buttonHit(mouseX, mouseY, flowX(), rowY(confirmRow()))) {
+		if (confirming() && ui.buttonHit(mouseX, mouseY, flowX(), rowY(confirmRow()))) {
 			confirmUntil = 0L;
 			LoadedFarmsView.care(ui.handler().getTablePos(), farm.key(), FarmCarePayload.Action.TAKE_DOWN);
 			ui.actions().click();
@@ -230,21 +182,19 @@ public final class FarmPage implements TablePage {
 		}
 	}
 
-	/** Role, operating state, Keep Loaded state, and distance or dimension for the selected farm. */
+	/** Operating state, Keep Loaded state, and distance or dimension for the selected farm. */
 	private static Text summaryText(FarmLoader.Entry farm) {
 		return summaryText(farm, LoadedFarmsView.viewer());
 	}
 
 	static Text summaryText(FarmLoader.Entry farm, FarmListing.Viewer viewer) {
-		Text role = Text.translatable("gui.the_dream_table.role." + farm.role().name().toLowerCase(Locale.ROOT));
 		Text state = farm.available() ? LoadedFarmsPage.state(farm) : Text.translatable(FarmTemplates.isImported(farm.farmId())
 				? "gui.the_dream_table.farm_file_missing" : "gui.the_dream_table.farm_removed");
 		Text loadedState = Text.translatable(farm.loaded() ? "gui.the_dream_table.kept_loaded" : "gui.the_dream_table.not_kept_loaded");
 		int away = FarmListing.blocksAway(farm, viewer);
 		Text location = away >= 0 ? Text.translatable("gui.the_dream_table.blocks_away", away) : LoadedFarmsPage.dimension(farm.dimension());
 		Text operating = Text.translatable("gui.the_dream_table.joined", loadedState, location);
-		return Text.translatable("gui.the_dream_table.joined", role,
-				Text.translatable("gui.the_dream_table.joined", state, operating));
+		return Text.translatable("gui.the_dream_table.joined", state, operating);
 	}
 
 	private static Text storageText(FarmDetailsPayload details) {
@@ -409,21 +359,15 @@ public final class FarmPage implements TablePage {
 	}
 
 	/** Why Keep Loaded can't be changed, or null when it can. */
-	static Text keepLoadedReason(FarmRole role, int limit, boolean loaded, boolean ownerQuotaFull) {
-		if (role == FarmRole.VIEWER) {
-			return Text.translatable("gui.the_dream_table.reason_operators_only");
-		}
+	static Text keepLoadedReason(int limit, boolean loaded, boolean ownerQuotaFull) {
 		if (limit <= 0) {
 			return Text.translatable("gui.the_dream_table.reason_keep_loaded_server");
 		}
 		return !loaded && ownerQuotaFull ? Text.translatable("gui.the_dream_table.loaded_full", limit) : null;
 	}
 
-	/** Why Repair is off, or null when it can be used: not for a viewer, not while the table is busy, not for a whole farm. */
-	static Text repairReason(FarmRole role, boolean tableBusy, int missing) {
-		if (role == FarmRole.VIEWER) {
-			return Text.translatable("gui.the_dream_table.reason_operators_only");
-		}
+	/** Why Repair is off, or null when it can be used: not while the table is busy, not for a whole farm. */
+	static Text repairReason(boolean tableBusy, int missing) {
 		if (tableBusy) {
 			return Text.translatable("gui.the_dream_table.repair_busy");
 		}
@@ -457,7 +401,7 @@ public final class FarmPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		return rowY(backRow()) - ui.view().cardY(0) + PAD + BUTTON_HEIGHT + 4;
+		return rowY(backRow(farm())) - ui.view().cardY(0) + PAD + BUTTON_HEIGHT + 4;
 	}
 
 	@Override
@@ -563,21 +507,22 @@ public final class FarmPage implements TablePage {
 		}
 	}
 
-	private List<FarmDetailsPayload.CollaboratorEntry> collaborators() {
-		FarmDetailsPayload details = LoadedFarmsView.details();
-		return details == null ? List.of() : details.collaborators();
+	/**
+	 * The row of Take Down, which Forget takes for a farm the mod no longer has, since it has no Repair row above it to
+	 * leave empty. Rows run without gaps: favorite, track, keep loaded, repair, take down, then the confirm row (only
+	 * while confirming, its room kept so Back doesn't jump) and Back.
+	 */
+	static int takeDownRow(FarmLoader.Entry farm) {
+		return farm.available() ? TAKE_DOWN : REPAIR;
 	}
 
-	private int takeDownRow() {
-		return COLLABORATORS + collaborators().size();
+	static int confirmRow() {
+		return TAKE_DOWN + 1;
 	}
 
-	private int confirmRow() {
-		return takeDownRow() + 1;
-	}
-
-	private int backRow() {
-		return takeDownRow() + 2;
+	/** Back follows Take Down, after the confirm row's room when the farm can be taken down, or right under Forget. */
+	static int backRow(FarmLoader.Entry farm) {
+		return farm != null && !farm.available() ? REPAIR + 1 : TAKE_DOWN + 2;
 	}
 
 }

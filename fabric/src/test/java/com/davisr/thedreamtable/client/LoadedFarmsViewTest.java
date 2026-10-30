@@ -17,9 +17,6 @@ class LoadedFarmsViewTest {
 		assertFalse(state.requestDetails(1L, true));
 		assertTrue(state.requestAlerts(0L, false));
 		assertFalse(state.requestAlerts(1L, true));
-		state.invalidateDetails();
-		assertTrue(state.requestDetails(2L, false));
-		assertFalse(state.requestDetails(3L, true));
 
 		assertFalse(state.select("farm-a"));
 		assertTrue(state.select("farm-b"));
@@ -71,7 +68,6 @@ class LoadedFarmsViewTest {
 
 		assertFalse(LoadedFarmsView.received());
 		assertTrue(LoadedFarmsView.farms().isEmpty());
-		assertTrue(LoadedFarmsView.invites().isEmpty());
 		assertTrue(LoadedFarmsView.dimension().isEmpty());
 		assertTrue(LoadedFarmsView.limit() == 0);
 		assertTrue(LoadedFarmsView.details() == null);

@@ -21,8 +21,8 @@ class ConfigFlagTest {
 
 	@Test
 	void anUnrecognizedValueIsTheDefaultNotFalse() {
-		assertTrue(DreamTableConfig.flag("farm_sharing_enabled", "yes", true));
-		assertTrue(DreamTableConfig.flag("farm_sharing_enabled", "", true));
+		assertTrue(DreamTableConfig.flag("farm_protection_enabled", "yes", true));
+		assertTrue(DreamTableConfig.flag("farm_protection_enabled", "", true));
 		assertFalse(DreamTableConfig.flag("load_farms_while_offline", "1", false));
 	}
 }

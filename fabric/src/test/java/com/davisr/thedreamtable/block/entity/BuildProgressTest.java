@@ -1,17 +1,14 @@
 package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.BuildPace;
-import com.davisr.thedreamtable.farm.FarmGrant;
-import com.davisr.thedreamtable.farm.FarmInvite;
 import com.davisr.thedreamtable.farm.FarmKey;
-import com.davisr.thedreamtable.farm.FarmRole;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -122,13 +119,8 @@ class BuildProgressTest {
 	void aRepairAndWhyItStoppedAreSavedAndClearedOnRestart() {
 		BuildProgress progress = new BuildProgress();
 		UUID farm = UUID.randomUUID();
-		UUID operator = UUID.randomUUID();
-		Map<UUID, FarmGrant> grants = Map.of(operator, new FarmGrant(operator, FarmRole.OPERATOR, 123L));
-		UUID viewer = UUID.randomUUID();
-		FarmInvite invite = FarmInvite.create(viewer, FarmRole.VIEWER, 456L);
-		Map<UUID, FarmInvite> invites = Map.of(invite.inviteId(), invite);
 		progress.start(UUID.randomUUID(), true, 7L);
-		progress.startRepair(farm, "River Farm", grants, invites);
+		progress.startRepair(farm, "River Farm");
 		progress.keep();
 		progress.setIssue(BuildIssue.at(BuildIssue.Kind.PROTECTED, new BlockPos(1, 2, 3)));
 		progress.stop(DreamTableBlockEntity.PHASE_BLOCKED);
@@ -139,8 +131,6 @@ class BuildProgressTest {
 		assertTrue(loaded.repair());
 		assertEquals(farm, loaded.repairInstanceId());
 		assertEquals("River Farm", loaded.repairCustomName());
-		assertEquals(grants, loaded.repairGrants());
-		assertEquals(invites, loaded.repairInvites());
 		assertEquals(1, loaded.kept());
 		assertEquals(progress.issue(), loaded.issue());
 		loaded.start(UUID.randomUUID(), false, 7L);
@@ -150,8 +140,40 @@ class BuildProgressTest {
 		assertFalse(loaded.repair());
 		assertEquals(null, loaded.repairInstanceId());
 		assertEquals(null, loaded.repairCustomName());
-		assertTrue(loaded.repairGrants().isEmpty());
-		assertTrue(loaded.repairInvites().isEmpty());
+	}
+
+	@Test
+	void aRepairSavedWithCollaboratorsKeepsItsNameAndDropsTheCollaboratorsOnNextSave() {
+		UUID farm = UUID.randomUUID();
+		NbtCompound nbt = new NbtCompound();
+		nbt.putBoolean("Repair", true);
+		nbt.putUuid("RepairInstanceId", farm);
+		nbt.putString("RepairCustomName", "River Farm");
+		NbtList grants = new NbtList();
+		NbtCompound grant = new NbtCompound();
+		grant.putUuid("Player", UUID.randomUUID());
+		grant.putString("Role", "OPERATOR");
+		grant.putLong("AcceptedAt", 123L);
+		grants.add(grant);
+		nbt.put("RepairGrants", grants);
+		NbtList invites = new NbtList();
+		NbtCompound invite = new NbtCompound();
+		invite.putUuid("InviteId", UUID.randomUUID());
+		invite.putUuid("Player", UUID.randomUUID());
+		invite.putString("Role", "VIEWER");
+		invites.add(invite);
+		nbt.put("RepairInvites", invites);
+
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+		NbtCompound saved = new NbtCompound();
+		loaded.write(saved);
+
+		assertTrue(loaded.repair());
+		assertEquals(farm, loaded.repairInstanceId());
+		assertEquals("River Farm", loaded.repairCustomName());
+		assertFalse(saved.contains("RepairGrants"));
+		assertFalse(saved.contains("RepairInvites"));
 	}
 
 	@Test
@@ -176,7 +198,6 @@ class BuildProgressTest {
 		loaded.read(nbt);
 
 		assertNotNull(loaded.repairInstanceId());
-		assertTrue(loaded.repairGrants().isEmpty());
 	}
 
 	@Test
@@ -191,8 +212,6 @@ class BuildProgressTest {
 		assertFalse(loaded.repair());
 		assertEquals(null, loaded.repairInstanceId());
 		assertEquals(null, loaded.repairCustomName());
-		assertTrue(loaded.repairGrants().isEmpty());
-		assertTrue(loaded.repairInvites().isEmpty());
 	}
 
 	@Test

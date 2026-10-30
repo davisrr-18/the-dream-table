@@ -70,94 +70,41 @@ class FarmPreferencesTest {
 	}
 
 	@Test
-	void viewersCanBreakIsOffByDefaultAndWorldsWithoutItReadAsOff() {
-		FarmPreferences preferences = new FarmPreferences();
-		assertFalse(preferences.viewersMayBreak(ALICE));
-		preferences.setProtectsFarms(ALICE, true);
-		NbtCompound saved = preferences.writeNbt(new NbtCompound(), null);
-		assertFalse(saved.contains("ViewersBreak"));
-		assertFalse(FarmPreferences.read(saved, null).viewersMayBreak(ALICE));
-		assertFalse(FarmPreferences.read(new NbtCompound(), null).viewersMayBreak(ALICE));
-	}
-
-	@Test
-	void viewersCanBreakRoundTripsPerPlayerAndIsIndependentOfProtection() {
-		FarmPreferences preferences = new FarmPreferences();
-		preferences.setProtectsFarms(BOB, true);
-		preferences.setDirty(false);
-		assertTrue(preferences.setViewersMayBreak(ALICE, true));
-		assertTrue(preferences.isDirty());
-		preferences.setDirty(false);
-		assertTrue(preferences.setViewersMayBreak(ALICE, true));
-		assertFalse(preferences.isDirty());
-
-		FarmPreferences restored = FarmPreferences.read(preferences.writeNbt(new NbtCompound(), null), null);
-
-		assertTrue(restored.viewersMayBreak(ALICE));
-		assertFalse(restored.protectsFarms(ALICE));
-		assertTrue(restored.protectsFarms(BOB));
-		assertFalse(restored.viewersMayBreak(BOB));
-
-		assertTrue(restored.setViewersMayBreak(ALICE, false));
-		assertFalse(FarmPreferences.read(restored.writeNbt(new NbtCompound(), null), null).viewersMayBreak(ALICE));
-	}
-
-	@Test
-	void acceptFarmInvitesIsOnByDefaultAndWorldsWithoutItReadAsOn() {
-		FarmPreferences preferences = new FarmPreferences();
-		assertTrue(preferences.acceptsInvites(ALICE));
-		NbtCompound untouched = preferences.writeNbt(new NbtCompound(), null);
-		assertFalse(untouched.contains("DecliningInvites"));
-		assertTrue(FarmPreferences.read(untouched, null).acceptsInvites(ALICE));
-		assertTrue(FarmPreferences.read(new NbtCompound(), null).acceptsInvites(ALICE));
-	}
-
-	@Test
-	void acceptFarmInvitesRoundTripsPerPlayerAndTurningItBackOnForgetsIt() {
-		FarmPreferences preferences = new FarmPreferences();
-		preferences.setFavorite(BOB, FIRST, true);
-		preferences.setDirty(false);
-		assertTrue(preferences.setAcceptsInvites(ALICE, false));
-		assertTrue(preferences.isDirty());
-		preferences.setDirty(false);
-		assertTrue(preferences.setAcceptsInvites(ALICE, false));
-		assertFalse(preferences.isDirty());
-
-		FarmPreferences restored = FarmPreferences.read(preferences.writeNbt(new NbtCompound(), null), null);
-
-		assertFalse(restored.acceptsInvites(ALICE));
-		assertTrue(restored.acceptsInvites(BOB));
-		assertTrue(restored.isFavorite(BOB, FIRST));
-		assertTrue(restored.setAcceptsInvites(ALICE, true));
-		assertTrue(FarmPreferences.read(restored.writeNbt(new NbtCompound(), null), null).acceptsInvites(ALICE));
-	}
-
-	@Test
-	void acceptFarmInvitesStopsAddingPlayersAtTheLimitButStillTurnsBackOn() {
+	void protectMyFarmsStopsAddingPlayersAtTheSavedPlayerLimitButStillTurnsOff() {
 		FarmPreferences preferences = new FarmPreferences();
 		for (int index = 0; index < FarmPreferences.MAX_SAVED_PLAYERS; index++) {
-			assertTrue(preferences.setAcceptsInvites(new UUID(0L, index + 1L), false));
-		}
-		assertFalse(preferences.setAcceptsInvites(ALICE, false));
-		assertTrue(preferences.acceptsInvites(ALICE));
-		assertTrue(preferences.setAcceptsInvites(new UUID(0L, 1L), true));
-		assertTrue(preferences.setAcceptsInvites(ALICE, false));
-	}
-
-	@Test
-	void theSwitchesStopAddingPlayersAtTheSavedPlayerLimitButStillTurnOff() {
-		FarmPreferences preferences = new FarmPreferences();
-		for (int index = 0; index < FarmPreferences.MAX_SAVED_PLAYERS; index++) {
-			UUID player = new UUID(0L, index + 1L);
-			assertTrue(preferences.setProtectsFarms(player, true));
-			assertTrue(preferences.setViewersMayBreak(player, true));
+			assertTrue(preferences.setProtectsFarms(new UUID(0L, index + 1L), true));
 		}
 		assertFalse(preferences.setProtectsFarms(ALICE, true));
-		assertFalse(preferences.setViewersMayBreak(ALICE, true));
 		assertFalse(preferences.protectsFarms(ALICE));
-		assertTrue(preferences.setViewersMayBreak(new UUID(0L, 1L), true));
-		assertTrue(preferences.setViewersMayBreak(new UUID(0L, 1L), false));
-		assertTrue(preferences.setViewersMayBreak(ALICE, true));
+		assertTrue(preferences.setProtectsFarms(new UUID(0L, 1L), false));
+		assertTrue(preferences.setProtectsFarms(ALICE, false));
+	}
+
+	@Test
+	void switchesSavedBeforeSharingWasRemovedAreIgnoredAndNotWrittenAgain() {
+		FarmPreferences preferences = new FarmPreferences();
+		preferences.setProtectsFarms(ALICE, true);
+		NbtCompound saved = preferences.writeNbt(new NbtCompound(), null);
+		NbtList viewersBreak = new NbtList();
+		NbtCompound viewer = new NbtCompound();
+		viewer.putUuid("Player", BOB);
+		viewersBreak.add(viewer);
+		saved.put("ViewersBreak", viewersBreak);
+		NbtList declining = new NbtList();
+		NbtCompound decliner = new NbtCompound();
+		decliner.putUuid("Player", BOB);
+		declining.add(decliner);
+		saved.put("DecliningInvites", declining);
+
+		FarmPreferences restored = FarmPreferences.read(saved, null);
+
+		assertTrue(restored.protectsFarms(ALICE));
+		assertFalse(restored.protectsFarms(BOB));
+		NbtCompound again = restored.writeNbt(new NbtCompound(), null);
+		assertFalse(again.contains("ViewersBreak"));
+		assertFalse(again.contains("DecliningInvites"));
+		assertTrue(again.contains("Protecting"));
 	}
 
 	@Test

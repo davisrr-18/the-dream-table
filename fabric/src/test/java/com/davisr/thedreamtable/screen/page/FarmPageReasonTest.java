@@ -2,7 +2,6 @@ package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.GameSetup;
 import com.davisr.thedreamtable.farm.FarmLoader;
-import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.screen.ui.Viewport;
 import com.davisr.thedreamtable.screen.ui.layout.ScreenGeometry;
 import com.google.gson.JsonObject;
@@ -25,20 +24,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FarmPageReasonTest {
 	@Test
 	void keepLoadedNamesWhyItIsOff() {
-		assertEquals("gui.the_dream_table.reason_operators_only", key(FarmPage.keepLoadedReason(FarmRole.VIEWER, 4, false, false)));
-		assertEquals("gui.the_dream_table.reason_keep_loaded_server", key(FarmPage.keepLoadedReason(FarmRole.OWNER, 0, false, false)));
-		assertEquals("gui.the_dream_table.loaded_full", key(FarmPage.keepLoadedReason(FarmRole.OWNER, 4, false, true)));
-		assertNull(FarmPage.keepLoadedReason(FarmRole.OWNER, 4, false, false), "usable");
-		assertNull(FarmPage.keepLoadedReason(FarmRole.OPERATOR, 4, true, true), "a farm already kept loaded can be switched off");
+		assertEquals("gui.the_dream_table.reason_keep_loaded_server", key(FarmPage.keepLoadedReason(0, false, false)));
+		assertEquals("gui.the_dream_table.loaded_full", key(FarmPage.keepLoadedReason(4, false, true)));
+		assertNull(FarmPage.keepLoadedReason(4, false, false), "usable");
+		assertNull(FarmPage.keepLoadedReason(4, true, true), "a farm already kept loaded can be switched off");
 	}
 
 	@Test
 	void repairNamesWhyItIsOffInItsOrder() {
-		assertEquals("gui.the_dream_table.reason_operators_only", key(FarmPage.repairReason(FarmRole.VIEWER, true, 3)));
-		assertEquals("gui.the_dream_table.repair_busy", key(FarmPage.repairReason(FarmRole.OWNER, true, 3)));
-		assertEquals("gui.the_dream_table.reason_repair_whole", key(FarmPage.repairReason(FarmRole.OWNER, false, 0)));
-		assertNull(FarmPage.repairReason(FarmRole.OWNER, false, 3));
-		assertNull(FarmPage.repairReason(FarmRole.OWNER, false, FarmLoader.UNKNOWN), "an unloaded part of the farm still allows Repair");
+		assertEquals("gui.the_dream_table.repair_busy", key(FarmPage.repairReason(true, 3)));
+		assertEquals("gui.the_dream_table.reason_repair_whole", key(FarmPage.repairReason(false, 0)));
+		assertNull(FarmPage.repairReason(false, 3));
+		assertNull(FarmPage.repairReason(false, FarmLoader.UNKNOWN), "an unloaded part of the farm still allows Repair");
 	}
 
 	@Test
@@ -49,8 +46,7 @@ class FarmPageReasonTest {
 			lang = JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8)).getAsJsonObject();
 		}
 		for (String key : new String[] {
-				"gui.the_dream_table.reason_operators_only", "gui.the_dream_table.reason_keep_loaded_server", "gui.the_dream_table.reason_repair_whole",
-				"gui.the_dream_table.reason_type_name", "gui.the_dream_table.reason_type_player", "gui.the_dream_table.item_stored",
+				"gui.the_dream_table.reason_keep_loaded_server", "gui.the_dream_table.reason_repair_whole", "gui.the_dream_table.item_stored",
 				"gui.the_dream_table.item_needed", "gui.the_dream_table.item_supplied", "gui.the_dream_table.pace_slider"}) {
 			assertTrue(lang.has(key), key);
 		}

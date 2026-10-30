@@ -20,13 +20,11 @@ public final class FarmListing {
 	}
 
 	public enum Show {
-		ALL, OWNED, SHARED, KEPT_LOADED, ATTENTION, RUNNING, UNLOADED, FULL;
+		ALL, KEPT_LOADED, ATTENTION, RUNNING, UNLOADED, FULL;
 
 		boolean accepts(FarmLoader.Entry farm) {
 			return switch (this) {
 				case ALL -> true;
-				case OWNED -> farm.role() == FarmRole.OWNER;
-				case SHARED -> farm.role() != FarmRole.OWNER;
 				case KEPT_LOADED -> farm.loaded();
 				case ATTENTION -> needsAttention(farm);
 				case RUNNING -> farm.available() && farm.status() == FarmStorage.RUNNING;

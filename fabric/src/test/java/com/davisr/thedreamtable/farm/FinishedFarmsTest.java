@@ -67,21 +67,19 @@ class FinishedFarmsTest {
 	}
 
 	@Test
-	void repairCanRestoreTheSameIdentityAndCollaborators() {
+	void repairCanRestoreTheSameIdentityAndOwner() {
 		FarmTemplate template = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
 		UUID instanceId = UUID.randomUUID();
-		UUID operator = UUID.randomUUID();
-		Map<UUID, FarmGrant> grants = Map.of(operator, new FarmGrant(operator, FarmRole.OPERATOR, 123L));
 		FarmAreas areas = new FarmAreas();
 
-		areas.recordFinished(PLAYER, template, SITE, Map.of(), instanceId, grants);
+		areas.recordFinished(PLAYER, template, SITE, Map.of(), instanceId, "River Works");
 		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null);
 		FarmAreas.Finished farm = restored.finishedBy(PLAYER).getFirst();
 
 		assertEquals(instanceId, farm.instanceId());
-		assertEquals(grants, farm.grants());
+		assertEquals("River Works", farm.customName());
 		FarmRecord record = FarmDirectory.record(new FarmKey(net.minecraft.util.Identifier.of("minecraft", "overworld"), instanceId), farm);
-		assertTrue(FarmAccess.allows(record, operator, FarmAction.REPAIR, true));
+		assertTrue(FarmAccess.allows(record, PLAYER, FarmAction.REPAIR));
 	}
 
 	@Test
@@ -171,12 +169,11 @@ class FinishedFarmsTest {
 		areas.recordFinished(PLAYER, cane, SITE, Map.of());
 		UUID first = areas.finishedBy(PLAYER).getFirst().instanceId();
 		assertEquals(first, areas.finished(first).orElseThrow().instanceId());
-		areas.recordFinished(PLAYER, cane, otherSite, Map.of());
+		areas.recordFinished(PLAYER, cane, otherSite, Map.of(), UUID.randomUUID(), "Second");
 		UUID second = areas.finishedBy(PLAYER).stream().map(FarmAreas.Finished::instanceId).filter(id -> !id.equals(first)).findFirst().orElseThrow();
 		assertEquals(second, areas.finished(second).orElseThrow().instanceId());
 		assertTrue(areas.hasFinished(first));
 
-		areas.setCustomName(second, "Second");
 		assertEquals("Second", areas.finished(second).orElseThrow().customName());
 		assertNull(areas.finished(first).orElseThrow().customName());
 
@@ -218,11 +215,8 @@ class FinishedFarmsTest {
 	void repairingFarmIsNotForgottenByAConcurrentConflictWhenItsPresenceIsLow() {
 		FarmTemplate template = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
 		UUID instanceId = UUID.randomUUID();
-		UUID operator = UUID.randomUUID();
-		Map<UUID, FarmGrant> grants = Map.of(operator, new FarmGrant(operator, FarmRole.OPERATOR, 1_700_000_000_000L));
 		FarmAreas areas = new FarmAreas();
-		areas.recordFinished(PLAYER, template, SITE, Map.of(), instanceId, grants);
-		areas.setCustomName(instanceId, "River Works");
+		areas.recordFinished(PLAYER, template, SITE, Map.of(), instanceId, "River Works");
 		NbtCompound saved = areas.writeNbt(new NbtCompound(), null);
 		NbtCompound item = saved.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0);
 		item.remove("Layout");
@@ -238,7 +232,6 @@ class FinishedFarmsTest {
 		FarmAreas.Finished after = restored.finished(instanceId).orElseThrow();
 		assertEquals(before.instanceId(), after.instanceId());
 		assertEquals(before.customName(), after.customName());
-		assertEquals(before.grants(), after.grants());
 	}
 
 	@Test
@@ -316,7 +309,7 @@ class FinishedFarmsTest {
 		BitSet paid = new BitSet();
 		paid.set(3);
 		FarmAreas areas = new FarmAreas();
-		areas.recordFinished(PLAYER, cane, SITE, Map.of(), UUID.randomUUID(), null, Map.of(), Map.of(), placed, paid);
+		areas.recordFinished(PLAYER, cane, SITE, Map.of(), UUID.randomUUID(), null, placed, paid);
 		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
 
 		FarmAreas.Finished farm = FarmAreas.read(nbt, null).finishedBy(PLAYER).getFirst();
@@ -344,7 +337,7 @@ class FinishedFarmsTest {
 		paid.set(0);
 		paid.set(1);
 		FarmAreas areas = new FarmAreas();
-		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null, Map.of(), Map.of(), placed, paid);
+		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null, placed, paid);
 		UUID operationId = UUID.randomUUID();
 		areas.beginRepair(instanceId, PLAYER, SITE.table(), operationId).orElseThrow();
 		BitSet repaired = new BitSet();
@@ -353,7 +346,7 @@ class FinishedFarmsTest {
 		BitSet repairPaid = new BitSet();
 		repairPaid.set(2);
 
-		assertTrue(areas.completeRepair(instanceId, operationId, PLAYER, PLAYER, repaired, repairPaid));
+		assertTrue(areas.completeRepair(instanceId, operationId,repaired, repairPaid));
 
 		FarmAreas.Finished after = areas.finished(instanceId).orElseThrow();
 		BitSet expectedPlaced = new BitSet();
@@ -363,7 +356,7 @@ class FinishedFarmsTest {
 		expectedPaid.set(2);
 		assertEquals(expectedPlaced, after.placed());
 		assertEquals(expectedPaid, after.paid());
-		assertFalse(areas.completeRepair(instanceId, operationId, PLAYER, PLAYER, repaired, repairPaid));
+		assertFalse(areas.completeRepair(instanceId, operationId,repaired, repairPaid));
 	}
 
 	@Test
@@ -415,7 +408,7 @@ class FinishedFarmsTest {
 		BitSet paid = new BitSet();
 		paid.set(0);
 		FarmAreas areas = new FarmAreas();
-		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null, Map.of(), Map.of(), placed, paid);
+		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null, placed, paid);
 		UUID operationId = UUID.randomUUID();
 		areas.beginRepair(instanceId, PLAYER, SITE.table(), operationId).orElseThrow();
 		areas.failRepair(instanceId, operationId);
@@ -425,10 +418,10 @@ class FinishedFarmsTest {
 		BitSet repairPaid = new BitSet();
 		repairPaid.set(2);
 
-		assertFalse(areas.completeRepair(instanceId, operationId, PLAYER, PLAYER, repaired, repairPaid));
+		assertFalse(areas.completeRepair(instanceId, operationId,repaired, repairPaid));
 		assertEquals(placed, areas.finished(instanceId).orElseThrow().placed(), "the lease-bound path changes nothing");
 
-		areas.mergePlacement(instanceId, PLAYER, PLAYER, repaired, repairPaid);
+		areas.mergePlacement(instanceId,repaired, repairPaid);
 
 		BitSet expectedPlaced = new BitSet();
 		expectedPlaced.set(0, 3);
@@ -437,7 +430,7 @@ class FinishedFarmsTest {
 		expectedPaid.set(2);
 		assertEquals(expectedPlaced, areas.finished(instanceId).orElseThrow().placed());
 		assertEquals(expectedPaid, areas.finished(instanceId).orElseThrow().paid());
-		areas.mergePlacement(UUID.randomUUID(), PLAYER, PLAYER, repaired, repairPaid);
+		areas.mergePlacement(UUID.randomUUID(),repaired, repairPaid);
 	}
 
 	@Test
@@ -445,12 +438,12 @@ class FinishedFarmsTest {
 		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
 		UUID instanceId = UUID.randomUUID();
 		FarmAreas areas = new FarmAreas();
-		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null, Map.of(), Map.of());
+		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null);
 		areas.observeAlert(instanceId, FarmAlertType.BLOCKS_MISSING, 4, 120L);
 		NbtCompound snapshot = areas.alerts(instanceId).orElseThrow().write(new NbtCompound());
 
 		areas.release(FarmAreas.Key.finished(PLAYER, SITE));
-		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null, Map.of(), Map.of());
+		areas.recordFinished(PLAYER, cane, SITE, Map.of(), instanceId, null);
 		assertTrue(areas.alerts(instanceId).orElseThrow().active().isEmpty());
 		areas.restoreAlerts(instanceId, com.davisr.thedreamtable.farm.alert.FarmAlerts.read(snapshot));
 

@@ -121,21 +121,21 @@ public final class SessionBuild {
 		return templatePresent && signatureMatches ? ContinueDecision.CONTINUE : ContinueDecision.STOP;
 	}
 
-	/** What a repair's role and lease check decides. */
+	/** What a repair's lease and permission check decides. */
 	enum RepairCheck {
 		/** No repair, or one that holds no lease in this phase. */
 		NONE,
 		KEEP,
 		/** The persisted lease is gone: it was reconciled away or released elsewhere. */
 		END_LOST,
-		/** The actor no longer holds a role that may repair the farm. */
+		/** The actor may no longer repair the farm, since it is no longer the farm's owner. */
 		END_REVOKED
 	}
 
 	/**
 	 * A repair holds its farm's lease while it builds and while it is paused, blocked or waiting for materials, so all of
 	 * those phases are checked, not only the one that places blocks. {@code permitted} only matters on the ticks that look
-	 * at the role; the caller passes true on the others.
+	 * at the permission; the caller passes true on the others.
 	 */
 	static RepairCheck repairCheck(String phase, boolean hasRepair, boolean leaseActive, boolean permitted) {
 		boolean holdsLease = PHASE_BUILDING.equals(phase) || PHASE_PAUSED.equals(phase) || PHASE_BLOCKED.equals(phase) || PHASE_NEED.equals(phase);
@@ -150,7 +150,7 @@ public final class SessionBuild {
 
 	/**
 	 * Ends the session's repair when its lease is gone or its actor may no longer repair the farm. The lease is checked
-	 * every tick while building; the other phases, and the role, are checked when {@code roleDue} (once a second, and on
+	 * every tick while building; the other phases, and the permission, are checked when {@code roleDue} (once a second, and on
 	 * resume). Returns true when the repair ended.
 	 */
 	private boolean endRepairIfInvalid(ServerWorld world, boolean roleDue) {
@@ -420,8 +420,7 @@ public final class SessionBuild {
 				placed.set(0, template.steps().size());
 				paid.set(0, template.steps().size());
 			}
-			areas.recordFinished(world, template, progress.repairInstanceId(), progress.repairCustomName(), progress.repairGrants(), progress.repairInvites(),
-					placed, paid);
+			areas.recordFinished(world, template, progress.repairInstanceId(), progress.repairCustomName(), placed, paid);
 			if (repairInstanceId != null) {
 				FarmAreas farmAreas = FarmAreas.of(world);
 				long time = System.currentTimeMillis();

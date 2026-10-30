@@ -64,10 +64,6 @@ class PayloadRegistrationTest {
 		FarmActionResultPayload.register();
 		FarmAlertsPayload.register();
 		FarmAlertAckPayload.register();
-		FarmRenamePayload.register();
-		FarmInvitePayload.register();
-		FarmInviteResponsePayload.register();
-		FarmCollaboratorPayload.register();
 		FarmPreferencePayload.register();
 		FarmCarePayload.register();
 		TrackedFarmPayload.register();
@@ -102,12 +98,8 @@ class PayloadRegistrationTest {
 				"the_dream_table:farm_alert_ack",
 				"the_dream_table:farm_alerts_request",
 				"the_dream_table:farm_care",
-				"the_dream_table:farm_collaborator",
 				"the_dream_table:farm_details_request",
-				"the_dream_table:farm_invite",
-				"the_dream_table:farm_invite_response",
 				"the_dream_table:farm_preference",
-				"the_dream_table:farm_rename",
 				"the_dream_table:loaded_farms_request",
 				"the_dream_table:place_farm",
 				"the_dream_table:request_session",
@@ -136,7 +128,7 @@ class PayloadRegistrationTest {
 
 	@Test
 	void directionsHoldTheExpectedCounts() {
-		assertEquals(16, CLIENT_TO_SERVER.size());
+		assertEquals(12, CLIENT_TO_SERVER.size());
 		assertEquals(11, SERVER_TO_CLIENT.size());
 	}
 

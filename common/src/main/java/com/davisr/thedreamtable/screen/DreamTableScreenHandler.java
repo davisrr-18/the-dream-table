@@ -40,7 +40,6 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int PAGE_SPEED = 7;
 	public static final int PAGE_LOADED = 8;
 	public static final int PAGE_FARM = 9;
-	public static final int PAGE_INVITES = 20;
 	public static final int PAGE_FARM_INFO = 21;
 	/** Plus the category index, so a reopened menu returns to the same category. */
 	public static final int PAGE_CATEGORY = 10;
@@ -54,8 +53,6 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_DELIVER_ALL = 106;
 	public static final int BUTTON_DELIVER_NEARBY = 107;
 	public static final int BUTTON_PROTECT_FARMS = 108;
-	public static final int BUTTON_VIEWERS_BREAK = 109;
-	public static final int BUTTON_ACCEPT_INVITES = 112;
 	public static final int BUTTON_FARM_INFO = 113;
 	public static final int BUTTON_FARM_INFO_BACK = 114;
 	public static final int BUTTON_SCHEMES = 110;
@@ -68,7 +65,6 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_LOADED_BACK = 146;
 	public static final int BUTTON_FARM_OPEN = 147;
 	public static final int BUTTON_FARM_BACK = 148;
-	public static final int BUTTON_INVITES = 149;
 	/** Plus the category index. */
 	public static final int BUTTON_CATEGORY = 160;
 	public static final int BUTTON_CATEGORY_BACK = 170;
@@ -108,12 +104,10 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int PROTECTION_OFF = 0;
 	public static final int PROTECTION_ON = 1;
 	public static final int PROTECTION_OFF_SERVER = 2;
-	/** Bits of the synced state: the Protect My Farms value, and "Viewers Can Break" on top of it. */
+	/** Bits of the synced Protect My Farms state. */
 	private static final int PROTECTION_MASK = 3;
-	private static final int VIEWERS_BREAK_BIT = 4;
-	/** Bits of the synced social state; zero (nothing synced yet) reads as "allowed" for both. */
+	/** Bit of the synced social state; zero (nothing synced yet) reads as "allowed". */
 	private static final int OTHER_FARMS_OFF_SERVER_BIT = 1;
-	private static final int INVITES_OFF_BIT = 2;
 
 	public DreamTableScreenHandler(int syncId, PlayerInventory inventory, TableSession session) {
 		this(syncId, inventory, session.getPos(), session.getMaterials(), session.getSelectedFarm(), session.getPage(), phaseOf(session.getPhase()), session.getBuildIndex());
@@ -211,34 +205,18 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		return farmProtection & PROTECTION_MASK;
 	}
 
-	/** Whether this player's Viewers may also break their protected farms, as the server holds it. */
-	public boolean viewersMayBreak() {
-		return (farmProtection & VIEWERS_BREAK_BIT) != 0;
-	}
-
 	/** Whether the server lets players see other players' farm areas; synced so the Options card can say why it is off. */
 	public boolean otherFarmsAllowed() {
 		return (social & OTHER_FARMS_OFF_SERVER_BIT) == 0;
 	}
 
-	/** This player's "Accept Farm Invites" as the server holds it. */
-	public boolean acceptsFarmInvites() {
-		return (social & INVITES_OFF_BIT) == 0;
-	}
-
-	/** The synced social state for the server's switch and this player's invite choice. */
-	static int socialState(boolean otherFarmsEnabled, boolean acceptsInvites) {
-		return (otherFarmsEnabled ? 0 : OTHER_FARMS_OFF_SERVER_BIT) | (acceptsInvites ? 0 : INVITES_OFF_BIT);
+	/** The synced social state for the server's "Show Other Farms" switch. */
+	static int socialState(boolean otherFarmsEnabled) {
+		return otherFarmsEnabled ? 0 : OTHER_FARMS_OFF_SERVER_BIT;
 	}
 
 	private int socialOnServer() {
-		boolean[] accepts = {true};
-		context.run((world, pos) -> {
-			if (world.getServer() != null) {
-				accepts[0] = FarmPreferences.of(world.getServer()).acceptsInvites(playerId);
-			}
-		});
-		return socialState(DreamTableConfig.showOtherFarmsEnabled(), accepts[0]);
+		return socialState(DreamTableConfig.showOtherFarmsEnabled());
 	}
 
 	private int farmProtectionOnServer() {
@@ -248,9 +226,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		int[] state = {PROTECTION_OFF};
 		context.run((world, pos) -> {
 			if (world.getServer() != null) {
-				FarmPreferences preferences = FarmPreferences.of(world.getServer());
-				state[0] = (preferences.protectsFarms(playerId) ? PROTECTION_ON : PROTECTION_OFF)
-						| (preferences.viewersMayBreak(playerId) ? VIEWERS_BREAK_BIT : 0);
+				state[0] = FarmPreferences.of(world.getServer()).protectsFarms(playerId) ? PROTECTION_ON : PROTECTION_OFF;
 			}
 		});
 		return state[0];
@@ -419,7 +395,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		return template == null ? 0 : template.steps().size();
 	}
 
-	/** Page, build index, phase, step total, speed level, actual rate, server limit, loaded farms, whether nearby delivery is on and this player's Protect My Farms state (with the Viewers Can Break bit) and the social state (server's Show Other Farms switch, this player's Accept Farm Invites), read from the table on the server and stored on the client. */
+	/** Page, build index, phase, step total, speed level, actual rate, server limit, loaded farms, whether nearby delivery is on, this player's Protect My Farms state and the social state (the server's Show Other Farms switch), read from the table on the server and stored on the client. */
 	private final class Properties implements PropertyDelegate {
 		@Override
 		public int get(int index) {

@@ -52,7 +52,7 @@ public record FarmCarePayload(BlockPos table, String key, Action action) impleme
 		}
 		DreamTableBlockEntity table = checked.table();
 		TableSession session = table.session(player);
-		FarmLoader.Located farm = new FarmLoader.Located(payload.key(), checked.farm().located().world(), checked.farm().located().farm());
+		FarmLoader.Located farm = new FarmLoader.Located(payload.key(), checked.farm().world(), checked.farm().farm());
 		FarmActionResultPayload.Result result = switch (payload.action()) {
 			case REPAIR -> FarmCare.repair(session, player, farm)
 					? FarmActionResultPayload.Result.SUCCESS : FarmActionResultPayload.Result.BUSY;

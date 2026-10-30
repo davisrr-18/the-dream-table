@@ -32,13 +32,13 @@ class SessionBuildDecisionTest {
 			assertEquals(RepairCheck.KEEP, SessionBuild.repairCheck(phase, true, true, true), phase);
 			assertEquals(RepairCheck.END_REVOKED, SessionBuild.repairCheck(phase, true, true, false), phase);
 			assertEquals(RepairCheck.END_LOST, SessionBuild.repairCheck(phase, true, false, true), phase);
-			// A lost lease is the stronger finding: there is nothing left to hold, whatever the role.
+			// A lost lease is the stronger finding: there is nothing left to hold, whatever the permission.
 			assertEquals(RepairCheck.END_LOST, SessionBuild.repairCheck(phase, true, false, false), phase);
 		}
 	}
 
 	@Test
-	void aRevokedOperatorsStoppedRepairIsEndedSoTheOwnerIsNotStuck() {
+	void aRepairWhoseActorNoLongerMayRepairIsEndedSoTheOwnerIsNotStuck() {
 		assertEquals(RepairCheck.END_REVOKED, SessionBuild.repairCheck(PHASE_PAUSED, true, true, false));
 		assertEquals(RepairCheck.END_REVOKED, SessionBuild.repairCheck(PHASE_BLOCKED, true, true, false));
 		assertEquals(RepairCheck.END_REVOKED, SessionBuild.repairCheck(PHASE_NEED, true, true, false));

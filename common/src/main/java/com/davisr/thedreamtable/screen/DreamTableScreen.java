@@ -7,7 +7,6 @@ import com.davisr.thedreamtable.screen.page.CategoryPage;
 import com.davisr.thedreamtable.screen.page.FarmInfoPage;
 import com.davisr.thedreamtable.screen.page.FarmPage;
 import com.davisr.thedreamtable.screen.page.LoadedFarmsPage;
-import com.davisr.thedreamtable.screen.page.InvitesPage;
 import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.client.BuildProgressLine;
 import com.davisr.thedreamtable.client.TableNotices;
@@ -82,7 +81,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private TablePage category;
 	private TablePage loaded;
 	private TablePage farm;
-	private TablePage invites;
 	private TablePage materials;
 	private TablePage swap;
 	private TablePage farmInfo;
@@ -125,7 +123,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		category = new CategoryPage(ui);
 		loaded = new LoadedFarmsPage(ui, search);
 		farm = new FarmPage(ui, search);
-		invites = new InvitesPage(ui);
 		materials = new MaterialsPage(ui);
 		swap = new SwapPage(ui, search);
 		farmInfo = new FarmInfoPage(ui);
@@ -379,7 +376,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			case DreamTableScreenHandler.PAGE_SPEED -> speed;
 			case DreamTableScreenHandler.PAGE_LOADED -> loaded;
 			case DreamTableScreenHandler.PAGE_FARM -> farm;
-			case DreamTableScreenHandler.PAGE_INVITES -> invites;
 			case DreamTableScreenHandler.PAGE_MATERIALS -> materials;
 			case DreamTableScreenHandler.PAGE_SWAP -> swap;
 			case DreamTableScreenHandler.PAGE_FARM_INFO -> farmInfo;
@@ -490,7 +486,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			case DreamTableScreenHandler.PAGE_FARM_INFO -> DreamTableScreenHandler.BUTTON_FARM_INFO_BACK;
 			case DreamTableScreenHandler.PAGE_SPEED -> DreamTableScreenHandler.BUTTON_SPEED_BACK;
 			case DreamTableScreenHandler.PAGE_FARM -> DreamTableScreenHandler.BUTTON_FARM_BACK;
-			case DreamTableScreenHandler.PAGE_INVITES -> DreamTableScreenHandler.BUTTON_LOADED_FARMS;
 			default -> throw new IllegalStateException("No back button for page " + page);
 		};
 		handler.preview(handler.getSelectedFarm(), parent);

@@ -2,7 +2,7 @@
 
 Release date: 2026-10-29
 
-Bulk material delivery, mirrored farms, farm protection and a Brazilian Portuguese translation, plus fixes across the table, the HUD and schematic import. Worlds, finished farms, builds in progress and shared farms from 1.0.0 carry over. The client and the server must both run 1.1.0.
+Bulk material delivery, mirrored farms, farm protection and a Brazilian Portuguese translation, plus fixes across the table, the HUD and schematic import. Worlds, finished farms and builds in progress from 1.0.0 carry over. The client and the server must both run 1.1.0.
 
 ## Delivering materials
 
@@ -24,10 +24,10 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 ## Protect My Farms
 
 - New **Protect My Farms** option in Settings (off by default). When it is on, other players can't break the structure of your finished farms, and they see "This farm is protected by <your name>".
-  - You, the farm's Operators and server operators can still break it. Viewers can't, unless you also turn on **Viewers Can Break**.
+  - You and server operators can still break it.
   - Crops, sugar cane, cactus, bamboo, kelp, pumpkins, melons and other produce stay harvestable for everyone.
   - Only the farm's own blocks are protected: a block someone placed in a hole of the farm can be broken again. Grass or mycelium that grows over the farm's dirt stays protected.
-  - Take Down and Repair keep working for you and your Operators.
+  - Take Down and Repair keep working for you.
 - Server admins can turn the feature off for everyone with `farm_protection_enabled=false`.
 - Explosions, pistons, mobs, fluids, fire and other mods that remove blocks without a player breaking them are not blocked.
 
@@ -36,7 +36,7 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 - New operator commands (permission level 2): `/dreamtable reload` reloads the config and the schematic files without a restart, and `/dreamtable status` prints farm, build, claimed-area, loaded-farm and schematic counts and any unreadable saved records.
 - Opening a Dream Table and clicking its buttons no longer waits for schematic files to be read; they are read in the background.
 - A Dream Table that holds another player's delivered materials, build or Take Down can no longer be broken by someone else; the breaker is told who is using it. The session's owner and server operators can still break it. Because that player's claim doesn't expire, an admin can turn the protection off with `table_break_guard_enabled=false` (then `/dreamtable reload`) to free the table of a player who never comes back.
-- When a farm is taken down, each paid block is refunded to the player who paid for it: the owner gets what they paid, and an operator gets what they paid during a repair, even when someone else runs the Take Down. If that player is offline, they receive it the next time they log in. They get one chat line about it every few seconds instead of one per batch.
+- When a farm is taken down, each paid block is refunded to the farm's owner. If the owner is offline, they receive it the next time they log in. They get one chat line about it every few seconds instead of one per batch.
 - New option `show_other_farms_enabled` (default on): turn it off to stop sending other players' farm areas, for privacy. "Show Other Farms" then reads "Turned off on this server".
 - Fabric servers now check The Dream Table's version when a 1.1.0 client connects. If it doesn't match the server's, the client gets a clear message with both versions instead of a confusing error. Clients without the mod can still join, and a 1.0.0 client can't be told apart from them, so client and server should both run 1.1.0.
 
@@ -73,9 +73,8 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 
 ## More table improvements
 
-- New **Accept Farm Invites** option in Settings (on by default). Turn it off and other players can't invite you to their farms; they are told so. Invites you already received stay.
 - Hovering an item icon on a finished farm shows its name and count; empty requirement slots name the item they need.
-- Buttons on My Farms that can't be used now say why: Keep Loaded at the limit or off on the server, Repair while the table is busy or when nothing is missing, Rename and the invite buttons until you type a name or player.
+- Buttons on My Farms that can't be used now say why: Keep Loaded at the limit or off on the server, Repair while the table is busy or when nothing is missing.
 - The custom build speed slider works from the keyboard: Tab to it, Left and Right change it by 1%, Home and End set the minimum and maximum.
 - Large schematic previews draw much faster: the hologram is built once and reused instead of being redrawn block by block every frame, and the first preview of a big farm is spread over a few frames.
 - New **How It Works** page on each built-in farm: how it works, what it needs to run (loaded chunks, bees, villagers, seeds, space in the chest), what it produces and tips.
@@ -95,6 +94,11 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 - Large farms and imported schematics build, repair and save much faster; farm alerts, My Farms and the swap list cost less on servers and clients with many farms.
 - Placement checks and My Farms requests are rate-limited more tightly, and repeated identical requests no longer rescan every farm.
 - A server setting with a value other than true or false (for example `yes`) is reported in the log and uses its default. Before, such a value counted as false.
+
+## Removed
+
+- Renaming farms and sharing farms with Viewers and Operators were removed to simplify the interface. Collaborators of existing shared farms are dropped; their owners keep their farms. A repair an Operator had in progress stops, and refunds that were owed to an Operator go to the owner.
+- The server settings `farm_sharing_enabled`, `max_collaborators_per_farm` and `max_pending_invites_per_player`, and the Settings switches for Accept Farm Invites and Viewers Can Break, are gone. Old config files still load; the removed keys are ignored.
 
 ## Known limitations
 

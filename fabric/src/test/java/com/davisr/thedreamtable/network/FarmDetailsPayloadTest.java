@@ -1,31 +1,41 @@
 package com.davisr.thedreamtable.network;
 
-import com.davisr.thedreamtable.farm.FarmGrant;
-import com.davisr.thedreamtable.farm.FarmRole;
+import com.davisr.thedreamtable.farm.FarmLoader;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
+import net.minecraft.network.RegistryByteBuf;
+import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.registry.DynamicRegistryManager;
 import org.junit.jupiter.api.Test;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class FarmDetailsPayloadTest {
-	private static final UUID VIEWER = UUID.fromString("10000000-0000-0000-0000-000000000001");
-	private static final UUID OPERATOR = UUID.fromString("20000000-0000-0000-0000-000000000002");
+	private static <T> T roundTrip(PacketCodec<RegistryByteBuf, T> codec, T payload) {
+		RegistryByteBuf out = new RegistryByteBuf(Unpooled.buffer(), DynamicRegistryManager.EMPTY);
+		codec.encode(out, payload);
+		RegistryByteBuf in = new RegistryByteBuf(Unpooled.wrappedBuffer(ByteBufUtil.getBytes(out)), DynamicRegistryManager.EMPTY);
+		T decoded = codec.decode(in);
+		assertEquals(0, in.readableBytes());
+		return decoded;
+	}
 
 	@Test
-	void onlyOwnersReceiveBoundedCollaboratorIdentities() {
-		Map<UUID, FarmGrant> grants = new LinkedHashMap<>();
-		grants.put(VIEWER, new FarmGrant(VIEWER, FarmRole.VIEWER, 1L));
-		grants.put(OPERATOR, new FarmGrant(OPERATOR, FarmRole.OPERATOR, 2L));
+	void storageAndConditionRoundTripWithTheirItemLists() {
+		FarmDetailsPayload details = new FarmDetailsPayload("minecraft:overworld|farm", true, 40, 108, 2, 96,
+				List.of("minecraft:wheat", "minecraft:carrot"), List.of(12, 3), 4, 1,
+				List.of("minecraft:dirt"), List.of(4));
 
-		assertEquals(List.of(), FarmDetailsPayload.collaborators(grants, FarmRole.VIEWER, UUID::toString));
-		assertEquals(List.of(), FarmDetailsPayload.collaborators(grants, FarmRole.OPERATOR, UUID::toString));
-		assertEquals(List.of(
-				new FarmDetailsPayload.CollaboratorEntry(VIEWER, VIEWER.toString(), FarmRole.VIEWER),
-				new FarmDetailsPayload.CollaboratorEntry(OPERATOR, OPERATOR.toString(), FarmRole.OPERATOR)),
-				FarmDetailsPayload.collaborators(grants, FarmRole.OWNER, UUID::toString));
+		assertEquals(details, roundTrip(FarmDetailsPayload.CODEC, details));
+	}
+
+	@Test
+	void anUnloadedFarmRoundTripsWithoutStorage() {
+		FarmDetailsPayload details = new FarmDetailsPayload("minecraft:overworld|farm", false, 0, 0, 0, 96,
+				List.of(), List.of(), FarmLoader.UNKNOWN, 0, List.of(), List.of());
+
+		assertEquals(details, roundTrip(FarmDetailsPayload.CODEC, details));
 	}
 }

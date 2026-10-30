@@ -1,6 +1,5 @@
 package com.davisr.thedreamtable.network;
 
-import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmDirectory;
@@ -13,14 +12,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 
-/** Shared table, key, directory, and role checks for cooperative payload handlers. */
+/** Shared table, key, directory, and owner checks for farm payload handlers. */
 final class FarmNetwork {
 	private static final RefreshCoalescer REFRESHES = new RefreshCoalescer();
 
 	private FarmNetwork() {
 	}
 
-	record Checked(DreamTableBlockEntity table, FarmDirectory.Authorized farm) {
+	record Checked(DreamTableBlockEntity table, FarmDirectory.Located farm) {
 	}
 
 	static @Nullable DreamTableBlockEntity table(ServerPlayerEntity player, BlockPos pos) {
@@ -43,12 +42,12 @@ final class FarmNetwork {
 			result(player, externalKey, resultAction, FarmActionResultPayload.Result.FORBIDDEN);
 			return null;
 		}
-		FarmDirectory.Authorized farm = authorizeFarm(player, externalKey, action, resultAction);
+		FarmDirectory.Located farm = authorizeFarm(player, externalKey, action, resultAction);
 		return farm == null ? null : new Checked(table, farm);
 	}
 
-	/** The key, directory and role checks without an open table, for work that finishes after the player left the screen. */
-	static @Nullable FarmDirectory.Authorized authorizeFarm(ServerPlayerEntity player, String externalKey, FarmAction action,
+	/** The key and owner checks without an open table, for work that finishes after the player left the screen. */
+	static @Nullable FarmDirectory.Located authorizeFarm(ServerPlayerEntity player, String externalKey, FarmAction action,
 			FarmActionResultPayload.Action resultAction) {
 		FarmPayloadGuard.Parsed parsed = FarmPayloadGuard.parse(externalKey);
 		if (parsed.key() == null) {
@@ -56,13 +55,13 @@ final class FarmNetwork {
 			return null;
 		}
 		FarmDirectory.Located located = FarmDirectory.resolve(player.getServer(), parsed.key()).orElse(null);
-		FarmPayloadGuard.Authorization authorization = FarmPayloadGuard.authorize(
-				located == null ? null : located.record(), player.getUuid(), action, DreamTableConfig.farmSharingEnabled());
-		if (authorization.result() != FarmActionResultPayload.Result.SUCCESS) {
-			result(player, externalKey, resultAction, authorization.result());
+		FarmActionResultPayload.Result authorization = FarmPayloadGuard.authorize(
+				located == null ? null : located.record(), player.getUuid(), action);
+		if (authorization != FarmActionResultPayload.Result.SUCCESS) {
+			result(player, externalKey, resultAction, authorization);
 			return null;
 		}
-		return new FarmDirectory.Authorized(located, authorization.role());
+		return located;
 	}
 
 	static void result(ServerPlayerEntity player, String key, FarmActionResultPayload.Action action, FarmActionResultPayload.Result result) {
