@@ -64,9 +64,9 @@ public final class WorkPage implements TablePage {
 		FarmOption option = FarmOptions.byId(ui.farm()).orElse(null);
 		ItemStack icon = option == null ? new ItemStack(Items.STRUCTURE_BLOCK) : option.icon().getDefaultStack();
 		Text name = option == null ? Text.literal(ui.farm()) : option.title();
-		ui.cardAt("farm", context, icon, name, flowX(), ui.view().cardY(0), mouseX, mouseY, true, true);
+		ui.cardAt("farm", context, icon, name, flowX(), ui.view().cardY(0), ui.view().flowWidth(), mouseX, mouseY, true, true);
 		drawStatus(context);
-		ui.painter().progress(context, ui.view().collectionX(), barY(), ui.view().collectionWidth(), handler.getBuildIndex(), handler.getTotal());
+		ui.painter().progress(context, flowX(), barY(), ui.view().flowWidth(), handler.getBuildIndex(), handler.getTotal());
 
 		ui.buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), flowX(), rowY(MENU), mouseX, mouseY, true, false);
 		ui.buttonAt("requirements", context, Text.translatable("gui.the_dream_table.requirements"), flowX(), rowY(REQUIREMENTS), mouseX, mouseY, true, false);
@@ -234,7 +234,7 @@ public final class WorkPage implements TablePage {
 	}
 
 	private void addLines(List<OrderedText> lines, List<Integer> colors, Text text, int color) {
-		for (OrderedText line : ui.painter().text().wrapLines(text, CARD_WIDTH)) {
+		for (OrderedText line : ui.painter().text().wrapLines(text, ui.view().flowWidth())) {
 			lines.add(line);
 			colors.add(color);
 		}

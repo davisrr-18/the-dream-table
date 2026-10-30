@@ -141,9 +141,14 @@ public final class Viewport {
 		return geometry == null ? CARD_WIDTH : geometry.columns().getLast().right() - collectionX();
 	}
 
-	/** X for a single-card workflow, centered across the collection area in wide mode. */
+	/** X for a single-column page: it starts at the collection edge and spans {@link #flowWidth()}. */
 	public int flowX() {
-		return collectionX() + (collectionWidth() - CARD_WIDTH) / 2;
+		return collectionX();
+	}
+
+	/** Width of a single-column page's cards, buttons and text: the whole collection area. */
+	public int flowWidth() {
+		return collectionWidth();
 	}
 
 	public int collectionCenterX() {
@@ -151,7 +156,7 @@ public final class Viewport {
 	}
 
 	public int flowCenterX() {
-		return flowX() + CARD_WIDTH / 2;
+		return flowX() + flowWidth() / 2;
 	}
 
 	public int slotOriginX() {

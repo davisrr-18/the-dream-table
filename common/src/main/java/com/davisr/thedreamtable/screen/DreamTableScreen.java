@@ -122,7 +122,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		speed = new SpeedPage(ui);
 		category = new CategoryPage(ui);
 		loaded = new LoadedFarmsPage(ui, search);
-		farm = new FarmPage(ui, search);
+		farm = new FarmPage(ui);
 		materials = new MaterialsPage(ui);
 		swap = new SwapPage(ui, search);
 		farmInfo = new FarmInfoPage(ui);
@@ -385,10 +385,8 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 
 	private void layout() {
 		int current = this.handler.getPage();
-		boolean searches = current == DreamTableScreenHandler.PAGE_SWAP || current == DreamTableScreenHandler.PAGE_LOADED
-				|| current == DreamTableScreenHandler.PAGE_FARM;
-		search.setHint(Text.translatable(current == DreamTableScreenHandler.PAGE_FARM
-				? "gui.the_dream_table.farm_input" : "gui.the_dream_table.search"));
+		boolean searches = current == DreamTableScreenHandler.PAGE_SWAP || current == DreamTableScreenHandler.PAGE_LOADED;
+		search.setHint(Text.translatable("gui.the_dream_table.search"));
 		if (search.sync(current, searches, (from, to) -> false)
 				&& pendingFocusRestore == null) {
 			setFocused(search.widget());
@@ -427,16 +425,11 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	}
 
 	private int searchX() {
-		return collectionSearch() ? view.collectionX() : view.flowX();
+		return view.collectionX();
 	}
 
 	private int searchWidth() {
-		return collectionSearch() ? view.collectionWidth() : CARD_WIDTH;
-	}
-
-	private boolean collectionSearch() {
-		int current = this.handler.getPage();
-		return current == DreamTableScreenHandler.PAGE_SWAP || current == DreamTableScreenHandler.PAGE_LOADED;
+		return view.collectionWidth();
 	}
 
 	private ControlSpec tabSpec(PrimaryTab tab, UiRect bounds) {

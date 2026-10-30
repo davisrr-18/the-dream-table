@@ -125,10 +125,15 @@ public final class PageContext {
 	}
 
 	public void cardAt(String stableKey, DrawContext context, ItemStack icon, Text label, int x, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
-		ControlId id = register(stableKey, label, Text.empty(), x, y, CARD_HEIGHT, selected, enabled);
-		boolean hit = cardHit(mouseX, mouseY, x, y);
-		painter.card(context, icon, label, x, y, hit, selected, enabled);
-		focusRing(context, id, x, y, CARD_WIDTH, CARD_HEIGHT);
+		cardAt(stableKey, context, icon, label, x, y, CARD_WIDTH, mouseX, mouseY, selected, enabled);
+	}
+
+	/** A card of a given width: a single-column page passes {@code view.flowWidth()} so it spans the area like its buttons. */
+	public void cardAt(String stableKey, DrawContext context, ItemStack icon, Text label, int x, int y, int width, int mouseX, int mouseY, boolean selected, boolean enabled) {
+		ControlId id = register(stableKey, label, Text.empty(), Text.empty(), x, y, width, CARD_HEIGHT, selected, enabled);
+		boolean hit = cardHit(mouseX, mouseY, x, y, width);
+		painter.card(context, icon, label, x, y, width, hit, selected, enabled);
+		focusRing(context, id, x, y, width, CARD_HEIGHT);
 	}
 
 	public void card(DrawContext context, ItemStack icon, Text label, Text detail, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
@@ -140,10 +145,14 @@ public final class PageContext {
 	}
 
 	public void cardAt(String stableKey, DrawContext context, ItemStack icon, Text label, Text detail, int x, int y, int mouseX, int mouseY, boolean selected, boolean enabled) {
-		ControlId id = register(stableKey, label, detail, x, y, CARD_HEIGHT, selected, enabled);
-		boolean hit = cardHit(mouseX, mouseY, x, y);
-		painter.card(context, icon, label, detail, x, y, hit, selected, enabled);
-		focusRing(context, id, x, y, CARD_WIDTH, CARD_HEIGHT);
+		cardAt(stableKey, context, icon, label, detail, x, y, CARD_WIDTH, mouseX, mouseY, selected, enabled);
+	}
+
+	public void cardAt(String stableKey, DrawContext context, ItemStack icon, Text label, Text detail, int x, int y, int width, int mouseX, int mouseY, boolean selected, boolean enabled) {
+		ControlId id = register(stableKey, label, detail, Text.empty(), x, y, width, CARD_HEIGHT, selected, enabled);
+		boolean hit = cardHit(mouseX, mouseY, x, y, width);
+		painter.card(context, icon, label, detail, x, y, width, hit, selected, enabled);
+		focusRing(context, id, x, y, width, CARD_HEIGHT);
 	}
 
 	public void button(DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
@@ -247,7 +256,7 @@ public final class PageContext {
 
 	/** Draws a non-interactive note centered within the current single-card workflow. */
 	public int flowNote(DrawContext context, Text text, int y, int color) {
-		return centeredNote(context, text, y, view.flowX(), CARD_WIDTH, color);
+		return centeredNote(context, text, y, view.flowX(), view.flowWidth(), color);
 	}
 
 	private int centeredNote(DrawContext context, Text text, int y, int x, int width, int color) {
@@ -263,7 +272,11 @@ public final class PageContext {
 	}
 
 	public boolean cardHit(double mouseX, double mouseY, int x, int y) {
-		return view.hit(mouseX, mouseY, x, y, CARD_WIDTH, CARD_HEIGHT);
+		return cardHit(mouseX, mouseY, x, y, CARD_WIDTH);
+	}
+
+	public boolean cardHit(double mouseX, double mouseY, int x, int y, int width) {
+		return view.hit(mouseX, mouseY, x, y, width, CARD_HEIGHT);
 	}
 
 	public boolean buttonHit(double mouseX, double mouseY, int y) {
@@ -287,7 +300,7 @@ public final class PageContext {
 	}
 
 	private int spanWidth(int x) {
-		return spans(x) ? view.collectionWidth() : CARD_WIDTH;
+		return spans(x) ? view.flowWidth() : CARD_WIDTH;
 	}
 
 	/** Shows the next page right away and asks the server to switch to it. */

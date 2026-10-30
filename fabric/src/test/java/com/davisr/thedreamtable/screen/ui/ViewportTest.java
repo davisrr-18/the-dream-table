@@ -74,7 +74,8 @@ class ViewportTest {
 
 		assertEquals(compact.cardX(), compact.flowX());
 		assertEquals(168, compact.collectionWidth());
-		assertEquals(wide.gridCardX(0) + 94, wide.flowX());
+		assertEquals(wide.collectionX(), wide.flowX());
+		assertEquals(wide.collectionWidth(), wide.flowWidth());
 		assertEquals(wide.gridCardX(1) + 168 - wide.gridCardX(0), wide.collectionWidth());
 	}
 
@@ -87,7 +88,7 @@ class ViewportTest {
 			viewport.layout(ScreenGeometry.calculate(resolution[0], resolution[1], 0, false), 0, 300);
 
 			assertTrue(viewport.flowX() >= viewport.collectionX());
-			assertTrue(viewport.flowX() + 168 <= viewport.collectionX() + viewport.collectionWidth());
+			assertTrue(viewport.flowX() + viewport.flowWidth() <= viewport.collectionX() + viewport.collectionWidth());
 			assertTrue(viewport.collectionX() + viewport.collectionWidth() <= viewport.contentRight());
 		}
 	}
@@ -98,7 +99,7 @@ class ViewportTest {
 		view.layout(ScreenGeometry.calculate(420, 240, 0, false), 0, 300);
 
 		assertEquals(view.collectionX() + view.collectionWidth() / 2, view.collectionCenterX());
-		assertEquals(view.flowX() + 84, view.flowCenterX());
+		assertEquals(view.flowX() + view.flowWidth() / 2, view.flowCenterX());
 		assertEquals(view.collectionCenterX(), view.flowCenterX());
 	}
 

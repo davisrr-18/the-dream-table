@@ -138,9 +138,13 @@ public final class LoadedFarmsPage implements TablePage {
 	}
 
 	static void card(PageContext ui, DrawContext context, FarmLoader.Entry farm, Text detail, int x, int y, int mouseX, int mouseY) {
+		card(ui, context, farm, detail, x, y, CARD_WIDTH, mouseX, mouseY);
+	}
+
+	static void card(PageContext ui, DrawContext context, FarmLoader.Entry farm, Text detail, int x, int y, int width, int mouseX, int mouseY) {
 		FarmOption option = FarmOptions.byId(farm.farmId()).orElse(null);
 		ItemStack icon = option == null ? new ItemStack(Items.STRUCTURE_BLOCK) : option.icon().getDefaultStack();
-		ui.cardAt(farm.key(), context, icon, AlertText.listName(farm, name(farm)), detail, x, y, mouseX, mouseY, farm.loaded(), true);
+		ui.cardAt(farm.key(), context, icon, AlertText.listName(farm, name(farm)), detail, x, y, width, mouseX, mouseY, farm.loaded(), true);
 	}
 
 	/** The farm's name, its schematic's file name, or "Removed Farm" for one the mod no longer has. */

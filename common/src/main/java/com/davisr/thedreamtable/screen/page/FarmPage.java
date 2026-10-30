@@ -9,7 +9,6 @@ import com.davisr.thedreamtable.network.FarmCarePayload;
 import com.davisr.thedreamtable.network.FarmDetailsPayload;
 import com.davisr.thedreamtable.network.FarmPreferencePayload;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
-import com.davisr.thedreamtable.screen.ui.SearchBox;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
@@ -45,14 +44,12 @@ public final class FarmPage implements TablePage {
 	private static final int NEEDS_HEIGHT = 40;
 
 	private final PageContext ui;
-	private final SearchBox input;
 	private long confirmUntil;
 	private String acknowledged = "";
 	private Layout layout;
 
-	public FarmPage(PageContext ui, SearchBox input) {
+	public FarmPage(PageContext ui) {
 		this.ui = ui;
-		this.input = input;
 	}
 
 	private FarmLoader.Entry farm() {
@@ -76,7 +73,7 @@ public final class FarmPage implements TablePage {
 		}
 		Text where = Text.translatable("gui.the_dream_table.farm_at", farm.where().getX(), farm.where().getY(), farm.where().getZ(),
 				LoadedFarmsPage.dimension(farm.dimension()));
-		LoadedFarmsPage.card(ui, context, farm, where, flowX(), ui.view().cardY(0), mouseX, mouseY);
+		LoadedFarmsPage.card(ui, context, farm, where, flowX(), ui.view().cardY(0), ui.view().flowWidth(), mouseX, mouseY);
 		drawWrapped(context, summaryText(farm), statusY(), Integer.MAX_VALUE, HINT);
 		drawStorage(context, mouseX, mouseY);
 		drawCondition(context, farm, mouseX, mouseY);
@@ -219,7 +216,7 @@ public final class FarmPage implements TablePage {
 
 	/** Lines the text takes when wrapped to the page, at least one so an empty spot keeps its room. */
 	private int lines(Text text) {
-		return text == null ? 1 : Math.max(1, ui.painter().text().wrapLines(text, CARD_WIDTH).size());
+		return text == null ? 1 : Math.max(1, ui.painter().text().wrapLines(text, ui.view().flowWidth()).size());
 	}
 
 	/**
@@ -284,7 +281,7 @@ public final class FarmPage implements TablePage {
 
 	/** Draws the text wrapped from y, stopping before bottom, and returns where the next line goes. */
 	private int drawWrapped(DrawContext context, Text text, int y, int bottom, int color) {
-		for (OrderedText line : ui.painter().text().wrapLines(text, CARD_WIDTH)) {
+		for (OrderedText line : ui.painter().text().wrapLines(text, ui.view().flowWidth())) {
 			if (y + LINE_HEIGHT > bottom) {
 				break;
 			}
@@ -456,9 +453,10 @@ public final class FarmPage implements TablePage {
 		FarmDetailsPayload details = LoadedFarmsView.details();
 		FarmAlertsPayload alertPage = LoadedFarmsView.alerts();
 		String summary = farm == null ? "" : summaryText(farm).getString();
+		int width = ui.view().flowWidth();
 		Layout current = layout;
-		if (current == null || current.farm != farm || current.details != details || current.alertPage != alertPage || !current.summary.equals(summary)) {
-			current = new Layout(farm, details, alertPage, summary);
+		if (current == null || current.width != width || current.farm != farm || current.details != details || current.alertPage != alertPage || !current.summary.equals(summary)) {
+			current = new Layout(farm, details, alertPage, summary, width);
 			layout = current;
 		}
 		return current;
@@ -470,6 +468,7 @@ public final class FarmPage implements TablePage {
 		private final FarmDetailsPayload details;
 		private final FarmAlertsPayload alertPage;
 		private final String summary;
+		private final int width;
 		private final int status;
 		private final int storage;
 		private final int items;
@@ -479,11 +478,12 @@ public final class FarmPage implements TablePage {
 		private final int alerts;
 		private final int rows;
 
-		private Layout(FarmLoader.Entry farm, FarmDetailsPayload details, FarmAlertsPayload alertPage, String summary) {
+		private Layout(FarmLoader.Entry farm, FarmDetailsPayload details, FarmAlertsPayload alertPage, String summary, int width) {
 			this.farm = farm;
 			this.details = details;
 			this.alertPage = alertPage;
 			this.summary = summary;
+			this.width = width;
 			status = CARD_HEIGHT + 8;
 			storage = status + (farm == null ? 1 : lines(summaryText(farm))) * LINE_HEIGHT + 3;
 			items = storage + lines(storageText(details)) * LINE_HEIGHT + 2;

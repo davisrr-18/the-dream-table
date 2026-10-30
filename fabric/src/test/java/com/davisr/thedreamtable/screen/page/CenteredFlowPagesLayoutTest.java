@@ -31,14 +31,9 @@ class CenteredFlowPagesLayoutTest {
 	}
 
 	private static int invokeFlowX(Class<?> page, Viewport view) throws ReflectiveOperationException {
-		Constructor<?> constructor = switch (page.getSimpleName()) {
-			case "FarmPage" -> page.getDeclaredConstructor(PageContext.class, com.davisr.thedreamtable.screen.ui.SearchBox.class);
-			default -> page.getDeclaredConstructor(PageContext.class);
-		};
+		Constructor<?> constructor = page.getDeclaredConstructor(PageContext.class);
 		constructor.setAccessible(true);
-		Object instance = page.getSimpleName().equals("FarmPage")
-				? constructor.newInstance(new PageContext(null, view, null, null), null)
-				: constructor.newInstance(new PageContext(null, view, null, null));
+		Object instance = constructor.newInstance(new PageContext(null, view, null, null));
 		Method method = page.getDeclaredMethod("flowX");
 		method.setAccessible(true);
 		return (int) method.invoke(instance);
