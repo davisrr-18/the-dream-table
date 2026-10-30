@@ -303,7 +303,12 @@ public final class DreamTableHologram {
 			// Once a spot is placed the aim is only a marker; its own outline would need checks the placed spot is using.
 			Box aimedFootprint = placement == null && !template.steps().isEmpty()
 					? PlacementOutline.footprint(template, tablePos, cursor, aimFacing(), previewMirrored) : null;
-			GhostRenderer.drawOutline(matrices, aimedFootprint, cursor, placement == null ? hoverStatus() : PlacementOutline.Status.CHECKING, wave);
+			PlacementOutline.Status aimStatus = placement == null ? hoverStatus() : PlacementOutline.Status.CHECKING;
+			GhostRenderer.drawOutline(matrices, aimedFootprint, cursor, aimStatus, wave);
+			if (aimedFootprint != null) {
+				// The farm itself follows the aim, so turning and mirroring can be judged before the click.
+				GhostRenderer.drawGhosts(matrices, template, table, cursor, aimFacing(), previewMirrored, 0, false, aimStatus == PlacementOutline.Status.REFUSED, Integer.MAX_VALUE, wave);
+			}
 		}
 		if (placement != null) {
 			boolean refused = idle && !placementProblem().isEmpty();

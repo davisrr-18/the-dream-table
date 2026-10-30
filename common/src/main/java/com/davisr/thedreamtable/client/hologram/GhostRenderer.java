@@ -54,7 +54,9 @@ public final class GhostRenderer {
 	private static final WeightedCache<MeshKey, Mesh> MESHES = new WeightedCache<>(BAKED_PARTS, (key, mesh) -> mesh.close());
 	private static final WeightedCache<String, Planned> PLANS = new WeightedCache<>(PLAN_CHUNKS, (key, planned) -> { });
 	/** Edge width of the footprint outline, in blocks: thick enough to read from across the farm. */
-	private static final double OUTLINE_THICKNESS = 0.08;
+	private static final double OUTLINE_THICKNESS = 0.1;
+	private static final double CORNER_THICKNESS = 0.22;
+	private static final double CORNER_HEIGHT = 2.5;
 	private static final Matrix4f IDENTITY = new Matrix4f();
 	private static final Matrix4f SCRATCH = new Matrix4f();
 	private static final Tint NEUTRAL = new Tint(1.0F, 1.0F, 1.0F, 255);
@@ -78,22 +80,33 @@ public final class GhostRenderer {
 	}
 
 	/**
-	 * The farm's footprint as thick edges plus a translucent floor, coloured by what the server said about the spot, and the
-	 * anchor block marked when the player is still aiming (a null footprint draws only that mark). Thick, bright edges keep it readable on dark ground and water.
+	 * The farm's footprint as thick edges with taller corner posts and a translucent floor, coloured by what the server said about the spot, and the
+	 * anchor marked with a flat cross when the player is still aiming (a null footprint draws only that mark). Thick, bright edges keep it readable on dark ground and water.
 	 */
 	public static void drawOutline(MatrixStack matrices, Box footprint, BlockPos anchor, PlacementOutline.Status status, float wave) {
 		float[] rgb = status.rgb();
 		BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		if (footprint != null) {
-			float edge = 0.75F + 0.2F * wave;
 			for (Box part : PlacementOutline.edges(footprint, OUTLINE_THICKNESS)) {
-				WorldRenderer.renderFilledBox(matrices, buffer, part.minX, part.minY, part.minZ, part.maxX, part.maxY, part.maxZ, rgb[0], rgb[1], rgb[2], edge);
+				fill(matrices, buffer, part, rgb, 0.95F);
 			}
-			float floor = 0.12F + 0.08F * wave;
-			WorldRenderer.renderFilledBox(matrices, buffer, footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.05, footprint.maxZ, rgb[0], rgb[1], rgb[2], floor);
+			// Corner posts, taller than the edges, give the area a clear frame from far away.
+			double post = Math.min(footprint.getLengthY(), CORNER_HEIGHT);
+			for (double x : new double[] {footprint.minX, footprint.maxX}) {
+				for (double z : new double[] {footprint.minZ, footprint.maxZ}) {
+					double half = CORNER_THICKNESS / 2.0;
+					fill(matrices, buffer, new Box(x - half, footprint.minY, z - half, x + half, footprint.minY + post, z + half), rgb, 1.0F);
+				}
+			}
+			fill(matrices, buffer, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
 		}
 		if (anchor != null) {
-			WorldRenderer.renderFilledBox(matrices, buffer, anchor.getX() + 0.15, anchor.getY(), anchor.getZ() + 0.15, anchor.getX() + 0.85, anchor.getY() + 0.08, anchor.getZ() + 0.85, rgb[0], rgb[1], rgb[2], 0.35F + 0.2F * wave);
+			// A flat cross on the aimed block: it reads as "here" without looking like a block.
+			double x = anchor.getX() + 0.5;
+			double z = anchor.getZ() + 0.5;
+			double y = anchor.getY() + 0.02;
+			fill(matrices, buffer, new Box(x - 0.4, y, z - 0.05, x + 0.4, y + 0.04, z + 0.05), rgb, 1.0F);
+			fill(matrices, buffer, new Box(x - 0.05, y, z - 0.4, x + 0.05, y + 0.04, z + 0.4), rgb, 1.0F);
 		}
 		BuiltBuffer built = buffer.endNullable();
 		if (built == null) {
@@ -109,6 +122,10 @@ public final class GhostRenderer {
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
 		RenderSystem.disableBlend();
+	}
+
+	private static void fill(MatrixStack matrices, BufferBuilder buffer, Box box, float[] rgb, float alpha) {
+		WorldRenderer.renderFilledBox(matrices, buffer, box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ, rgb[0], rgb[1], rgb[2], alpha);
 	}
 
 	/**
