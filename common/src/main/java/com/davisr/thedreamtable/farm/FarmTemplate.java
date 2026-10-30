@@ -69,7 +69,15 @@ public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> m
 	 * whose file changed since the build started is noticed before its saved progress is used on the wrong steps.
 	 */
 	public long signature() {
+		return SIGNATURES.get(this, FarmTemplate::computeSignature);
+	}
+
+	/** The steps never change, so the fingerprint is worked out once per template instead of on every frame the hologram asks. */
+	private static final IdentityCache<FarmTemplate, Long> SIGNATURES = new IdentityCache<>();
+
+	private static long computeSignature(FarmTemplate template) {
 		long hash = 1125899906842597L;
+		List<FarmStep> steps = template.steps;
 		for (FarmStep step : steps) {
 			hash = 31 * hash + BlockPos.asLong(step.x(), step.y(), step.z());
 			hash = 31 * hash + (step.state() == null ? 0 : step.state().toString().hashCode());

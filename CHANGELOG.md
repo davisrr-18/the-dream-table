@@ -31,6 +31,15 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 - Server admins can turn the feature off for everyone with `farm_protection_enabled=false`.
 - Explosions, pistons, mobs, fluids, fire and other mods that remove blocks without a player breaking them are not blocked.
 
+## Server administration
+
+- New operator commands (permission level 2): `/dreamtable reload` reloads the config and the schematic files without a restart, and `/dreamtable status` prints farm, build, claimed-area, loaded-farm and schematic counts and any unreadable saved records.
+- Opening a Dream Table and clicking its buttons no longer waits for schematic files to be read; they are read in the background.
+- A Dream Table that holds another player's delivered materials, build or Take Down can no longer be broken by someone else; the breaker is told who is using it. The session's owner and server operators can still break it. Because that player's claim doesn't expire, an admin can turn the protection off with `table_break_guard_enabled=false` (then `/dreamtable reload`) to free the table of a player who never comes back.
+- When a farm is taken down, each paid block is refunded to the player who paid for it: the owner gets what they paid, and an operator gets what they paid during a repair, even when someone else runs the Take Down. If that player is offline, they receive it the next time they log in. They get one chat line about it every few seconds instead of one per batch.
+- New option `show_other_farms_enabled` (default on): turn it off to stop sending other players' farm areas, for privacy. "Show Other Farms" then reads "Turned off on this server".
+- Fabric servers now check The Dream Table's version when a 1.1.0 client connects. If it doesn't match the server's, the client gets a clear message with both versions instead of a confusing error. Clients without the mod can still join, and a 1.0.0 client can't be told apart from them, so client and server should both run 1.1.0.
+
 ## Brazilian Portuguese
 
 - The whole mod is now translated into Brazilian Portuguese (Português do Brasil).
@@ -61,6 +70,14 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 - Dream Table blocks inside an imported schematic are left out with a warning, and click events on imported signs are removed so a sign can't run commands.
 - A schematic with an extremely long block name can no longer stop a server's My Schematics list from loading.
 - On a dedicated server, editing or replacing a schematic file sends the new version to players instead of keeping the old copy. A farm the server didn't answer for is asked for again after a moment, and farm requests are rate-limited per player.
+
+## More table improvements
+
+- New **Accept Farm Invites** option in Settings (on by default). Turn it off and other players can't invite you to their farms; they are told so. Invites you already received stay.
+- Hovering an item icon on a finished farm shows its name and count; empty requirement slots name the item they need.
+- Buttons on My Farms that can't be used now say why: Keep Loaded at the limit or off on the server, Repair while the table is busy or when nothing is missing, Rename and the invite buttons until you type a name or player.
+- The custom build speed slider works from the keyboard: Tab to it, Left and Right change it by 1%, Home and End set the minimum and maximum.
+- Large schematic previews draw much faster: the hologram is built once and reused instead of being redrawn block by block every frame, and the first preview of a big farm is spread over a few frames.
 
 ## Fixes and performance
 

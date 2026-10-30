@@ -89,6 +89,7 @@ public final class SpeedPage implements TablePage {
 	public boolean click(double mouseX, double mouseY) {
 		for (int index = 0; index < LEVELS.length; index++) {
 			if (ui.cardHit(mouseX, mouseY, flowX(), ui.view().cardY(index))) {
+				keyed = -1;
 				ui.handler().previewPace(LEVELS[index].pace());
 				ui.actions().press(DreamTableScreenHandler.BUTTON_PACE + index);
 				return true;
@@ -152,6 +153,11 @@ public final class SpeedPage implements TablePage {
 
 	private static Text sliderValue(int pace) {
 		return Text.translatable("gui.the_dream_table.pace_share", BuildPace.percent(pace));
+	}
+
+	@Override
+	public void flush() {
+		sendKeyed(true);
 	}
 
 	/** Sends the keyboard's percentage once the keys have rested, or right away when {@code now}. */

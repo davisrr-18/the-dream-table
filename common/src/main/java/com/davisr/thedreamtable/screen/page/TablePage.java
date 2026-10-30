@@ -29,6 +29,10 @@ public interface TablePage {
 		return Text.empty();
 	}
 
+	/** Called before the page is left or the screen closes, to send anything the page still holds back, such as a keyed value. */
+	default void flush() {
+	}
+
 	int contentHeight();
 
 	Text subtitle();

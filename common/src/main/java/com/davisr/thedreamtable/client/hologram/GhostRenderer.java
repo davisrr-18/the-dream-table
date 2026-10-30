@@ -133,11 +133,13 @@ public final class GhostRenderer {
 			}
 		}
 		prepareState();
+		// The live chunk (the next block's glow) holds the lowest layers and goes first, as the single buffer used to draw it:
+		// the translucent layers above it then blend over it instead of hiding it behind their depth.
+		drawLive(matrices, parts, steps, plan, first / GhostPlan.CHUNK, shownPlaced, window, blocked, refused, wave);
 		if (!BAKED.isEmpty()) {
 			drawBaked(world, Tint.of(false, blocked, refused, wave));
 		}
 		BAKED.clear();
-		drawLive(matrices, parts, steps, plan, first / GhostPlan.CHUNK, shownPlaced, window, blocked, refused, wave);
 		BAKED_MESHES.clear();
 		matrices.pop();
 		// The world render after this stage must not inherit blending.

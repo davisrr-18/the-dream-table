@@ -54,7 +54,7 @@ fail() {
 }
 
 waited=0
-until grep -q 'Done (' "$log"; do
+until grep -Eq 'Done \([0-9.,]+s\)!' "$log"; do
 	if ! kill -0 "$pid" 2>/dev/null; then
 		fail "the server process exited before \"Done (\" appeared"
 	fi

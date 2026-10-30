@@ -113,6 +113,22 @@ class ImportRefresherTest {
 		assertAcceptedSoonAfterFailure(refresher, server);
 	}
 
+	@Test
+	void anErrorInTheReadIsReportedToo() throws InterruptedException {
+		ImportRefresher refresher = new ImportRefresher(root -> {
+			throw new StackOverflowError("crafted schematic");
+		});
+		Queue server = new Queue();
+		AtomicReference<Exception> failure = new AtomicReference<>();
+
+		assertTrue(refresher.request(ROOT, server, imports -> {
+		}, failure::set));
+		server.runNext();
+
+		assertTrue(failure.get().getCause() instanceof StackOverflowError);
+		assertAcceptedSoonAfterFailure(refresher, server);
+	}
+
 	private static void assertAcceptedSoonAfterFailure(ImportRefresher refresher, Queue server) throws InterruptedException {
 		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
 		while (!refresher.request(ROOT, server, imports -> {

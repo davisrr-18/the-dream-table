@@ -132,6 +132,9 @@ public final class FarmTemplates {
 
 	/** Swaps in a finished read on the server thread, unless the server it was read for has gone. */
 	private static void publish(MinecraftServer server, Path root, ImportedStructures.Imports result) {
+		if (!server.isRunning()) {
+			return;
+		}
 		synchronized (FarmTemplates.class) {
 			if (!Objects.equals(root, reloadedRoot)) {
 				return;

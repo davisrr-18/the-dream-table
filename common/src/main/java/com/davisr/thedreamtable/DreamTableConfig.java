@@ -24,6 +24,7 @@ public final class DreamTableConfig {
 	private static final String MAX_PENDING_INVITES = "max_pending_invites_per_player";
 	private static final String DELIVER_NEARBY = "deliver_from_nearby_enabled";
 	private static final String FARM_PROTECTION = "farm_protection_enabled";
+	private static final String TABLE_BREAK_GUARD = "table_break_guard_enabled";
 	private static final String SHOW_OTHER_FARMS = "show_other_farms_enabled";
 	public static final int MAX_LOADED_DEFAULT = 3;
 	public static final int MAX_LOADED_LIMIT = 16;
@@ -40,6 +41,7 @@ public final class DreamTableConfig {
 	private static volatile int maxPendingInvitesPerPlayer = MAX_PENDING_INVITES_DEFAULT;
 	private static volatile boolean deliverFromNearby = true;
 	private static volatile boolean farmProtection = true;
+	private static volatile boolean tableBreakGuard = true;
 	private static volatile boolean showOtherFarms = true;
 
 	private DreamTableConfig() {
@@ -77,6 +79,11 @@ public final class DreamTableConfig {
 	}
 
 	/** Whether players may protect their finished farms from other players; off turns "Protect My Farms" off for everyone. */
+	/** Whether a Dream Table holding another player's materials or build is kept from being broken by anyone else. */
+	public static boolean tableBreakGuardEnabled() {
+		return tableBreakGuard;
+	}
+
 	public static boolean farmProtectionEnabled() {
 		return farmProtection;
 	}
@@ -104,6 +111,7 @@ public final class DreamTableConfig {
 		maxPendingInvitesPerPlayer = clamped(properties, MAX_PENDING_INVITES, MAX_PENDING_INVITES_DEFAULT, MAX_PENDING_INVITES_LIMIT);
 		deliverFromNearby = flag(properties, DELIVER_NEARBY, true);
 		farmProtection = flag(properties, FARM_PROTECTION, true);
+		tableBreakGuard = flag(properties, TABLE_BREAK_GUARD, true);
 		showOtherFarms = flag(properties, SHOW_OTHER_FARMS, true);
 		properties.setProperty(MAX_RATE, Integer.toString(maxBlocksPerSecond));
 		properties.setProperty(MAX_LOADED, Integer.toString(maxLoadedFarms));
@@ -113,6 +121,7 @@ public final class DreamTableConfig {
 		properties.setProperty(MAX_PENDING_INVITES, Integer.toString(maxPendingInvitesPerPlayer));
 		properties.setProperty(DELIVER_NEARBY, Boolean.toString(deliverFromNearby));
 		properties.setProperty(FARM_PROTECTION, Boolean.toString(farmProtection));
+		properties.setProperty(TABLE_BREAK_GUARD, Boolean.toString(tableBreakGuard));
 		properties.setProperty(SHOW_OTHER_FARMS, Boolean.toString(showOtherFarms));
 		try {
 			Files.createDirectories(path.getParent());
@@ -124,6 +133,7 @@ public final class DreamTableConfig {
 						+ " (default " + MAX_COLLABORATORS_DEFAULT + "). " + MAX_PENDING_INVITES + ": 0 to " + MAX_PENDING_INVITES_LIMIT
 						+ " (default " + MAX_PENDING_INVITES_DEFAULT + "). " + DELIVER_NEARBY + ": let players deliver materials from chests, barrels and shulker boxes within 6 blocks of the table (only vanilla locks and claim mods' break checks keep a container out). "
 						+ FARM_PROTECTION + ": let players stop others from breaking the structure of their finished farms. "
+						+ TABLE_BREAK_GUARD + ": keep a table that holds another player's delivered materials or build from being broken by anyone but that player or an operator; false lets anyone break it (an escape for tables of players who never return). "
 						+ SHOW_OTHER_FARMS + ": let players outline other players' farm areas near them; false stops the server from sending them (privacy).");
 			}
 		} catch (IOException exception) {

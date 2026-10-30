@@ -45,9 +45,10 @@ final class ImportRefresher {
 				try {
 					ImportedStructures.Imports result = loader.apply(root);
 					publishOn.execute(() -> publish.accept(result));
-				} catch (Exception failure) {
+				} catch (Exception | Error failure) {
 					TheDreamTableMod.LOGGER.error("Reading the schematic folders failed; the previous list stays in use", failure);
-					publishOn.execute(() -> failed.accept(failure));
+					Exception reported = failure instanceof Exception exception ? exception : new IllegalStateException(failure);
+					publishOn.execute(() -> failed.accept(reported));
 				} finally {
 					running.set(false);
 				}

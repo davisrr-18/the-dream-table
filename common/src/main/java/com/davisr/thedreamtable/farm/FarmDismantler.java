@@ -26,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -301,6 +302,23 @@ public final class FarmDismantler {
 		}
 	}
 
+	/** Ticks between the "refund received" lines a payer gets while someone else's Take Down keeps refunding them. */
+	private static final long TELL_EVERY_TICKS = 200;
+	private static final Map<UUID, Long> LAST_TOLD = new HashMap<>();
+
+	/** True at most once per {@link #TELL_EVERY_TICKS} for a payer, so a long Take Down doesn't flood their chat. */
+	private static boolean mayTell(ServerPlayerEntity payer, long now) {
+		if (LAST_TOLD.size() > 256) {
+			LAST_TOLD.values().removeIf(last -> now - last >= TELL_EVERY_TICKS);
+		}
+		Long last = LAST_TOLD.get(payer.getUuid());
+		if (last != null && now >= last && now - last < TELL_EVERY_TICKS) {
+			return false;
+		}
+		LAST_TOLD.put(payer.getUuid(), now);
+		return true;
+	}
+
 	/**
 	 * Hands one payer their refund: the job player directly, another player who is online right away, and a player who is
 	 * away is owed it ({@link PendingRefunds}). If that cannot be kept, the job player gets it, as before payers were recorded.
@@ -317,9 +335,11 @@ public final class FarmDismantler {
 			if (target == jobPlayer) {
 				return full;
 			}
-			target.sendMessage(Text.translatable("gui.the_dream_table.refund_paid"), false);
-			if (full) {
-				Handover.tellDropped(target);
+			if (mayTell(target, world.getTime())) {
+				target.sendMessage(Text.translatable("gui.the_dream_table.refund_paid"), false);
+				if (full) {
+					Handover.tellDropped(target);
+				}
 			}
 			return false;
 		}
