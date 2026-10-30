@@ -1,6 +1,5 @@
 package com.davisr.thedreamtable.block.entity;
 
-import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.BuildPermission;
 import com.davisr.thedreamtable.farm.FarmAccess;
@@ -8,8 +7,6 @@ import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmDirectory;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
-import com.davisr.thedreamtable.farm.FarmGrant;
-import com.davisr.thedreamtable.farm.FarmInvite;
 import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -18,7 +15,6 @@ import net.minecraft.util.math.Box;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.BitSet;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -93,15 +89,13 @@ final class SessionAreas {
 	 * before areas existed are recorded the first time their table ticks, when the session was saved by a version that never did.
 	 */
 	void recordFinished(ServerWorld world, FarmTemplate template, @Nullable UUID instanceId, @Nullable String customName,
-			Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites, BitSet placed, BitSet paid) {
+			BitSet placed, BitSet paid) {
 		progress.setFinishedRecorded(true);
 		FarmAreas areas = FarmAreas.of(world);
 		if (instanceId == null) {
-			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps(), UUID.randomUUID(), null, Map.of(), Map.of(),
-					placed, paid);
+			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps(), UUID.randomUUID(), null, placed, paid);
 		} else {
-			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps(), instanceId, customName, grants, invites,
-					placed, paid);
+			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps(), instanceId, customName, placed, paid);
 		}
 		areas.release(key());
 	}
@@ -109,10 +103,10 @@ final class SessionAreas {
 	void completeRepair(ServerWorld world, RepairContext context, BitSet placed, BitSet paid) {
 		progress.setFinishedRecorded(true);
 		FarmAreas areas = FarmAreas.of(world);
-		if (!areas.completeRepair(context.farmKey().instanceId(), context.operationId(), context.farmOwnerUuid(), context.actorUuid(), placed, paid)) {
+		if (!areas.completeRepair(context.farmKey().instanceId(), context.operationId(), placed, paid)) {
 			// The lease was reconciled away while the repair ran. The blocks it placed stand, so the record still gets them.
 			TheDreamTableMod.LOGGER.warn("Repair lease of farm {} was gone at completion; merging its placed steps directly", context.farmKey().instanceId());
-			areas.mergePlacement(context.farmKey().instanceId(), context.farmOwnerUuid(), context.actorUuid(), placed, paid);
+			areas.mergePlacement(context.farmKey().instanceId(), placed, paid);
 		}
 		areas.release(key());
 	}
@@ -122,10 +116,10 @@ final class SessionAreas {
 				new com.davisr.thedreamtable.farm.RepairLease(context.operationId(), context.actorUuid(), session.getPos()));
 	}
 
-	/** Whether the repair's actor still holds a role that may repair the farm, so a revoked operator's repair stops. */
+	/** Whether the repair's actor still may repair the farm: its owner, so a repair stops if the farm is no longer theirs. */
 	boolean repairPermitted(ServerWorld world, RepairContext context) {
 		return FarmDirectory.resolve(world.getServer(), context.farmKey())
-				.map(located -> FarmAccess.allows(located.record(), context.actorUuid(), FarmAction.REPAIR, DreamTableConfig.farmSharingEnabled()))
+				.map(located -> FarmAccess.allows(located.record(), context.actorUuid(), FarmAction.REPAIR))
 				.orElse(false);
 	}
 

@@ -4,7 +4,6 @@ import com.davisr.thedreamtable.farm.FarmAccess;
 import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmKey;
 import com.davisr.thedreamtable.farm.FarmRecord;
-import com.davisr.thedreamtable.farm.FarmRole;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
@@ -14,20 +13,14 @@ public final class FarmPayloadGuard {
 	private FarmPayloadGuard() {
 	}
 
-	public record Authorization(FarmActionResultPayload.Result result, @Nullable FarmRole role) {
-	}
-
 	public record Parsed(FarmActionResultPayload.Result result, @Nullable FarmKey key) {
 	}
 
-	public static Authorization authorize(@Nullable FarmRecord farm, UUID actorUuid, FarmAction action, boolean sharingEnabled) {
+	public static FarmActionResultPayload.Result authorize(@Nullable FarmRecord farm, UUID actorUuid, FarmAction action) {
 		if (farm == null) {
-			return new Authorization(FarmActionResultPayload.Result.NOT_FOUND, null);
+			return FarmActionResultPayload.Result.NOT_FOUND;
 		}
-		return FarmAccess.role(farm, actorUuid, sharingEnabled)
-				.filter(role -> FarmAccess.allows(role, action))
-				.map(role -> new Authorization(FarmActionResultPayload.Result.SUCCESS, role))
-				.orElseGet(() -> new Authorization(FarmActionResultPayload.Result.FORBIDDEN, null));
+		return FarmAccess.allows(farm, actorUuid, action) ? FarmActionResultPayload.Result.SUCCESS : FarmActionResultPayload.Result.FORBIDDEN;
 	}
 
 	public static Parsed parse(String externalKey) {

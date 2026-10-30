@@ -20,14 +20,11 @@ public record FarmActionResultPayload(String key, Action action, Result result) 
 			buf -> new FarmActionResultPayload(buf.readString(MAX_KEY_LENGTH), buf.readEnumConstant(Action.class), buf.readEnumConstant(Result.class)));
 
 	public enum Action {
-		DETAILS, RENAME, INVITE, ACCEPT_INVITE, DECLINE_INVITE, REMOVE_COLLABORATOR, FAVORITE, TRACK,
-		REPAIR, TAKE_DOWN, FORGET, KEEP_LOADED
+		DETAILS, FAVORITE, TRACK, REPAIR, TAKE_DOWN, FORGET, KEEP_LOADED
 	}
 
 	public enum Result {
-		SUCCESS, NOT_FOUND, FORBIDDEN, LIMIT_REACHED, EXPIRED, BUSY, INVALID_INPUT,
-		/** The invited player turned off "Accept Farm Invites". Appended last: the wire format is the ordinal. */
-		INVITES_DISABLED
+		SUCCESS, NOT_FOUND, FORBIDDEN, LIMIT_REACHED, BUSY, INVALID_INPUT
 	}
 
 	public static void register() {

@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Materials owed to players who were offline when a Take Down refunded steps they had paid for (an Operator's Repair). They
+ * Materials owed to a farm's owner who was offline when a Take Down refunded the steps they had paid for. They
  * are kept in the overworld by item id and handed over, once, as soon as the player is online and alive, wherever they are.
  * An item this game no longer knows stays on record instead of being lost.
  */

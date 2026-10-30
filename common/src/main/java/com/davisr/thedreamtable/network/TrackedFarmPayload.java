@@ -1,6 +1,5 @@
 package com.davisr.thedreamtable.network;
 
-import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmAccess;
 import com.davisr.thedreamtable.farm.FarmDirectory;
@@ -54,7 +53,7 @@ public record TrackedFarmPayload(String farmId, String customName, String dimens
 	private static TrackedFarmPayload resolve(ServerPlayerEntity player, MinecraftServer server) {
 		return FarmPreferences.of(server).tracked(player.getUuid())
 				.flatMap(key -> FarmDirectory.resolve(server, key))
-				.filter(located -> FarmAccess.role(located.record(), player.getUuid(), DreamTableConfig.farmSharingEnabled()).isPresent())
+				.filter(located -> FarmAccess.isOwner(located.record(), player.getUuid()))
 				.map(located -> new TrackedFarmPayload(located.farm().farmId(),
 						located.farm().customName() == null ? "" : located.farm().customName(),
 						located.key().dimension().toString(), located.farm().where()))

@@ -3,8 +3,6 @@ package com.davisr.thedreamtable.network;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmAreas;
-import com.davisr.thedreamtable.farm.FarmGrant;
-import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.farm.alert.FarmAlertView;
 import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.network.RegistryByteBuf;
@@ -72,10 +70,8 @@ public record FarmAlertsPayload(String key, String token, List<Entry> entries) i
 		if (checked == null) {
 			return;
 		}
-		FarmGrant grant = checked.farm().located().farm().grants().get(player.getUuid());
-		long acceptedAt = checked.farm().role() == FarmRole.OWNER ? 0L : grant == null ? Long.MAX_VALUE : grant.acceptedAt();
-		List<FarmAlertView.Entry> page = FarmAreas.of(checked.farm().located().world()).alerts(checked.farm().located().farm().instanceId())
-				.map(alerts -> FarmAlertView.page(alerts, acceptedAt, request.offset(), MAX_ENTRIES)).orElse(List.of());
+		List<FarmAlertView.Entry> page = FarmAreas.of(checked.farm().world()).alerts(checked.farm().farm().instanceId())
+				.map(alerts -> FarmAlertView.page(alerts, request.offset(), MAX_ENTRIES)).orElse(List.of());
 		List<Entry> entries = page.stream().map(entry -> new Entry(entry.event().eventId(), entry.event().type().name(), entry.event().quantity(), entry.event().time(), entry.active())).toList();
 		String token = TOKENS.issue(player.getUuid(), request.key(), entries.stream().map(Entry::eventId).toList());
 		Platform.network().send(player, new FarmAlertsPayload(request.key(), token, entries));

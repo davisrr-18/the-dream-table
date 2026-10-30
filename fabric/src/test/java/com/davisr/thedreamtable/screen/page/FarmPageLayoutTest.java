@@ -2,7 +2,6 @@ package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmListing;
-import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.farm.FarmStorage;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableTextContent;
@@ -13,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FarmPageLayoutTest {
@@ -24,14 +24,35 @@ class FarmPageLayoutTest {
 		assertEquals(2, FarmPage.itemRows(9));
 	}
 
+	/** Favorite, track, Keep Loaded, Repair, then Take Down: one row each, with no hole where a removed row was. */
 	@Test
-	void farmSummaryNamesTheRoleAlongsideItsOperatingState() throws ReflectiveOperationException {
+	void aFinishedFarmsButtonsFollowEachOtherWithoutGaps() {
+		FarmLoader.Entry farm = new FarmLoader.Entry("overworld|farm", "farm", "", "", "minecraft:overworld", BlockPos.ORIGIN,
+				false, false, false, false, FarmStorage.RUNNING, 0, true, 0);
+
+		assertEquals(4, FarmPage.takeDownRow(farm));
+		assertEquals(5, FarmPage.confirmRow());
+		assertEquals(6, FarmPage.backRow(farm));
+	}
+
+	/** A farm the mod no longer has has no Repair, so Forget takes Repair's row and Back follows it. */
+	@Test
+	void aMissingFarmsForgetAndBackFillTheRowsRepairWouldUse() {
+		FarmLoader.Entry farm = new FarmLoader.Entry("overworld|farm", "farm", "", "", "minecraft:overworld", BlockPos.ORIGIN,
+				false, false, false, false, FarmStorage.UNLOADED, 0, false, 0);
+
+		assertEquals(3, FarmPage.takeDownRow(farm));
+		assertEquals(4, FarmPage.backRow(farm));
+	}
+
+	@Test
+	void farmSummaryNamesItsOperatingState() throws ReflectiveOperationException {
 		FarmLoader.Entry farm = new FarmLoader.Entry("overworld|farm", "farm", "", "", "minecraft:overworld", new BlockPos(10, 64, 20),
-				FarmRole.OPERATOR, false, false, true, false, FarmStorage.RUNNING, 0, true, 25);
+				false, false, true, false, FarmStorage.RUNNING, 0, true, 25);
 
 		Text summary = FarmPage.summaryText(farm, new FarmListing.Viewer("minecraft:overworld", new BlockPos(10, 64, 0)));
 
-		assertTrue(keys(summary).contains("gui.the_dream_table.role.operator"));
+		assertFalse(keys(summary).stream().anyMatch(key -> key.startsWith("gui.the_dream_table.role.")));
 		assertTrue(keys(summary).contains("gui.the_dream_table.status_running_storage"));
 		assertTrue(keys(summary).contains("gui.the_dream_table.kept_loaded"));
 		assertTrue(keys(summary).contains("gui.the_dream_table.blocks_away"));

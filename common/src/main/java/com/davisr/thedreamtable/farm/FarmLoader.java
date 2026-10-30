@@ -61,7 +61,7 @@ public final class FarmLoader extends PersistentState {
 	 * 128 blocks wide, leaving room for large imported farms.
 	 */
 	public static final int MAX_CHUNKS_PER_FARM = 64;
-	/** Set when a farm was unpicked, taken down or lost a collaborator, so the next tick renews at once instead of up to 100 ticks later. */
+	/** Set when a farm was unpicked or taken down, so the next tick renews at once instead of up to 100 ticks later. */
 	private static volatile boolean renewalRequested;
 
 	/** Per player, the picked farms as "dimension|farm id within that world". */
@@ -72,13 +72,13 @@ public final class FarmLoader extends PersistentState {
 	 * blocks are missing, and how full its chests and barrels are in percent. Missing and storage are {@link #UNKNOWN}
 	 * when part of the farm is not loaded; storage also when the farm has none.
 	 */
-	public record Entry(String key, String farmId, String layoutId, String customName, String dimension, BlockPos where, FarmRole role,
+	public record Entry(String key, String farmId, String layoutId, String customName, String dimension, BlockPos where,
 			boolean favorite, boolean tracked, boolean loaded, boolean ownerQuotaFull, int status, int missing, boolean available, int storage,
 			int alerts) {
 		/** An entry with no active alert. */
-		public Entry(String key, String farmId, String layoutId, String customName, String dimension, BlockPos where, FarmRole role,
+		public Entry(String key, String farmId, String layoutId, String customName, String dimension, BlockPos where,
 				boolean favorite, boolean tracked, boolean loaded, boolean ownerQuotaFull, int status, int missing, boolean available, int storage) {
-			this(key, farmId, layoutId, customName, dimension, where, role, favorite, tracked, loaded, ownerQuotaFull, status, missing, available, storage, 0);
+			this(key, farmId, layoutId, customName, dimension, where, favorite, tracked, loaded, ownerQuotaFull, status, missing, available, storage, 0);
 		}
 
 		/** The exact saved design when available, otherwise the base id for older list data and display fallbacks. */
@@ -214,8 +214,7 @@ public final class FarmLoader extends PersistentState {
 		FarmPreferences preferences = FarmPreferences.of(server);
 		List<Entry> entries = new ArrayList<>();
 		Map<String, Long> finishedAt = new HashMap<>();
-		for (FarmDirectory.Authorized authorized : FarmDirectory.visibleTo(server, player, DreamTableConfig.farmSharingEnabled())) {
-			FarmDirectory.Located located = authorized.located();
+		for (FarmDirectory.Located located : FarmDirectory.ownedBy(server, player)) {
 			FarmAreas.Finished finished = located.farm();
 			String key = located.key().externalForm();
 			FarmTemplate layout = finished.layout();
@@ -225,7 +224,7 @@ public final class FarmLoader extends PersistentState {
 			Located farm = new Located(key, located.world(), finished);
 			finishedAt.put(key, finished.finishedAt());
 			entries.add(new Entry(key, finished.farmId(), layout == null ? "" : layout.id(), finished.customName() == null ? "" : finished.customName(),
-					located.key().dimension().toString(), finished.where(), authorized.role(), preferences.isFavorite(player, located.key()),
+					located.key().dimension().toString(), finished.where(), preferences.isFavorite(player, located.key()),
 					preferences.tracked(player).filter(located.key()::equals).isPresent(), loaded,
 					!loaded && ownerSelections.size() >= DreamTableConfig.maxLoadedFarms(), status, missing(farm, layout), layout != null,
 					storagePercent(farm, layout, status),
@@ -254,8 +253,7 @@ public final class FarmLoader extends PersistentState {
 		if (located == null) {
 			return ToggleResult.NOT_FOUND;
 		}
-		FarmRole role = FarmAccess.role(located.record(), actorUuid, DreamTableConfig.farmSharingEnabled()).orElse(null);
-		if (role == null || !FarmAccess.allows(role, FarmAction.KEEP_LOADED)) {
+		if (!FarmAccess.allows(located.record(), actorUuid, FarmAction.KEEP_LOADED)) {
 			return ToggleResult.FORBIDDEN;
 		}
 		UUID owner = located.farm().ownerUuid();
@@ -263,13 +261,10 @@ public final class FarmLoader extends PersistentState {
 		if (!picked.getOrDefault(owner, Set.of()).contains(externalKey) && !withinChunkCap(located.farm().box())) {
 			return ToggleResult.TOO_LARGE;
 		}
-		return toggleKnown(owner, externalKey, true, role);
+		return toggleKnown(owner, externalKey, true);
 	}
 
-	ToggleResult toggleKnown(UUID ownerUuid, String key, boolean known, FarmRole actorRole) {
-		if (actorRole == FarmRole.VIEWER) {
-			return ToggleResult.FORBIDDEN;
-		}
+	ToggleResult toggleKnown(UUID ownerUuid, String key, boolean known) {
 		Set<String> keys = picked.get(ownerUuid);
 		if (keys != null && keys.remove(key)) {
 			if (keys.isEmpty()) {
@@ -294,21 +289,6 @@ public final class FarmLoader extends PersistentState {
 		return ToggleResult.SELECTED;
 	}
 
-	static boolean authorizedPresence(boolean ownerOnline, Iterable<FarmRole> onlineCollaborators, boolean sharingEnabled) {
-		if (ownerOnline) {
-			return true;
-		}
-		if (!sharingEnabled) {
-			return false;
-		}
-		for (FarmRole role : onlineCollaborators) {
-			if (role == FarmRole.OPERATOR) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	private void keepLoaded(MinecraftServer server) {
 		loadedChunks.clear();
 		keptFarms = 0;
@@ -328,7 +308,7 @@ public final class FarmLoader extends PersistentState {
 				}
 				if (keys.contains(farm.key()) && !withinChunkCap(farm.farm().box())) {
 					reportTooLarge(farm);
-				} else if (keys.contains(farm.key()) && loaded < limit && (DreamTableConfig.loadWhileOffline() || authorizedPresence(server, farm.farm()))) {
+				} else if (keys.contains(farm.key()) && loaded < limit && (DreamTableConfig.loadWhileOffline() || ownerOnline(server, farm.farm()))) {
 					loaded++;
 					keptFarms++;
 					load(farm.world(), farm.farm().box(), loadedChunks.computeIfAbsent(farm.world(), ignored -> new LongOpenHashSet()));
@@ -349,13 +329,9 @@ public final class FarmLoader extends PersistentState {
 		}
 	}
 
-	private static boolean authorizedPresence(MinecraftServer server, FarmAreas.Finished farm) {
-		boolean ownerOnline = server.getPlayerManager().getPlayer(farm.ownerUuid()) != null;
-		List<FarmRole> online = farm.grants().values().stream()
-				.filter(grant -> server.getPlayerManager().getPlayer(grant.playerUuid()) != null)
-				.map(FarmGrant::role)
-				.toList();
-		return authorizedPresence(ownerOnline, online, DreamTableConfig.farmSharingEnabled());
+	/** A farm is kept loaded while its owner is online, unless the server keeps it loaded while the owner is away. */
+	private static boolean ownerOnline(MinecraftServer server, FarmAreas.Finished farm) {
+		return server.getPlayerManager().getPlayer(farm.ownerUuid()) != null;
 	}
 
 	/** Blocks a repair would place, by the farm's own saved design, or {@link #UNKNOWN} while part of it is unloaded. */

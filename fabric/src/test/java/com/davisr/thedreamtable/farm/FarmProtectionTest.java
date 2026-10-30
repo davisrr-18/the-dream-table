@@ -28,13 +28,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** "Protect My Farms": who is stopped, which blocks count as structure, and that the farm's own turn and mirror are followed. */
 class FarmProtectionTest {
 	private static final UUID OWNER = UUID.fromString("10000000-0000-0000-0000-000000000001");
-	private static final UUID SHARED = UUID.fromString("20000000-0000-0000-0000-000000000002");
-	private static final UUID COLLABORATOR = UUID.fromString("50000000-0000-0000-0000-000000000005");
 	private static final UUID STRANGER = UUID.fromString("30000000-0000-0000-0000-000000000003");
 	private static final FarmKey KEY = new FarmKey(Identifier.of("minecraft", "overworld"), UUID.fromString("40000000-0000-0000-0000-000000000004"));
-	private static final FarmRecord FARM = new FarmRecord(KEY, OWNER, Map.of(
-			SHARED, new FarmGrant(SHARED, FarmRole.VIEWER, 1L),
-			COLLABORATOR, new FarmGrant(COLLABORATOR, FarmRole.OPERATOR, 1L)));
+	private static final FarmRecord FARM = new FarmRecord(KEY, OWNER);
 	private static final BlockPos TABLE = new BlockPos(0, 64, 0);
 	private static final BlockPos ANCHOR = new BlockPos(30, 64, 30);
 	private static final BooleanSupplier STRUCTURE = () -> true;
@@ -45,54 +41,26 @@ class FarmProtectionTest {
 		GameSetup.bootstrap();
 	}
 
-	private static boolean denies(boolean server, boolean ownerProtects, boolean operator, UUID actor, boolean sharing) {
-		return FarmProtection.denies(server, ownerProtects, false, operator, actor, FARM, sharing, STRUCTURE);
-	}
-
-	private static boolean deniesWithViewers(UUID actor, boolean viewersMayBreak) {
-		return FarmProtection.denies(true, true, viewersMayBreak, false, actor, FARM, true, STRUCTURE);
+	private static boolean denies(boolean server, boolean ownerProtects, boolean operator, UUID actor) {
+		return FarmProtection.denies(server, ownerProtects, operator, actor, FARM, STRUCTURE);
 	}
 
 	@Test
 	void aStrangerIsStoppedOnlyWhenTheOwnerTurnedItOnAndTheServerAllowsIt() {
-		assertTrue(denies(true, true, false, STRANGER, true));
-		assertFalse(denies(true, false, false, STRANGER, true));
-		assertFalse(denies(false, true, false, STRANGER, true));
-		assertFalse(denies(false, false, false, STRANGER, true));
+		assertTrue(denies(true, true, false, STRANGER));
+		assertFalse(denies(true, false, false, STRANGER));
+		assertFalse(denies(false, true, false, STRANGER));
+		assertFalse(denies(false, false, false, STRANGER));
 	}
 
 	@Test
-	void theOwnerAndOperatorCollaboratorsAreNeverStopped() {
-		assertFalse(denies(true, true, false, OWNER, true));
-		assertFalse(denies(true, true, false, COLLABORATOR, true));
-	}
-
-	@Test
-	void viewersAreStoppedUnlessTheOwnerAllowsThem() {
-		assertTrue(denies(true, true, false, SHARED, true));
-		assertTrue(deniesWithViewers(SHARED, false));
-		assertFalse(deniesWithViewers(SHARED, true));
-		assertTrue(deniesWithViewers(STRANGER, true));
-		assertFalse(deniesWithViewers(COLLABORATOR, false));
-	}
-
-	@Test
-	void viewersCanBreakNeverWidensToStrangersOrOutlivesTheSwitches() {
-		assertTrue(FarmProtection.denies(true, true, true, false, STRANGER, FARM, true, STRUCTURE));
-		assertFalse(FarmProtection.denies(true, false, false, false, SHARED, FARM, true, STRUCTURE));
-		assertTrue(FarmProtection.denies(true, true, true, false, SHARED, FARM, false, STRUCTURE));
-	}
-
-	@Test
-	void sharedAccessCountsOnlyWhileSharingIsOnForTheServer() {
-		assertTrue(denies(true, true, false, COLLABORATOR, false));
-		assertFalse(denies(true, true, false, COLLABORATOR, true));
-		assertFalse(denies(true, true, false, OWNER, false));
+	void theOwnerIsNeverStopped() {
+		assertFalse(denies(true, true, false, OWNER));
 	}
 
 	@Test
 	void serverOperatorsBypass() {
-		assertFalse(denies(true, true, true, STRANGER, true));
+		assertFalse(denies(true, true, true, STRANGER));
 	}
 
 	@Test
@@ -102,16 +70,14 @@ class FarmProtectionTest {
 			asked[0] = true;
 			return true;
 		};
-		FarmProtection.denies(true, true, false, false, OWNER, FARM, true, probe);
-		FarmProtection.denies(true, true, false, false, COLLABORATOR, FARM, true, probe);
-		FarmProtection.denies(true, true, true, false, SHARED, FARM, true, probe);
-		FarmProtection.denies(true, false, false, false, STRANGER, FARM, true, probe);
-		FarmProtection.denies(false, true, false, false, STRANGER, FARM, true, probe);
-		FarmProtection.denies(true, true, false, true, STRANGER, FARM, true, probe);
+		FarmProtection.denies(true, true, false, OWNER, FARM, probe);
+		FarmProtection.denies(true, true, true, STRANGER, FARM, probe);
+		FarmProtection.denies(true, false, false, STRANGER, FARM, probe);
+		FarmProtection.denies(false, true, false, STRANGER, FARM, probe);
 		assertFalse(asked[0]);
-		assertTrue(FarmProtection.denies(true, true, false, false, STRANGER, FARM, true, probe));
+		assertTrue(FarmProtection.denies(true, true, false, STRANGER, FARM, probe));
 		assertTrue(asked[0]);
-		assertFalse(FarmProtection.denies(true, true, false, false, STRANGER, FARM, true, () -> false));
+		assertFalse(FarmProtection.denies(true, true, false, STRANGER, FARM, () -> false));
 	}
 
 	@Test

@@ -1,7 +1,6 @@
 package com.davisr.thedreamtable.client;
 
 import com.davisr.thedreamtable.farm.FarmLoader;
-import com.davisr.thedreamtable.farm.FarmRole;
 import com.davisr.thedreamtable.network.TrackedFarmPayload;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
@@ -28,7 +27,7 @@ class TrackedFarmHudTest {
 	}
 
 	private static FarmLoader.Entry entry(String key, boolean tracked) {
-		return new FarmLoader.Entry(key, "farm-" + key, "", "Name " + key, "minecraft:the_nether", new BlockPos(1, 2, 3), FarmRole.OWNER,
+		return new FarmLoader.Entry(key, "farm-" + key, "", "Name " + key, "minecraft:the_nether", new BlockPos(1, 2, 3),
 				false, tracked, false, false, 0, 0, true, -1);
 	}
 

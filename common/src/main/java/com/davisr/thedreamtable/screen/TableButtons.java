@@ -57,7 +57,6 @@ final class TableButtons {
 			case BUTTON_OPTIONS, BUTTON_SPEED_BACK, BUTTON_LOADED_BACK -> page(table, PAGE_OPTIONS);
 			case BUTTON_SPEED_OPEN -> page(table, PAGE_SPEED);
 			case BUTTON_LOADED_FARMS, BUTTON_FARM_BACK -> page(table, PAGE_LOADED);
-			case BUTTON_INVITES -> page(table, PAGE_INVITES);
 			case BUTTON_FARM_OPEN -> page(table, PAGE_FARM);
 			case BUTTON_REQUIREMENTS -> {
 				table.setRequirementsBoard(true);
@@ -72,8 +71,6 @@ final class TableButtons {
 			case BUTTON_DELIVER_ALL -> table.deliverAll(player);
 			case BUTTON_DELIVER_NEARBY -> table.deliverNearby(player);
 			case BUTTON_PROTECT_FARMS -> toggleFarmProtection(player);
-			case BUTTON_VIEWERS_BREAK -> toggleViewersBreak(player);
-			case BUTTON_ACCEPT_INVITES -> toggleAcceptInvites(player);
 			case BUTTON_DISCARD -> {
 				table.discard(player);
 				yield true;
@@ -113,21 +110,6 @@ final class TableButtons {
 		}
 		FarmPreferences preferences = FarmPreferences.of(player.getServer());
 		return savedOrTold(player, preferences.setProtectsFarms(player.getUuid(), !preferences.protectsFarms(player.getUuid())));
-	}
-
-	/** "Viewers Can Break": only meaningful while the player protects their farms on a server that allows it. */
-	private static boolean toggleViewersBreak(ServerPlayerEntity player) {
-		FarmPreferences preferences = FarmPreferences.of(player.getServer());
-		if (!DreamTableConfig.farmProtectionEnabled() || !preferences.protectsFarms(player.getUuid())) {
-			return false;
-		}
-		return savedOrTold(player, preferences.setViewersMayBreak(player.getUuid(), !preferences.viewersMayBreak(player.getUuid())));
-	}
-
-	/** The player's own "Accept Farm Invites" switch, stored on the server because the server enforces it. */
-	private static boolean toggleAcceptInvites(ServerPlayerEntity player) {
-		FarmPreferences preferences = FarmPreferences.of(player.getServer());
-		return savedOrTold(player, preferences.setAcceptsInvites(player.getUuid(), !preferences.acceptsInvites(player.getUuid())));
 	}
 
 	/** A switch refused for the saved-player limit is told to the player instead of doing nothing. */

@@ -1,8 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.farm.BuildPace;
-import com.davisr.thedreamtable.farm.FarmGrant;
-import com.davisr.thedreamtable.farm.FarmInvite;
 import com.davisr.thedreamtable.farm.FarmNames;
 import com.davisr.thedreamtable.farm.schematic.SchematicReader;
 import net.minecraft.nbt.NbtCompound;
@@ -10,7 +8,6 @@ import net.minecraft.nbt.NbtElement;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.BitSet;
-import java.util.Map;
 import java.util.UUID;
 
 import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
@@ -35,8 +32,6 @@ final class BuildProgress {
 	private @Nullable RepairContext repairContext;
 	private @Nullable UUID repairInstanceId;
 	private @Nullable String repairCustomName;
-	private Map<UUID, FarmGrant> repairGrants = Map.of();
-	private Map<UUID, FarmInvite> repairInvites = Map.of();
 	private int kept;
 	/** Whether the finished farm of this DONE session already has its record. Saved, so a reload never records it again. */
 	private boolean finishedRecorded;
@@ -109,13 +104,11 @@ final class BuildProgress {
 		legacyDone = false;
 	}
 
-	void startRepair(UUID instanceId, @Nullable String customName, Map<UUID, FarmGrant> grants, Map<UUID, FarmInvite> invites) {
+	void startRepair(UUID instanceId, @Nullable String customName) {
 		repair = true;
 		repairContext = null;
 		repairInstanceId = instanceId;
 		repairCustomName = customName;
-		repairGrants = Map.copyOf(grants);
-		repairInvites = Map.copyOf(invites);
 		kept = 0;
 	}
 
@@ -124,8 +117,6 @@ final class BuildProgress {
 		repairContext = context;
 		repairInstanceId = context.farmKey().instanceId();
 		repairCustomName = null;
-		repairGrants = Map.of();
-		repairInvites = Map.of();
 		kept = 0;
 	}
 
@@ -141,13 +132,6 @@ final class BuildProgress {
 		return repairCustomName;
 	}
 
-	Map<UUID, FarmGrant> repairGrants() {
-		return repairGrants;
-	}
-
-	Map<UUID, FarmInvite> repairInvites() {
-		return repairInvites;
-	}
 
 	int kept() {
 		return kept;
@@ -221,8 +205,6 @@ final class BuildProgress {
 			repairContext = null;
 			repairInstanceId = null;
 			repairCustomName = null;
-			repairGrants = Map.of();
-			repairInvites = Map.of();
 			kept = 0;
 			droppedNotified = false;
 			finishedRecorded = false;
@@ -269,8 +251,6 @@ final class BuildProgress {
 		repairContext = null;
 		repairInstanceId = null;
 		repairCustomName = null;
-		repairGrants = Map.of();
-		repairInvites = Map.of();
 		kept = 0;
 		droppedNotified = false;
 		finishedRecorded = false;
@@ -307,8 +287,6 @@ final class BuildProgress {
 		if (repairCustomName != null) {
 			nbt.putString("RepairCustomName", repairCustomName);
 		}
-		FarmGrant.writeAll(nbt, "RepairGrants", repairGrants);
-		FarmInvite.writeAll(nbt, "RepairInvites", repairInvites);
 		nbt.putInt("Kept", kept);
 		nbt.putBoolean("FinishedRecorded", finishedRecorded);
 		if (!returnNotice.isEmpty()) {
@@ -354,15 +332,12 @@ final class BuildProgress {
 					: nbt.containsUuid("RepairInstanceId") ? nbt.getUuid("RepairInstanceId") : UUID.randomUUID();
 			FarmNames.Validation name = FarmNames.validate(nbt.getString("RepairCustomName"));
 			repairCustomName = name.result() == FarmNames.Result.VALID ? name.name() : null;
-			repairGrants = FarmGrant.readAll(nbt, "RepairGrants");
-			repairInvites = FarmInvite.readAll(nbt, "RepairInvites");
 		} else {
 			repairContext = null;
 			repairInstanceId = null;
 			repairCustomName = null;
-			repairGrants = Map.of();
-			repairInvites = Map.of();
 		}
+		// "RepairGrants" and "RepairInvites" from earlier versions are not read and are dropped on the next save.
 		kept = nbt.getInt("Kept");
 		// A DONE session saved without the flag counts as recorded, so a farm taken down or forgotten since can't come back by
 		// itself. Versions before 1.1.4-beta never recorded, though, so its first tick decides whether the farm still stands and

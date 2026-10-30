@@ -45,6 +45,7 @@ import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
 public final class TableSession {
 	private static final int MAX_SKIPS_PER_TICK = 4096;
 	/** The Alerts page of earlier 1.1.0 builds, gone now; a table saved on it reopens on the farm page. */
+	private static final int REMOVED_INVITES_PAGE = 20;
 	private static final int REMOVED_ALERTS_PAGE = 21;
 
 	private final DreamTableBlockEntity table;
@@ -489,7 +490,7 @@ public final class TableSession {
 		ServerPlayerEntity actor = onlineOwner(world);
 		RepairContext context = progress.repairContext();
 		if (context != null) {
-			FarmAreas.of(world).mergePlacement(context.farmKey().instanceId(), context.farmOwnerUuid(), context.actorUuid(), progress.placedSteps(), progress.paidSteps());
+			FarmAreas.of(world).mergePlacement(context.farmKey().instanceId(), progress.placedSteps(), progress.paidSteps());
 		}
 		if (actor != null) {
 			actor.sendMessage(Text.translatable(messageKey), false);
@@ -593,7 +594,7 @@ public final class TableSession {
 		selectedFarm = nbt.getString("SelectedFarm");
 		page = nbt.getInt("Page");
 		// The farm page needs a farm chosen in My Farms on the client, which a reload doesn't have.
-		if (page == REMOVED_ALERTS_PAGE) {
+		if (page == REMOVED_INVITES_PAGE || page == REMOVED_ALERTS_PAGE) {
 			page = DreamTableScreenHandler.PAGE_LOADED;
 		}
 		requirementsBoard = nbt.getBoolean("RequirementsBoard");

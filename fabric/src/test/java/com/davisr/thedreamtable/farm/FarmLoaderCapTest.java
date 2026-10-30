@@ -90,10 +90,10 @@ class FarmLoaderCapTest {
 		FarmLoader loader = new FarmLoader();
 		UUID owner = UUID.randomUUID();
 
-		assertEquals(FarmLoader.ToggleResult.SELECTED, loader.toggleKnown(owner, "farm", true, FarmRole.OWNER));
+		assertEquals(FarmLoader.ToggleResult.SELECTED, loader.toggleKnown(owner, "farm", true));
 		assertFalse(FarmLoader.consumeRenewalRequest());
 
-		assertEquals(FarmLoader.ToggleResult.UNSELECTED, loader.toggleKnown(owner, "farm", true, FarmRole.OWNER));
+		assertEquals(FarmLoader.ToggleResult.UNSELECTED, loader.toggleKnown(owner, "farm", true));
 		assertTrue(FarmLoader.consumeRenewalRequest());
 		assertFalse(FarmLoader.consumeRenewalRequest(), "the request is consumed once");
 	}

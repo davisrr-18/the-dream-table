@@ -39,11 +39,11 @@ public record FarmPreferencePayload(BlockPos table, String key, Operation operat
 		}
 		FarmPreferences preferences = FarmPreferences.of(player.getServer());
 		boolean accepted = switch (payload.operation()) {
-			case FAVORITE -> preferences.setFavorite(player.getUuid(), checked.farm().located().key(), true);
-			case UNFAVORITE -> preferences.setFavorite(player.getUuid(), checked.farm().located().key(), false);
-			case TRACK -> preferences.track(player.getUuid(), checked.farm().located().key());
+			case FAVORITE -> preferences.setFavorite(player.getUuid(), checked.farm().key(), true);
+			case UNFAVORITE -> preferences.setFavorite(player.getUuid(), checked.farm().key(), false);
+			case TRACK -> preferences.track(player.getUuid(), checked.farm().key());
 			case UNTRACK -> {
-				if (preferences.tracked(player.getUuid()).filter(checked.farm().located().key()::equals).isPresent()) {
+				if (preferences.tracked(player.getUuid()).filter(checked.farm().key()::equals).isPresent()) {
 					preferences.clearTracking(player.getUuid());
 				}
 				yield true;

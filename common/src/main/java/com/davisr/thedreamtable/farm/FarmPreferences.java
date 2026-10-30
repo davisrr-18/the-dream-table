@@ -41,11 +41,6 @@ public final class FarmPreferences extends PersistentState {
 	private final Map<UUID, FarmKey> tracked = new HashMap<>();
 	/** Players who turned on "Protect My Farms". Absent means off, so worlds saved before the option read as off. */
 	private final Set<UUID> protecting = new LinkedHashSet<>();
-	/** Players whose Viewers may also break their protected farms ("Viewers Can Break"). Absent means off. */
-	private final Set<UUID> viewersBreak = new LinkedHashSet<>();
-
-	/** Players who turned off "Accept Farm Invites". Absent means on, so worlds saved before the option read as on. */
-	private final Set<UUID> decliningInvites = new LinkedHashSet<>();
 
 	public static FarmPreferences of(MinecraftServer server) {
 		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
@@ -56,7 +51,7 @@ public final class FarmPreferences extends PersistentState {
 			if (server.getTicks() % PRUNE_INTERVAL_TICKS == 0) {
 				FarmPreferences preferences = of(server);
 				preferences.prune((player, key) -> FarmDirectory.resolve(server, key)
-						.map(located -> FarmAccess.allows(located.record(), player, FarmAction.VIEW, true))
+						.map(located -> FarmAccess.isOwner(located.record(), player))
 						.orElse(false));
 			}
 		});
@@ -97,26 +92,6 @@ public final class FarmPreferences extends PersistentState {
 	/** Turns "Protect My Farms" on or off; refuses only to add a player beyond the saved-player limit. */
 	public boolean setProtectsFarms(UUID playerUuid, boolean protect) {
 		return setMember(protecting, playerUuid, protect);
-	}
-
-	/** Whether this owner's Viewers may also break the structure of their protected farms. Default off. */
-	public boolean viewersMayBreak(UUID playerUuid) {
-		return viewersBreak.contains(playerUuid);
-	}
-
-	/** Turns "Viewers Can Break" on or off; refuses only to add a player beyond the saved-player limit. */
-	public boolean setViewersMayBreak(UUID playerUuid, boolean allow) {
-		return setMember(viewersBreak, playerUuid, allow);
-	}
-
-	/** Whether other players may invite this player to their farms. Default on. */
-	public boolean acceptsInvites(UUID playerUuid) {
-		return !decliningInvites.contains(playerUuid);
-	}
-
-	/** Turns "Accept Farm Invites" on or off; refuses only to add a player beyond the saved-player limit. */
-	public boolean setAcceptsInvites(UUID playerUuid, boolean accept) {
-		return setMember(decliningInvites, playerUuid, !accept);
 	}
 
 	private boolean setMember(Set<UUID> members, UUID playerUuid, boolean member) {
@@ -310,8 +285,6 @@ public final class FarmPreferences extends PersistentState {
 		}
 		nbt.put("Players", list);
 		writePlayers(nbt, "Protecting", protecting);
-		writePlayers(nbt, "ViewersBreak", viewersBreak);
-		writePlayers(nbt, "DecliningInvites", decliningInvites);
 		return nbt;
 	}
 
@@ -376,8 +349,7 @@ public final class FarmPreferences extends PersistentState {
 			});
 		}
 		readPlayers(nbt, "Protecting", state.protecting);
-		readPlayers(nbt, "ViewersBreak", state.viewersBreak);
-		readPlayers(nbt, "DecliningInvites", state.decliningInvites);
+		// "ViewersBreak" and "DecliningInvites" from earlier versions are not read and are dropped on the next save.
 		return state;
 	}
 

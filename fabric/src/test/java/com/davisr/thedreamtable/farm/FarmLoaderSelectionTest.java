@@ -60,19 +60,18 @@ class FarmLoaderSelectionTest {
 		FarmLoader loader = new FarmLoader();
 		UUID player = UUID.randomUUID();
 
-		assertEquals(FarmLoader.ToggleResult.NOT_FOUND, loader.toggleKnown(player, "forged", false, FarmRole.OWNER));
+		assertEquals(FarmLoader.ToggleResult.NOT_FOUND, loader.toggleKnown(player, "forged", false));
 		assertFalse(loader.writeNbt(new net.minecraft.nbt.NbtCompound(), null)
 				.getCompound("Players").contains(player.toString()));
 	}
 
 	@Test
-	void operatorMutatesTheOwnersSelectionWhileViewerIsDenied() {
+	void theOwnerSelectsAndUnselectsTheirFarm() {
 		FarmLoader loader = new FarmLoader();
 		UUID owner = UUID.randomUUID();
 
-		assertEquals(FarmLoader.ToggleResult.FORBIDDEN, loader.toggleKnown(owner, "farm", true, FarmRole.VIEWER));
-		assertEquals(FarmLoader.ToggleResult.SELECTED, loader.toggleKnown(owner, "farm", true, FarmRole.OPERATOR));
-		assertEquals(FarmLoader.ToggleResult.UNSELECTED, loader.toggleKnown(owner, "farm", true, FarmRole.OWNER));
+		assertEquals(FarmLoader.ToggleResult.SELECTED, loader.toggleKnown(owner, "farm", true));
+		assertEquals(FarmLoader.ToggleResult.UNSELECTED, loader.toggleKnown(owner, "farm", true));
 	}
 
 	@Test
@@ -81,20 +80,12 @@ class FarmLoaderSelectionTest {
 		UUID owner = UUID.randomUUID();
 		for (int index = 0; index < 3; index++) {
 			assertEquals(FarmLoader.ToggleResult.SELECTED,
-					loader.toggleKnown(owner, "farm-" + index, true, FarmRole.OWNER));
+					loader.toggleKnown(owner, "farm-" + index, true));
 		}
 
 		assertEquals(FarmLoader.ToggleResult.OWNER_QUOTA_FULL,
-				loader.toggleKnown(owner, "overflow", true, FarmRole.OPERATOR));
+				loader.toggleKnown(owner, "overflow", true));
 		assertEquals(FarmLoader.ToggleResult.UNSELECTED,
-				loader.toggleKnown(owner, "farm-0", true, FarmRole.OPERATOR));
-	}
-
-	@Test
-	void onlyOwnerOrOperatorPresenceActivatesAnOfflineOwnedFarm() {
-		assertTrue(FarmLoader.authorizedPresence(true, List.of(), true));
-		assertTrue(FarmLoader.authorizedPresence(false, List.of(FarmRole.OPERATOR), true));
-		assertFalse(FarmLoader.authorizedPresence(false, List.of(FarmRole.VIEWER), true));
-		assertFalse(FarmLoader.authorizedPresence(false, List.of(FarmRole.OPERATOR), false));
+				loader.toggleKnown(owner, "farm-0", true));
 	}
 }

@@ -16,23 +16,23 @@ class FarmListingTest {
 
 	/** Newest first, as the server sends them. */
 	private static final List<FarmLoader.Entry> FARMS = List.of(
-			farm("Sugar Cane", "River Cane", FarmRole.OWNER, false, OVERWORLD, new BlockPos(500, 64, 0), FarmStorage.RUNNING, 0, true, 40),
-			farm("Iron Farm", "", FarmRole.OPERATOR, true, NETHER, new BlockPos(10, 64, 10), FarmStorage.FULL, 0, true, 100),
-			farm("Bamboo", "", FarmRole.VIEWER, false, OVERWORLD, new BlockPos(20, 64, 0), FarmStorage.UNLOADED, FarmLoader.UNKNOWN, true, FarmLoader.UNKNOWN),
-			farm("Crop Farm", "", FarmRole.OWNER, true, OVERWORLD, new BlockPos(100, 64, 0), FarmStorage.RUNNING, 3, true, 10),
-			farm("Old Farm", "", FarmRole.OWNER, false, OVERWORLD, new BlockPos(900, 64, 0), FarmStorage.UNLOADED, FarmLoader.UNKNOWN, false, FarmLoader.UNKNOWN));
+			farm("Sugar Cane", "River Cane", false, OVERWORLD, new BlockPos(500, 64, 0), FarmStorage.RUNNING, 0, true, 40),
+			farm("Iron Farm", "", true, NETHER, new BlockPos(10, 64, 10), FarmStorage.FULL, 0, true, 100),
+			farm("Bamboo", "", false, OVERWORLD, new BlockPos(20, 64, 0), FarmStorage.UNLOADED, FarmLoader.UNKNOWN, true, FarmLoader.UNKNOWN),
+			farm("Crop Farm", "", true, OVERWORLD, new BlockPos(100, 64, 0), FarmStorage.RUNNING, 3, true, 10),
+			farm("Old Farm", "", false, OVERWORLD, new BlockPos(900, 64, 0), FarmStorage.UNLOADED, FarmLoader.UNKNOWN, false, FarmLoader.UNKNOWN));
 	private static final FarmListing.Viewer HOME = new FarmListing.Viewer(OVERWORLD, new BlockPos(0, 64, 0));
 
-	private static FarmLoader.Entry farm(String name, String customName, FarmRole role, boolean favorite, String dimension, BlockPos where,
+	private static FarmLoader.Entry farm(String name, String customName, boolean favorite, String dimension, BlockPos where,
 			int status, int missing, boolean available, int storage) {
-		return new FarmLoader.Entry(name, name, "", customName, dimension, where, role, favorite, false,
+		return new FarmLoader.Entry(name, name, "", customName, dimension, where, favorite, false,
 				false, false, status, missing, available, storage);
 	}
 
 	@Test
 	void aSavedDesignIsUsedForTheExactFarmPreview() {
 		FarmLoader.Entry farm = new FarmLoader.Entry("key", "base:farm", "saved:base:farm#1@unique", "", "minecraft:overworld", BlockPos.ORIGIN,
-				FarmRole.OWNER, false, false, false, false, FarmStorage.RUNNING, 2, true, 0);
+				false, false, false, false, FarmStorage.RUNNING, 2, true, 0);
 
 		assertEquals("saved:base:farm#1@unique", farm.designId());
 	}
@@ -62,12 +62,6 @@ class FarmListingTest {
 	}
 
 	@Test
-	void accessAndFavoriteFiltersUseServerDerivedSnapshotFields() {
-		assertEquals(List.of(0, 3, 4), shown("", FarmListing.Show.OWNED, "", FarmListing.Sort.NEWEST));
-		assertEquals(List.of(1, 2), shown("", FarmListing.Show.SHARED, "", FarmListing.Sort.NEWEST));
-	}
-
-	@Test
 	void favoritesHaveTheirOwnFilterInsteadOfBeingHiddenInTheShowCycle() {
 		assertFalse(Arrays.stream(FarmListing.Show.values()).anyMatch(show -> show.name().equals("FAVORITES")));
 		assertTrue(Arrays.stream(FarmListing.Sort.values()).anyMatch(sort -> sort.name().equals("FAVORITES")));
@@ -83,7 +77,7 @@ class FarmListingTest {
 	@Test
 	void keepLoadedFilterUsesOnlyTheFarmSnapshotState() {
 		FarmLoader.Entry loaded = new FarmLoader.Entry("loaded", "Sugar Cane", "", "", OVERWORLD, BlockPos.ORIGIN,
-				FarmRole.OPERATOR, false, false, true, false, FarmStorage.RUNNING, 0, true, 20);
+				false, false, true, false, FarmStorage.RUNNING, 0, true, 20);
 		List<FarmLoader.Entry> farms = List.of(loaded, FARMS.get(0));
 
 		assertEquals(List.of(0), FarmListing.shown(farms, FarmLoader.Entry::displayName, "", FarmListing.Show.KEPT_LOADED,

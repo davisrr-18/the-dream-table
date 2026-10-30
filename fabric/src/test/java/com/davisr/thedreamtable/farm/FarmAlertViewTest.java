@@ -11,44 +11,33 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class FarmAlertViewTest {
 	@Test
-	void pagesActiveEntriesBeforeHistoryAndHidesEventsBeforeAcceptance() {
+	void pagesActiveEntriesBeforeHistory() {
 		FarmAlerts alerts = new FarmAlerts();
 		alerts.record(FarmAlertType.REPAIR_COMPLETED, 10L);
 		alerts.observe(FarmAlertType.BLOCKS_MISSING, 2, 20L);
 		alerts.record(FarmAlertType.REPAIR_COMPLETED, 30L);
 
-		List<FarmAlertView.Entry> entries = FarmAlertView.page(alerts, 15L, 0, 50);
+		List<FarmAlertView.Entry> entries = FarmAlertView.page(alerts, 0, 50);
 
-		assertEquals(2, entries.size());
+		assertEquals(3, entries.size());
 		assertTrue(entries.get(0).active());
 		assertEquals(FarmAlertType.BLOCKS_MISSING, entries.get(0).event().type());
+		// History is newest first.
 		assertEquals(30L, entries.get(1).event().time());
+		assertEquals(10L, entries.get(2).event().time());
 	}
 
 	@Test
-	void showsAllActiveAlertsEvenWhenTheyStartedBeforeCollaboratorAcceptance() {
+	void pagesFromTheOffsetAndStopsAtTheLimit() {
 		FarmAlerts alerts = new FarmAlerts();
-		alerts.observe(FarmAlertType.BLOCKS_MISSING, 2, 5L);
-		alerts.record(FarmAlertType.REPAIR_COMPLETED, 6L);
+		alerts.record(FarmAlertType.REPAIR_COMPLETED, 1L);
+		alerts.record(FarmAlertType.REPAIR_COMPLETED, 2L);
+		alerts.record(FarmAlertType.REPAIR_COMPLETED, 3L);
 
-		List<FarmAlertView.Entry> entries = FarmAlertView.page(alerts, 1_700_000_000_000L, 0, 50);
+		List<FarmAlertView.Entry> entries = FarmAlertView.page(alerts, 1, 1);
 
 		assertEquals(1, entries.size());
-		assertTrue(entries.get(0).active());
-		assertEquals(FarmAlertType.BLOCKS_MISSING, entries.get(0).event().type());
-	}
-
-	@Test
-	void appliesAcceptanceToUnixMillisecondHistoryTimes() {
-		FarmAlerts alerts = new FarmAlerts();
-		long acceptedAt = 1_700_000_000_000L;
-		alerts.record(FarmAlertType.REPAIR_COMPLETED, acceptedAt - 1);
-		alerts.record(FarmAlertType.REPAIR_COMPLETED, acceptedAt + 1);
-
-		List<FarmAlertView.Entry> entries = FarmAlertView.page(alerts, acceptedAt, 0, 50);
-
-		assertEquals(1, entries.size());
-		assertEquals(acceptedAt + 1, entries.get(0).event().time());
+		assertEquals(2L, entries.get(0).event().time());
 	}
 
 	@Test
@@ -58,7 +47,7 @@ class FarmAlertViewTest {
 			alerts.record(FarmAlertType.REPAIR_COMPLETED, index);
 		}
 
-		assertEquals(20, FarmAlertView.page(alerts, 0L, 0, 500).size());
+		assertEquals(20, FarmAlertView.page(alerts, 0, 500).size());
 	}
 
 	private static void assertTrue(boolean value) {
