@@ -304,7 +304,7 @@ public final class DreamTableHologram {
 			Box aimedFootprint = placement == null && !template.steps().isEmpty()
 					? PlacementOutline.footprint(template, tablePos, cursor, aimFacing(), previewMirrored) : null;
 			PlacementOutline.Status aimStatus = placement == null ? hoverStatus() : PlacementOutline.Status.CHECKING;
-			GhostRenderer.drawOutline(matrices, aimedFootprint, cursor, aimStatus, wave);
+			GhostRenderer.drawOutline(matrices, aimedFootprint, cursor, aimStatus, camera, wave);
 			if (aimedFootprint != null) {
 				// The farm itself follows the aim, so turning and mirroring can be judged before the click.
 				GhostRenderer.drawGhosts(matrices, template, table, cursor, aimFacing(), previewMirrored, 0, false, aimStatus == PlacementOutline.Status.REFUSED, Integer.MAX_VALUE, wave);
@@ -316,7 +316,7 @@ public final class DreamTableHologram {
 			if (idle && !template.steps().isEmpty()) {
 				PlacementOutline.Status status = checkedNow() ? PlacementOutline.status(true, placementProblem()) : PlacementOutline.Status.CHECKING;
 				Box footprint = PlacementOutline.footprint(template, tablePos, placement.anchor(), placement.facing(), placement.mirrored());
-				GhostRenderer.drawOutline(matrices, footprint, null, status, wave);
+				GhostRenderer.drawOutline(matrices, footprint, null, status, camera, wave);
 			}
 			GhostRenderer.drawGhosts(matrices, template, table, placement.anchor(), placement.facing(), placement.mirrored(), shownPlaced, shownBlocked, refused, topLayer, wave);
 		}
