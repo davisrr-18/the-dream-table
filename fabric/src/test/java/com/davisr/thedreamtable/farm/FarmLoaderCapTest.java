@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The Keep Loaded size cap, and the renewal request that stops a farm's random ticks at once. */
 class FarmLoaderCapTest {
-	private static final String[] FILES = {"sugar_cane_farm", "bamboo_farm", "cactus_farm", "crop_farm", "honey_farm", "mob_farm", "iron_farm"};
+	private static final String[] FILES = {"sugar_cane_farm", "bamboo_farm", "cactus_farm", "crop_farm", "honey_farm", "mob_farm", "creeper_farm", "iron_farm"};
 
 	@BeforeAll
 	static void setUp() {
