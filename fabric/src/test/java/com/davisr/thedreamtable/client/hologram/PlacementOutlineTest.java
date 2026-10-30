@@ -9,7 +9,6 @@ import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -74,41 +73,6 @@ class PlacementOutlineTest {
 					PlacementOutline.footprint(farm, TABLE, ANCHOR, facing, false),
 					PlacementOutline.footprint(farm, TABLE, ANCHOR, facing, true),
 					facing.asString());
-		}
-	}
-
-	@Test
-	void barsGrowWithDistanceAndMeetInSolidCorners() {
-		Box box = new Box(0, 0, 0, 10, 4, 6);
-		Vec3d near = new Vec3d(-1, 0, 0);
-		Vec3d far = new Vec3d(-80, 0, 0);
-		List<Box> close = PlacementOutline.bars(box, near, 0.1, 0.006, 4.0);
-		List<Box> distant = PlacementOutline.bars(box, far, 0.1, 0.006, 4.0);
-		assertTrue(close.size() >= 12);
-		for (Box bar : close) {
-			double thin = Math.min(Math.min(bar.getLengthX(), bar.getLengthY()), bar.getLengthZ());
-			assertTrue(thin >= 0.1 - DELTA && thin <= PlacementOutline.MAX_THICKNESS + DELTA);
-		}
-		double closeWidth = close.stream().mapToDouble(bar -> Math.min(Math.min(bar.getLengthX(), bar.getLengthY()), bar.getLengthZ())).max().orElse(0);
-		double distantWidth = distant.stream().mapToDouble(bar -> Math.min(Math.min(bar.getLengthX(), bar.getLengthY()), bar.getLengthZ())).min().orElse(0);
-		assertTrue(distantWidth > closeWidth);
-		for (double x : new double[] {box.minX, box.maxX}) {
-			for (double y : new double[] {box.minY, box.maxY}) {
-				for (double z : new double[] {box.minZ, box.maxZ}) {
-					Vec3d corner = new Vec3d(x, y, z);
-					assertTrue(close.stream().filter(bar -> bar.contains(corner)).count() >= 3, "corner " + corner);
-				}
-			}
-		}
-	}
-
-	@Test
-	void barsCoverTheWholeLengthOfAnEdgeWithoutGaps() {
-		Box box = new Box(0, 0, 0, 20, 2, 2);
-		List<Box> bars = PlacementOutline.bars(box, new Vec3d(10, 50, 10), 0.1, 0.006, 4.0);
-		for (double x = 0; x <= 20; x += 0.25) {
-			Vec3d point = new Vec3d(x, 0, 0);
-			assertTrue(bars.stream().anyMatch(bar -> bar.contains(point)), "x " + x);
 		}
 	}
 }

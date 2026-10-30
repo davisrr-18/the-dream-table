@@ -24,7 +24,6 @@ import net.minecraft.screen.PlayerScreenHandler;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
 import java.util.ArrayList;
@@ -54,13 +53,10 @@ public final class GhostRenderer {
 	private static final FrameBudget BUDGET = new FrameBudget(BUILD_NANOS, System::nanoTime);
 	private static final WeightedCache<MeshKey, Mesh> MESHES = new WeightedCache<>(BAKED_PARTS, (key, mesh) -> mesh.close());
 	private static final WeightedCache<String, Planned> PLANS = new WeightedCache<>(PLAN_CHUNKS, (key, planned) -> { });
-	/** Narrowest bar of the footprint outline, in blocks. */
-	private static final double OUTLINE_THICKNESS = 0.1;
-	/** Bar width per block of distance (about four pixels), so a far bar is not thinner than a pixel and flickers. */
-	private static final double OUTLINE_PER_BLOCK = 0.006;
-	private static final double OUTLINE_SEGMENT = 4.0;
-	/** A bar is skipped while the camera is this close to it, in blocks. */
-	private static final double CAMERA_CLEARANCE = 0.12;
+	/** Width of the footprint frame in screen pixels, the same at any distance. */
+	private static final float OUTLINE_LINE_WIDTH = 5.0F;
+	/** The frame sits this far outside the footprint so the ghost blocks never hide it. */
+	private static final double OUTLINE_GROW = 0.01;
 	private static final Matrix4f IDENTITY = new Matrix4f();
 	private static final Matrix4f SCRATCH = new Matrix4f();
 	private static final Tint NEUTRAL = new Tint(1.0F, 1.0F, 1.0F, 255);
@@ -84,21 +80,18 @@ public final class GhostRenderer {
 	}
 
 	/**
-	 * The farm's footprint as thick edges meeting in solid corners and a translucent floor, coloured by what the server said about the spot, and the
-	 * anchor marked with a flat cross when the player is still aiming (a null footprint draws only that mark). Thick, bright edges keep it readable on dark ground and water.
+	 * The farm's footprint as a frame of lines and a translucent floor, coloured by what the server said about the spot, and the
+	 * anchor marked with a flat cross when the player is still aiming (a null footprint draws only that mark). Lines keep one width on screen, so the frame reads the same near and far.
 	 */
-	public static void drawOutline(MatrixStack matrices, Box footprint, BlockPos anchor, PlacementOutline.Status status, Vec3d camera, float wave) {
+	public static void drawOutline(MatrixStack matrices, Box footprint, BlockPos anchor, PlacementOutline.Status status, float wave) {
 		float[] rgb = status.rgb();
-		// Edges, posts and the cross are solid and write depth, so nothing shows through them; only the floor is translucent.
+		// The frame is drawn as lines, which keep one width on screen at any distance and never split or thin out;
+		// the cross is solid, and only the floor is translucent.
+		BufferBuilder lines = Tessellator.getInstance().begin(VertexFormat.DrawMode.LINES, VertexFormats.LINES);
 		BufferBuilder solid = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		BufferBuilder floor = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		if (footprint != null) {
-			for (Box part : PlacementOutline.bars(footprint, camera, OUTLINE_THICKNESS, OUTLINE_PER_BLOCK, OUTLINE_SEGMENT)) {
-				// A bar the camera is touching would be cut by the near plane and show its back faces as split strips.
-				if (!part.expand(CAMERA_CLEARANCE).contains(camera)) {
-					fill(matrices, solid, part, rgb, 1.0F);
-				}
-			}
+			WorldRenderer.drawBox(matrices, lines, footprint.expand(OUTLINE_GROW), rgb[0], rgb[1], rgb[2], 1.0F);
 			fill(matrices, floor, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
 		}
 		if (anchor != null) {
@@ -111,6 +104,15 @@ public final class GhostRenderer {
 		}
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
+		BuiltBuffer linesBuilt = lines.endNullable();
+		if (linesBuilt != null) {
+			RenderSystem.enableBlend();
+			RenderSystem.defaultBlendFunc();
+			RenderSystem.depthMask(true);
+			RenderSystem.lineWidth(OUTLINE_LINE_WIDTH);
+			RenderSystem.setShader(GameRenderer::getRenderTypeLinesProgram);
+			BufferRenderer.drawWithGlobalProgram(linesBuilt);
+		}
 		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 		BuiltBuffer solidBuilt = solid.endNullable();
 		if (solidBuilt != null) {
@@ -125,6 +127,7 @@ public final class GhostRenderer {
 			RenderSystem.depthMask(false);
 			BufferRenderer.drawWithGlobalProgram(floorBuilt);
 		}
+		RenderSystem.lineWidth(1.0F);
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
 		RenderSystem.disableBlend();
