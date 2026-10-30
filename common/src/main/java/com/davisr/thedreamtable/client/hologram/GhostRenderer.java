@@ -22,6 +22,7 @@ import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.screen.PlayerScreenHandler;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import org.joml.Matrix4f;
 
@@ -52,6 +53,8 @@ public final class GhostRenderer {
 	private static final FrameBudget BUDGET = new FrameBudget(BUILD_NANOS, System::nanoTime);
 	private static final WeightedCache<MeshKey, Mesh> MESHES = new WeightedCache<>(BAKED_PARTS, (key, mesh) -> mesh.close());
 	private static final WeightedCache<String, Planned> PLANS = new WeightedCache<>(PLAN_CHUNKS, (key, planned) -> { });
+	/** Edge width of the footprint outline, in blocks: thick enough to read from across the farm. */
+	private static final double OUTLINE_THICKNESS = 0.08;
 	private static final Matrix4f IDENTITY = new Matrix4f();
 	private static final Matrix4f SCRATCH = new Matrix4f();
 	private static final Tint NEUTRAL = new Tint(1.0F, 1.0F, 1.0F, 255);
@@ -74,10 +77,24 @@ public final class GhostRenderer {
 		PLANS.clear();
 	}
 
-	public static void drawCursor(MatrixStack matrices, BlockPos cursor, float wave) {
+	/**
+	 * The farm's footprint as thick edges plus a translucent floor, coloured by what the server said about the spot, and the
+	 * anchor block marked when the player is still aiming (a null footprint draws only that mark). Thick, bright edges keep it readable on dark ground and water.
+	 */
+	public static void drawOutline(MatrixStack matrices, Box footprint, BlockPos anchor, PlacementOutline.Status status, float wave) {
+		float[] rgb = status.rgb();
 		BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-		float mark = 0.35F + 0.2F * wave;
-		WorldRenderer.renderFilledBox(matrices, buffer, cursor.getX() + 0.15, cursor.getY(), cursor.getZ() + 0.15, cursor.getX() + 0.85, cursor.getY() + 0.08, cursor.getZ() + 0.85, 0.95F, 0.86F, 0.45F, mark);
+		if (footprint != null) {
+			float edge = 0.75F + 0.2F * wave;
+			for (Box part : PlacementOutline.edges(footprint, OUTLINE_THICKNESS)) {
+				WorldRenderer.renderFilledBox(matrices, buffer, part.minX, part.minY, part.minZ, part.maxX, part.maxY, part.maxZ, rgb[0], rgb[1], rgb[2], edge);
+			}
+			float floor = 0.12F + 0.08F * wave;
+			WorldRenderer.renderFilledBox(matrices, buffer, footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.05, footprint.maxZ, rgb[0], rgb[1], rgb[2], floor);
+		}
+		if (anchor != null) {
+			WorldRenderer.renderFilledBox(matrices, buffer, anchor.getX() + 0.15, anchor.getY(), anchor.getZ() + 0.15, anchor.getX() + 0.85, anchor.getY() + 0.08, anchor.getZ() + 0.85, rgb[0], rgb[1], rgb[2], 0.35F + 0.2F * wave);
+		}
 		BuiltBuffer built = buffer.endNullable();
 		if (built == null) {
 			return;
