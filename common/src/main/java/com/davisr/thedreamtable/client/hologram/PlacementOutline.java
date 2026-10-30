@@ -17,11 +17,11 @@ public final class PlacementOutline {
 	private PlacementOutline() {
 	}
 
-	/** The outline colour. Each status keeps the colour the hologram already uses for it. */
+	/** The outline colour. Saturated on purpose, so they read on dark ground and water. */
 	public enum Status {
-		CHECKING(0.95F, 0.86F, 0.45F),
-		VALID(0.35F, 0.9F, 0.45F),
-		REFUSED(1.0F, 0.42F, 0.38F);
+		CHECKING(1.0F, 0.72F, 0.1F),
+		VALID(0.1F, 0.95F, 0.35F),
+		REFUSED(1.0F, 0.2F, 0.2F);
 
 		private final float red;
 		private final float green;
