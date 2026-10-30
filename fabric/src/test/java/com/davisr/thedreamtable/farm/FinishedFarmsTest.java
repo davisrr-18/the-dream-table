@@ -353,7 +353,7 @@ class FinishedFarmsTest {
 		BitSet repairPaid = new BitSet();
 		repairPaid.set(2);
 
-		assertTrue(areas.completeRepair(instanceId, operationId, repaired, repairPaid));
+		assertTrue(areas.completeRepair(instanceId, operationId, PLAYER, PLAYER, repaired, repairPaid));
 
 		FarmAreas.Finished after = areas.finished(instanceId).orElseThrow();
 		BitSet expectedPlaced = new BitSet();
@@ -363,7 +363,7 @@ class FinishedFarmsTest {
 		expectedPaid.set(2);
 		assertEquals(expectedPlaced, after.placed());
 		assertEquals(expectedPaid, after.paid());
-		assertFalse(areas.completeRepair(instanceId, operationId, repaired, repairPaid));
+		assertFalse(areas.completeRepair(instanceId, operationId, PLAYER, PLAYER, repaired, repairPaid));
 	}
 
 	@Test
@@ -425,10 +425,10 @@ class FinishedFarmsTest {
 		BitSet repairPaid = new BitSet();
 		repairPaid.set(2);
 
-		assertFalse(areas.completeRepair(instanceId, operationId, repaired, repairPaid));
+		assertFalse(areas.completeRepair(instanceId, operationId, PLAYER, PLAYER, repaired, repairPaid));
 		assertEquals(placed, areas.finished(instanceId).orElseThrow().placed(), "the lease-bound path changes nothing");
 
-		areas.mergePlacement(instanceId, repaired, repairPaid);
+		areas.mergePlacement(instanceId, PLAYER, PLAYER, repaired, repairPaid);
 
 		BitSet expectedPlaced = new BitSet();
 		expectedPlaced.set(0, 3);
@@ -437,7 +437,7 @@ class FinishedFarmsTest {
 		expectedPaid.set(2);
 		assertEquals(expectedPlaced, areas.finished(instanceId).orElseThrow().placed());
 		assertEquals(expectedPaid, areas.finished(instanceId).orElseThrow().paid());
-		areas.mergePlacement(UUID.randomUUID(), repaired, repairPaid);
+		areas.mergePlacement(UUID.randomUUID(), PLAYER, PLAYER, repaired, repairPaid);
 	}
 
 	@Test

@@ -24,7 +24,6 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerContext;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
@@ -330,7 +329,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		if (!canUse(player) || !(player instanceof ServerPlayerEntity serverPlayer) || table == null) {
 			return false;
 		}
-		FarmTemplates.reloadImports(serverPlayer.getServerWorld().getServer().getSavePath(WorldSavePath.ROOT));
+		FarmTemplates.refreshImports(serverPlayer.getServerWorld().getServer());
 		table.reconcileMaterials(serverPlayer);
 		if (!TableButtons.press(table, serverPlayer, id)) {
 			return false;

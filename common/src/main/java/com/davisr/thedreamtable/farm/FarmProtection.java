@@ -62,7 +62,7 @@ public final class FarmProtection {
 		}
 	}
 
-	static boolean probing() {
+	public static boolean probing() {
 		return probes > 0;
 	}
 
@@ -160,7 +160,8 @@ public final class FarmProtection {
 				|| state.isIn(BlockTags.CROPS) || state.isIn(BlockTags.SAPLINGS);
 	}
 
-	private static Text ownerName(MinecraftServer server, UUID owner) {
+	/** A player's name for messages: online, else from the server's cache, else "its owner". */
+	public static Text ownerName(MinecraftServer server, UUID owner) {
 		ServerPlayerEntity online = server.getPlayerManager().getPlayer(owner);
 		if (online != null) {
 			return online.getName();

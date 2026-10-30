@@ -87,7 +87,7 @@ public final class FarmCare {
 		FarmAreas areas = FarmAreas.of(farm.world());
 		// Snapshot before the record is released: releasing drops its alert state, which a partial Take Down brings back.
 		NbtCompound alerts = areas.alerts(farm.farm().instanceId()).map(saved -> saved.write(new NbtCompound())).orElse(null);
-		FarmDismantler job = new FarmDismantler(player.getUuid(), template, site, farm.farm().swaps(), placed, farm.farm().paid(),
+		FarmDismantler job = new FarmDismantler(player.getUuid(), template, site, farm.farm().swaps(), placed, farm.farm().paid(), farm.farm().payers(),
 				session.table().getPos(), new FarmDismantler.Identity(farm.farm().instanceId(), farm.farm().ownerUuid(), farm.farm().customName(),
 						farm.farm().grants(), farm.farm().invites(), alerts));
 		areas.release(farm.farm().key());

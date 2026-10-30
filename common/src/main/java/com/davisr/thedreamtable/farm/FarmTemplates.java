@@ -5,6 +5,9 @@ import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import com.davisr.thedreamtable.farm.legacy.MobFarms;
 import com.davisr.thedreamtable.farm.legacy.PlantFarms;
 
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.WorldSavePath;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -48,6 +51,9 @@ public final class FarmTemplates {
 	private static final long RELOAD_MS = 1000L;
 	private static Path reloadedRoot;
 	private static long reloadedAt;
+	private static final ImportRefresher REFRESHER = new ImportRefresher(ImportedStructures::reload);
+	private static volatile Consumer<MinecraftServer> importsChanged = server -> {
+	};
 
 	static {
 		register(FarmOptions.SUGAR_CANE, "sugar_cane_farm", () -> PlantFarms.pistonRow(FarmOptions.SUGAR_CANE.id(), true));
@@ -67,9 +73,9 @@ public final class FarmTemplates {
 	}
 
 	/**
-	 * Looks at the schematic folders again. Every table click asks, so for the same world this happens at most once
-	 * per {@link #RELOAD_MS}: a new file still shows up within a second, but many players clicking don't list and
-	 * check every file each time.
+	 * Reads the schematic folders now, on the calling thread, for startup only. Table clicks use
+	 * {@link #refreshImports}, which never waits for files. For the same world this happens at most once per
+	 * {@link #RELOAD_MS}.
 	 */
 	public static synchronized void reloadImports(Path worldRoot) {
 		long now = System.currentTimeMillis();
@@ -79,6 +85,73 @@ public final class FarmTemplates {
 		reloadedRoot = worldRoot;
 		reloadedAt = now;
 		imports = ImportedStructures.reload(worldRoot);
+	}
+
+	/**
+	 * Asks for the schematic folders to be read again on a worker thread, at most once per {@link #RELOAD_MS} for a world
+	 * and never while a read runs. Callers keep using the last published list; a result that differs is swapped in on the
+	 * server thread and {@link #onImportsChanged} is told, so a table click never waits for files to be parsed.
+	 */
+	public static void refreshImports(MinecraftServer server) {
+		Path root = server.getSavePath(WorldSavePath.ROOT);
+		long now = System.currentTimeMillis();
+		synchronized (FarmTemplates.class) {
+			if (Objects.equals(root, reloadedRoot) && now - reloadedAt < RELOAD_MS) {
+				return;
+			}
+			if (!REFRESHER.request(root, server::execute, result -> publish(server, root, result), failure -> {
+			})) {
+				return;
+			}
+			reloadedRoot = root;
+			reloadedAt = now;
+		}
+	}
+
+	/**
+	 * Reads the schematic folders on the worker thread whatever the throttle says, for {@code /dreamtable reload}, and calls
+	 * {@code done} on the server thread with the published list, or {@code failed} when the read threw. Files that did not
+	 * change are not parsed again.
+	 *
+	 * @return false when a read is already running; neither callback is called then
+	 */
+	public static boolean reloadImportsAsync(MinecraftServer server, Consumer<ImportedStructures.Imports> done, Consumer<Exception> failed) {
+		Path root = server.getSavePath(WorldSavePath.ROOT);
+		boolean started = REFRESHER.request(root, server::execute, result -> {
+			publish(server, root, result);
+			done.accept(result);
+		}, failed);
+		if (started) {
+			synchronized (FarmTemplates.class) {
+				reloadedRoot = root;
+				reloadedAt = System.currentTimeMillis();
+			}
+		}
+		return started;
+	}
+
+	/** Swaps in a finished read on the server thread, unless the server it was read for has gone. */
+	private static void publish(MinecraftServer server, Path root, ImportedStructures.Imports result) {
+		synchronized (FarmTemplates.class) {
+			if (!Objects.equals(root, reloadedRoot)) {
+				return;
+			}
+		}
+		ImportedStructures.Imports previous = imports;
+		imports = result;
+		if (!previous.sameListing(result)) {
+			importsChanged.accept(server);
+		}
+	}
+
+	/** The last published list of imported schematics, for counts. */
+	public static ImportedStructures.Imports importsSnapshot() {
+		return imports;
+	}
+
+	/** Called on the server thread after a finished read changed the listing, so players with a table open can be sent the new one. */
+	public static void onImportsChanged(Consumer<MinecraftServer> listener) {
+		importsChanged = listener;
 	}
 
 	public static FarmTemplate get(String id) {

@@ -288,6 +288,11 @@ public final class TableSession {
 		return progress.busy();
 	}
 
+	/** Whether the player has delivered items, or items in the material slots, that breaking the table would drop. */
+	boolean holdsMaterials() {
+		return desk.holdsItems();
+	}
+
 	/** A started build that isn't finished, running or stopped partway; a repair counts too. */
 	boolean buildInProgress() {
 		return !selectedFarm.isEmpty() && (progress.busy() || (progress.index() > 0 && !progress.is(PHASE_DONE)));
@@ -484,7 +489,7 @@ public final class TableSession {
 		ServerPlayerEntity actor = onlineOwner(world);
 		RepairContext context = progress.repairContext();
 		if (context != null) {
-			FarmAreas.of(world).mergePlacement(context.farmKey().instanceId(), progress.placedSteps(), progress.paidSteps());
+			FarmAreas.of(world).mergePlacement(context.farmKey().instanceId(), context.farmOwnerUuid(), context.actorUuid(), progress.placedSteps(), progress.paidSteps());
 		}
 		if (actor != null) {
 			actor.sendMessage(Text.translatable(messageKey), false);
