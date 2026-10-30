@@ -1,7 +1,9 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.GameSetup;
 import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import net.minecraft.world.World;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,6 +13,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** A farm may declare the dimension it is designed for; without one it never warns. */
 class IntendedDimensionTest {
+	@BeforeAll
+	static void bootstrap() {
+		GameSetup.bootstrap();
+	}
+
 	@Test
 	void onlyTheGoldFarmDeclaresADimensionAndItIsTheNether() {
 		for (FarmOption option : FarmOptions.ALL) {
