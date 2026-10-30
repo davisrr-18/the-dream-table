@@ -74,7 +74,8 @@ Delegation is adaptive, not unconditional:
 - Trivial tasks may be completed directly.
 - Do not spawn agents merely to reach a fixed count.
 - Do not delegate work whose coordination overhead exceeds its likely benefit.
-- Use at most three concurrent subagents, subject to the actual environment configuration.
+- Use at most five concurrent subagents, subject to the actual environment configuration.
+- Split work into independent, well-scoped units (by subsystem, package, or file set) so subagents can run in parallel without overlapping edits.
 - Parallelize independent tasks only.
 - Execute dependent activities sequentially.
 - Avoid overlapping parallel edits and duplicated investigations.
@@ -234,7 +235,9 @@ Only recommend models verified as available in the current environment.
 
 Operational preferences, when available:
 
-- Primary agent: orchestration and integration, at medium effort (Claude Code main session).
+- Primary agent: orchestration and integration on Sonnet 5.5 at high effort by default (Claude Code main session).
+- Escalate the primary session to Opus 5.5 at medium effort only for Milestone 1 planning of large updates, architectural decisions, or problems Sonnet could not resolve.
+- Subagents default to Haiku 5.5 at high effort; escalate a single delegation to Sonnet 5.5 when its risk (networking, persistence, saved-world compatibility, handshake) justifies it.
 - Investigation, isolated implementation, and independent review: delegate to the matching subagent at its configured model and effort.
 - Adaptive routing (standing user authorization, 2026-10-28): the primary agent may raise or lower the model and effort of itself and of any delegated subagent, per task or milestone, following the recommendation for that work. No separate approval is needed.
 
