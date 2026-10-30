@@ -235,7 +235,7 @@ Only recommend models verified as available in the current environment.
 
 Operational preferences, when available:
 
-- Primary agent: orchestration and integration on Sonnet 5.5 at high effort by default (Claude Code main session).
+- Primary agent: orchestration and integration on Sonnet 5.5 at medium effort by default (Claude Code main session); raise to high for difficult multi-agent integration, subtle bugs (networking, persistence, handshake), or milestone planning.
 - Escalate the primary session to Opus 5.5 at medium effort only for Milestone 1 planning of large updates, architectural decisions, or problems Sonnet could not resolve.
 - Subagents default to Haiku 5.5 at high effort; escalate a single delegation to Sonnet 5.5 when its risk (networking, persistence, saved-world compatibility, handshake) justifies it.
 - Investigation, isolated implementation, and independent review: delegate to the matching subagent at its configured model and effort.
