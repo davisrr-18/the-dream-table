@@ -56,7 +56,7 @@ public final class FarmInfoPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		return backY() - ui.view().cardY(0) + BUTTON_HEIGHT + PAD;
+		return backY() - ui.view().cardY(0) + BUTTON_HEIGHT + PAD + 8;
 	}
 
 	@Override
