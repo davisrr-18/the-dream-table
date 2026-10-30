@@ -13,7 +13,7 @@ import java.util.Optional;
 public final class FarmOptions {
 	/**
 	 * A farm in the menu. {@code intendedDimension} is the dimension the farm is designed for, or null when it works
-	 * anywhere; it only drives a warning on the placement page, never a restriction, and is never saved.
+	 * anywhere; the table refuses to place it in any other one (see {@code SessionAreas.problemAt}), and it is never saved.
 	 */
 	public record FarmOption(String id, Item icon, String translationKey, String literalName, RegistryKey<World> intendedDimension) {
 		public FarmOption(String id, Item icon, String translationKey) {

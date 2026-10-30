@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.farm.BuildPermission;
 import com.davisr.thedreamtable.farm.FarmAccess;
 import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmDirectory;
+import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmSite;
@@ -35,7 +36,7 @@ final class SessionAreas {
 	}
 
 	/**
-	 * Why the farm can't start at the site, as a lang key, or null when it can: it leaves the world, overlaps another farm
+	 * Why the farm can't start at the site, as a lang key, or null when it can: it is in a dimension the farm is not made for, it leaves the world, overlaps another farm
 	 * at any table, or touches land the player may not build in. Build and the hologram check both ask this.
 	 */
 	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template) {
@@ -44,6 +45,9 @@ final class SessionAreas {
 
 	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template, @Nullable UUID ignoredFinished) {
 		Box area = site.footprint(template);
+		if (FarmOptions.byId(session.getSelectedFarm()).filter(option -> option.outsideIntendedDimension(world.getRegistryKey())).isPresent()) {
+			return "gui.the_dream_table.wrong_dimension";
+		}
 		if (!site.fits(world, template)) {
 			return "gui.the_dream_table.out_of_world";
 		}
