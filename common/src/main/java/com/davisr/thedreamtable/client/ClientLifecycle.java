@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.client;
 
+import com.davisr.thedreamtable.client.hologram.GhostRenderer;
 import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.client.world.ClientWorld;
 
@@ -31,6 +32,7 @@ public final class ClientLifecycle {
 		BuildProgressLine.clear();
 		DreamTableClipboard.close();
 		OtherFarms.clear();
+		GhostRenderer.release();
 	}
 
 	static void leaveServer() {

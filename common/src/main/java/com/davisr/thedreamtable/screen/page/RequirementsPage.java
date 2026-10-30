@@ -10,6 +10,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
@@ -38,11 +39,16 @@ public final class RequirementsPage implements TablePage {
 			boolean complete = have >= spec.count();
 			ui.painter().slotFrame(context, slotX, slotY);
 			Item shown = handler.materialItem(index);
-			context.drawItem(new ItemStack(shown == null ? spec.item() : shown), slotX, slotY);
+			ItemStack required = new ItemStack(shown == null ? spec.item() : shown);
+			context.drawItem(required, slotX, slotY);
 			if (complete) {
 				context.drawBorder(slotX - 1, slotY - 1, 18, 18, ACCENT);
 			}
 			Text count = Text.translatable("gui.the_dream_table.count", have, spec.count());
+			// An empty slot shows only the faded icon of what it wants, with no name; a filled one has the vanilla slot tip.
+			if (slot.getStack().isEmpty()) {
+				ui.hoverItem(required, Text.translatable("gui.the_dream_table.item_supplied", count).formatted(Formatting.GRAY), slotX, slotY, mouseX, mouseY);
+			}
 			context.drawText(text, count, slotX + 8 - text.getWidth(count) / 2, slotY + 16, complete ? ACCENT : HINT, false);
 		}
 		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);

@@ -16,6 +16,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 
@@ -81,26 +82,28 @@ public final class FarmPage implements TablePage {
 				LoadedFarmsPage.dimension(farm.dimension()));
 		LoadedFarmsPage.card(ui, context, farm, where, flowX(), ui.view().cardY(0), mouseX, mouseY);
 		drawWrapped(context, summaryText(farm), statusY(), Integer.MAX_VALUE, HINT);
-		drawStorage(context);
-		drawCondition(context, farm);
+		drawStorage(context, mouseX, mouseY);
+		drawCondition(context, farm, mouseX, mouseY);
 		drawAlerts(context, farm);
 		ui.buttonAt("favorite", context, Text.translatable(farm.favorite() ? "gui.the_dream_table.unfavorite" : "gui.the_dream_table.favorite"),
 				flowX(), rowY(FAVORITE), mouseX, mouseY, true, farm.favorite());
 		ui.buttonAt("track", context, Text.translatable(farm.tracked() ? "gui.the_dream_table.untrack" : "gui.the_dream_table.track"),
 				flowX(), rowY(TRACK), mouseX, mouseY, true, farm.tracked());
-		boolean operates = farm.role() != FarmRole.VIEWER;
-		ui.buttonAt("keep_loaded", context, loadedLabel(farm), flowX(), rowY(LOADED), mouseX, mouseY, operates && canLoad(farm), farm.loaded());
+		Text loadedReason = keepLoadedReason(farm.role(), LoadedFarmsView.limit(), farm.loaded(), farm.ownerQuotaFull());
+		reasonButton("keep_loaded", context, loadedLabel(farm), loadedReason, LOADED, mouseX, mouseY, farm.loaded());
 		if (farm.available()) {
 			boolean busy = ProjectState.locked(ui.handler());
-			ui.buttonAt("repair", context, busy ? Text.translatable("gui.the_dream_table.repair_table_busy") : repairLabel(farm), flowX(), rowY(REPAIR), mouseX, mouseY,
-					operates && farm.missing() != 0 && !busy, false);
+			reasonButton("repair", context, busy ? Text.translatable("gui.the_dream_table.repair_table_busy") : repairLabel(farm),
+					repairReason(farm.role(), busy, farm.missing()), REPAIR, mouseX, mouseY, false);
 		}
 		if (farm.role() == FarmRole.OWNER) {
-			ui.buttonAt("rename", context, Text.translatable("gui.the_dream_table.rename_from_field"), flowX(), rowY(RENAME), mouseX, mouseY, true, false);
-			ui.buttonAt("invite_viewer", context, Text.translatable("gui.the_dream_table.invite_viewer"), flowX(), rowY(INVITE_VIEWER), mouseX, mouseY,
-					!input.text().isBlank(), false);
-			ui.buttonAt("invite_operator", context, Text.translatable("gui.the_dream_table.invite_operator"), flowX(), rowY(INVITE_OPERATOR), mouseX, mouseY,
-					!input.text().isBlank(), false);
+			boolean typed = !input.text().isBlank();
+			reasonButton("rename", context, Text.translatable("gui.the_dream_table.rename_from_field"), typed ? null : Text.translatable("gui.the_dream_table.reason_type_name"),
+					RENAME, mouseX, mouseY, false);
+			reasonButton("invite_viewer", context, Text.translatable("gui.the_dream_table.invite_viewer"), typed ? null : Text.translatable("gui.the_dream_table.reason_type_player"),
+					INVITE_VIEWER, mouseX, mouseY, false);
+			reasonButton("invite_operator", context, Text.translatable("gui.the_dream_table.invite_operator"), typed ? null : Text.translatable("gui.the_dream_table.reason_type_player"),
+					INVITE_OPERATOR, mouseX, mouseY, false);
 			List<FarmDetailsPayload.CollaboratorEntry> collaborators = collaborators();
 			for (int index = 0; index < collaborators.size(); index++) {
 				FarmDetailsPayload.CollaboratorEntry collaborator = collaborators.get(index);
@@ -163,7 +166,9 @@ public final class FarmPage implements TablePage {
 			return true;
 		}
 		if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, flowX(), rowY(RENAME))) {
-			LoadedFarmsView.rename(farm.key(), input.text());
+			if (!input.text().isBlank()) {
+				LoadedFarmsView.rename(farm.key(), input.text());
+			}
 			return true;
 		}
 		if (farm.role() == FarmRole.OWNER && ui.buttonHit(mouseX, mouseY, flowX(), rowY(INVITE_VIEWER)) && !input.text().isBlank()) {
@@ -216,11 +221,11 @@ public final class FarmPage implements TablePage {
 	}
 
 	/** Storage use, the items held with their counts, and the farm's block count, from the latest {@link FarmDetailsPayload}. */
-	private void drawStorage(DrawContext context) {
+	private void drawStorage(DrawContext context, int mouseX, int mouseY) {
 		FarmDetailsPayload details = LoadedFarmsView.details();
 		drawWrapped(context, storageText(details), storageY(), Integer.MAX_VALUE, NAME);
 		if (details != null) {
-			drawItems(context, details.items(), details.counts(), itemsY());
+			drawItems(context, details.items(), details.counts(), itemsY(), "gui.the_dream_table.item_stored", mouseX, mouseY);
 			drawWrapped(context, infoText(details), blocksY(), Integer.MAX_VALUE, HINT);
 		}
 	}
@@ -271,7 +276,7 @@ public final class FarmPage implements TablePage {
 	 * How much of the farm stands: blocks missing, which Repair places, and blocks the player changed, which it leaves.
 	 * Below, the items the missing blocks take, or, while Take Down waits for its second click, what it will do.
 	 */
-	private void drawCondition(DrawContext context, FarmLoader.Entry farm) {
+	private void drawCondition(DrawContext context, FarmLoader.Entry farm, int mouseX, int mouseY) {
 		FarmDetailsPayload details = LoadedFarmsView.details();
 		if (details == null || !farm.available()) {
 			return;
@@ -284,7 +289,7 @@ public final class FarmPage implements TablePage {
 			drawWrapped(context, Text.translatable("gui.the_dream_table.take_down_returns"), y, bottom, HINT);
 			return;
 		}
-		drawItems(context, details.needs(), details.needCounts(), needsY());
+		drawItems(context, details.needs(), details.needCounts(), needsY(), "gui.the_dream_table.item_needed", mouseX, mouseY);
 	}
 
 	/** The farm's active alerts, in red, as the last lines of its description. */
@@ -344,7 +349,8 @@ public final class FarmPage implements TablePage {
 		return Text.translatable("gui.the_dream_table.take_down_warning", LoadedFarmsPage.name(farm), farm.where().getX(), farm.where().getY(), farm.where().getZ());
 	}
 
-	private void drawItems(DrawContext context, List<String> items, List<Integer> counts, int y) {
+	/** Draws the icons with their short counts; hovering one shows the item's name and the exact count under {@code countKey}. */
+	private void drawItems(DrawContext context, List<String> items, List<Integer> counts, int y, String countKey, int mouseX, int mouseY) {
 		int x = flowX();
 		for (int index = 0; index < items.size(); index++) {
 			Identifier id = Identifier.tryParse(items.get(index));
@@ -353,8 +359,10 @@ public final class FarmPage implements TablePage {
 			}
 			int itemX = x + itemXOffset(index);
 			int itemY = y + itemRow(index) * ITEM_ROW_HEIGHT;
-			context.drawItem(new ItemStack(Registries.ITEM.get(id)), itemX, itemY);
+			ItemStack stack = new ItemStack(Registries.ITEM.get(id));
+			context.drawItem(stack, itemX, itemY);
 			context.drawText(ui.painter().text(), shortCount(counts.get(index)), itemX, itemY + 17, HINT, false);
+			ui.hoverItem(stack, Text.translatable(countKey, String.format(Locale.ROOT, "%,d", counts.get(index))).formatted(Formatting.GRAY), itemX, itemY, mouseX, mouseY);
 		}
 	}
 
@@ -386,6 +394,40 @@ public final class FarmPage implements TablePage {
 	/** Off when the server turned keeping farms loaded off, or when the limit is reached and this farm isn't one of them. */
 	private static boolean canLoad(FarmLoader.Entry farm) {
 		return LoadedFarmsView.limit() > 0 && (farm.loaded() || !farm.ownerQuotaFull());
+	}
+
+	/**
+	 * A button that, when it can't be used, says why on its second line. {@code reason} null means it can be used.
+	 * {@code active} marks a toggle that is on.
+	 */
+	private void reasonButton(String key, DrawContext context, Text label, Text reason, int row, int mouseX, int mouseY, boolean active) {
+		if (reason == null) {
+			ui.buttonAt(key, context, label, flowX(), rowY(row), mouseX, mouseY, true, active);
+		} else {
+			ui.buttonAt(key, context, label, reason, flowX(), rowY(row), mouseX, mouseY, false, active);
+		}
+	}
+
+	/** Why Keep Loaded can't be changed, or null when it can. */
+	static Text keepLoadedReason(FarmRole role, int limit, boolean loaded, boolean ownerQuotaFull) {
+		if (role == FarmRole.VIEWER) {
+			return Text.translatable("gui.the_dream_table.reason_operators_only");
+		}
+		if (limit <= 0) {
+			return Text.translatable("gui.the_dream_table.reason_keep_loaded_server");
+		}
+		return !loaded && ownerQuotaFull ? Text.translatable("gui.the_dream_table.loaded_full", limit) : null;
+	}
+
+	/** Why Repair is off, or null when it can be used: not for a viewer, not while the table is busy, not for a whole farm. */
+	static Text repairReason(FarmRole role, boolean tableBusy, int missing) {
+		if (role == FarmRole.VIEWER) {
+			return Text.translatable("gui.the_dream_table.reason_operators_only");
+		}
+		if (tableBusy) {
+			return Text.translatable("gui.the_dream_table.repair_busy");
+		}
+		return missing == 0 ? Text.translatable("gui.the_dream_table.reason_repair_whole") : null;
 	}
 
 	private static Text loadedLabel(FarmLoader.Entry farm) {
