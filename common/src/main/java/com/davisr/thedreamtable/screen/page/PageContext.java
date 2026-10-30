@@ -155,24 +155,21 @@ public final class PageContext {
 	}
 
 	public void buttonAt(String stableKey, DrawContext context, Text label, int x, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
-		ControlId id = register(stableKey, label, Text.empty(), x, y, BUTTON_HEIGHT, false, enabled);
-		boolean hit = buttonHit(mouseX, mouseY, x, y);
-		painter.button(context, label, x, y, hit, enabled, primary);
-		focusRing(context, id, x, y, CARD_WIDTH, BUTTON_HEIGHT);
+		int width = spanWidth(x);
+		x = spanX(x);
+		ControlId id = register(stableKey, label, Text.empty(), Text.empty(), x, y, width, BUTTON_HEIGHT, false, enabled);
+		boolean hit = view.hit(mouseX, mouseY, x, y, width, BUTTON_HEIGHT);
+		painter.button(context, label, x, y, width, hit, enabled, primary);
+		focusRing(context, id, x, y, width, BUTTON_HEIGHT);
 	}
 
 	/** The Back button of a card grid: it spans the whole collection width, from the first column to the last. */
 	public void backButton(DrawContext context, int y, int mouseX, int mouseY) {
-		Text label = Text.translatable("gui.the_dream_table.back");
-		int x = view.collectionX();
-		int width = view.collectionWidth();
-		ControlId id = register("back", label, Text.empty(), Text.empty(), x, y, width, BUTTON_HEIGHT, false, true);
-		painter.button(context, label, x, y, width, backHit(mouseX, mouseY, y), true, false);
-		focusRing(context, id, x, y, width, BUTTON_HEIGHT);
+		buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), view.collectionX(), y, mouseX, mouseY, true, false);
 	}
 
 	public boolean backHit(double mouseX, double mouseY, int y) {
-		return view.hit(mouseX, mouseY, view.collectionX(), y, view.collectionWidth(), BUTTON_HEIGHT);
+		return buttonHit(mouseX, mouseY, view.collectionX(), y);
 	}
 
 	/** A button with a second, smaller line under its label: what it does, or why it is off. */
@@ -185,11 +182,13 @@ public final class PageContext {
 	 * state.
 	 */
 	public void buttonAt(String stableKey, DrawContext context, Text label, Text detail, int x, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
-		ControlId id = enabled ? register(stableKey, label, detail, x, y, BUTTON_HEIGHT, false, true)
-				: register(stableKey, label, Text.empty(), detail, x, y, BUTTON_HEIGHT, false, false);
-		boolean hit = buttonHit(mouseX, mouseY, x, y);
-		painter.button(context, label, detail, x, y, hit, enabled, primary);
-		focusRing(context, id, x, y, CARD_WIDTH, BUTTON_HEIGHT);
+		int width = spanWidth(x);
+		x = spanX(x);
+		ControlId id = enabled ? register(stableKey, label, detail, Text.empty(), x, y, width, BUTTON_HEIGHT, false, true)
+				: register(stableKey, label, Text.empty(), detail, x, y, width, BUTTON_HEIGHT, false, false);
+		boolean hit = view.hit(mouseX, mouseY, x, y, width, BUTTON_HEIGHT);
+		painter.button(context, label, detail, x, y, width, hit, enabled, primary);
+		focusRing(context, id, x, y, width, BUTTON_HEIGHT);
 	}
 
 	/**
@@ -218,10 +217,12 @@ public final class PageContext {
 	}
 
 	public void destructiveButtonAt(String stableKey, DrawContext context, Text label, int x, int y, int mouseX, int mouseY, boolean enabled) {
-		ControlId id = register(stableKey, label, Text.empty(), x, y, BUTTON_HEIGHT, false, enabled);
-		boolean hit = buttonHit(mouseX, mouseY, x, y);
-		painter.destructiveButton(context, label, x, y, hit, enabled);
-		focusRing(context, id, x, y, CARD_WIDTH, BUTTON_HEIGHT);
+		int width = spanWidth(x);
+		x = spanX(x);
+		ControlId id = register(stableKey, label, Text.empty(), Text.empty(), x, y, width, BUTTON_HEIGHT, false, enabled);
+		boolean hit = view.hit(mouseX, mouseY, x, y, width, BUTTON_HEIGHT);
+		painter.destructiveButton(context, label, x, y, width, hit, enabled);
+		focusRing(context, id, x, y, width, BUTTON_HEIGHT);
 	}
 
 	public void chip(String stableKey, DrawContext context, Text label, int y, int width, int height, int mouseX, int mouseY) {
@@ -270,7 +271,23 @@ public final class PageContext {
 	}
 
 	public boolean buttonHit(double mouseX, double mouseY, int x, int y) {
-		return view.hit(mouseX, mouseY, x, y, CARD_WIDTH, BUTTON_HEIGHT);
+		return view.hit(mouseX, mouseY, spanX(x), y, spanWidth(x), BUTTON_HEIGHT);
+	}
+
+	/**
+	 * A button placed at the left edge of the collection or at the centered flow column spans the whole collection
+	 * width, so stacked buttons line up with the Back button; cards keep their own width.
+	 */
+	private boolean spans(int x) {
+		return x == view.collectionX() || x == view.flowX();
+	}
+
+	private int spanX(int x) {
+		return spans(x) ? view.collectionX() : x;
+	}
+
+	private int spanWidth(int x) {
+		return spans(x) ? view.collectionWidth() : CARD_WIDTH;
 	}
 
 	/** Shows the next page right away and asks the server to switch to it. */
