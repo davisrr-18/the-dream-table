@@ -44,8 +44,10 @@ class PageContextLayoutTest {
 			assertEquals(y + BUTTON_HEIGHT / 2, page.y);
 			// Buttons placed in the flow column span the whole collection; cards keep their own width.
 			assertTrue(context.buttonHit(view.collectionX() + 1, y + 1, x, y));
+			// A card keeps its own width unless the page gives it the flow width.
 			if (view.collectionWidth() > 168) {
-				assertFalse(context.cardHit(view.collectionX() + 1, y + 1, x, y));
+				assertFalse(context.cardHit(view.collectionX() + 169, y + 1, x, y));
+				assertTrue(context.cardHit(view.collectionX() + 169, y + 1, x, y, view.flowWidth()));
 			}
 		}
 	}

@@ -21,6 +21,7 @@ public final class FarmInfoPage implements TablePage {
 
 	private final PageContext ui;
 	private String laidOutFarm;
+	private int laidOutWidth;
 	private FarmInfoText.Layout layout = FarmInfoText.Layout.EMPTY;
 
 	public FarmInfoPage(PageContext ui) {
@@ -32,7 +33,7 @@ public final class FarmInfoPage implements TablePage {
 		FarmOption option = FarmOptions.byId(ui.farm()).orElse(null);
 		ItemStack icon = option == null ? new ItemStack(Items.STRUCTURE_BLOCK) : option.icon().getDefaultStack();
 		Text name = option == null ? Text.literal(ui.farm()) : option.title();
-		ui.cardAt("farm", context, icon, name, flowX(), ui.view().cardY(0), mouseX, mouseY, true, true);
+		ui.cardAt("farm", context, icon, name, flowX(), ui.view().cardY(0), ui.view().flowWidth(), mouseX, mouseY, true, true);
 		int textY = textY();
 		for (FarmInfoText.Row row : layout().rows()) {
 			int y = textY + row.top();
@@ -66,9 +67,11 @@ public final class FarmInfoPage implements TablePage {
 	/** Wrapped once per farm: the lines are asked for several times per frame. The screen is rebuilt on a language change. */
 	private FarmInfoText.Layout layout() {
 		String farm = ui.farm();
-		if (!farm.equals(laidOutFarm)) {
-			layout = FarmInfoText.layout(FarmInfo.sections(farm), (text, width) -> ui.painter().text().wrapLines(text, width));
+		int width = ui.view().flowWidth();
+		if (!farm.equals(laidOutFarm) || width != laidOutWidth) {
+			layout = FarmInfoText.layout(FarmInfo.sections(farm), width, (text, wrapWidth) -> ui.painter().text().wrapLines(text, wrapWidth));
 			laidOutFarm = farm;
+			laidOutWidth = width;
 		}
 		return layout;
 	}

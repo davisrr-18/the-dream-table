@@ -70,8 +70,11 @@ public final class Painter {
 	}
 
 	public void card(DrawContext context, ItemStack icon, Text label, int x, int y, boolean hovered, boolean selected, boolean enabled) {
+		card(context, icon, label, x, y, CARD_WIDTH, hovered, selected, enabled);
+	}
+
+	public void card(DrawContext context, ItemStack icon, Text label, int x, int y, int w, boolean hovered, boolean selected, boolean enabled) {
 		boolean hover = enabled && hovered;
-		int w = CARD_WIDTH;
 		if (!enabled) {
 			disabledFrame(context, x, y, w, CARD_HEIGHT);
 		} else if (selected) {
@@ -85,14 +88,19 @@ public final class Painter {
 		}
 		iconBox(context, x + 7, y + 6);
 		context.drawItem(icon, x + 9, y + 8);
-		fitted(context, label, x + 34, y + 12, CARD_TEXT_WIDTH, enabled ? NAME : MUTED, false);
+		fitted(context, label, x + 34, y + 12, w - (CARD_WIDTH - CARD_TEXT_WIDTH), enabled ? NAME : MUTED, false);
 	}
 
 	/** A card with a second, smaller line under the name, such as what an option does. */
 	public void card(DrawContext context, ItemStack icon, Text label, Text detail, int x, int y, boolean hovered, boolean selected, boolean enabled) {
-		card(context, icon, Text.empty(), x, y, hovered, selected, enabled);
-		fitted(context, label, x + 34, y + 7, CARD_TEXT_WIDTH, enabled ? NAME : MUTED, false);
-		fitted(context, detail, x + 34, y + 19, CARD_TEXT_WIDTH, HINT, false);
+		card(context, icon, label, detail, x, y, CARD_WIDTH, hovered, selected, enabled);
+	}
+
+	public void card(DrawContext context, ItemStack icon, Text label, Text detail, int x, int y, int w, boolean hovered, boolean selected, boolean enabled) {
+		card(context, icon, Text.empty(), x, y, w, hovered, selected, enabled);
+		int textWidth = w - (CARD_WIDTH - CARD_TEXT_WIDTH);
+		fitted(context, label, x + 34, y + 7, textWidth, enabled ? NAME : MUTED, false);
+		fitted(context, detail, x + 34, y + 19, textWidth, HINT, false);
 	}
 
 	public void button(DrawContext context, Text label, int x, int y, boolean hovered, boolean enabled, boolean primary) {

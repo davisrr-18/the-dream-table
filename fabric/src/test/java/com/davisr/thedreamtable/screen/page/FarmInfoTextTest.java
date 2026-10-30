@@ -47,7 +47,7 @@ class FarmInfoTextTest {
 	void headingsUseTheAccentColorAndBulletsStartWithAMark() {
 		FarmInfoText.Layout layout = FarmInfoText.layout(List.of(
 				new FarmInfo.Block(FarmInfo.Section.HOW, List.of("One", "Two")),
-				new FarmInfo.Block(FarmInfo.Section.TIPS, List.of("Three"))), FarmInfoTextTest::wrap);
+				new FarmInfo.Block(FarmInfo.Section.TIPS, List.of("Three"))), 168, FarmInfoTextTest::wrap);
 		List<FarmInfoText.Row> rows = layout.rows();
 		assertEquals(5, rows.size());
 		assertEquals(ACCENT, rows.get(0).color());
@@ -64,7 +64,7 @@ class FarmInfoTextTest {
 	@Test
 	void longBulletsWrapInsideTheCardWithOnlyTheFirstLineMarked() {
 		String longText = "x".repeat(CARD_WIDTH - FarmInfoText.BULLET_INDENT + 5);
-		FarmInfoText.Layout layout = FarmInfoText.layout(List.of(new FarmInfo.Block(FarmInfo.Section.WORKS, List.of(longText))), FarmInfoTextTest::wrap);
+		FarmInfoText.Layout layout = FarmInfoText.layout(List.of(new FarmInfo.Block(FarmInfo.Section.WORKS, List.of(longText))), 168, FarmInfoTextTest::wrap);
 		List<FarmInfoText.Row> rows = layout.rows();
 		assertEquals(3, rows.size());
 		assertTrue(rows.get(1).bullet());
@@ -78,7 +78,7 @@ class FarmInfoTextTest {
 	void rowsStackWithoutOverlapAndSectionsAreSeparated() {
 		FarmInfoText.Layout layout = FarmInfoText.layout(List.of(
 				new FarmInfo.Block(FarmInfo.Section.HOW, List.of("One")),
-				new FarmInfo.Block(FarmInfo.Section.OUTPUT, List.of("Two"))), FarmInfoTextTest::wrap);
+				new FarmInfo.Block(FarmInfo.Section.OUTPUT, List.of("Two"))), 168, FarmInfoTextTest::wrap);
 		List<FarmInfoText.Row> rows = layout.rows();
 		assertEquals(0, rows.get(0).top());
 		assertEquals(FarmInfoText.LINE_HEIGHT, rows.get(1).top());
@@ -88,7 +88,7 @@ class FarmInfoTextTest {
 
 	@Test
 	void noSectionsMakeAnEmptyLayout() {
-		FarmInfoText.Layout layout = FarmInfoText.layout(List.of(), FarmInfoTextTest::wrap);
+		FarmInfoText.Layout layout = FarmInfoText.layout(List.of(), 168, FarmInfoTextTest::wrap);
 		assertTrue(layout.rows().isEmpty());
 		assertEquals(0, layout.height());
 	}

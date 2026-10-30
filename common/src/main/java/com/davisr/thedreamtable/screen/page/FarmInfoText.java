@@ -33,20 +33,20 @@ final class FarmInfoText {
 	}
 
 	/** {@code wrap} cuts a text into lines no wider than the given width. */
-	static Layout layout(List<FarmInfo.Block> blocks, BiFunction<Text, Integer, List<OrderedText>> wrap) {
+	static Layout layout(List<FarmInfo.Block> blocks, int width, BiFunction<Text, Integer, List<OrderedText>> wrap) {
 		List<Row> rows = new ArrayList<>();
 		int top = 0;
 		for (FarmInfo.Block block : blocks) {
 			if (!rows.isEmpty()) {
 				top += SECTION_GAP;
 			}
-			for (OrderedText heading : wrap.apply(Text.translatable(block.section().titleKey()), CARD_WIDTH)) {
+			for (OrderedText heading : wrap.apply(Text.translatable(block.section().titleKey()), width)) {
 				rows.add(new Row(heading, top, 0, ACCENT, false));
 				top += LINE_HEIGHT;
 			}
 			for (String bullet : block.bullets()) {
 				boolean first = true;
-				for (OrderedText line : wrap.apply(Text.literal(bullet), CARD_WIDTH - BULLET_INDENT)) {
+				for (OrderedText line : wrap.apply(Text.literal(bullet), width - BULLET_INDENT)) {
 					rows.add(new Row(line, top, BULLET_INDENT, NAME, first));
 					first = false;
 					top += LINE_HEIGHT;

@@ -74,10 +74,10 @@ public final class SpeedPage implements TablePage {
 		for (int index = 0; index < LEVELS.length; index++) {
 			Level level = LEVELS[index];
 			ui.cardAt("pace." + index, context, new ItemStack(level.icon()), Text.translatable(level.label()), detail(handler, level.pace()),
-					flowX(), ui.view().cardY(index), mouseX, mouseY, pace == level.pace(), true);
+					flowX(), ui.view().cardY(index), flowWidth(), mouseX, mouseY, pace == level.pace(), true);
 		}
 		ui.cardAt("pace.custom", context, new ItemStack(Items.COMPARATOR), Text.translatable("gui.the_dream_table.pace_custom"), detail(handler, pace),
-				flowX(), customY(), mouseX, mouseY, !BuildPace.isLevel(pace), true);
+				flowX(), customY(), flowWidth(), mouseX, mouseY, !BuildPace.isLevel(pace), true);
 		float fraction = (BuildPace.percent(pace) - BuildPace.MIN_PERCENT) / (float) (BuildPace.MAX_PERCENT - BuildPace.MIN_PERCENT);
 		ui.painter().slider(context, sliderX(), sliderY(), sliderWidth(), fraction, dragging >= 0 || !BuildPace.isLevel(pace));
 		ui.sliderAt(SLIDER, context, Text.translatable("gui.the_dream_table.pace_slider"), sliderValue(pace),
@@ -88,7 +88,7 @@ public final class SpeedPage implements TablePage {
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		for (int index = 0; index < LEVELS.length; index++) {
-			if (ui.cardHit(mouseX, mouseY, flowX(), ui.view().cardY(index))) {
+			if (ui.cardHit(mouseX, mouseY, flowX(), ui.view().cardY(index), flowWidth())) {
 				keyed = -1;
 				ui.handler().previewPace(LEVELS[index].pace());
 				ui.actions().press(DreamTableScreenHandler.BUTTON_PACE + index);
@@ -99,7 +99,7 @@ public final class SpeedPage implements TablePage {
 			dragging = percentAt(mouseX);
 			return true;
 		}
-		if (ui.cardHit(mouseX, mouseY, flowX(), customY())) {
+		if (ui.cardHit(mouseX, mouseY, flowX(), customY(), flowWidth())) {
 			choose(BuildPace.percent(ui.handler().getPace()));
 			return true;
 		}
@@ -207,7 +207,7 @@ public final class SpeedPage implements TablePage {
 	}
 
 	private int sliderWidth() {
-		return CARD_WIDTH - 2 * SLIDER_INSET;
+		return flowWidth() - 2 * SLIDER_INSET;
 	}
 
 	private int sliderY() {
@@ -220,5 +220,9 @@ public final class SpeedPage implements TablePage {
 
 	private int flowX() {
 		return ui.view().flowX();
+	}
+
+	private int flowWidth() {
+		return ui.view().flowWidth();
 	}
 }
