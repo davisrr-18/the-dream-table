@@ -9,6 +9,7 @@ import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -74,5 +75,29 @@ class PlacementOutlineTest {
 					PlacementOutline.footprint(farm, TABLE, ANCHOR, facing, true),
 					facing.asString());
 		}
+	}
+
+	@Test
+	void ribbonsKeepTheirWidthOnScreenAndAreCutBehindTheCamera() {
+		Box box = new Box(0, 0, 0, 10, 4, 6);
+		Vec3d camera = new Vec3d(-5, 2, 3);
+		Vec3d forward = new Vec3d(1, 0, 0);
+		List<Vec3d[]> ribbons = PlacementOutline.ribbons(box, camera, forward, 0.1, 0.0026);
+		assertEquals(12, ribbons.size());
+		for (Vec3d[] ribbon : ribbons) {
+			assertEquals(4, ribbon.length);
+			for (Vec3d corner : ribbon) {
+				assertTrue(corner.subtract(camera).dotProduct(forward) > 0.1 - 0.05);
+			}
+			double widthA = ribbon[0].distanceTo(ribbon[1]);
+			double distanceA = ribbon[0].add(ribbon[1]).multiply(0.5).distanceTo(camera);
+			assertEquals(0.0052, widthA / distanceA, 0.0005);
+		}
+	}
+
+	@Test
+	void aLineEntirelyBehindTheCameraDrawsNothing() {
+		Box box = new Box(0, 0, 0, 2, 2, 2);
+		assertTrue(PlacementOutline.ribbons(box, new Vec3d(10, 1, 1), new Vec3d(1, 0, 0), 0.1, 0.0026).isEmpty());
 	}
 }
