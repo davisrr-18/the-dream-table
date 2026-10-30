@@ -22,7 +22,8 @@ import java.util.UUID;
 /**
  * Other players' farm areas near a player who turned on "Show Other Farms", sent every two seconds.
  * Only the box and whether it is still being built go out: no owner, farm or materials. The server switch
- * {@code show_other_farms_enabled} (default on) stops all of it: no watcher is kept and no area is ever sent.
+ * {@code show_other_farms_enabled} (default on) stops the sends: while it is off no area goes out, and the players who
+ * asked to watch are remembered so the outlines return by themselves when it is turned back on.
  */
 public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 	public static final Id<FarmAreasPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_areas"));
@@ -30,6 +31,8 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 	private static final int RADIUS = 160;
 	private static final int INTERVAL_TICKS = 40;
 	private static final Set<UUID> WATCHERS = new HashSet<>();
+	/** Whether the empty list that clears the outlines already went out for the current stretch with the switch off. */
+	private static boolean clearedWhileOff;
 	/** The immediate first send of turning the option on scans the area index; the two-second tick covers a throttled one. */
 	private static final RequestThrottle STARTS = new RequestThrottle(3, 100);
 
@@ -63,11 +66,8 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 		STARTS.forgetOnDisconnect();
 		Platform.network().registerClientToServer(WatchAreasPayload.ID, WatchAreasPayload.CODEC, (payload, player) -> {
 			if (payload.watch()) {
-				if (!DreamTableConfig.showOtherFarmsEnabled()) {
-					return;
-				}
 				WATCHERS.add(player.getUuid());
-				if (STARTS.allow(player.getUuid(), player.getServer().getTicks())) {
+				if (DreamTableConfig.showOtherFarmsEnabled() && STARTS.allow(player.getUuid(), player.getServer().getTicks())) {
 					send(player);
 				}
 			} else {
@@ -83,16 +83,19 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 			return;
 		}
 		if (!DreamTableConfig.showOtherFarmsEnabled()) {
-			// Turned off while players were watching: clear what they still draw and stop sending anything.
-			for (UUID watcher : List.copyOf(WATCHERS)) {
-				ServerPlayerEntity player = server.getPlayerManager().getPlayer(watcher);
-				if (player != null) {
-					Platform.network().send(player, new FarmAreasPayload(List.of()));
+			// Turned off while players were watching: clear what they still draw once, keep them listed, send nothing more.
+			if (!clearedWhileOff) {
+				clearedWhileOff = true;
+				for (UUID watcher : List.copyOf(WATCHERS)) {
+					ServerPlayerEntity player = server.getPlayerManager().getPlayer(watcher);
+					if (player != null) {
+						Platform.network().send(player, new FarmAreasPayload(List.of()));
+					}
 				}
 			}
-			WATCHERS.clear();
 			return;
 		}
+		clearedWhileOff = false;
 		if (server.getTicks() % INTERVAL_TICKS != 0) {
 			return;
 		}

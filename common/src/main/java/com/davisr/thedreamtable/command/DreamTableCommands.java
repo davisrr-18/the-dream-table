@@ -45,6 +45,9 @@ public final class DreamTableCommands {
 	private static int reload(CommandContext<ServerCommandSource> context) {
 		ServerCommandSource source = context.getSource();
 		MinecraftServer server = source.getServer();
+		// The configuration is cheap and synchronous, so it is read even when a schematic read is already running.
+		DreamTableConfig.load();
+		FarmLoader.requestRenewal();
 		boolean started = FarmTemplates.reloadImportsAsync(server,
 				imports -> source.sendFeedback(() -> reloaded(imports), false),
 				failure -> source.sendError(Text.translatable("gui.the_dream_table.command_reload_failed")));
@@ -52,8 +55,6 @@ public final class DreamTableCommands {
 			source.sendError(Text.translatable("gui.the_dream_table.command_reload_busy"));
 			return 0;
 		}
-		DreamTableConfig.load();
-		FarmLoader.requestRenewal();
 		source.sendFeedback(() -> Text.translatable("gui.the_dream_table.command_reload_started"), false);
 		return 1;
 	}

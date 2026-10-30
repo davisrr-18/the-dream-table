@@ -353,6 +353,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 
 	@Override
 	public void close() {
+		page().flush();
 		if (this.client != null) {
 			this.client.setScreen(null);
 		}
@@ -470,6 +471,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	}
 
 	private boolean goBackOrClose() {
+		page().flush();
 		int page = handler.getPage();
 		int parent = PageRoutes.parentOf(page);
 		if (parent == PageRoutes.NO_PARENT) {

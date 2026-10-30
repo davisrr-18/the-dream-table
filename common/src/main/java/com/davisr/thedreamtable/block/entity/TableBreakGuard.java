@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.block.DreamTableBlock;
 import com.davisr.thedreamtable.farm.FarmProtection;
 import com.davisr.thedreamtable.network.TableNoticePayload;
@@ -84,7 +85,7 @@ public final class TableBreakGuard {
 
 	/** The claim that stops this player from breaking the table at {@code pos}, or empty when it is not a table or they may. */
 	public static Optional<Claim> blockerAt(ServerWorld world, ServerPlayerEntity player, BlockPos pos) {
-		if (!(world.getBlockEntity(pos) instanceof DreamTableBlockEntity table)) {
+		if (!DreamTableConfig.tableBreakGuardEnabled() || !(world.getBlockEntity(pos) instanceof DreamTableBlockEntity table)) {
 			return Optional.empty();
 		}
 		return blocker(table.breakClaims(), player.getUuid(), player.hasPermissionLevel(OPERATOR_LEVEL));

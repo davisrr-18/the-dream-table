@@ -46,7 +46,7 @@ public final class RequirementsPage implements TablePage {
 			}
 			Text count = Text.translatable("gui.the_dream_table.count", have, spec.count());
 			// An empty slot shows only the faded icon of what it wants, with no name; a filled one has the vanilla slot tip.
-			if (slot.getStack().isEmpty()) {
+			if (slot.getStack().isEmpty() && ui.handler().getCursorStack().isEmpty()) {
 				ui.hoverItem(required, Text.translatable("gui.the_dream_table.item_supplied", count).formatted(Formatting.GRAY), slotX, slotY, mouseX, mouseY);
 			}
 			context.drawText(text, count, slotX + 8 - text.getWidth(count) / 2, slotY + 16, complete ? ACCENT : HINT, false);

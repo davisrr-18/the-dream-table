@@ -17,6 +17,9 @@ import net.minecraft.server.network.ServerPlayerConfigurationTask;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
+import java.util.Collections;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -73,6 +76,9 @@ public final class FabricHandshake {
 		}
 	}
 
+	/** Connections whose handshake task is waiting for the client's reply; a reply from any other connection is ignored. */
+	private static final Set<ServerConfigurationNetworkHandler> AWAITING = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+
 	private FabricHandshake() {
 	}
 
@@ -83,6 +89,9 @@ public final class FabricHandshake {
 		ServerConfigurationConnectionEvents.BEFORE_CONFIGURE.register(FabricHandshake::ask);
 		ServerConfigurationNetworking.registerGlobalReceiver(REPLY_ID, (reply, context) -> {
 			ServerConfigurationNetworkHandler handler = context.networkHandler();
+			if (!AWAITING.remove(handler)) {
+				return;
+			}
 			if (NetworkProtocol.compatible(reply.protocol())) {
 				((FabricServerConfigurationNetworkHandler) handler).completeTask(TASK_KEY);
 			} else {
@@ -96,13 +105,16 @@ public final class FabricHandshake {
 	/** Adds the handshake to a connection whose client has this mod (it registered the request's channel). */
 	private static void ask(ServerConfigurationNetworkHandler handler, net.minecraft.server.MinecraftServer server) {
 		if (ServerConfigurationNetworking.canSend(handler, REQUEST_ID)) {
+			AWAITING.add(handler);
 			((FabricServerConfigurationNetworkHandler) handler).addTask(new Task());
 		}
 	}
 
 	/** The disconnect message for a client whose protocol differs from the server's. */
 	static Text mismatch(String serverVersion, String clientVersion) {
-		return Text.translatable("gui.the_dream_table.version_mismatch", serverVersion, clientVersion);
+		// The client resolves the key; the fallback keeps a future client without it from showing the raw key.
+		return Text.translatableWithFallback("gui.the_dream_table.version_mismatch",
+				"The Dream Table version differs from the server's: server %s, you %s", serverVersion, clientVersion);
 	}
 
 	static String modVersion() {
