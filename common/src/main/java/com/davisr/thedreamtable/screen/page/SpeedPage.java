@@ -2,18 +2,23 @@ package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
+import com.davisr.thedreamtable.screen.ui.Adjustment;
+import com.davisr.thedreamtable.screen.ui.ControlId;
+import com.davisr.thedreamtable.screen.ui.layout.UiRect;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.text.Text;
+import net.minecraft.util.Util;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /**
  * Slow, Normal and Fast, each a share of the server's fastest rate, then Custom with a slider from 1% to 100%.
  * Each second line says the share and how long the chosen farm would take. The slider only sends its value
- * when released, so dragging doesn't flood the server.
+ * when released, so dragging doesn't flood the server. The keyboard can focus it too: Left and Right step the
+ * percentage by one, Home and End jump to 1% and 100%, and the value is sent once the keys rest, for the same reason.
  */
 public final class SpeedPage implements TablePage {
 	private static final Level[] LEVELS = {
@@ -23,10 +28,16 @@ public final class SpeedPage implements TablePage {
 	};
 	private static final int SLIDER_INSET = 6;
 	private static final int SLIDER_HEIGHT = 12;
+	private static final String SLIDER = "pace.slider";
+	/** How long the arrow keys must rest before the percentage is sent, so holding a key sends one value, not dozens. */
+	private static final long KEY_SETTLE_MS = 250L;
 
 	private final PageContext ui;
 	/** The percentage under the knob while it is held; -1 when not dragging. */
 	private int dragging = -1;
+	/** The percentage chosen with the keyboard and not sent yet; -1 when none is waiting. */
+	private int keyed = -1;
+	private long keyedAt;
 
 	public SpeedPage(PageContext ui) {
 		this.ui = ui;
@@ -58,6 +69,7 @@ public final class SpeedPage implements TablePage {
 	@Override
 	public void draw(DrawContext context, int mouseX, int mouseY) {
 		DreamTableScreenHandler handler = ui.handler();
+		sendKeyed(false);
 		int pace = shownPace();
 		for (int index = 0; index < LEVELS.length; index++) {
 			Level level = LEVELS[index];
@@ -68,6 +80,8 @@ public final class SpeedPage implements TablePage {
 				flowX(), customY(), mouseX, mouseY, !BuildPace.isLevel(pace), true);
 		float fraction = (BuildPace.percent(pace) - BuildPace.MIN_PERCENT) / (float) (BuildPace.MAX_PERCENT - BuildPace.MIN_PERCENT);
 		ui.painter().slider(context, sliderX(), sliderY(), sliderWidth(), fraction, dragging >= 0 || !BuildPace.isLevel(pace));
+		ui.sliderAt(SLIDER, context, Text.translatable("gui.the_dream_table.pace_slider"), sliderValue(pace),
+				new UiRect(sliderX() - 4, sliderY() - 3, sliderWidth() + 8, SLIDER_HEIGHT + 6), () -> choose(BuildPace.percent(shownPace())));
 		ui.buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), flowX(), backY(), mouseX, mouseY, true, false);
 	}
 
@@ -89,6 +103,7 @@ public final class SpeedPage implements TablePage {
 			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, flowX(), backY())) {
+			sendKeyed(true);
 			ui.go(DreamTableScreenHandler.PAGE_OPTIONS, DreamTableScreenHandler.BUTTON_SPEED_BACK);
 			return true;
 		}
@@ -115,14 +130,49 @@ public final class SpeedPage implements TablePage {
 		return true;
 	}
 
+	@Override
+	public boolean adjust(ControlId control, Adjustment how) {
+		if (!control.equals(ui.idOf(SLIDER))) {
+			return false;
+		}
+		keyed = stepped(BuildPace.percent(shownPace()), how);
+		keyedAt = Util.getMeasuringTimeMs();
+		return true;
+	}
+
+	@Override
+	public Text adjusted(ControlId control) {
+		return control.equals(ui.idOf(SLIDER)) ? sliderValue(shownPace()) : Text.empty();
+	}
+
+	/** The percentage after a key: one step, or an end of the range, never outside it. */
+	static int stepped(int percent, Adjustment how) {
+		return how.apply(percent, 1, BuildPace.MIN_PERCENT, BuildPace.MAX_PERCENT);
+	}
+
+	private static Text sliderValue(int pace) {
+		return Text.translatable("gui.the_dream_table.pace_share", BuildPace.percent(pace));
+	}
+
+	/** Sends the keyboard's percentage once the keys have rested, or right away when {@code now}. */
+	private void sendKeyed(boolean now) {
+		if (keyed >= 0 && (now || Util.getMeasuringTimeMs() - keyedAt >= KEY_SETTLE_MS)) {
+			choose(keyed);
+		}
+	}
+
 	private void choose(int percent) {
+		keyed = -1;
 		ui.handler().previewPace(BuildPace.ofPercent(percent));
 		ui.actions().press(DreamTableScreenHandler.BUTTON_PACE_CUSTOM + percent);
 	}
 
 	/** The knob follows the mouse while held, ahead of the server, whose synced pace would pull it back mid-drag. */
 	private int shownPace() {
-		return dragging >= 0 ? BuildPace.ofPercent(dragging) : ui.handler().getPace();
+		if (dragging >= 0) {
+			return BuildPace.ofPercent(dragging);
+		}
+		return keyed >= 0 ? BuildPace.ofPercent(keyed) : ui.handler().getPace();
 	}
 
 	private int percentAt(double mouseX) {

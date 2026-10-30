@@ -25,6 +25,7 @@ import com.davisr.thedreamtable.screen.page.PageRoutes;
 import com.davisr.thedreamtable.screen.page.PrimaryTab;
 import com.davisr.thedreamtable.screen.ui.ControlGroup;
 import com.davisr.thedreamtable.screen.ui.ControlId;
+import com.davisr.thedreamtable.screen.ui.Adjustment;
 import com.davisr.thedreamtable.screen.ui.ControlRegistry;
 import com.davisr.thedreamtable.screen.ui.ControlSpec;
 import com.davisr.thedreamtable.screen.ui.Painter;
@@ -36,6 +37,7 @@ import com.davisr.thedreamtable.screen.ui.layout.ScreenGeometry;
 import com.davisr.thedreamtable.screen.ui.layout.LayoutMode;
 import com.davisr.thedreamtable.screen.ui.layout.UiRect;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.entity.player.PlayerInventory;
@@ -134,17 +136,36 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		super.render(context, mouseX, mouseY, delta);
 		view.release(context);
 		drawMouseoverTooltip(context, mouseX, mouseY);
+		boolean tabTip = false;
 		if (geometry.mode() == LayoutMode.COMPACT) {
 			for (PrimaryTab tab : PrimaryTab.values()) {
 				UiControl control = tabControls.get(tab);
 				if (control.isMouseOver(mouseX, mouseY)) {
 					Tooltips.draw(context, this.textRenderer, tabLabel(tab), mouseX, mouseY);
+					tabTip = true;
 					break;
 				}
 			}
 		}
+		if (!tabTip) {
+			drawHoveredItem(context, mouseX, mouseY);
+		}
 		// Last, so a message is never hidden behind the panel or a tooltip.
 		TableNotices.draw(context, this.textRenderer, false);
+	}
+
+	/** The name (and a note such as the count) of an item icon the page marked as hovered, in vanilla's item style. */
+	private void drawHoveredItem(DrawContext context, int mouseX, int mouseY) {
+		ItemStack hovered = ui.hoveredItem();
+		if (hovered.isEmpty() || this.client == null) {
+			return;
+		}
+		List<Text> lines = new ArrayList<>(Screen.getTooltipFromItem(this.client, hovered));
+		Text note = ui.hoveredNote();
+		if (!note.getString().isEmpty()) {
+			lines.add(note);
+		}
+		Tooltips.draw(context, this.textRenderer, lines, mouseX, mouseY);
 	}
 
 	@Override
@@ -262,6 +283,15 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			revealFocused();
 			return true;
 		}
+		Adjustment adjustment = adjustmentFor(keyCode);
+		if (adjustment != null && getFocused() instanceof UiControl slider && page().adjust(slider.id(), adjustment)) {
+			keyboardFocus = true;
+			Text spoken = page().adjusted(slider.id());
+			if (this.client != null && !spoken.getString().isEmpty()) {
+				this.client.getNarratorManager().narrate(spoken);
+			}
+			return true;
+		}
 		if (getFocused() instanceof UiControl) {
 			if (keyCode == GLFW.GLFW_KEY_LEFT || keyCode == GLFW.GLFW_KEY_RIGHT
 					|| keyCode == GLFW.GLFW_KEY_UP || keyCode == GLFW.GLFW_KEY_DOWN) {
@@ -281,6 +311,17 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			return goBackOrClose();
 		}
 		return super.keyPressed(keyCode, scanCode, modifiers);
+	}
+
+	/** The slider change a key means, or null when it is not one: Left and Right step, Home and End jump to the ends. */
+	static Adjustment adjustmentFor(int keyCode) {
+		return switch (keyCode) {
+			case GLFW.GLFW_KEY_LEFT -> Adjustment.DECREASE;
+			case GLFW.GLFW_KEY_RIGHT -> Adjustment.INCREASE;
+			case GLFW.GLFW_KEY_HOME -> Adjustment.MINIMUM;
+			case GLFW.GLFW_KEY_END -> Adjustment.MAXIMUM;
+			default -> null;
+		};
 	}
 
 	@Override

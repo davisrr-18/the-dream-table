@@ -33,6 +33,8 @@ public final class PageContext {
 	private int pageId;
 	private int controlIndex;
 	private ControlId focusedControl;
+	private ItemStack hoveredItem = ItemStack.EMPTY;
+	private Text hoveredNote = Text.empty();
 
 	public PageContext(DreamTableScreenHandler handler, Viewport view, Painter painter, ScreenActions actions) {
 		this.handler = handler;
@@ -81,6 +83,29 @@ public final class PageContext {
 		this.controlIndex = 0;
 		controls.clear();
 		controlActions.clear();
+		hoveredItem = ItemStack.EMPTY;
+		hoveredNote = Text.empty();
+	}
+
+	/**
+	 * Marks an item icon drawn at x, y (16 px) as the one the mouse is over, for icons that show no name of their own.
+	 * The screen draws the item's name and the note under the mouse after the page.
+	 */
+	public void hoverItem(ItemStack stack, Text note, int x, int y, int mouseX, int mouseY) {
+		if (!stack.isEmpty() && view.hit(mouseX, mouseY, x, y, 16, 16)) {
+			hoveredItem = stack;
+			hoveredNote = note == null ? Text.empty() : note;
+		}
+	}
+
+	/** The item icon under the mouse this frame, or empty. */
+	public ItemStack hoveredItem() {
+		return hoveredItem;
+	}
+
+	/** The extra line to show under the hovered item's name, such as how many; may be empty. */
+	public Text hoveredNote() {
+		return hoveredNote;
 	}
 
 	public List<ControlSpec> controls() {
@@ -138,10 +163,36 @@ public final class PageContext {
 
 	/** A button with a second, smaller line under its label: what it does, or why it is off. */
 	public void button(String stableKey, DrawContext context, Text label, Text detail, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
-		ControlId id = register(stableKey, label, detail, view.cardX(), y, BUTTON_HEIGHT, false, enabled);
-		boolean hit = buttonHit(mouseX, mouseY, view.cardX(), y);
-		painter.button(context, label, detail, view.cardX(), y, hit, enabled, primary);
-		focusRing(context, id, view.cardX(), y, CARD_WIDTH, BUTTON_HEIGHT);
+		buttonAt(stableKey, context, label, detail, view.cardX(), y, mouseX, mouseY, enabled, primary);
+	}
+
+	/**
+	 * A button with a second line at a given x. A disabled one narrates the detail as its reason, an enabled one as its
+	 * state.
+	 */
+	public void buttonAt(String stableKey, DrawContext context, Text label, Text detail, int x, int y, int mouseX, int mouseY, boolean enabled, boolean primary) {
+		ControlId id = enabled ? register(stableKey, label, detail, x, y, BUTTON_HEIGHT, false, true)
+				: register(stableKey, label, Text.empty(), detail, x, y, BUTTON_HEIGHT, false, false);
+		boolean hit = buttonHit(mouseX, mouseY, x, y);
+		painter.button(context, label, detail, x, y, hit, enabled, primary);
+		focusRing(context, id, x, y, CARD_WIDTH, BUTTON_HEIGHT);
+	}
+
+	/**
+	 * A slider the keyboard can focus and adjust: Left and Right step it, Home and End jump to its ends (the screen
+	 * routes those keys to {@link TablePage#adjust}). Enter or Space runs {@code activate}. The caller draws the track.
+	 */
+	public void sliderAt(String stableKey, DrawContext context, Text label, Text value, UiRect bounds, Runnable activate) {
+		int index = controlIndex++;
+		ControlId id = ControlId.of("page." + pageId, stableKey == null ? Integer.toString(index) : stableKey);
+		controls.add(new ControlSpec(id, ControlGroup.CONTENT, bounds, label, value, true, false, Text.empty(), bounds.y(), bounds.x()));
+		controlActions.put(id, activate);
+		focusRing(context, id, bounds.x(), bounds.y(), bounds.width(), bounds.height());
+	}
+
+	/** The id a control registered under {@code stableKey} has on the current page. */
+	public ControlId idOf(String stableKey) {
+		return ControlId.of("page." + pageId, stableKey);
 	}
 
 	public void destructiveButton(DrawContext context, Text label, int y, int mouseX, int mouseY, boolean enabled) {
@@ -233,11 +284,15 @@ public final class PageContext {
 	}
 
 	private ControlId register(String stableKey, Text label, Text state, int x, int y, int height, boolean selected, boolean enabled) {
+		return register(stableKey, label, state, Text.empty(), x, y, height, selected, enabled);
+	}
+
+	private ControlId register(String stableKey, Text label, Text state, Text disabledReason, int x, int y, int height, boolean selected, boolean enabled) {
 		int index = controlIndex++;
 		ControlId id = ControlId.of("page." + pageId, stableKey == null ? Integer.toString(index) : stableKey);
 		UiRect bounds = new UiRect(x, y, CARD_WIDTH, height);
 		ControlSpec spec = new ControlSpec(id, ControlGroup.CONTENT, bounds, label, state, enabled, selected,
-				Text.empty(), y, x);
+				disabledReason, y, x);
 		controls.add(spec);
 		controlActions.put(id, () -> page.click(bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0));
 		return id;

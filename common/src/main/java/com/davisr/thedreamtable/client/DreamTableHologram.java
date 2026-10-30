@@ -225,6 +225,7 @@ public final class DreamTableHologram {
 	}
 
 	private static void render(RenderFrame context) {
+		GhostRenderer.beginFrame();
 		if (tablePos == null || context.world() == null || context.matrixStack() == null || !tableStillThere(context.world())) {
 			return;
 		}
