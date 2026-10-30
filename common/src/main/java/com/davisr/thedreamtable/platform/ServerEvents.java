@@ -1,7 +1,9 @@
 package com.davisr.thedreamtable.platform;
 
+import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -35,6 +37,12 @@ public interface ServerEvents {
 	 * apart from telling the player.
 	 */
 	void onBlockBreak(BlockBreakCheck check);
+
+	/**
+	 * When the server builds its command tree (at startup and again on {@code /reload}); the listener adds the mod's commands
+	 * to the dispatcher. It runs for dedicated and integrated servers alike.
+	 */
+	void onCommandRegistration(Consumer<CommandDispatcher<ServerCommandSource>> listener);
 
 	@FunctionalInterface
 	interface BlockBreakCheck {

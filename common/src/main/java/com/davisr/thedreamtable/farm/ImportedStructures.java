@@ -42,6 +42,22 @@ public final class ImportedStructures {
 	public record Imports(Map<String, FarmTemplate> templates, List<FarmOption> options, Map<String, List<ImportNote>> notes, List<Rejected> rejected,
 			Map<String, Long> versions) {
 		static final Imports EMPTY = new Imports(Map.of(), List.of(), Map.of(), List.of(), Map.of());
+
+		public int loaded() {
+			return templates.size();
+		}
+
+		public int warningCount() {
+			return notes.values().stream().mapToInt(List::size).sum();
+		}
+
+		/**
+		 * Whether a client shown {@code other}'s list would see nothing new here: the same farms and file versions, warnings
+		 * and unusable files. Compares the listing only, never the farms' blocks.
+		 */
+		public boolean sameListing(Imports other) {
+			return options.equals(other.options) && versions.equals(other.versions) && notes.equals(other.notes) && rejected.equals(other.rejected);
+		}
 	}
 
 	/** A file that can't be used, by its name without the extension, and why. */

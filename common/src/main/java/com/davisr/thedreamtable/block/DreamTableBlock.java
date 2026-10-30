@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.block;
 
 import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import com.davisr.thedreamtable.block.entity.TableBreakGuard;
 import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.mojang.serialization.MapCodec;
@@ -16,6 +17,7 @@ import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
@@ -27,6 +29,8 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
+
+import java.util.Optional;
 
 public class DreamTableBlock extends BlockWithEntity {
 	public static final MapCodec<DreamTableBlock> CODEC = createCodec(DreamTableBlock::new);
@@ -131,11 +135,18 @@ public class DreamTableBlock extends BlockWithEntity {
 		super.onStateReplaced(state, world, pos, newState, moved);
 	}
 
-	/** Breaking is not stopped, but whoever starts to is told what it costs when someone's build is still running. */
+	/**
+	 * Whoever starts to break the table is told why they can't when another player has materials or work here
+	 * ({@link TableBreakGuard}, which also enforces it when the break completes), or else what it costs when a build is running.
+	 */
 	@Override
 	protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
-		if (!world.isClient() && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table && table.hasBuildInProgress()) {
-			if (player instanceof ServerPlayerEntity serverPlayer) {
+		if (world instanceof ServerWorld serverWorld && player instanceof ServerPlayerEntity serverPlayer
+				&& world.getBlockEntity(pos) instanceof DreamTableBlockEntity table) {
+			Optional<TableBreakGuard.Claim> blocker = TableBreakGuard.blockerAt(serverWorld, serverPlayer, pos);
+			if (blocker.isPresent()) {
+				TableBreakGuard.tell(serverWorld, serverPlayer, blocker.get());
+			} else if (table.hasBuildInProgress()) {
 				TableNoticePayload.problem(serverPlayer, Text.translatable("gui.the_dream_table.break_warning"));
 			}
 		}

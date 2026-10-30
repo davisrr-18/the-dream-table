@@ -50,6 +50,8 @@ public final class FarmDismantler {
 	private final Map<Item, Item> swaps;
 	private final BitSet placed;
 	private final BitSet paid;
+	/** Who paid the paid steps when it was not the owner; their refund goes to them. Empty for a discard, whose refunds all go to the player. */
+	private final StepPayers payers;
 	/** Unique reservation for new jobs; zero keeps the reservation used by saves from before per-job keys. */
 	private final long areaSpot;
 	/** The table running the job, which holds its area claim and chunk. Differs from the site's table when a farm is taken down at another table. */
@@ -79,18 +81,19 @@ public final class FarmDismantler {
 	}
 
 	public FarmDismantler(UUID player, String farmId, long signature, FarmSite site, Map<Item, Item> swaps, BitSet placed, BitSet paid, int buildIndex) {
-		this(player, farmId, signature, site, swaps, placed, paid, buildIndex, areaSpot(site), site.table(), null, null);
+		this(player, farmId, signature, site, swaps, placed, paid, buildIndex, areaSpot(site), site.table(), null, null, StepPayers.NONE);
 	}
 
-	/** Takes a finished farm down from {@code host}, with the design it was built with. */
-	public FarmDismantler(UUID player, FarmTemplate layout, FarmSite site, Map<Item, Item> swaps, BitSet placed, BitSet paid, BlockPos host,
-			Identity identity) {
-		this(player, layout.id(), layout.signature(), site, swaps, placed, paid, layout.steps().size(), areaSpot(site), host, layout, identity);
+	/** Takes a finished farm down from {@code host}, with the design it was built with, refunding each paid step to the player who paid it. */
+	public FarmDismantler(UUID player, FarmTemplate layout, FarmSite site, Map<Item, Item> swaps, BitSet placed, BitSet paid, StepPayers payers,
+			BlockPos host, Identity identity) {
+		this(player, layout.id(), layout.signature(), site, swaps, placed, paid, layout.steps().size(), areaSpot(site), host, layout, identity, payers);
 	}
 
 	private FarmDismantler(UUID player, String farmId, long signature, FarmSite site, Map<Item, Item> swaps, BitSet placed, BitSet paid, int buildIndex,
-			long areaSpot, BlockPos host, @Nullable FarmTemplate layout, @Nullable Identity identity) {
+			long areaSpot, BlockPos host, @Nullable FarmTemplate layout, @Nullable Identity identity, StepPayers payers) {
 		this.identity = identity;
+		this.payers = payers;
 		this.player = player;
 		this.farmId = farmId;
 		this.signature = signature;
@@ -190,7 +193,7 @@ public final class FarmDismantler {
 		leftPaid.and(left);
 		FarmAreas areas = FarmAreas.of(world);
 		areas.recordFinished(identity.owner(), layout, site, swaps, identity.instanceId(), identity.customName(),
-				identity.grants(), identity.invites(), left, leftPaid);
+				identity.grants(), identity.invites(), left, leftPaid, payers.restrictedTo(left));
 		if (identity.alerts() != null) {
 			areas.restoreAlerts(identity.instanceId(), FarmAlerts.read(identity.alerts()));
 		}
@@ -259,7 +262,8 @@ public final class FarmDismantler {
 				batch.removed++;
 				// Water, and lava or powder snow placed since they too hand back their empty bucket, refund nothing; see FarmSpawns.recordsAsPaid.
 				if (FarmSpawns.refundsOnTakeDown(step.item(), paid.get(index))) {
-					batch.refunds.merge(swaps.getOrDefault(step.item(), step.item()), 1, Integer::sum);
+					batch.refunds.computeIfAbsent(refundTo(index), ignored -> new LinkedHashMap<>())
+							.merge(swaps.getOrDefault(step.item(), step.item()), 1, Integer::sum);
 				}
 				if (first) {
 					world.spawnParticles(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 4, 0.25, 0.25, 0.25, 0.01);
@@ -269,27 +273,63 @@ public final class FarmDismantler {
 		return true;
 	}
 
+	/** Who gets the refund of a step: whoever paid it when that was not the owner, else the owner of a finished farm, else the player discarding. */
+	private UUID refundTo(int step) {
+		return payers.payerOf(step, identity != null ? identity.owner() : player);
+	}
+
 	/** What one tick removed, handed to the player together at the end of the tick. */
 	private static final class Batch {
-		private final Map<Item, Integer> refunds = new LinkedHashMap<>();
+		private final Map<UUID, Map<Item, Integer>> refunds = new LinkedHashMap<>();
 		private final List<ItemStack> contents = new ArrayList<>();
 		private final List<BlockPos> liquids = new ArrayList<>();
 		private final List<BlockPos> cleared = new ArrayList<>();
 		private int removed;
 
-		/** Returns true when the player's inventory was full and something was dropped at their feet. */
-		private boolean hand(ServerWorld world, PlayerEntity player) {
+		/** Returns true when the job player's inventory was full and something was dropped at their feet. */
+		private boolean hand(ServerWorld world, ServerPlayerEntity player) {
 			drain(world, liquids);
 			settle(world, cleared);
 			boolean dropped = false;
-			for (Map.Entry<Item, Integer> refund : refunds.entrySet()) {
-				dropped |= Handover.giveAll(player, refund.getKey(), refund.getValue());
+			for (Map.Entry<UUID, Map<Item, Integer>> payer : refunds.entrySet()) {
+				dropped |= refund(world, player, payer.getKey(), payer.getValue());
 			}
 			for (ItemStack stack : contents) {
 				dropped |= Handover.give(player, stack);
 			}
 			return dropped;
 		}
+	}
+
+	/**
+	 * Hands one payer their refund: the job player directly, another player who is online right away, and a player who is
+	 * away is owed it ({@link PendingRefunds}). If that cannot be kept, the job player gets it, as before payers were recorded.
+	 * Returns true when the job player's inventory was full.
+	 */
+	private static boolean refund(ServerWorld world, ServerPlayerEntity jobPlayer, UUID payer, Map<Item, Integer> items) {
+		boolean dropped = false;
+		ServerPlayerEntity target = payer.equals(jobPlayer.getUuid()) ? jobPlayer : world.getServer().getPlayerManager().getPlayer(payer);
+		if (target != null && target.isAlive()) {
+			boolean full = false;
+			for (Map.Entry<Item, Integer> item : items.entrySet()) {
+				full |= Handover.giveAll(target, item.getKey(), item.getValue());
+			}
+			if (target == jobPlayer) {
+				return full;
+			}
+			target.sendMessage(Text.translatable("gui.the_dream_table.refund_paid"), false);
+			if (full) {
+				Handover.tellDropped(target);
+			}
+			return false;
+		}
+		PendingRefunds pending = PendingRefunds.of(world.getServer());
+		for (Map.Entry<Item, Integer> item : items.entrySet()) {
+			if (!pending.add(payer, item.getKey(), item.getValue())) {
+				dropped |= Handover.giveAll(jobPlayer, item.getKey(), item.getValue());
+			}
+		}
+		return dropped;
 	}
 
 	/**
@@ -348,6 +388,7 @@ public final class FarmDismantler {
 		MaterialLedger.writeSwaps(nbt, swaps);
 		nbt.putLongArray("PlacedSteps", placed.toLongArray());
 		nbt.putLongArray("PaidSteps", paid.toLongArray());
+		payers.write(nbt, "PaidBy");
 		nbt.putInt("Next", next);
 		nbt.putInt("Removed", removed);
 		nbt.putLong("AreaSpot", areaSpot);
@@ -416,7 +457,7 @@ public final class FarmDismantler {
 		}
 		FarmDismantler job = new FarmDismantler(nbt.getUuid("Player"), farmId, nbt.getLong("FarmSignature"), site, MaterialLedger.readSwaps(nbt),
 				BitSet.valueOf(nbt.getLongArray("PlacedSteps")), BitSet.valueOf(nbt.getLongArray("PaidSteps")), nbt.getInt("Next") + 1, areaSpot, host, layout,
-				identity);
+				identity, StepPayers.read(nbt, "PaidBy"));
 		job.removed = nbt.getInt("Removed");
 		job.standing.or(BitSet.valueOf(nbt.getLongArray("Standing")));
 		return job;

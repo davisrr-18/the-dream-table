@@ -109,10 +109,10 @@ final class SessionAreas {
 	void completeRepair(ServerWorld world, RepairContext context, BitSet placed, BitSet paid) {
 		progress.setFinishedRecorded(true);
 		FarmAreas areas = FarmAreas.of(world);
-		if (!areas.completeRepair(context.farmKey().instanceId(), context.operationId(), placed, paid)) {
+		if (!areas.completeRepair(context.farmKey().instanceId(), context.operationId(), context.farmOwnerUuid(), context.actorUuid(), placed, paid)) {
 			// The lease was reconciled away while the repair ran. The blocks it placed stand, so the record still gets them.
 			TheDreamTableMod.LOGGER.warn("Repair lease of farm {} was gone at completion; merging its placed steps directly", context.farmKey().instanceId());
-			areas.mergePlacement(context.farmKey().instanceId(), placed, paid);
+			areas.mergePlacement(context.farmKey().instanceId(), context.farmOwnerUuid(), context.actorUuid(), placed, paid);
 		}
 		areas.release(key());
 	}

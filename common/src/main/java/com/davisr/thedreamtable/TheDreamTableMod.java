@@ -2,12 +2,15 @@ package com.davisr.thedreamtable;
 
 import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.block.entity.MaterialDelivery;
+import com.davisr.thedreamtable.block.entity.TableBreakGuard;
+import com.davisr.thedreamtable.command.DreamTableCommands;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmPreferences;
 import com.davisr.thedreamtable.farm.FarmProtection;
 import com.davisr.thedreamtable.farm.FarmSharing;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.farm.PendingRefunds;
 import com.davisr.thedreamtable.farm.alert.FarmAlertMonitor;
 import com.davisr.thedreamtable.network.CheckPlacementPayload;
 import com.davisr.thedreamtable.network.DepositMaterialPayload;
@@ -83,6 +86,10 @@ public final class TheDreamTableMod {
 		FarmLoader.register();
 		FarmPreferences.register();
 		FarmProtection.register();
+		PendingRefunds.register();
+		DreamTableCommands.register();
+		FarmTemplates.onImportsChanged(ServerSchematicsPayload::sendToOpenTables);
+		TableBreakGuard.register();
 		FarmSharing.register();
 		FarmAlertMonitor.register();
 		LoadedFarmsPayload.register();

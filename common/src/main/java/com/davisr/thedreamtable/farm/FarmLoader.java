@@ -110,8 +110,21 @@ public final class FarmLoader extends PersistentState {
 	/** The chunks of the picked farms, per world, as of the last renewal; only these get the loader's random ticks. Not saved. */
 	private final Map<ServerWorld, LongSet> loadedChunks = new HashMap<>();
 
+	/** How many farms the last renewal kept loaded. Not saved. */
+	private int keptFarms;
+
 	/** An error was already logged, so the same failure isn't logged every tick. */
 	private boolean failing;
+
+	/** What the loader keeps, for {@code /dreamtable status}: farms players picked, farms kept loaded at the last renewal, and their chunks. */
+	public record Status(int picked, int keptFarms, int keptChunks) {
+	}
+
+	public Status status() {
+		int picks = picked.values().stream().mapToInt(Set::size).sum();
+		int chunks = loadedChunks.values().stream().mapToInt(LongSet::size).sum();
+		return new Status(picks, keptFarms, chunks);
+	}
 
 	public static void register() {
 		Platform.serverEvents().onTickEnd(server -> {
@@ -298,6 +311,7 @@ public final class FarmLoader extends PersistentState {
 
 	private void keepLoaded(MinecraftServer server) {
 		loadedChunks.clear();
+		keptFarms = 0;
 		server.getWorlds().forEach(world -> FarmAreas.of(world).reconcileRepairs(world));
 		int limit = DreamTableConfig.maxLoadedFarms();
 		for (Map.Entry<UUID, Set<String>> entry : picked.entrySet()) {
@@ -316,6 +330,7 @@ public final class FarmLoader extends PersistentState {
 					reportTooLarge(farm);
 				} else if (keys.contains(farm.key()) && loaded < limit && (DreamTableConfig.loadWhileOffline() || authorizedPresence(server, farm.farm()))) {
 					loaded++;
+					keptFarms++;
 					load(farm.world(), farm.farm().box(), loadedChunks.computeIfAbsent(farm.world(), ignored -> new LongOpenHashSet()));
 					reportIfFull(owner, farm);
 				}

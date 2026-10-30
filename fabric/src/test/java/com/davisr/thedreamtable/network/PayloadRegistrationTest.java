@@ -15,6 +15,7 @@ import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.platform.ServerEvents;
 import com.davisr.thedreamtable.platform.ServerNetwork;
 import com.davisr.thedreamtable.screen.OpenData;
+import com.mojang.brigadier.CommandDispatcher;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.RegistryByteBuf;
@@ -22,6 +23,7 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.AfterAll;
@@ -216,6 +218,10 @@ class PayloadRegistrationTest {
 
 		@Override
 		public void onBlockBreak(BlockBreakCheck check) {
+		}
+
+		@Override
+		public void onCommandRegistration(Consumer<CommandDispatcher<ServerCommandSource>> listener) {
 		}
 	}
 }

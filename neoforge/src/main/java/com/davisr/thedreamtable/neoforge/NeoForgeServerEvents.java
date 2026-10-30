@@ -1,11 +1,14 @@
 package com.davisr.thedreamtable.neoforge;
 
 import com.davisr.thedreamtable.platform.ServerEvents;
+import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
@@ -45,6 +48,11 @@ final class NeoForgeServerEvents implements ServerEvents {
 				listener.accept(player, player.server);
 			}
 		});
+	}
+
+	@Override
+	public void onCommandRegistration(Consumer<CommandDispatcher<ServerCommandSource>> listener) {
+		NeoForge.EVENT_BUS.addListener(RegisterCommandsEvent.class, event -> listener.accept(event.getDispatcher()));
 	}
 
 	@Override

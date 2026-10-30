@@ -29,7 +29,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.text.Text;
-import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
@@ -212,6 +211,36 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		return !dismantling.isEmpty() || sessions.values().stream().anyMatch(TableSession::buildInProgress);
 	}
 
+	/**
+	 * What each player has at stake here, for {@link TableBreakGuard}: a running or paused build, delivered materials, or a
+	 * Take Down or discard still being taken apart. Saved sessions and jobs this version couldn't read count for the
+	 * player they name, since breaking the table would lose them.
+	 */
+	public List<TableBreakGuard.Claim> breakClaims() {
+		List<TableBreakGuard.Claim> claims = new ArrayList<>();
+		for (TableSession session : sessions.values()) {
+			if (session.buildInProgress()) {
+				claims.add(new TableBreakGuard.Claim(session.player(), TableBreakGuard.Reason.BUILD));
+			} else if (session.holdsMaterials()) {
+				claims.add(new TableBreakGuard.Claim(session.player(), TableBreakGuard.Reason.MATERIALS));
+			}
+		}
+		for (FarmDismantler job : dismantling) {
+			claims.add(new TableBreakGuard.Claim(job.player(), TableBreakGuard.Reason.TAKE_DOWN));
+		}
+		for (NbtCompound raw : unreadableSessions) {
+			if (raw.containsUuid("Player")) {
+				claims.add(new TableBreakGuard.Claim(raw.getUuid("Player"), TableBreakGuard.Reason.MATERIALS));
+			}
+		}
+		for (NbtCompound raw : unreadableJobs) {
+			if (raw.containsUuid("Player")) {
+				claims.add(new TableBreakGuard.Claim(raw.getUuid("Player"), TableBreakGuard.Reason.TAKE_DOWN));
+			}
+		}
+		return claims;
+	}
+
 	/** When the table is broken, everyone's delivered materials drop and its farm areas are freed. Built blocks stay, even half-dismantled ones. */
 	public void dropMaterials(World world) {
 		for (TableSession session : sessions.values()) {
@@ -247,7 +276,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		TableSession session = session(player);
 		session.markClientDirty();
 		if (player instanceof ServerPlayerEntity serverPlayer) {
-			FarmTemplates.reloadImports(serverPlayer.getServer().getSavePath(WorldSavePath.ROOT));
+			FarmTemplates.refreshImports(serverPlayer.getServer());
 			ServerSchematicsPayload.send(serverPlayer);
 		}
 		return new DreamTableScreenHandler(syncId, playerInventory, session);

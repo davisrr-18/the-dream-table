@@ -8,6 +8,7 @@ import com.davisr.thedreamtable.farm.ImportNote;
 import com.davisr.thedreamtable.farm.ImportedStructures;
 import com.davisr.thedreamtable.farm.TemplateCodec;
 import com.davisr.thedreamtable.platform.Platform;
+import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.RegistryByteBuf;
@@ -16,6 +17,7 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.Registries;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 
@@ -80,6 +82,19 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 				Platform.network().send(player, new Farm(payload.id(), version, TemplateCodec.encode(template)));
 			}
 		});
+	}
+
+	/**
+	 * Sends the current list to every player with a Dream Table open. A table open sends the last list that was read, so
+	 * when a background read finds new or edited files, the players already looking at the list get it here. Each entry's
+	 * file version comes from the same list swap, so a client never pairs an old version with a new file.
+	 */
+	public static void sendToOpenTables(MinecraftServer server) {
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			if (player.currentScreenHandler instanceof DreamTableScreenHandler) {
+				send(player);
+			}
+		}
 	}
 
 	public static void send(ServerPlayerEntity player) {
