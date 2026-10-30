@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.client.DreamTableClipboard;
 import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.DreamTableKeys;
 import com.davisr.thedreamtable.farm.BuildPace;
+import com.davisr.thedreamtable.farm.FarmInfo;
 import com.davisr.thedreamtable.farm.FarmOptions;
 import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import com.davisr.thedreamtable.farm.FarmTemplates;
@@ -29,9 +30,11 @@ public final class WorkPage implements TablePage {
 	private static final int MENU = 0;
 	private static final int REQUIREMENTS = 1;
 	private static final int MATERIALS = 2;
-	private static final int BUILD = 3;
-	private static final int DISCARD = 4;
-	private static final int CONFIRM_DISCARD = 5;
+	/** Only for a farm with help text; without it the rows below move up one. */
+	private static final int INFO = 3;
+	private static final int BUILD = 4;
+	private static final int DISCARD = 5;
+	private static final int CONFIRM_DISCARD = 6;
 	private static final long CONFIRM_MS = 3000L;
 	/** From this much, the spot already holds this farm, likely one finished before finished farms were protected. */
 	private static final int EXISTING_FARM_PERCENT = 50;
@@ -45,6 +48,9 @@ public final class WorkPage implements TablePage {
 	private long confirmUntil;
 	/** Height of the status block as last measured by {@link #measureStatus}, which each draw and height query refreshes. */
 	private int statusHeight = STATUS_LINES * LINE_HEIGHT;
+	/** Whether the farm {@link #infoFarm} has help text, remembered because the rows ask for it many times per frame. */
+	private String infoFarm;
+	private boolean hasInfo;
 
 	public WorkPage(PageContext ui) {
 		this.ui = ui;
@@ -63,6 +69,9 @@ public final class WorkPage implements TablePage {
 		ui.buttonAt("menu", context, Text.translatable("gui.the_dream_table.menu"), flowX(), rowY(MENU), mouseX, mouseY, true, false);
 		ui.buttonAt("requirements", context, Text.translatable("gui.the_dream_table.requirements"), flowX(), rowY(REQUIREMENTS), mouseX, mouseY, true, false);
 		ui.buttonAt("materials", context, Text.translatable("gui.the_dream_table.materials"), flowX(), rowY(MATERIALS), mouseX, mouseY, true, false);
+		if (showsInfo()) {
+			ui.buttonAt("info", context, Text.translatable("gui.the_dream_table.info_button"), flowX(), rowY(INFO), mouseX, mouseY, true, false);
+		}
 		ui.buttonAt("build", context, buildLabel(), flowX(), rowY(BUILD), mouseX, mouseY, ProjectState.canBuild(handler), true);
 		if (confirming()) {
 			ui.buttonAt("cancel_discard", context, Text.translatable("gui.the_dream_table.cancel"), flowX(), rowY(DISCARD), mouseX, mouseY, true, false);
@@ -86,6 +95,10 @@ public final class WorkPage implements TablePage {
 		}
 		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(MATERIALS))) {
 			ui.go(DreamTableScreenHandler.PAGE_MATERIALS, DreamTableScreenHandler.BUTTON_MATERIALS);
+			return true;
+		}
+		if (showsInfo() && ui.buttonHit(mouseX, mouseY, flowX(), rowY(INFO))) {
+			ui.go(DreamTableScreenHandler.PAGE_FARM_INFO, DreamTableScreenHandler.BUTTON_FARM_INFO);
 			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(BUILD))) {
@@ -303,7 +316,17 @@ public final class WorkPage implements TablePage {
 	}
 
 	private int rowY(int row) {
-		return barY() + 16 + row * (BUTTON_HEIGHT + BUTTON_GAP);
+		int slot = row > INFO && !showsInfo() ? row - 1 : row;
+		return barY() + 16 + slot * (BUTTON_HEIGHT + BUTTON_GAP);
+	}
+
+	private boolean showsInfo() {
+		String farm = ui.farm();
+		if (!farm.equals(infoFarm)) {
+			infoFarm = farm;
+			hasInfo = FarmInfo.hasInfo(farm);
+		}
+		return hasInfo;
 	}
 
 }

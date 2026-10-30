@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.DreamTableKeys;
 import com.davisr.thedreamtable.screen.page.MaterialsPage;
 import com.davisr.thedreamtable.screen.page.CategoryPage;
+import com.davisr.thedreamtable.screen.page.FarmInfoPage;
 import com.davisr.thedreamtable.screen.page.FarmPage;
 import com.davisr.thedreamtable.screen.page.LoadedFarmsPage;
 import com.davisr.thedreamtable.screen.page.InvitesPage;
@@ -84,6 +85,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private TablePage invites;
 	private TablePage materials;
 	private TablePage swap;
+	private TablePage farmInfo;
 	private PageContext ui;
 
 	public DreamTableScreen(DreamTableScreenHandler handler, PlayerInventory inventory, Text title) {
@@ -126,6 +128,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		invites = new InvitesPage(ui);
 		materials = new MaterialsPage(ui);
 		swap = new SwapPage(ui, search);
+		farmInfo = new FarmInfoPage(ui);
 		layout();
 	}
 
@@ -379,6 +382,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			case DreamTableScreenHandler.PAGE_INVITES -> invites;
 			case DreamTableScreenHandler.PAGE_MATERIALS -> materials;
 			case DreamTableScreenHandler.PAGE_SWAP -> swap;
+			case DreamTableScreenHandler.PAGE_FARM_INFO -> farmInfo;
 			default -> selection;
 		};
 	}
@@ -483,6 +487,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			case DreamTableScreenHandler.PAGE_REQUIREMENTS -> DreamTableScreenHandler.BUTTON_BACK;
 			case DreamTableScreenHandler.PAGE_MATERIALS -> DreamTableScreenHandler.BUTTON_MATERIALS_BACK;
 			case DreamTableScreenHandler.PAGE_SWAP -> DreamTableScreenHandler.BUTTON_SWAP_BACK;
+			case DreamTableScreenHandler.PAGE_FARM_INFO -> DreamTableScreenHandler.BUTTON_FARM_INFO_BACK;
 			case DreamTableScreenHandler.PAGE_SPEED -> DreamTableScreenHandler.BUTTON_SPEED_BACK;
 			case DreamTableScreenHandler.PAGE_FARM -> DreamTableScreenHandler.BUTTON_FARM_BACK;
 			case DreamTableScreenHandler.PAGE_INVITES -> DreamTableScreenHandler.BUTTON_LOADED_FARMS;

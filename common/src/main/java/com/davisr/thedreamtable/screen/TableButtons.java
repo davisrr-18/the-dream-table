@@ -50,7 +50,8 @@ final class TableButtons {
 			case BUTTON_TAB_SCHEMATICS -> page(table, PageRoutes.rootFor(PrimaryTab.SCHEMATICS, false));
 			case BUTTON_TAB_SETTINGS -> page(table, PageRoutes.rootFor(PrimaryTab.SETTINGS, false));
 			case BUTTON_MATERIALS, BUTTON_SWAP_BACK -> page(table, PAGE_MATERIALS);
-			case BUTTON_MATERIALS_BACK, BUTTON_BACK -> page(table, PAGE_WORK);
+			case BUTTON_MATERIALS_BACK, BUTTON_BACK, BUTTON_FARM_INFO_BACK -> page(table, PAGE_WORK);
+			case BUTTON_FARM_INFO -> page(table, PAGE_FARM_INFO);
 			case BUTTON_MENU, BUTTON_SCHEMES_BACK, BUTTON_OPTIONS_BACK, BUTTON_CATEGORY_BACK -> page(table, PAGE_SELECT);
 			case BUTTON_SCHEMES -> page(table, PAGE_SCHEMES);
 			case BUTTON_OPTIONS, BUTTON_SPEED_BACK, BUTTON_LOADED_BACK -> page(table, PAGE_OPTIONS);
