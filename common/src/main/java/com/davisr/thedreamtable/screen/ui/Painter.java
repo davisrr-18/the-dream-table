@@ -96,8 +96,11 @@ public final class Painter {
 	}
 
 	public void button(DrawContext context, Text label, int x, int y, boolean hovered, boolean enabled, boolean primary) {
+		button(context, label, x, y, CARD_WIDTH, hovered, enabled, primary);
+	}
+
+	public void button(DrawContext context, Text label, int x, int y, int w, boolean hovered, boolean enabled, boolean primary) {
 		boolean hover = enabled && hovered;
-		int w = CARD_WIDTH;
 		int color;
 		if (!enabled) {
 			disabledFrame(context, x, y, w, BUTTON_HEIGHT);

@@ -39,7 +39,7 @@ public final class CategoryPage implements TablePage {
 			boolean selected = option.id().equals(ui.farm());
 			drawCard(context, option, cardX(ui.view(), index), cardY(ui.view(), index), mouseX, mouseY, selected, !locked || selected);
 		}
-		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
+		ui.backButton(context, backY(), mouseX, mouseY);
 	}
 
 	@Override
@@ -56,7 +56,7 @@ public final class CategoryPage implements TablePage {
 				return true;
 			}
 		}
-		if (ui.buttonHit(mouseX, mouseY, backY())) {
+		if (ui.backHit(mouseX, mouseY, backY())) {
 			ui.go(DreamTableScreenHandler.PAGE_SELECT, DreamTableScreenHandler.BUTTON_CATEGORY_BACK);
 			return true;
 		}
