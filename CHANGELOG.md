@@ -78,6 +78,7 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 - Buttons on My Farms that can't be used now say why: Keep Loaded at the limit or off on the server, Repair while the table is busy or when nothing is missing, Rename and the invite buttons until you type a name or player.
 - The custom build speed slider works from the keyboard: Tab to it, Left and Right change it by 1%, Home and End set the minimum and maximum.
 - Large schematic previews draw much faster: the hologram is built once and reused instead of being redrawn block by block every frame, and the first preview of a big farm is spread over a few frames.
+- New **How It Works** page on each built-in farm: how it works, what it needs to run (loaded chunks, bees, villagers, seeds, space in the chest), what it produces and tips.
 
 ## Fixes and performance
 
