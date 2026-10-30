@@ -194,7 +194,7 @@
 	"farm.the_dream_table.mob_dark_room.info.how": "Mobs spawn on the top platform and are carried by water down the tall tower.\nHoppers at the bottom collect what they drop into the chest.",
 	"farm.the_dream_table.mob_dark_room.info.works": "A player is within 128 blocks of the farm. The game spawns nothing farther away, even if it is loaded.\nThe tower is dark: keep it free of light you added.",
 	"farm.the_dream_table.mob_dark_room.info.output": "Whatever the mobs drop: bones, string, gunpowder, arrows, rotten flesh.",
-	"farm.the_dream_table.mob_dark_room.info.tips": "Build it away from caves and above sea level so other spawns do not compete with it.\nEmpty the chest from time to time.",
+	"farm.the_dream_table.mob_dark_room.info.tips": "Build it over the ocean so it does not compete for spawns with mobs on land.\nIf you do not want to build it over water, raise it to about 120 blocks high.\nEmpty the chest from time to time.",
 	"farm.the_dream_table.iron_golem.info.how": "Villagers living in beds make iron golems appear.\nWater carries the golems to lava, and hoppers bring their drops to the chests.",
 	"farm.the_dream_table.iron_golem.info.works": "You brought the villagers, and each one has a bed: the table does not place them.\nThe farm is loaded (you are near, or Keep Loaded is on).\nThe chests have room.",
 	"farm.the_dream_table.iron_golem.info.output": "Iron ingots and poppies.",
