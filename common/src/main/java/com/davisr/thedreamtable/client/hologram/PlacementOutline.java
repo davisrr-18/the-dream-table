@@ -83,6 +83,20 @@ public final class PlacementOutline {
 		return List.copyOf(ribbons);
 	}
 
+	/** The two arms of the cross lying on the aimed block, as ribbons like the frame's: one width on screen at any distance. */
+	public static List<Vec3d[]> cross(BlockPos anchor, Vec3d camera, Vec3d forward, double near, double halfWidthPerBlock) {
+		double x = anchor.getX() + 0.5;
+		double y = anchor.getY() + 0.02;
+		double z = anchor.getZ() + 0.5;
+		List<Vec3d[]> arms = new ArrayList<>(2);
+		ribbon(arms, new Vec3d(x - CROSS_ARM, y, z), new Vec3d(x + CROSS_ARM, y, z), camera, forward, near, halfWidthPerBlock);
+		ribbon(arms, new Vec3d(x, y, z - CROSS_ARM), new Vec3d(x, y, z + CROSS_ARM), camera, forward, near, halfWidthPerBlock);
+		return List.copyOf(arms);
+	}
+
+	/** Half the length of a cross arm, in blocks. */
+	private static final double CROSS_ARM = 0.4;
+
 	private static void ribbon(List<Vec3d[]> out, Vec3d start, Vec3d end, Vec3d camera, Vec3d forward, double near, double perBlock) {
 		double depthStart = start.subtract(camera).dotProduct(forward);
 		double depthEnd = end.subtract(camera).dotProduct(forward);

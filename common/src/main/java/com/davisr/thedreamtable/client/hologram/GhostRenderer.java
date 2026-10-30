@@ -88,25 +88,15 @@ public final class GhostRenderer {
 	public static void drawOutline(MatrixStack matrices, Box footprint, BlockPos anchor, PlacementOutline.Status status, Vec3d camera, Vec3d forward, float wave) {
 		float[] rgb = status.rgb();
 		// The frame is drawn as ribbons that face the camera and widen with distance, so it keeps one width on screen
-		// and never splits or stretches; the cross is solid too, and only the floor is translucent.
+		// and never splits or stretches; so is the cross on the aimed block, and only the floor is translucent.
 		BufferBuilder solid = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		BufferBuilder floor = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		if (footprint != null) {
-			Matrix4f matrix = matrices.peek().getPositionMatrix();
-			for (Vec3d[] ribbon : PlacementOutline.ribbons(footprint.expand(OUTLINE_GROW), camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH)) {
-				for (Vec3d corner : ribbon) {
-					solid.vertex(matrix, (float) corner.x, (float) corner.y, (float) corner.z).color(rgb[0], rgb[1], rgb[2], 1.0F);
-				}
-			}
+			emit(solid, matrices.peek().getPositionMatrix(), PlacementOutline.ribbons(footprint.expand(OUTLINE_GROW), camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH), rgb);
 			fill(matrices, floor, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
 		}
 		if (anchor != null) {
-			// A flat cross on the aimed block: it reads as "here" without looking like a block.
-			double x = anchor.getX() + 0.5;
-			double z = anchor.getZ() + 0.5;
-			double y = anchor.getY() + 0.02;
-			fill(matrices, solid, new Box(x - 0.4, y, z - 0.05, x + 0.4, y + 0.04, z + 0.05), rgb, 1.0F);
-			fill(matrices, solid, new Box(x - 0.05, y, z - 0.4, x + 0.05, y + 0.04, z + 0.4), rgb, 1.0F);
+			emit(solid, matrices.peek().getPositionMatrix(), PlacementOutline.cross(anchor, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH), rgb);
 		}
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
@@ -127,6 +117,14 @@ public final class GhostRenderer {
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
 		RenderSystem.disableBlend();
+	}
+
+	private static void emit(BufferBuilder buffer, Matrix4f matrix, List<Vec3d[]> ribbons, float[] rgb) {
+		for (Vec3d[] ribbon : ribbons) {
+			for (Vec3d corner : ribbon) {
+				buffer.vertex(matrix, (float) corner.x, (float) corner.y, (float) corner.z).color(rgb[0], rgb[1], rgb[2], 1.0F);
+			}
+		}
 	}
 
 	private static void fill(MatrixStack matrices, BufferBuilder buffer, Box box, float[] rgb, float alpha) {
