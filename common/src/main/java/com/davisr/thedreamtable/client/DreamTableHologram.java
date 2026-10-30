@@ -29,6 +29,7 @@ import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import org.joml.Vector3f;
 
 /**
  * Where the farm preview sits. Before the build the player aims, anchors with a right-click, rotates with R and mirrors with M;
@@ -295,6 +296,8 @@ public final class DreamTableHologram {
 			return;
 		}
 		Vec3d camera = context.camera().getPos();
+		Vector3f view = context.camera().getHorizontalPlane();
+		Vec3d forward = new Vec3d(view.x(), view.y(), view.z());
 		MatrixStack matrices = context.matrixStack();
 		float wave = (float) (0.5 + 0.5 * Math.sin(context.world().getTime() * 0.3));
 		matrices.push();
@@ -304,7 +307,7 @@ public final class DreamTableHologram {
 			Box aimedFootprint = placement == null && !template.steps().isEmpty()
 					? PlacementOutline.footprint(template, tablePos, cursor, aimFacing(), previewMirrored) : null;
 			PlacementOutline.Status aimStatus = placement == null ? hoverStatus() : PlacementOutline.Status.CHECKING;
-			GhostRenderer.drawOutline(matrices, aimedFootprint, cursor, aimStatus, wave);
+			GhostRenderer.drawOutline(matrices, aimedFootprint, cursor, aimStatus, camera, forward, wave);
 			if (aimedFootprint != null) {
 				// The farm itself follows the aim, so turning and mirroring can be judged before the click.
 				GhostRenderer.drawGhosts(matrices, template, table, cursor, aimFacing(), previewMirrored, 0, false, aimStatus == PlacementOutline.Status.REFUSED, Integer.MAX_VALUE, wave);
@@ -316,7 +319,7 @@ public final class DreamTableHologram {
 			if (idle && !template.steps().isEmpty()) {
 				PlacementOutline.Status status = checkedNow() ? PlacementOutline.status(true, placementProblem()) : PlacementOutline.Status.CHECKING;
 				Box footprint = PlacementOutline.footprint(template, tablePos, placement.anchor(), placement.facing(), placement.mirrored());
-				GhostRenderer.drawOutline(matrices, footprint, null, status, wave);
+				GhostRenderer.drawOutline(matrices, footprint, null, status, camera, forward, wave);
 			}
 			GhostRenderer.drawGhosts(matrices, template, table, placement.anchor(), placement.facing(), placement.mirrored(), shownPlaced, shownBlocked, refused, topLayer, wave);
 		}
