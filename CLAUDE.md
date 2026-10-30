@@ -142,14 +142,14 @@ The orchestrator is accountable for the final integrated result.
 Optimize for validated work per unit of available resources, without sacrificing correctness.
 
 - Prefer the least expensive capable model and reasoning effort.
-- Use configured agent models and effort levels unless adaptive routing (section 7) recommends another level.
+- Use the configured agent models and effort levels (Haiku 5.5 at high, section 7); do not override them on a delegation call.
 - Keep subagent context focused and reports concise.
 - Reuse existing discoveries and checkpoints.
 - Avoid unnecessary repeated tool calls and redundant reviews.
 - Do not rerun tests that already passed unless the relevant code changed or there is a concrete reason.
 - Do not bypass essential tests to reduce usage.
 - Do not claim token or quota savings without actual measurements.
-- Raise or lower model/effort per task under the adaptive routing rules in section 7, reporting each change.
+- Recommend changes to the primary session's model/effort under the routing rules in section 7, reporting each one.
 
 The detailed procedure belongs to the applicable project skill. Do not duplicate its full contents here.
 
@@ -237,15 +237,15 @@ Operational preferences, when available:
 
 - Primary agent: orchestration and integration on Sonnet 5.5 at medium effort by default (Claude Code main session); raise to high for difficult multi-agent integration, subtle bugs (networking, persistence, handshake), or milestone planning.
 - Escalate the primary session to Opus 5.5 at medium effort only for Milestone 1 planning of large updates, architectural decisions, or problems Sonnet could not resolve.
-- Subagents default to Haiku 5.5 at high effort; escalate a single delegation to Sonnet 5.5 when its risk (networking, persistence, saved-world compatibility, handshake) justifies it.
+- Subagents (investigator, implementer, reviewer, and any general-purpose helper) use only Haiku 5.5 at high effort (standing user decision, 2026-10-29). Never escalate a subagent to Sonnet, Opus or another model, and never set a `model` or `effort` override on a delegation call; compensate with narrower scopes, explicit acceptance criteria and more careful verification by the orchestrator. Higher models and efforts apply only to the primary session, which the user changes with `/model` and `/effort`.
 - Investigation, isolated implementation, and independent review: delegate to the matching subagent at its configured model and effort.
-- Adaptive routing (standing user authorization, 2026-10-28): the primary agent may raise or lower the model and effort of itself and of any delegated subagent, per task or milestone, following the recommendation for that work. No separate approval is needed.
+- Adaptive routing (standing user authorization, 2026-10-28, narrowed 2026-10-29): subagents stay fixed at Haiku 5.5 high; the primary session's model and effort change only through the user.
 
 Use low effort for mechanical work, medium for ordinary tasks, and high for difficult or risky tasks. Higher efforts require model support and concrete justification.
 
 Adaptive routing rules:
 
-- Subagents: set `model`/`effort` on the delegation call when the task warrants a level different from its `.claude/agents/*.md` default; otherwise keep the default.
+- Subagents: never set `model`/`effort` on the delegation call; the `.claude/agents/*.md` defaults (Haiku 5.5, high) always apply.
 - Primary session: its model and effort can only be changed by the user (`/model`, `/effort`). Recommend the change at the start of the task or milestone, and include the recommended model/effort in every resume phrase for a new chat.
 - Lower the level for mechanical or low-risk work; raise it only for concrete complexity or risk, never by default.
 - State each change and its reason in the stage report and record it in the task record.
