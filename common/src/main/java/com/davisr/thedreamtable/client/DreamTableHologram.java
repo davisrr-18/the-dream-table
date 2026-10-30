@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.block.DreamTableBlock;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.client.hologram.GhostRenderer;
+import com.davisr.thedreamtable.client.hologram.PlacementOutline;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
@@ -23,6 +24,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
@@ -43,6 +45,8 @@ public final class DreamTableHologram {
 	private static boolean previewMirrored;
 	private static int lastPlaceAge = -1;
 	private static final int RECHECK_TICKS = 40;
+	/** The aimed spot is asked about at most this often; the server allows four checks per second and rotating needs some too. */
+	private static final int HOVER_TICKS = 8;
 	/** While building, the hologram shows the layer being built and this many above it, unless all layers are on. */
 	private static final int LAYERS_AHEAD = 1;
 	private static boolean allLayers;
@@ -50,6 +54,11 @@ public final class DreamTableHologram {
 	private static String problem = "";
 	private static int existing;
 	private static int recheckTicks;
+	/** The spot under the crosshair, its answer, and the ticks since it was last asked. */
+	private static Placement hover;
+	private static Placement hoverChecked;
+	private static String hoverProblem = "";
+	private static int hoverTicks;
 
 	private DreamTableHologram() {
 	}
@@ -61,10 +70,16 @@ public final class DreamTableHologram {
 	public static void registerChecks() {
 		Platform.clientNetwork().registerReceiver(PlacementResultPayload.ID, payload -> {
 			if (payload.table().equals(tablePos)) {
-				checked = new Placement(payload.anchor(), payload.facing(), payload.mirrored());
-				problem = payload.problem();
-				if (payload.existing() != PlacementResultPayload.UNCHANGED) {
-					existing = payload.existing();
+				Placement answered = new Placement(payload.anchor(), payload.facing(), payload.mirrored());
+				if (hasPlacement() && answered.equals(placedSpot())) {
+					checked = answered;
+					problem = payload.problem();
+					if (payload.existing() != PlacementResultPayload.UNCHANGED) {
+						existing = payload.existing();
+					}
+				} else {
+					hoverChecked = answered;
+					hoverProblem = payload.problem();
 				}
 			}
 		});
@@ -75,7 +90,29 @@ public final class DreamTableHologram {
 					send(false);
 				}
 			}
+			askAboutHover();
 		});
+	}
+
+	/** Asks the server about the spot under the crosshair when it changed (or its turn did), so the outline can be coloured before the click. */
+	private static void askAboutHover() {
+		hoverTicks++;
+		// Once a spot is placed its own checks use the server's budget; an unanswered hover question is asked again.
+		if (hover == null || hasPlacement() || hover.equals(hoverChecked) || hoverTicks < HOVER_TICKS || tablePos == null
+				|| !Platform.clientNetwork().canSend(CheckPlacementPayload.ID)) {
+			return;
+		}
+		hoverTicks = 0;
+		Platform.clientNetwork().send(new CheckPlacementPayload(tablePos, hover.anchor(), hover.facing(), hover.mirrored(), false));
+	}
+
+	/** What the outline of the aimed spot shows: checking until the server answers about exactly this spot. */
+	private static PlacementOutline.Status hoverStatus() {
+		return PlacementOutline.status(hover != null && hover.equals(hoverChecked), hoverProblem);
+	}
+
+	private static Placement placedSpot() {
+		return new Placement(aimed, previewFacing(), previewMirrored);
 	}
 
 	/** The server's reason this placement can't be built, as a lang key, or empty. Only valid for the placement it was asked about. */
@@ -120,6 +157,8 @@ public final class DreamTableHologram {
 		String nextFarm = farm == null ? "" : farm;
 		// Another farm or another table starts over: a placement made for one table means nothing at the next.
 		if (!nextFarm.equals(farmId) || (tablePos != null && !tablePos.equals(pos))) {
+			hoverChecked = null;
+			hoverProblem = "";
 			aimed = null;
 			anchored = false;
 			previewFacing = null;
@@ -193,6 +232,12 @@ public final class DreamTableHologram {
 		return previewFacing;
 	}
 
+	/** The facing the aimed spot would take: the chosen one, or the player's own until a spot is placed, without choosing it yet. */
+	private static Direction aimFacing() {
+		PlayerEntity player = MinecraftClient.getInstance().player;
+		return previewFacing != null || player == null ? previewFacing() : player.getHorizontalFacing();
+	}
+
 	public static boolean previewMirrored() {
 		return previewMirrored;
 	}
@@ -222,6 +267,9 @@ public final class DreamTableHologram {
 		checked = null;
 		problem = "";
 		existing = 0;
+		hover = null;
+		hoverChecked = null;
+		hoverProblem = "";
 	}
 
 	private static void render(RenderFrame context) {
@@ -242,6 +290,7 @@ public final class DreamTableHologram {
 		Placement placement = placement(table);
 		// A table whose chunk just loaded again reads as idle until the server sends the session, so no aim marker yet.
 		BlockPos cursor = idle && !awaitingSession(tableEntity) ? aim(context) : null;
+		hover = cursor == null ? null : new Placement(cursor, aimFacing(), previewMirrored);
 		if (placement == null && cursor == null) {
 			return;
 		}
@@ -251,11 +300,19 @@ public final class DreamTableHologram {
 		matrices.push();
 		matrices.translate(-camera.x, -camera.y, -camera.z);
 		if (cursor != null && (placement == null || !cursor.equals(placement.anchor()))) {
-			GhostRenderer.drawCursor(matrices, cursor, wave);
+			// Once a spot is placed the aim is only a marker; its own outline would need checks the placed spot is using.
+			Box aimedFootprint = placement == null && !template.steps().isEmpty()
+					? PlacementOutline.footprint(template, tablePos, cursor, aimFacing(), previewMirrored) : null;
+			GhostRenderer.drawOutline(matrices, aimedFootprint, cursor, placement == null ? hoverStatus() : PlacementOutline.Status.CHECKING, wave);
 		}
 		if (placement != null) {
 			boolean refused = idle && !placementProblem().isEmpty();
 			int topLayer = topLayer(template, shownPlaced, idle);
+			if (idle && !template.steps().isEmpty()) {
+				PlacementOutline.Status status = checkedNow() ? PlacementOutline.status(true, placementProblem()) : PlacementOutline.Status.CHECKING;
+				Box footprint = PlacementOutline.footprint(template, tablePos, placement.anchor(), placement.facing(), placement.mirrored());
+				GhostRenderer.drawOutline(matrices, footprint, null, status, wave);
+			}
 			GhostRenderer.drawGhosts(matrices, template, table, placement.anchor(), placement.facing(), placement.mirrored(), shownPlaced, shownBlocked, refused, topLayer, wave);
 		}
 		matrices.pop();

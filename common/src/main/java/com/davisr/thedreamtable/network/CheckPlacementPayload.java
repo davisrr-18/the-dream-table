@@ -38,7 +38,8 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 
 	/**
 	 * Each accepted check walks the whole template, so only a few scans a second are allowed per player. The client asks
-	 * on a change of the placement and every two seconds, and a missed answer is asked again by that recheck.
+	 * on a change of the placement and every two seconds, and a missed answer is asked again by that recheck. While
+	 * the player is still aiming it also asks about the aimed spot, at most every eight ticks, and not after placing.
 	 */
 	static final int BUDGET = 4;
 	/** The same question asked again within a second gets the same answer without a new scan. */
