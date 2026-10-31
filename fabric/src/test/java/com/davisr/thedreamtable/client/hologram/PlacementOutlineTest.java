@@ -102,15 +102,36 @@ class PlacementOutlineTest {
 	}
 
 	@Test
-	void theCrossIsTwoRibbonsCentredOnTheAimedBlock() {
+	void theAimedBlockGetsEightFlatBracketArmsInsideItsCell() {
 		BlockPos anchor = new BlockPos(4, 70, -3);
-		List<Vec3d[]> arms = PlacementOutline.cross(anchor, new Vec3d(4.5, 75, 0), new Vec3d(0, -1, 0), 0.1, 0.0026);
-		assertEquals(2, arms.size());
+		List<Vec3d[]> arms = PlacementOutline.brackets(anchor, new Vec3d(4.5, 75, 0), new Vec3d(0, -1, 0), 0.1, 0.0104, 0.05);
+		assertEquals(8, arms.size());
 		for (Vec3d[] arm : arms) {
-			double x = (arm[0].x + arm[1].x + arm[2].x + arm[3].x) / 4.0;
-			double z = (arm[0].z + arm[1].z + arm[2].z + arm[3].z) / 4.0;
-			assertEquals(4.5, x, 0.01);
-			assertEquals(-2.5, z, 0.01);
+			for (Vec3d corner : arm) {
+				assertEquals(70.03, corner.y, 0.001);
+				assertTrue(corner.x > 3.9 && corner.x < 5.1 && corner.z > -3.1 && corner.z < -1.9);
+			}
 		}
+	}
+
+	@Test
+	void bracketsNeverWidenPastTheirCap() {
+		BlockPos anchor = new BlockPos(0, 64, 0);
+		List<Vec3d[]> arms = PlacementOutline.brackets(anchor, new Vec3d(0.5, 70, -300), new Vec3d(0, 0, 1), 0.1, 0.0104, 0.05);
+		for (Vec3d[] arm : arms) {
+			assertTrue(arm[0].distanceTo(arm[1]) <= 0.1 + 1.0E-6);
+		}
+	}
+
+	@Test
+	void theBeamRisesFromTheBlockToTheGivenHeight() {
+		BlockPos anchor = new BlockPos(2, 64, 2);
+		List<Vec3d[]> beam = PlacementOutline.beam(anchor, 4.0, new Vec3d(10, 66, 2.5), new Vec3d(-1, 0, 0), 0.1, 0.0078, 0.08);
+		assertEquals(1, beam.size());
+		Vec3d[] ribbon = beam.get(0);
+		assertTrue(ribbon[0].y < ribbon[2].y);
+		assertEquals(ribbon[0].y, ribbon[1].y, 1.0E-6);
+		assertEquals(ribbon[2].y, ribbon[3].y, 1.0E-6);
+		assertTrue(ribbon[2].y >= 68.0);
 	}
 }
