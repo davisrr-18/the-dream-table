@@ -12,10 +12,9 @@ import static com.davisr.thedreamtable.block.entity.TableBreakGuard.Reason.MATER
 import static com.davisr.thedreamtable.block.entity.TableBreakGuard.Reason.TAKE_DOWN;
 import static com.davisr.thedreamtable.block.entity.TableBreakGuard.Reason.UNREADABLE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Who may break a table that holds other players' materials, builds or Take Downs, their own builds, or saved data this version can't read. */
+/** Who may break a table that holds other players' materials, builds or Take Downs, their own work, or saved data this version can't read. */
 class TableBreakGuardTest {
 	private static final UUID ME = UUID.fromString("10000000-0000-0000-0000-000000000001");
 	private static final UUID OTHER = UUID.fromString("20000000-0000-0000-0000-000000000002");
@@ -27,15 +26,14 @@ class TableBreakGuardTest {
 	}
 
 	@Test
-	void theBreakersOwnMaterialsAndTakeDownNeverStopThem() {
-		assertTrue(TableBreakGuard.blocker(List.of(new Claim(ME, MATERIALS), new Claim(ME, TAKE_DOWN)), ME, false).isEmpty());
+	void theBreakersOwnMaterialsBuildAndTakeDownNeverStopThem() {
+		assertTrue(TableBreakGuard.blocker(List.of(new Claim(ME, MATERIALS), new Claim(ME, BUILD), new Claim(ME, TAKE_DOWN)), ME, false).isEmpty());
 	}
 
 	@Test
-	void theBreakersOwnRunningBuildStopsThemToo() {
-		Claim blocker = TableBreakGuard.blocker(List.of(new Claim(ME, BUILD)), ME, false).orElseThrow();
-		assertEquals(BUILD, blocker.reason());
-		assertEquals(ME, blocker.player());
+	void theBreakersOwnBuildDoesNotHideAnotherPlayersBuild() {
+		Claim blocker = TableBreakGuard.blocker(List.of(new Claim(ME, BUILD), new Claim(OTHER, BUILD)), ME, false).orElseThrow();
+		assertEquals(OTHER, blocker.player());
 	}
 
 	@Test
@@ -88,12 +86,5 @@ class TableBreakGuardTest {
 	@Test
 	void everyReasonHasItsOwnMessage() {
 		assertEquals(4, Arrays.stream(TableBreakGuard.Reason.values()).map(TableBreakGuard.Reason::key).distinct().count());
-	}
-
-	@Test
-	void theOwnBuildHasItsOwnMessage() {
-		for (TableBreakGuard.Reason reason : TableBreakGuard.Reason.values()) {
-			assertNotEquals(TableBreakGuard.OWN_BUILD_KEY, reason.key());
-		}
 	}
 }

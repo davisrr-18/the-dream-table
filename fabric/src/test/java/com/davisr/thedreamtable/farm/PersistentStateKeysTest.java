@@ -12,5 +12,6 @@ class PersistentStateKeysTest {
 		assertEquals("the_dream_table_loaded_farms", FarmLoader.STATE_KEY);
 		assertEquals("the_dream_table_farm_areas", FarmAreas.STATE_KEY);
 		assertEquals("the_dream_table_pending_refunds", PendingRefunds.STATE_KEY);
+		assertEquals("the_dream_table_parked_projects", ParkedProjects.STATE_KEY);
 	}
 }

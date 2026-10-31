@@ -16,19 +16,16 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Keeps a player from breaking a Dream Table that holds work or materials they must not lose: another player's delivered
- * materials, running or paused build, or Take Down, breaking it would drop their materials and end their work. A player's
- * own running build stops them too, since breaking the table would orphan its placed blocks, and saved data this version
- * cannot read stops everyone, the owner included. Server operators may always break it, and a table with only the breaker's
- * own delivered materials, Take Down or empty sessions breaks as before. It goes through the same break seam as
- * {@code FarmProtection}, so it covers players only: explosions, pistons and other mods' block removal are not covered.
+ * Keeps a player from breaking a Dream Table that holds another player's work: their delivered materials, running or paused
+ * build, or Take Down. A broken table keeps every project for its player, but only they should decide to move it, and a
+ * Take Down ends where it is. Saved data this version cannot read stops everyone, the owner included. Server operators may
+ * always break it, and a table with only the breaker's own materials, build, Take Down or empty sessions breaks, their
+ * project coming back in the next table they open. It goes through the same break seam as {@code FarmProtection}, so it
+ * covers players only: explosions, pistons and other mods' block removal are not covered, and they keep the projects too.
  */
 public final class TableBreakGuard {
 	/** Permission level from which a player may always break a table, like the vanilla command operators. */
 	static final int OPERATOR_LEVEL = 2;
-
-	/** The notice to the player whose own build is running at the table. */
-	static final String OWN_BUILD_KEY = "gui.the_dream_table.table_break_own_build";
 
 	/** Why a session or saved entry keeps the table from being broken, strongest last so {@link #blocker} can pick the clearest reason. */
 	public enum Reason {
@@ -73,8 +70,8 @@ public final class TableBreakGuard {
 
 	/**
 	 * The claim that stops this player from breaking the table, or empty when they may. An operator is never stopped. Unreadable
-	 * saved data and a running build stop every player, the owner included; other claims stop only players other than their
-	 * owner. When several claims stop the breaker, the one with the strongest reason is reported.
+	 * saved data stops every player, the owner included; other claims stop only players other than their owner. When several
+	 * claims stop the breaker, the one with the strongest reason is reported.
 	 */
 	public static Optional<Claim> blocker(Collection<Claim> claims, UUID breaker, boolean operator) {
 		if (operator) {
@@ -91,7 +88,7 @@ public final class TableBreakGuard {
 
 	/** Whether this claim keeps the breaker from breaking the table, before the operator rule. */
 	static boolean stops(Claim claim, UUID breaker) {
-		return claim.reason() == Reason.UNREADABLE || claim.reason() == Reason.BUILD || !breaker.equals(claim.player());
+		return claim.reason() == Reason.UNREADABLE || !breaker.equals(claim.player());
 	}
 
 	/** The claim that stops this player from breaking the table at {@code pos}, or empty when it is not a table or they may. */
@@ -106,8 +103,6 @@ public final class TableBreakGuard {
 		Text text;
 		if (claim.reason() == Reason.UNREADABLE) {
 			text = Text.translatable(Reason.UNREADABLE.key());
-		} else if (claim.reason() == Reason.BUILD && player.getUuid().equals(claim.player())) {
-			text = Text.translatable(OWN_BUILD_KEY);
 		} else {
 			text = Text.translatable(claim.reason().key(), FarmProtection.ownerName(world.getServer(), claim.player()));
 		}

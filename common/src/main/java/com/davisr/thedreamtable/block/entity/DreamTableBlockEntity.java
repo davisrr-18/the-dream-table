@@ -7,6 +7,7 @@ import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmDismantler;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.farm.ParkedProjects;
 import com.davisr.thedreamtable.farm.RepairLease;
 import com.davisr.thedreamtable.network.ServerSchematicsPayload;
 import com.davisr.thedreamtable.network.SessionSyncPayload;
@@ -243,35 +244,87 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		return raw.containsUuid("Player") ? raw.getUuid("Player") : null;
 	}
 
-	/** When the table is broken, everyone's delivered materials drop and its farm areas are freed. Built blocks stay, even half-dismantled ones. */
-	public void dropMaterials(World world) {
-		// Saved data this version cannot read is lost with the table (an operator, an explosion or the guard turned off broke it), so the log keeps a copy.
+	/**
+	 * When the table is broken, however that happens, each player's project is kept for them in {@link ParkedProjects} and comes
+	 * back in the next table they open, and its farm areas are freed. Built blocks stay, even half-dismantled ones. Delivered
+	 * materials drop only for a project that can't be kept: it belongs to no player, or its player has as many kept as allowed.
+	 */
+	public void onBroken(World world) {
+		if (!(world instanceof ServerWorld serverWorld)) {
+			return;
+		}
+		ParkedProjects parked = ParkedProjects.of(serverWorld.getServer());
+		// Saved sessions this version cannot read are kept as they were, for a version that can; take-apart jobs are lost, so the log keeps a copy.
 		for (NbtCompound raw : unreadableSessions) {
-			TheDreamTableMod.LOGGER.warn("Dream Table at {} broken with an unreadable saved session; its data was: {}", pos, raw);
+			UUID player = namedPlayer(raw);
+			if (player == null || !parked.park(player, raw)) {
+				TheDreamTableMod.LOGGER.warn("Dream Table at {} broken with an unreadable saved session; its data was: {}", pos, raw);
+			}
 		}
 		for (NbtCompound raw : unreadableJobs) {
 			TheDreamTableMod.LOGGER.warn("Dream Table at {} broken with an unreadable saved take-apart job; its data was: {}", pos, raw);
 		}
+		unreadableSessions.clear();
+		RegistryWrapper.WrapperLookup registries = serverWorld.getRegistryManager();
 		for (TableSession session : sessions.values()) {
-			session.dropMaterials(world);
+			if (session.player().equals(SHARED) || !parked.canPark(session.player())) {
+				session.dropMaterials(world);
+				continue;
+			}
+			NbtCompound project = session.park(serverWorld, registries);
+			if (project != null) {
+				parked.park(session.player(), project);
+			}
 		}
-		if (world instanceof ServerWorld serverWorld) {
-			FarmAreas areas = FarmAreas.of(serverWorld);
-			// Jobs saved before they were keyed to their own table may hold a claim under another table.
-			dismantling.forEach(job -> {
-				job.restoreRecord(serverWorld);
-				areas.release(job.areaKey());
-			});
-			staleClaims.forEach(areas::release);
-			areas.releaseTable(pos);
-		}
+		FarmAreas areas = FarmAreas.of(serverWorld);
+		// Jobs saved before they were keyed to their own table may hold a claim under another table.
+		dismantling.forEach(job -> {
+			job.restoreRecord(serverWorld);
+			areas.release(job.areaKey());
+		});
+		staleClaims.forEach(areas::release);
+		areas.releaseTable(pos);
 		dismantling.clear();
 		staleClaims.clear();
 	}
 
+	/**
+	 * The player's session as they open the table. When it holds no project of theirs, their oldest project kept from a broken
+	 * table comes back into it; one this version can't read stays kept, and the next is tried. A table that holds an unreadable
+	 * saved session of theirs restores nothing, since the restored one would replace it on the next save.
+	 */
+	private TableSession openSession(ServerPlayerEntity player) {
+		TableSession session = session(player);
+		UUID id = player.getUuid();
+		if (!session.isEmpty() || !(world instanceof ServerWorld serverWorld)
+				|| unreadableSessions.stream().anyMatch(raw -> id.equals(namedPlayer(raw)))) {
+			return session;
+		}
+		boolean restored = ParkedProjects.of(serverWorld.getServer()).restore(id, saved -> {
+			TableSession project = new TableSession(this, id);
+			try {
+				project.read(saved, serverWorld.getRegistryManager());
+			} catch (RuntimeException corrupt) {
+				TheDreamTableMod.LOGGER.error("Keeping an unreadable kept project of {} unchanged", id, corrupt);
+				return false;
+			}
+			sessions.put(id, project);
+			return true;
+		});
+		if (!restored) {
+			return session;
+		}
+		session = sessions.get(id);
+		session.sync();
+		TableNoticePayload.info(player, session.movedBuild()
+				? Text.translatable("gui.the_dream_table.project_back_build", session.getBuildIndex(), session.totalSteps())
+				: Text.translatable("gui.the_dream_table.project_back"));
+		return session;
+	}
+
 	@Override
 	public OpenData openingData(ServerPlayerEntity player) {
-		TableSession session = session(player);
+		TableSession session = openSession(player);
 		return new OpenData(pos, session.getSelectedFarm(), session.getPage(), DreamTableScreenHandler.phaseOf(session.getPhase()), session.getBuildIndex());
 	}
 
@@ -282,7 +335,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 
 	@Override
 	public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-		TableSession session = session(player);
+		TableSession session = player instanceof ServerPlayerEntity serverPlayer ? openSession(serverPlayer) : session(player);
 		session.markClientDirty();
 		if (player instanceof ServerPlayerEntity serverPlayer) {
 			FarmTemplates.refreshImports(serverPlayer.getServer());

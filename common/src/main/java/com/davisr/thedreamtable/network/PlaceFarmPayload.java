@@ -72,7 +72,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 		if (anchor.getY() < player.getWorld().getBottomY() || anchor.getY() >= player.getWorld().getTopY()) {
 			return false;
 		}
-		return anchor.getSquaredDistance(table) <= (double) FarmGeometry.AIM_RANGE * FarmGeometry.AIM_RANGE;
+		return FarmGeometry.withinReach(table, anchor);
 	}
 
 	@Override

@@ -6,6 +6,7 @@ import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmDismantler;
+import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
@@ -25,6 +26,7 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -59,6 +61,11 @@ public final class TableSession {
 	private int page;
 	private boolean requirementsBoard;
 	private int swapMaterial = -1;
+	/**
+	 * The dimension a started build stands in when it came back from a broken table, until it resumes from this one; null
+	 * for a build this table started. Saved, so the build can't be resumed or taken apart in the wrong world.
+	 */
+	private @Nullable Identifier movedBuildDimension;
 	private boolean clientDirty = true;
 
 	TableSession(DreamTableBlockEntity table, UUID player) {
@@ -153,6 +160,7 @@ public final class TableSession {
 		progress.reset(false);
 		swapMaterial = -1;
 		placement.clear();
+		movedBuildDimension = null;
 		sync();
 	}
 
@@ -524,7 +532,12 @@ public final class TableSession {
 	private void discard(World world, @Nullable PlayerEntity discarder, boolean takeApart) {
 		FarmTemplate template = template();
 		if (takeApart && table.getWorld() instanceof ServerWorld serverWorld && template != null && !progress.is(PHASE_DONE) && progress.index() > 0) {
-			if (!progress.matches(template.signature())) {
+			if (movedBuildDimension != null && !movedBuildHere(serverWorld)) {
+				// A build from a broken table that stands in another world or out of reach is not this table's to take apart.
+				if (discarder instanceof ServerPlayerEntity serverDiscarder) {
+					TableNoticePayload.info(serverDiscarder, Text.translatable("gui.the_dream_table.moved_build_left_standing"));
+				}
+			} else if (!progress.matches(template.signature())) {
 				if (discarder != null) {
 					if (discarder instanceof ServerPlayerEntity serverDiscarder) {
 						TableNoticePayload.problem(serverDiscarder, Text.translatable("gui.the_dream_table.discard_changed"));
@@ -552,12 +565,107 @@ public final class TableSession {
 		desk.reset();
 		swapMaterial = -1;
 		placement.clear();
+		movedBuildDimension = null;
 		sync();
 	}
 
 	void dropMaterials(World world) {
 		desk.returnAll(world, getPos(), null);
 		releaseArea();
+	}
+
+	/**
+	 * The project as it is kept for its player when the table is broken ({@link com.davisr.thedreamtable.farm.ParkedProjects}),
+	 * or null when there is nothing to keep. A started build with a placement is kept paused at its spot, with the dimension
+	 * it stands in. A repair ends like {@link #cancelRepair}, its placed blocks merged into the farm's record. Anything else
+	 * keeps only the farm and what was delivered, since a spot picked from this table may be out of reach of the next one.
+	 * The area is freed and the live session emptied of its items, so nothing is handed out twice.
+	 */
+	@Nullable NbtCompound park(ServerWorld world, RegistryWrapper.WrapperLookup registries) {
+		RepairContext repair = progress.repairContext();
+		ParkKind kind = parkKind(isEmpty(), progress.is(PHASE_DONE), desk.holdsItems(), repair != null, buildInProgress(), placement.placed());
+		if (kind == ParkKind.NOTHING) {
+			releaseArea();
+			return null;
+		}
+		if (repair != null) {
+			FarmAreas.of(world).mergePlacement(repair.farmKey().instanceId(), progress.placedSteps(), progress.paidSteps());
+		}
+		releaseArea();
+		if (kind == ParkKind.BUILD) {
+			if (progress.is(PHASE_BUILDING)) {
+				progress.stop(PHASE_PAUSED);
+			}
+			if (movedBuildDimension == null) {
+				movedBuildDimension = world.getRegistryKey().getValue();
+			}
+		} else {
+			// Materials a repair left for an actor who was away still come back to them, with the same message.
+			String returnNotice = progress.returnNotice();
+			progress.reset(true);
+			progress.setReturnNotice(returnNotice);
+			placement.clear();
+			movedBuildDimension = null;
+		}
+		NbtCompound nbt = new NbtCompound();
+		write(nbt, registries);
+		desk.slots().clear();
+		desk.reset();
+		return nbt;
+	}
+
+	/** What a broken table keeps of a session. */
+	enum ParkKind {
+		NOTHING,
+		/** The started build, paused at its spot. */
+		BUILD,
+		/** The farm and what was delivered, without a spot or build progress. */
+		PROJECT
+	}
+
+	/** An unused session or a finished farm with nothing left delivered is not kept; a repair is never kept as a build. */
+	static ParkKind parkKind(boolean empty, boolean done, boolean holdsItems, boolean repair, boolean buildStarted, boolean placed) {
+		if (empty || done && !holdsItems) {
+			return ParkKind.NOTHING;
+		}
+		return !repair && buildStarted && placed ? ParkKind.BUILD : ParkKind.PROJECT;
+	}
+
+	/** Whether this is a started build that came back from a broken table and has not resumed here yet. */
+	boolean movedBuild() {
+		return movedBuildDimension != null;
+	}
+
+	/** Whether the moved build stands in this table's world and within the reach of this table. */
+	private boolean movedBuildHere(ServerWorld world) {
+		return movedBuildBlocker(world) == null;
+	}
+
+	private @Nullable String movedBuildBlocker(ServerWorld world) {
+		return movedBuildBlocker(world.getRegistryKey().getValue().equals(movedBuildDimension),
+				placement.placed() && FarmGeometry.withinReach(getPos(), placement.anchor()));
+	}
+
+	/**
+	 * Why a build that came back from a broken table can't resume from this one, as a lang key, or null when it can: it stands
+	 * in another world, out of this table's reach, or its spot no longer passes {@link SessionAreas#problemAt}.
+	 */
+	@Nullable String movedBuildProblem(ServerWorld world, ServerPlayerEntity asker, FarmTemplate template) {
+		String blocker = movedBuildBlocker(world);
+		return blocker != null ? blocker : areas.problemAt(world, asker, FarmBuilder.site(this), template);
+	}
+
+	/** Why a moved build can't be worked on from this table, before its spot is checked, as a lang key, or null. */
+	static @Nullable String movedBuildBlocker(boolean sameWorld, boolean withinReach) {
+		if (!sameWorld) {
+			return "gui.the_dream_table.moved_build_other_world";
+		}
+		return withinReach ? null : "gui.the_dream_table.moved_build_too_far";
+	}
+
+	/** The moved build resumed from this table and is now this table's build. */
+	void settleMovedBuild() {
+		movedBuildDimension = null;
 	}
 
 	private void releaseArea() {
@@ -576,6 +684,9 @@ public final class TableSession {
 		desk.write(nbt, registries);
 		progress.write(nbt);
 		placement.write(nbt);
+		if (movedBuildDimension != null) {
+			nbt.putString("MovedBuildDimension", movedBuildDimension.toString());
+		}
 	}
 
 	/** The trimmed copy sent to the owner's client: no slot inventory, no step records, no page, which the menu syncs on its own. */
@@ -602,6 +713,7 @@ public final class TableSession {
 		progress.read(nbt);
 		placement.read(nbt);
 		desk.read(nbt, registries);
+		movedBuildDimension = nbt.contains("MovedBuildDimension", NbtElement.STRING_TYPE) ? Identifier.tryParse(nbt.getString("MovedBuildDimension")) : null;
 	}
 
 	/** The player who started the build, for sessions saved before players had their own. */
