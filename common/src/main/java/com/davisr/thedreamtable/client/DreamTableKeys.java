@@ -34,6 +34,13 @@ public final class DreamTableKeys {
 			"category.the_dream_table"
 	));
 
+	public static final KeyBinding HOLOGRAM = Platform.clientEvents().registerKeyBinding(new KeyBinding(
+			"key.the_dream_table.hologram",
+			InputUtil.Type.KEYSYM,
+			InputUtil.GLFW_KEY_J,
+			"category.the_dream_table"
+	));
+
 	private DreamTableKeys() {
 	}
 
@@ -50,6 +57,9 @@ public final class DreamTableKeys {
 			}
 			while (LAYERS.wasPressed()) {
 				DreamTableHologram.toggleLayers();
+			}
+			while (HOLOGRAM.wasPressed()) {
+				DreamTableHologram.toggleGhosts();
 			}
 			while (MAP.wasPressed()) {
 				MapMode.open(client);

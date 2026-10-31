@@ -56,6 +56,8 @@ public final class DreamTableHologram {
 	/** While building, the hologram shows the layer being built and this many above it, unless all layers are on. */
 	private static final int LAYERS_AHEAD = 1;
 	private static boolean allLayers;
+	/** J hides the farm's blocks, leaving only the outline; kept until pressed again, across tables. */
+	private static boolean ghostsHidden;
 	private static Placement checked;
 	private static String problem = "";
 	private static int existing;
@@ -263,6 +265,16 @@ public final class DreamTableHologram {
 		}
 	}
 
+	/** J switches the farm's blocks off and on; the outline stays, so the spot can be judged on its own. */
+	public static void toggleGhosts() {
+		ghostsHidden = !ghostsHidden;
+		PlayerEntity player = MinecraftClient.getInstance().player;
+		if (player != null) {
+			player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5F, ghostsHidden ? 0.9F : 1.2F);
+			TableNotices.info(Text.translatable(ghostsHidden ? "gui.the_dream_table.hologram_off" : "gui.the_dream_table.hologram_on"));
+		}
+	}
+
 	/** Flips the layer mode, only while a table and farm are being followed: H does nothing without a hologram. */
 	static boolean flipLayers() {
 		if (tablePos == null || farmId.isEmpty()) {
@@ -368,7 +380,7 @@ public final class DreamTableHologram {
 					? PlacementOutline.footprint(template, tablePos, cursor, aimFacing(), previewMirrored) : null;
 			PlacementOutline.Status aimStatus = placement == null ? hoverStatus() : PlacementOutline.Status.CHECKING;
 			GhostRenderer.drawOutline(matrices, aimedFootprint, cursor, aimStatus, camera, forward, wave);
-			if (aimedFootprint != null) {
+			if (aimedFootprint != null && !ghostsHidden) {
 				// The farm itself follows the aim, so turning and mirroring can be judged before the click.
 				GhostRenderer.drawGhosts(matrices, template, table, cursor, aimFacing(), previewMirrored, 0, false, aimStatus == PlacementOutline.Status.REFUSED, Integer.MAX_VALUE, wave);
 			}
@@ -381,7 +393,9 @@ public final class DreamTableHologram {
 				Box footprint = PlacementOutline.footprint(template, tablePos, placement.anchor(), placement.facing(), placement.mirrored());
 				GhostRenderer.drawOutline(matrices, footprint, null, status, camera, forward, wave);
 			}
+			if (!ghostsHidden) {
 			GhostRenderer.drawGhosts(matrices, template, table, placement.anchor(), placement.facing(), placement.mirrored(), shownPlaced, shownBlocked, refused, topLayer, wave);
+		}
 		}
 		matrices.pop();
 	}

@@ -22,7 +22,7 @@ final class MapChecks {
 
 	/**
 	 * Whether a camera at this point would touch solid ground: any block with a collision shape within {@link #CAMERA_MARGIN}
-	 * of it, except leaves and logs, so slabs, stairs and block faces cannot be looked through. Unloaded chunks are solid.
+	 * of it, except leaves, so logs (opaque, which would hide the faces behind them), slabs, stairs and block faces cannot be looked through. Unloaded chunks are solid.
 	 */
 	static boolean solidGround(ClientWorld clientWorld, Vec3d point) {
 		Box camera = new Box(point, point).expand(CAMERA_MARGIN);
@@ -39,7 +39,7 @@ final class MapChecks {
 			return true;
 		}
 		BlockState state = clientWorld.getBlockState(pos);
-		if (state.isIn(BlockTags.LEAVES) || state.isIn(BlockTags.LOGS)) {
+		if (state.isIn(BlockTags.LEAVES)) {
 			return false;
 		}
 		for (Box part : state.getCollisionShape(clientWorld, pos).getBoundingBoxes()) {
