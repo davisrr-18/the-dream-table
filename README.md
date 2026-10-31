@@ -1,6 +1,6 @@
 # The Dream Table
 
-Version `1.1.0` for Minecraft **1.21.1**, on Fabric (with Fabric API) and NeoForge.
+Version `1.1.1` for Minecraft **1.21.1**, on Fabric (with Fabric API) and NeoForge.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets how fast it builds.
 
@@ -93,9 +93,9 @@ A finished farm keeps everything its blocks held in the schematic, like a hopper
 - Fabric: Fabric Loader 0.16 or newer and Fabric API
 - NeoForge: NeoForge 21.1 (the 21.1 series, for Minecraft 1.21.1)
 
-Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides, and the client and the server must run the same version (1.1.0).
+Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides, and the client and the server must run the same version (1.1.1).
 
-Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.1.0. Farms that were shared in 1.0.0 keep their owners, and their collaborators are dropped. 1.0.0 was the first stable release and followed 2.2.0-beta; the lower number is intentional.
+Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.1.1. Farms that were shared in 1.0.0 keep their owners, and their collaborators are dropped. 1.0.0 was the first stable release and followed 2.2.0-beta; the lower number is intentional.
 
 ## Known limitations
 
@@ -116,7 +116,7 @@ From the project root, with Java 21:
 
 The build places one jar per loader in its own folder:
 
-- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-1.1.0.jar`
-- NeoForge: `build/release/neoforge/the_dream_table-neoforge-1.1.0.jar`
+- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-1.1.1.jar`
+- NeoForge: `build/release/neoforge/the_dream_table-neoforge-1.1.1.jar`
 
 The `sources` and `dev-shadow` jars under `fabric/build/libs/` and `neoforge/build/libs/` are for development only.
