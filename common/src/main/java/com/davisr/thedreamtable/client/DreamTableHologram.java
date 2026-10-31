@@ -365,7 +365,8 @@ public final class DreamTableHologram {
 		}
 		BlockPos cursor = idle && !awaitingSession(tableEntity) ? aim(context) : null;
 		hover = cursor == null ? null : new Placement(cursor, aimFacing(), previewMirrored);
-		if (placement == null && cursor == null) {
+		// In map mode the reach is drawn even when the crosshair points past it, so the limit is always in sight.
+		if (placement == null && cursor == null && !mapActive) {
 			return;
 		}
 		Vec3d camera = context.camera().getPos();
