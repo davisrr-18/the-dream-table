@@ -84,23 +84,28 @@ public final class PlacementOutline {
 	}
 
 	/**
-	 * The four sides of the aimed block's cell as flat ribbons lying on the ground, centred on the block's edges so they
-	 * trace exactly where the block's sides are, like an outline drawn over it. Their half width widens with the distance but
-	 * never passes {@code maxHalf}, so far away they stay slim.
+	 * Four L-shaped corner brackets on the aimed block's cell, eight flat ribbons lying on the ground, each arm
+	 * {@link #BRACKET_ARM} long and centred right on the block's edges, so they trace where its sides are. Their half width
+	 * widens with the distance but never passes {@code maxHalf}, so far away they stay slim.
 	 */
-	public static List<Vec3d[]> border(BlockPos anchor, Vec3d camera, Vec3d forward, double near, double halfWidthPerBlock, double maxHalf) {
+	public static List<Vec3d[]> brackets(BlockPos anchor, Vec3d camera, Vec3d forward, double near, double halfWidthPerBlock, double maxHalf) {
 		double y = anchor.getY() + 0.03;
-		double x0 = anchor.getX();
-		double x1 = anchor.getX() + 1.0;
-		double z0 = anchor.getZ();
-		double z1 = anchor.getZ() + 1.0;
-		List<Vec3d[]> sides = new ArrayList<>(4);
-		ribbon(sides, new Vec3d(x0, y, z0), new Vec3d(x1, y, z0), camera, forward, near, halfWidthPerBlock, true, maxHalf);
-		ribbon(sides, new Vec3d(x1, y, z0), new Vec3d(x1, y, z1), camera, forward, near, halfWidthPerBlock, true, maxHalf);
-		ribbon(sides, new Vec3d(x1, y, z1), new Vec3d(x0, y, z1), camera, forward, near, halfWidthPerBlock, true, maxHalf);
-		ribbon(sides, new Vec3d(x0, y, z1), new Vec3d(x0, y, z0), camera, forward, near, halfWidthPerBlock, true, maxHalf);
-		return List.copyOf(sides);
+		List<Vec3d[]> arms = new ArrayList<>(8);
+		for (int dx = 0; dx <= 1; dx++) {
+			for (int dz = 0; dz <= 1; dz++) {
+				double cx = anchor.getX() + dx;
+				double cz = anchor.getZ() + dz;
+				double toX = dx == 0 ? BRACKET_ARM : -BRACKET_ARM;
+				double toZ = dz == 0 ? BRACKET_ARM : -BRACKET_ARM;
+				ribbon(arms, new Vec3d(cx, y, cz), new Vec3d(cx + toX, y, cz), camera, forward, near, halfWidthPerBlock, true, maxHalf);
+				ribbon(arms, new Vec3d(cx, y, cz), new Vec3d(cx, y, cz + toZ), camera, forward, near, halfWidthPerBlock, true, maxHalf);
+			}
+		}
+		return List.copyOf(arms);
 	}
+
+	/** Length of a bracket arm, in blocks. */
+	private static final double BRACKET_ARM = 0.3;
 
 	/**
 	 * A vertical ribbon rising from the middle of the aimed block, turned to the camera, so the spot can be found from far

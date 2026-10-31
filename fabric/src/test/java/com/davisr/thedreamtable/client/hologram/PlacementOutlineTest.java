@@ -102,31 +102,46 @@ class PlacementOutlineTest {
 	}
 
 	@Test
-	void theAimedBlockGetsFourFlatSidesCentredOnItsEdges() {
+	void theAimedBlockGetsEightFlatBracketArmsRightOnItsEdges() {
 		BlockPos anchor = new BlockPos(4, 70, -3);
-		List<Vec3d[]> sides = PlacementOutline.border(anchor, new Vec3d(4.5, 75, 0), new Vec3d(0, -1, 0), 0.1, 0.0104, 0.05);
-		assertEquals(4, sides.size());
-		for (Vec3d[] side : sides) {
-			for (Vec3d corner : side) {
+		List<Vec3d[]> arms = PlacementOutline.brackets(anchor, new Vec3d(4.5, 75, 0), new Vec3d(0, -1, 0), 0.1, 0.0104, 0.05);
+		assertEquals(8, arms.size());
+		for (Vec3d[] arm : arms) {
+			for (Vec3d corner : arm) {
 				assertEquals(70.03, corner.y, 0.001);
 				assertTrue(corner.x > 3.9 && corner.x < 5.1 && corner.z > -3.1 && corner.z < -1.9);
 			}
 		}
-		double reach = 0;
-		for (Vec3d[] side : sides) {
-			for (Vec3d corner : side) {
-				reach = Math.max(reach, Math.max(Math.abs(corner.x - 4.5), Math.abs(corner.z + 2.5)));
+		// Each corner of the block is covered by two arms.
+		for (double x : new double[] {4, 5}) {
+			for (double z : new double[] {-3, -2}) {
+				Vec3d corner = new Vec3d(x, 70.03, z);
+				long covering = arms.stream().filter(arm -> inside(arm, corner)).count();
+				assertTrue(covering >= 2, "corner " + corner);
 			}
 		}
-		assertEquals(0.5, reach, 0.1);
+	}
+
+	private static boolean inside(Vec3d[] ribbon, Vec3d point) {
+		double minX = Double.MAX_VALUE;
+		double maxX = -Double.MAX_VALUE;
+		double minZ = Double.MAX_VALUE;
+		double maxZ = -Double.MAX_VALUE;
+		for (Vec3d corner : ribbon) {
+			minX = Math.min(minX, corner.x);
+			maxX = Math.max(maxX, corner.x);
+			minZ = Math.min(minZ, corner.z);
+			maxZ = Math.max(maxZ, corner.z);
+		}
+		return point.x >= minX && point.x <= maxX && point.z >= minZ && point.z <= maxZ;
 	}
 
 	@Test
-	void theBorderNeverWidensPastItsCap() {
+	void bracketsNeverWidenPastTheirCap() {
 		BlockPos anchor = new BlockPos(0, 64, 0);
-		List<Vec3d[]> sides = PlacementOutline.border(anchor, new Vec3d(0.5, 70, -300), new Vec3d(0, 0, 1), 0.1, 0.0104, 0.05);
-		for (Vec3d[] side : sides) {
-			assertTrue(Math.min(side[0].distanceTo(side[1]), side[1].distanceTo(side[2])) <= 0.1 + 1.0E-6);
+		List<Vec3d[]> arms = PlacementOutline.brackets(anchor, new Vec3d(0.5, 70, -300), new Vec3d(0, 0, 1), 0.1, 0.0104, 0.05);
+		for (Vec3d[] arm : arms) {
+			assertTrue(Math.min(arm[0].distanceTo(arm[1]), arm[1].distanceTo(arm[2])) <= 0.1 + 1.0E-6);
 		}
 	}
 
