@@ -5,8 +5,10 @@ import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.ChunkKeeper;
 import com.davisr.thedreamtable.farm.FarmBuilder;
+import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmAreas;
+import com.davisr.thedreamtable.farm.LayerClear;
 import com.davisr.thedreamtable.farm.alert.FarmAlertType;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -41,6 +43,8 @@ public final class SessionBuild {
 	private boolean ownerAway;
 	/** The design instance last found to match the signature this build started with, so the signature isn't recomputed every tick. */
 	private @Nullable FarmTemplate verified;
+	/** The layer clearing of this build, made on first use and dropped when a build starts from scratch. Not saved. */
+	private @Nullable LayerClear clearing;
 
 	SessionBuild(TableSession session, BuildProgress progress, SessionAreas areas) {
 		this.session = session;
@@ -84,7 +88,7 @@ public final class SessionBuild {
 		int skipped = 0;
 		while (placed < due && skipped < MAX_SKIPS_PER_TICK && progress.is(PHASE_BUILDING)) {
 			FarmBuilder.Outcome outcome = FarmBuilder.placeNext(session, world, placed == 0);
-			if (outcome == FarmBuilder.Outcome.STOPPED) {
+			if (outcome == FarmBuilder.Outcome.STOPPED || outcome == FarmBuilder.Outcome.CLEARING) {
 				break;
 			}
 			if (outcome == FarmBuilder.Outcome.PLACED) {
@@ -248,6 +252,9 @@ public final class SessionBuild {
 		areas.claim(world, template);
 		verified = null;
 		progress.start(session.player(), fromScratch, template.signature());
+		if (fromScratch) {
+			clearing = null;
+		}
 		if (repair != null) {
 			progress.startRepair(repair);
 		}
@@ -446,5 +453,24 @@ public final class SessionBuild {
 	/** Marks the current step as placed by the table, and whether it used a delivered item. */
 	public void recordPlaced(boolean usedItem) {
 		progress.recordPlaced(usedItem);
+	}
+
+	/** The layer clearing of this build's footprint, made on first use. */
+	public LayerClear layerClear(FarmTemplate template, FarmSite site) {
+		if (clearing == null) {
+			clearing = LayerClear.of(template, site);
+		}
+		return clearing;
+	}
+
+	/** Whether the layer was cleared before its first step, or the save predates layer clearing. */
+	public boolean layerCleared(int layer) {
+		return progress.layerCleared(layer);
+	}
+
+	/** Records a layer as cleared once every block of it inside the footprint has been looked at. */
+	public void markLayerCleared(int layer) {
+		progress.markLayerCleared(layer);
+		session.sync();
 	}
 }

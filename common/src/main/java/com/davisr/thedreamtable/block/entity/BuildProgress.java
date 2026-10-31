@@ -21,6 +21,12 @@ import static com.davisr.thedreamtable.block.entity.DreamTableBlockEntity.*;
 final class BuildProgress {
 	private final BitSet placed = new BitSet();
 	private final BitSet paid = new BitSet();
+	/**
+	 * Footprint layers already cleared before their first step, by height above the footprint's lowest block. Null when the
+	 * save has no "ClearedLayers" key (a build from before layer clearing): every layer then counts as cleared, so a build resumed
+	 * from an old save never clears what its player built during a pause.
+	 */
+	private @Nullable BitSet clearedLayers;
 	private String phase = PHASE_IDLE;
 	private int index;
 	private float credit;
@@ -69,6 +75,16 @@ final class BuildProgress {
 
 	BitSet paidSteps() {
 		return (BitSet) paid.clone();
+	}
+
+	boolean layerCleared(int layer) {
+		return clearedLayers == null || clearedLayers.get(layer);
+	}
+
+	void markLayerCleared(int layer) {
+		if (clearedLayers != null) {
+			clearedLayers.set(layer);
+		}
 	}
 
 	long signature() {
@@ -201,6 +217,7 @@ final class BuildProgress {
 			index = 0;
 			placed.clear();
 			paid.clear();
+			clearedLayers = new BitSet();
 			repair = false;
 			repairContext = null;
 			repairInstanceId = null;
@@ -245,6 +262,7 @@ final class BuildProgress {
 		credit = 0;
 		placed.clear();
 		paid.clear();
+		clearedLayers = null;
 		signature = 0;
 		issue = null;
 		repair = false;
@@ -277,6 +295,9 @@ final class BuildProgress {
 		nbt.putLong("FarmSignature", signature);
 		nbt.putLongArray("PlacedSteps", placed.toLongArray());
 		nbt.putLongArray("PaidSteps", paid.toLongArray());
+		if (clearedLayers != null) {
+			nbt.putLongArray("ClearedLayers", clearedLayers.toLongArray());
+		}
 		nbt.putBoolean("Repair", repair);
 		if (repairContext != null) {
 			repairContext.write(nbt);
@@ -320,6 +341,7 @@ final class BuildProgress {
 		placed.or(BitSet.valueOf(nbt.getLongArray("PlacedSteps")));
 		paid.clear();
 		paid.or(BitSet.valueOf(nbt.getLongArray("PaidSteps")));
+		clearedLayers = nbt.contains("ClearedLayers", NbtElement.LONG_ARRAY_TYPE) ? BitSet.valueOf(nbt.getLongArray("ClearedLayers")) : null;
 		if (is(PHASE_DONE) && !nbt.contains("PlacedSteps", NbtElement.LONG_ARRAY_TYPE)) {
 			// Finished by a version that didn't record steps: its farm is taken down as a whole, like before.
 			placed.set(0, index);

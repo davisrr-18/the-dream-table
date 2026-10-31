@@ -21,11 +21,13 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldEvents;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Set;
 
 /** What the builder may remove from a farm spot, and how it removes it. */
 final class ObstacleRules {
+	private static final int FLAGS = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
 	private static final Set<Block> KEEP = Set.of(
 			Blocks.BUDDING_AMETHYST, Blocks.REINFORCED_DEEPSLATE, Blocks.DRAGON_EGG,
 			Blocks.TURTLE_EGG, Blocks.SNIFFER_EGG, Blocks.FROGSPAWN,
@@ -53,6 +55,40 @@ final class ObstacleRules {
 			return false;
 		}
 		return !(block instanceof AbstractRailBlock);
+	}
+
+	/**
+	 * Whether a layer clear removes this block. Air has nothing to remove, and a step cell is left to the step path, which
+	 * decides it when its turn comes. Fluids and plants are removed too, so a pond or grass inside the area goes with the rest.
+	 */
+	static boolean clearableInLayer(BlockView world, BlockPos tablePos, BlockPos pos, BlockState state, boolean stepCell) {
+		return !stepCell && !state.isAir() && clearable(world, tablePos, pos, state);
+	}
+
+	/**
+	 * Removes blocks a layer clear chose, with no drops and no neighbor updates (the caller settles them in one pass). The other
+	 * half of a double block goes too, when it is given. Only the break effect is shown, and only for solid blocks, as afterReplace does.
+	 */
+	static void removeWithoutDrops(ServerWorld world, BlockPos pos, BlockState state, @Nullable BlockPos partner) {
+		world.setBlockState(pos, Blocks.AIR.getDefaultState(), FLAGS);
+		if (partner != null) {
+			world.setBlockState(partner, Blocks.AIR.getDefaultState(), FLAGS);
+		}
+		if (!state.isReplaceable()) {
+			world.syncWorldEvent(WorldEvents.BLOCK_BROKEN, pos, Block.getRawIdFromState(state));
+		}
+	}
+
+	/**
+	 * The other half of a door, tall plant or similar double block, when it really is paired with this one; null for a single block
+	 * or a lone half whose other half is gone. Its own cell is checked like any other before both are removed.
+	 */
+	static @Nullable BlockPos partnerOf(BlockView world, BlockPos pos, BlockState state) {
+		if (!state.contains(Properties.DOUBLE_BLOCK_HALF)) {
+			return null;
+		}
+		BlockPos other = state.get(Properties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER ? pos.down() : pos.up();
+		return isOtherHalf(state, world.getBlockState(other)) ? other : null;
 	}
 
 	/**

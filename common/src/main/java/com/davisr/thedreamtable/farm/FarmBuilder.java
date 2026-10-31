@@ -31,9 +31,12 @@ public final class FarmBuilder {
 	private FarmBuilder() {
 	}
 
-	/** What one call did: placed a block or spawned an entity, skipped a block already in place, or stopped. */
+	/**
+	 * What one call did: placed a block or spawned an entity, skipped a block already in place, or stopped. CLEARING means the
+	 * layer of the next step is still being cleared (its cells for this tick are spent, or a chunk is loading); the step waits for a later tick.
+	 */
 	public enum Outcome {
-		PLACED, SKIPPED, STOPPED
+		PLACED, SKIPPED, STOPPED, CLEARING
 	}
 
 	/**
@@ -139,6 +142,10 @@ public final class FarmBuilder {
 			table.build().waitingFor(world, target);
 			return Outcome.STOPPED;
 		}
+		Outcome clearing = LayerClearer.clearFirst(table, world, owner, template, site, target);
+		if (clearing != null) {
+			return clearing;
+		}
 		BlockState placed = placedState(table, site, step);
 		BlockState existing = placed == null ? null : world.getBlockState(target);
 
@@ -207,7 +214,7 @@ public final class FarmBuilder {
 	}
 
 	/** Blocks inside another table's farm, or another player's, belong to that farm and are never cleared. */
-	private static boolean insideOtherFarm(ServerWorld world, TableSession table, BlockPos target) {
+	static boolean insideOtherFarm(ServerWorld world, TableSession table, BlockPos target) {
 		RepairContext repair = table.build().repairContext();
 		return FarmAreas.of(world).reservedByOther(world, FarmAreas.Key.build(table.getPos(), table.getOwner()), target,
 				repair == null ? null : repair.farmKey().instanceId());
