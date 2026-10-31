@@ -8,6 +8,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Vec3d;
 
@@ -16,17 +17,37 @@ final class MapChecks {
 	private MapChecks() {
 	}
 
+	/** How far the camera keeps from any solid shape, so the near plane never reaches inside a block. */
+	private static final double CAMERA_MARGIN = 0.3;
+
 	/**
-	 * Whether the camera may not enter this point: the cell holding it is a full cube of ground, except leaves and logs, so the
-	 * camera can still fly through trees. A cell in a chunk the client does not hold counts as solid, as its blocks are unknown.
+	 * Whether a camera at this point would touch solid ground: any block with a collision shape within {@link #CAMERA_MARGIN}
+	 * of it, except leaves and logs, so slabs, stairs and block faces cannot be looked through. Unloaded chunks are solid.
 	 */
 	static boolean solidGround(ClientWorld clientWorld, Vec3d point) {
-		BlockPos pos = BlockPos.ofFloored(point.x, point.y, point.z);
+		Box camera = new Box(point, point).expand(CAMERA_MARGIN);
+		for (BlockPos pos : BlockPos.iterate(BlockPos.ofFloored(camera.minX, camera.minY, camera.minZ), BlockPos.ofFloored(camera.maxX, camera.maxY, camera.maxZ))) {
+			if (blocks(clientWorld, pos, camera)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean blocks(ClientWorld clientWorld, BlockPos pos, Box camera) {
 		if (!chunkLoaded(clientWorld, ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()))) {
 			return true;
 		}
 		BlockState state = clientWorld.getBlockState(pos);
-		return state.isFullCube(clientWorld, pos) && !state.isIn(BlockTags.LEAVES) && !state.isIn(BlockTags.LOGS);
+		if (state.isIn(BlockTags.LEAVES) || state.isIn(BlockTags.LOGS)) {
+			return false;
+		}
+		for (Box part : state.getCollisionShape(clientWorld, pos).getBoundingBoxes()) {
+			if (part.offset(pos).intersects(camera)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Whether the table is still a table, in a chunk the client holds. */
