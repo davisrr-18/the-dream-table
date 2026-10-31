@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.client;
 
+import com.davisr.thedreamtable.client.map.MapMode;
 import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
@@ -26,6 +27,13 @@ public final class DreamTableKeys {
 			"category.the_dream_table"
 	));
 
+	public static final KeyBinding MAP = Platform.clientEvents().registerKeyBinding(new KeyBinding(
+			"key.the_dream_table.map",
+			InputUtil.Type.KEYSYM,
+			InputUtil.GLFW_KEY_G,
+			"category.the_dream_table"
+	));
+
 	private DreamTableKeys() {
 	}
 
@@ -43,6 +51,11 @@ public final class DreamTableKeys {
 			while (LAYERS.wasPressed()) {
 				DreamTableHologram.toggleLayers();
 			}
+			while (MAP.wasPressed()) {
+				MapMode.open(client);
+			}
 		});
+		// Separate from the listener above, which skips ticks while a screen is open; the map runs its own tick.
+		Platform.clientEvents().onTickEnd(MapMode::tick);
 	}
 }

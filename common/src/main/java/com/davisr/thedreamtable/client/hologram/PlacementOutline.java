@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.client.hologram;
 
+import com.davisr.thedreamtable.client.map.MapGround;
 import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import net.minecraft.util.math.BlockPos;
@@ -9,6 +10,7 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntBinaryOperator;
 
 /**
  * The outline drawn around a farm spot while the player aims it: its colour says whether the server accepted the spot,
@@ -82,6 +84,58 @@ public final class PlacementOutline {
 		}
 		return List.copyOf(ribbons);
 	}
+
+	/**
+	 * The edge of the area a farm can reach from the table, as a closed loop lying on the ground. For each of {@code points}
+	 * directions the march goes out from the table until a column has no ground or falls outside the reach, so terrain that
+	 * rises or drops shortens the loop where it bends the sphere. {@code anchorYAt} gives a column's anchor Y, or
+	 * {@link Integer#MIN_VALUE} for none. The table's own column is skipped, since no anchor can be there.
+	 */
+	public static List<Vec3d> rangeLoop(BlockPos table, int range, int points, IntBinaryOperator anchorYAt) {
+		List<Vec3d> loop = new ArrayList<>(points);
+		for (int i = 0; i < points; i++) {
+			loop.add(rangeEdge(table, range, 2 * Math.PI * i / points, anchorYAt));
+		}
+		return List.copyOf(loop);
+	}
+
+	private static Vec3d rangeEdge(BlockPos table, int range, double angle, IntBinaryOperator anchorYAt) {
+		double centreX = table.getX() + 0.5;
+		double centreZ = table.getZ() + 0.5;
+		double cos = Math.cos(angle);
+		double sin = Math.sin(angle);
+		Vec3d edge = new Vec3d(centreX, table.getY() + LOOP_LIFT, centreZ);
+		for (double r = 0; r <= range; r += LOOP_STEP) {
+			int x = (int) Math.floor(centreX + r * cos);
+			int z = (int) Math.floor(centreZ + r * sin);
+			if (x == table.getX() && z == table.getZ()) {
+				continue;
+			}
+			int anchorY = anchorYAt.applyAsInt(x, z);
+			if (anchorY == Integer.MIN_VALUE || !MapGround.inRange(new BlockPos(x, anchorY, z), table, range)) {
+				break;
+			}
+			edge = new Vec3d(centreX + r * cos, anchorY + LOOP_LIFT, centreZ + r * sin);
+		}
+		return edge;
+	}
+
+	/**
+	 * Flat ribbons along a loop from {@link #rangeLoop}, one per side, the last point joined back to the first, so the edge reads
+	 * as one closed line on the ground. Sides wholly behind the camera are dropped.
+	 */
+	public static List<Vec3d[]> loopRibbons(List<Vec3d> loop, Vec3d camera, Vec3d forward, double near, double halfWidthPerBlock, double maxHalf) {
+		List<Vec3d[]> ribbons = new ArrayList<>(loop.size());
+		for (int i = 0; i < loop.size(); i++) {
+			ribbon(ribbons, loop.get(i), loop.get((i + 1) % loop.size()), camera, forward, near, halfWidthPerBlock, true, maxHalf);
+		}
+		return List.copyOf(ribbons);
+	}
+
+	/** Horizontal step of the range march, in blocks. */
+	private static final double LOOP_STEP = 0.5;
+	/** Lifts the range loop just above the ground it lies on. */
+	private static final double LOOP_LIFT = 0.05;
 
 	/**
 	 * Four L-shaped corner brackets on the aimed block's cell, eight flat ribbons lying on the ground, each arm
