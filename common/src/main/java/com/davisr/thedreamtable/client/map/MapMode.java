@@ -28,6 +28,8 @@ public final class MapMode {
 	/** Blocks per tick of held movement, about 10 a second. Ctrl multiplies it by {@link #SPRINT_FACTOR}. */
 	private static final double MOVE_PER_TICK = 0.5;
 	private static final double SPRINT_FACTOR = 3.0;
+	/** How fast the movement eases in and out: about two thirds of the way in this many ticks, near full in a quarter second. */
+	private static final double EASE_TICKS = 1.5;
 	/** A frame longer than this many ticks (100 ms) is cut short, so a stall does not throw the camera across the reach. */
 	private static final double MAX_FRAME_TICKS = 2.0;
 	private static final double BLOCKS_PER_NOTCH = 3.0;
@@ -40,6 +42,11 @@ public final class MapMode {
 	private static MapCamera view;
 	private static MapCameraEntity camera;
 	private static int limitCooldown;
+	/** The movement as it eases toward the held keys, so the camera speeds up and slows down instead of jumping. */
+	private static double easedForward;
+	private static double easedStrafe;
+	private static double easedVertical;
+	private static double easedSpeed;
 
 	private MapMode() {
 	}
@@ -105,6 +112,10 @@ public final class MapMode {
 		camera = new MapCameraEntity(clientWorld, player.getStandingEyeHeight());
 		camera.place(view);
 		limitCooldown = 0;
+		easedForward = 0.0;
+		easedStrafe = 0.0;
+		easedVertical = 0.0;
+		easedSpeed = 1.0;
 		active = true;
 		client.setCameraEntity(camera);
 		// The first-person hand would be drawn from the free camera, so it is off while the mode is open.
@@ -139,9 +150,15 @@ public final class MapMode {
 			return;
 		}
 		double ticks = Math.min(Math.max(frameTicks, 0.0), MAX_FRAME_TICKS);
-		double speed = MOVE_PER_TICK * ticks * (held.fast() ? SPRINT_FACTOR : 1.0);
+		// Each frame closes the same share of the gap per tick, whatever the frame rate.
+		double ease = 1.0 - Math.exp(-ticks / EASE_TICKS);
+		easedForward += (held.forward() - easedForward) * ease;
+		easedStrafe += (held.strafe() - easedStrafe) * ease;
+		easedVertical += (held.vertical() - easedVertical) * ease;
+		easedSpeed += ((held.fast() ? SPRINT_FACTOR : 1.0) - easedSpeed) * ease;
+		double speed = MOVE_PER_TICK * ticks * easedSpeed;
 		Vec3d before = view.position();
-		view.move(held.forward(), held.strafe(), held.vertical(), speed, blocked(), floorY());
+		view.move(easedForward, easedStrafe, easedVertical, speed, blocked(), floorY());
 		settle(before);
 	}
 

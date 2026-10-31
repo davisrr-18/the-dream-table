@@ -73,4 +73,42 @@ class MapGroundTest {
 	void theTableCellIsNeverInReach() {
 		assertFalse(MapGround.inRange(TABLE, TABLE, RANGE));
 	}
+
+	@Test
+	void onFlatGroundTheEdgeIsTheRingOfLastColumnsInReach() {
+		List<BlockPos> edge = MapGround.rangeEdge(TABLE, RANGE, (x, z) -> TABLE.getY());
+		assertFalse(edge.isEmpty());
+		for (BlockPos ground : edge) {
+			assertEquals(TABLE.getY() - 1, ground.getY());
+			double distance = Math.sqrt((double) ground.getX() * ground.getX() + (double) ground.getZ() * ground.getZ());
+			assertTrue(distance <= RANGE && distance > RANGE - 2, "edge column at " + distance);
+		}
+		assertTrue(edge.contains(new BlockPos(RANGE, TABLE.getY() - 1, 0)));
+		assertTrue(edge.contains(new BlockPos(0, TABLE.getY() - 1, -RANGE)));
+	}
+
+	@Test
+	void theTableColumnDoesNotRingItself() {
+		List<BlockPos> edge = MapGround.rangeEdge(TABLE, RANGE, (x, z) -> x == 0 && z == 0 ? Integer.MIN_VALUE : TABLE.getY());
+		assertFalse(edge.contains(new BlockPos(1, TABLE.getY() - 1, 0)));
+		assertFalse(edge.contains(new BlockPos(0, TABLE.getY() - 1, 1)));
+	}
+
+	@Test
+	void aHoleWithoutGroundGetsAnEdgeAroundIt() {
+		List<BlockPos> edge = MapGround.rangeEdge(TABLE, RANGE, (x, z) -> x == 10 && z == 10 ? Integer.MIN_VALUE : TABLE.getY());
+		assertTrue(edge.contains(new BlockPos(9, TABLE.getY() - 1, 10)));
+		assertTrue(edge.contains(new BlockPos(10, TABLE.getY() - 1, 11)));
+	}
+
+	@Test
+	void higherGroundBringsTheEdgeCloserAsTheSphereBends() {
+		int high = TABLE.getY() + 30;
+		List<BlockPos> edge = MapGround.rangeEdge(TABLE, RANGE, (x, z) -> high);
+		double reach = Math.sqrt((double) RANGE * RANGE - 30.0 * 30.0);
+		for (BlockPos ground : edge) {
+			double distance = Math.sqrt((double) ground.getX() * ground.getX() + (double) ground.getZ() * ground.getZ());
+			assertTrue(distance <= reach && distance > reach - 2, "edge column at " + distance);
+		}
+	}
 }

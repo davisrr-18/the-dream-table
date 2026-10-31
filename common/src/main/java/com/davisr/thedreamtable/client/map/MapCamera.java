@@ -38,15 +38,16 @@ public final class MapCamera {
 	}
 
 	/**
-	 * Moves by the input axes: forward and strafe (positive to the right) follow the horizontal yaw, vertical is world Y. The
-	 * axes are normalized together, so a diagonal is no faster than a straight move; {@code speed} is blocks per call.
+	 * Moves by the input axes: forward and strafe (positive to the right) follow the horizontal yaw, vertical is world Y. Axes
+	 * longer than one together are scaled down to one, so a diagonal is no faster than a straight move, while shorter ones
+	 * (a move easing in or out) move less; {@code speed} is blocks per call at full input.
 	 */
 	public void move(double forward, double strafe, double vertical, double speed, Predicate<Vec3d> blocked, double floorY) {
 		double length = Math.sqrt(forward * forward + strafe * strafe + vertical * vertical);
 		if (length == 0.0) {
 			return;
 		}
-		double scale = speed / length;
+		double scale = speed / Math.max(1.0, length);
 		sweep(horizontalForward().multiply(forward * scale).add(right().multiply(strafe * scale)).add(0.0, vertical * scale, 0.0),
 				blocked, floorY);
 	}

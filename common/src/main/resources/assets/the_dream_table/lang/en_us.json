@@ -111,6 +111,7 @@
 	"gui.the_dream_table.layers_current": "Hologram: next layers only",
 	"key.the_dream_table.hologram": "Show or Hide Hologram",
 	"gui.the_dream_table.hologram_on": "Hologram: shown",
+	"gui.the_dream_table.hologram_marker": "Hologram: hidden, aimed block only",
 	"gui.the_dream_table.hologram_off": "Hologram: hidden, outline only",
 	"key.the_dream_table.map": "Map Placement Mode",
 	"gui.the_dream_table.map_title": "Map placement",
