@@ -94,6 +94,12 @@ public final class GhostRenderer {
 	 * aimed block marked with L-shaped corner brackets on its edges and a short fading beam above it when the player is still aiming (a null footprint draws only that mark). Ribbons keep one width on screen, so the frame reads the same near and far.
 	 */
 	public static void drawOutline(MatrixStack matrices, Box footprint, BlockPos anchor, PlacementOutline.Status status, Vec3d camera, Vec3d forward, float wave) {
+		drawOutline(matrices, footprint, anchor, status, camera, forward, wave, true);
+	}
+
+	/** As above; without {@code floor} the footprint is only its frame, with no translucent floor over the ground. */
+	public static void drawOutline(MatrixStack matrices, Box footprint, BlockPos anchor, PlacementOutline.Status status, Vec3d camera, Vec3d forward, float wave,
+			boolean floor) {
 		float[] rgb = status.rgb();
 		// The frame is drawn as ribbons that face the camera and widen with distance, so it keeps one width on screen
 		// and never splits or stretches; the aimed block gets corner brackets and a short beam that fades upward, and only the floor and the beam are translucent.
@@ -106,9 +112,11 @@ public final class GhostRenderer {
 			BufferBuilder frame = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 			emit(frame, matrix, PlacementOutline.ribbons(footprint.expand(OUTLINE_GROW), camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH), rgb);
 			drawPass(frame, false);
-			BufferBuilder floor = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-			fill(matrices, floor, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
-			drawPass(floor, true);
+			if (floor) {
+				BufferBuilder ground = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+				fill(matrices, ground, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
+				drawPass(ground, true);
+			}
 		}
 		if (anchor != null) {
 			// The block's corners are bracketed right on its edges, and a beam fading upward finds the spot from far away.
@@ -130,11 +138,11 @@ public final class GhostRenderer {
 	}
 
 	/**
-	 * The map's reach: each ground block on its edge gets L brackets on all its corners, so the limit reads from any side. Blocks
-	 * behind the camera are skipped.
+	 * The map's reach: each ground block on its edge gets L brackets on all its corners, so the limit reads from any side. They
+	 * are drawn over the terrain, so no block hides them. Blocks behind the camera are skipped.
 	 */
 	public static void drawEdge(MatrixStack matrices, List<BlockPos> edge, Vec3d camera, Vec3d forward) {
-		RenderSystem.enableDepthTest();
+		RenderSystem.disableDepthTest();
 		RenderSystem.disableCull();
 		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 		Matrix4f matrix = matrices.peek().getPositionMatrix();
@@ -149,6 +157,7 @@ public final class GhostRenderer {
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
 		RenderSystem.disableBlend();
+		RenderSystem.enableDepthTest();
 	}
 
 	/** Draws one finished buffer, solid (no blending, writes depth) or translucent (blended, no depth write). */

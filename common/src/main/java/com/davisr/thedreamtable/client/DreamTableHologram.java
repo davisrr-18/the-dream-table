@@ -384,7 +384,8 @@ public final class DreamTableHologram {
 			Box aimedFootprint = placement == null && !template.steps().isEmpty() && hiddenLevel < 2
 					? PlacementOutline.footprint(template, tablePos, cursor, aimFacing(), previewMirrored) : null;
 			PlacementOutline.Status aimStatus = placement == null ? hoverStatus() : PlacementOutline.Status.CHECKING;
-			GhostRenderer.drawOutline(matrices, aimedFootprint, cursor, aimStatus, camera, forward, wave);
+			// With the farm's blocks hidden (J once), the frame keeps no floor, so the aimed block's marker in it reads clearly.
+			GhostRenderer.drawOutline(matrices, aimedFootprint, cursor, aimStatus, camera, forward, wave, hiddenLevel == 0);
 			if (aimedFootprint != null && hiddenLevel == 0) {
 				// The farm itself follows the aim, so turning and mirroring can be judged before the click.
 				GhostRenderer.drawGhosts(matrices, template, table, cursor, aimFacing(), previewMirrored, 0, false, aimStatus == PlacementOutline.Status.REFUSED, Integer.MAX_VALUE, wave);
@@ -397,7 +398,7 @@ public final class DreamTableHologram {
 				PlacementOutline.Status status = checkedNow() ? PlacementOutline.status(true, placementProblem()) : PlacementOutline.Status.CHECKING;
 				if (hiddenLevel < 2) {
 					Box footprint = PlacementOutline.footprint(template, tablePos, placement.anchor(), placement.facing(), placement.mirrored());
-					GhostRenderer.drawOutline(matrices, footprint, null, status, camera, forward, wave);
+					GhostRenderer.drawOutline(matrices, footprint, hiddenLevel == 0 ? null : placement.anchor(), status, camera, forward, wave, hiddenLevel == 0);
 				} else {
 					GhostRenderer.drawOutline(matrices, null, placement.anchor(), status, camera, forward, wave);
 				}
