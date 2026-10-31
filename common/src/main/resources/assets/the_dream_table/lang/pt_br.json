@@ -111,6 +111,7 @@
 	"gui.the_dream_table.layers_current": "Holograma: só as próximas camadas",
 	"key.the_dream_table.hologram": "Mostrar ou Ocultar Holograma",
 	"gui.the_dream_table.hologram_on": "Holograma: visível",
+	"gui.the_dream_table.hologram_marker": "Holograma: oculto, só o bloco mirado",
 	"gui.the_dream_table.hologram_off": "Holograma: oculto, só o contorno",
 	"key.the_dream_table.map": "Modo Mapa de Posicionamento",
 	"gui.the_dream_table.map_title": "Posicionamento no mapa",

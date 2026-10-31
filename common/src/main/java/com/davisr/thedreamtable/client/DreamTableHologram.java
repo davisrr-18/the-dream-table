@@ -56,8 +56,11 @@ public final class DreamTableHologram {
 	/** While building, the hologram shows the layer being built and this many above it, unless all layers are on. */
 	private static final int LAYERS_AHEAD = 1;
 	private static boolean allLayers;
-	/** J hides the farm's blocks, leaving only the outline; kept until pressed again, across tables. */
-	private static boolean ghostsHidden;
+	/**
+	 * What J leaves of the hologram, kept across tables: 0 everything, 1 the outline without the farm's blocks, 2 only the
+	 * aimed block's marker.
+	 */
+	private static int hiddenLevel;
 	private static Placement checked;
 	private static String problem = "";
 	private static int existing;
@@ -71,7 +74,7 @@ public final class DreamTableHologram {
 	private static boolean mapActive;
 	private static BlockPos mapCursor;
 	/** The range circle of the map, and the world time it was built at: it follows the terrain, so it is rebuilt now and then, not per frame. */
-	private static List<Vec3d> mapLoop = List.of();
+	private static List<BlockPos> mapEdge = List.of();
 	private static long mapLoopTime = Long.MIN_VALUE;
 	private static final int MAP_LOOP_TICKS = 100;
 	/** Long enough to reach past the table's whole aim range from any point the map camera can take. */
@@ -121,7 +124,7 @@ public final class DreamTableHologram {
 	public static void setMapActive(boolean active) {
 		mapActive = active;
 		mapCursor = null;
-		mapLoop = List.of();
+		mapEdge = List.of();
 		mapLoopTime = Long.MIN_VALUE;
 	}
 
@@ -265,13 +268,14 @@ public final class DreamTableHologram {
 		}
 	}
 
-	/** J switches the farm's blocks off and on; the outline stays, so the spot can be judged on its own. */
+	/** J steps through the hologram: the whole hologram, then the outline only, then only the aimed block's marker, then back. */
 	public static void toggleGhosts() {
-		ghostsHidden = !ghostsHidden;
+		hiddenLevel = (hiddenLevel + 1) % 3;
 		PlayerEntity player = MinecraftClient.getInstance().player;
 		if (player != null) {
-			player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5F, ghostsHidden ? 0.9F : 1.2F);
-			TableNotices.info(Text.translatable(ghostsHidden ? "gui.the_dream_table.hologram_off" : "gui.the_dream_table.hologram_on"));
+			player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5F, 1.2F - 0.15F * hiddenLevel);
+			String[] notices = {"gui.the_dream_table.hologram_on", "gui.the_dream_table.hologram_off", "gui.the_dream_table.hologram_marker"};
+			TableNotices.info(Text.translatable(notices[hiddenLevel]));
 		}
 	}
 
@@ -371,16 +375,16 @@ public final class DreamTableHologram {
 		float wave = (float) (0.5 + 0.5 * Math.sin(context.world().getTime() * 0.3));
 		matrices.push();
 		matrices.translate(-camera.x, -camera.y, -camera.z);
-		if (mapActive && !mapLoop.isEmpty()) {
-			GhostRenderer.drawLoop(matrices, mapLoop, camera, forward);
+		if (mapActive && !mapEdge.isEmpty()) {
+			GhostRenderer.drawEdge(matrices, mapEdge, wave);
 		}
 		if (cursor != null && (placement == null || !cursor.equals(placement.anchor()))) {
 			// Once a spot is placed the aim is only a marker; its own outline would need checks the placed spot is using.
-			Box aimedFootprint = placement == null && !template.steps().isEmpty()
+			Box aimedFootprint = placement == null && !template.steps().isEmpty() && hiddenLevel < 2
 					? PlacementOutline.footprint(template, tablePos, cursor, aimFacing(), previewMirrored) : null;
 			PlacementOutline.Status aimStatus = placement == null ? hoverStatus() : PlacementOutline.Status.CHECKING;
 			GhostRenderer.drawOutline(matrices, aimedFootprint, cursor, aimStatus, camera, forward, wave);
-			if (aimedFootprint != null && !ghostsHidden) {
+			if (aimedFootprint != null && hiddenLevel == 0) {
 				// The farm itself follows the aim, so turning and mirroring can be judged before the click.
 				GhostRenderer.drawGhosts(matrices, template, table, cursor, aimFacing(), previewMirrored, 0, false, aimStatus == PlacementOutline.Status.REFUSED, Integer.MAX_VALUE, wave);
 			}
@@ -390,12 +394,16 @@ public final class DreamTableHologram {
 			int topLayer = topLayer(template, shownPlaced, idle);
 			if (idle && !template.steps().isEmpty()) {
 				PlacementOutline.Status status = checkedNow() ? PlacementOutline.status(true, placementProblem()) : PlacementOutline.Status.CHECKING;
-				Box footprint = PlacementOutline.footprint(template, tablePos, placement.anchor(), placement.facing(), placement.mirrored());
-				GhostRenderer.drawOutline(matrices, footprint, null, status, camera, forward, wave);
+				if (hiddenLevel < 2) {
+					Box footprint = PlacementOutline.footprint(template, tablePos, placement.anchor(), placement.facing(), placement.mirrored());
+					GhostRenderer.drawOutline(matrices, footprint, null, status, camera, forward, wave);
+				} else {
+					GhostRenderer.drawOutline(matrices, null, placement.anchor(), status, camera, forward, wave);
+				}
 			}
-			if (!ghostsHidden) {
-			GhostRenderer.drawGhosts(matrices, template, table, placement.anchor(), placement.facing(), placement.mirrored(), shownPlaced, shownBlocked, refused, topLayer, wave);
-		}
+			if (hiddenLevel == 0) {
+				GhostRenderer.drawGhosts(matrices, template, table, placement.anchor(), placement.facing(), placement.mirrored(), shownPlaced, shownBlocked, refused, topLayer, wave);
+			}
 		}
 		matrices.pop();
 	}
@@ -515,7 +523,7 @@ public final class DreamTableHologram {
 		mapCursor = mapAim(context.world(), MinecraftClient.getInstance());
 		long now = context.world().getTime();
 		if (mapLoopTime == Long.MIN_VALUE || now - mapLoopTime >= MAP_LOOP_TICKS || now < mapLoopTime) {
-			mapLoop = MapTerrain.rangeLoop(context.world(), tablePos);
+			mapEdge = MapTerrain.rangeEdge(context.world(), tablePos);
 			mapLoopTime = now;
 		}
 	}

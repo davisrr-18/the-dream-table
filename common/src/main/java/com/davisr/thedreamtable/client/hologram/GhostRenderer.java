@@ -63,10 +63,9 @@ public final class GhostRenderer {
 	private static final double BEAM_WIDTH_FACTOR = 1.5;
 	private static final double BEAM_MAX_HALF = 0.04;
 	private static final double BEAM_HEIGHT = 1.5;
-	/** The map's range circle: width as a multiple of the frame's, the most it widens in blocks, and its colour. */
-	private static final double LOOP_WIDTH_FACTOR = 2.0;
-	private static final double LOOP_MAX_HALF = 0.25;
-	private static final float[] LOOP_RGB = {0.55F, 0.85F, 1.0F};
+	/** The glow on the map's edge blocks: how far it sits outside them, and its colour. */
+	private static final double EDGE_GROW = 0.004;
+	private static final float[] EDGE_RGB = {0.55F, 0.85F, 1.0F};
 	/** The frame sits this far outside the footprint so the ghost blocks never hide it. */
 	private static final double OUTLINE_GROW = 0.01;
 	private static final Matrix4f IDENTITY = new Matrix4f();
@@ -131,14 +130,16 @@ public final class GhostRenderer {
 		RenderSystem.disableBlend();
 	}
 
-	/** The map's range circle: a closed ring lying on the terrain, wide enough to read from high above. */
-	public static void drawLoop(MatrixStack matrices, List<Vec3d> loop, Vec3d camera, Vec3d forward) {
+	/** The map's reach: the ground blocks on its edge glow, pulsing, so the limit reads on any terrain. */
+	public static void drawEdge(MatrixStack matrices, List<BlockPos> edge, float wave) {
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
 		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-		BufferBuilder ring = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-		emit(ring, matrices.peek().getPositionMatrix(), PlacementOutline.loopRibbons(loop, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * LOOP_WIDTH_FACTOR, LOOP_MAX_HALF), LOOP_RGB);
-		drawPass(ring, false);
+		BufferBuilder glow = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+		for (BlockPos pos : edge) {
+			fill(matrices, glow, new Box(pos).expand(EDGE_GROW), EDGE_RGB, 0.25F + 0.2F * wave);
+		}
+		drawPass(glow, true);
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
 		RenderSystem.disableBlend();

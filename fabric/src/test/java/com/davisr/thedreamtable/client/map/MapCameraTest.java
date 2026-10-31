@@ -213,4 +213,11 @@ class MapCameraTest {
 		camera.moveTo(ORIGIN);
 		assertVec(ORIGIN, camera.position());
 	}
+
+	@Test
+	void aPartialInputMovesOnlyThatShare() {
+		MapCamera camera = new MapCamera(ORIGIN, 0, 0);
+		camera.move(0.5, 0, 0, 2, OPEN, NO_FLOOR);
+		assertEquals(1.0, camera.position().length(), DELTA);
+	}
 }

@@ -1,14 +1,13 @@
 package com.davisr.thedreamtable.client.map;
 
 import com.davisr.thedreamtable.block.DreamTableBlock;
-import com.davisr.thedreamtable.client.hologram.PlacementOutline;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.FluidBlock;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.Heightmap;
 
 import java.util.HashMap;
 import java.util.List;
@@ -20,30 +19,27 @@ import java.util.OptionalInt;
  */
 public final class MapTerrain {
 	private static final int RANGE = FarmGeometry.AIM_RANGE;
-	private static final int LOOP_POINTS = 128;
 
 	private MapTerrain() {
 	}
 
-	/**
-	 * The closed loop where the range reaches, following the terrain. Each column is scanned once per build: the ring's rays
-	 * cross the same columns many times, and a column's anchor is the same every time.
-	 */
-	public static List<Vec3d> rangeLoop(ClientWorld world, BlockPos table) {
+	/** The ground blocks on the edge of the table's reach, which glow in map mode. Each column is scanned once per build. */
+	public static List<BlockPos> rangeEdge(ClientWorld world, BlockPos table) {
 		Map<Long, Integer> columns = new HashMap<>();
-		return PlacementOutline.rangeLoop(table, RANGE, LOOP_POINTS,
+		return MapGround.rangeEdge(table, RANGE,
 				(x, z) -> columns.computeIfAbsent(BlockPos.asLong(x, 0, z), key -> anchorY(world, table, x, z)));
 	}
 
 	/**
-	 * The column's anchor Y, or {@link Integer#MIN_VALUE} for none. The scan starts at the top of the reach rather than at the
-	 * client's heightmap: that is only what the client last received, so a block placed above it would be missed.
+	 * The column's anchor Y, or {@link Integer#MIN_VALUE} for none.
 	 */
 	private static int anchorY(ClientWorld world, BlockPos table, int x, int z) {
 		if (!world.getChunkManager().isChunkLoaded(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z))) {
 			return Integer.MIN_VALUE;
 		}
-		OptionalInt y = MapGround.anchorY(probe(world), x, z, table.getY() - RANGE, table.getY() + RANGE);
+		// The heightmap is only a starting point: the client updates it with every block change it receives.
+		int top = Math.min(table.getY() + RANGE, world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z));
+		OptionalInt y = MapGround.anchorY(probe(world), x, z, table.getY() - RANGE, top);
 		return y.isPresent() ? y.getAsInt() : Integer.MIN_VALUE;
 	}
 
