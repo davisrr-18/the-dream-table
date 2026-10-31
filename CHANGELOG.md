@@ -46,6 +46,7 @@ Bulk material delivery, mirrored farms, farm protection and a Brazilian Portugue
 
 ## Table, HUD and My Farms
 
+- New **Stop or Resume Placing** key (P by default, changeable in Controls). While you are choosing a spot for a farm, every right-click was taken for placing, so you couldn't open a chest or use anything else. Press it once and right-click works normally again; the chosen farm, the spot, the materials you delivered and the requirements stay as they were. Press it again to keep placing.
 - Table messages (delivery results, missing materials, farm protection, the mirror toggle and more) now appear in a notice at the top center of the screen for a few seconds, even while the table is open: green for success, red for problems, on a translucent panel with rounded corners. Before, they used the action bar, which is hidden behind the table and easy to miss.
 - While your build or repair runs and you are near its table, a green "Building n/total" line stays at the top of the screen and counts up live, with the time left once you have opened the table. It hides while the table is open, when you walk away, and when the build pauses, stops or finishes.
 - Farm alerts moved into My Farms: a farm with an alert shows a red ⚠ before its name, and its page lists each alert in red at the bottom ("⚠ Alert: storage full"). The separate Alerts page is gone.

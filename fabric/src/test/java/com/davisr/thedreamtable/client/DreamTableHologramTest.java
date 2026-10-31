@@ -72,6 +72,18 @@ class DreamTableHologramTest {
 	}
 
 	@Test
+	void stoppedPlacingIsForgottenWithTheFarm() {
+		DreamTableHologram.show(TABLE, FARM, 0, false);
+		DreamTableHologram.anchor(ANCHOR);
+
+		assertFalse(DreamTableHologram.placingOff(), "placing is on when a farm is chosen");
+		DreamTableHologram.show(TABLE, "sugar_cane_farm", 0, false);
+		assertFalse(DreamTableHologram.placingOff());
+		DreamTableHologram.clear();
+		assertFalse(DreamTableHologram.placingOff());
+	}
+
+	@Test
 	void choosingAnotherFarmStartsOver() {
 		DreamTableHologram.show(TABLE, FARM, 0, false);
 		DreamTableHologram.anchor(ANCHOR);

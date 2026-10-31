@@ -54,6 +54,8 @@ public final class DreamTableHologram {
 	/** While building, the hologram shows the layer being built and this many above it, unless all layers are on. */
 	private static final int LAYERS_AHEAD = 1;
 	private static boolean allLayers;
+	/** The player stopped placing: right-clicks and the aim marker go back to normal while the farm, its materials and any placed spot stay. */
+	private static boolean placingOff;
 	/**
 	 * What J leaves of the hologram, kept across tables: 0 everything, 1 the outline without the farm's blocks, 2 only the
 	 * aimed block's marker.
@@ -223,11 +225,30 @@ public final class DreamTableHologram {
 			checked = null;
 			problem = "";
 			existing = 0;
+			placingOff = false;
 		}
 		tablePos = pos;
 		farmId = nextFarm;
 		placed = placedBlocks;
 		blocked = nextBlocked;
+	}
+
+	/** The placing key: right-clicks stop being taken for placing (chests and doors work again) until it is pressed once more. */
+	public static void togglePlacing() {
+		if (tablePos == null || farmId.isEmpty() || locked()) {
+			return;
+		}
+		placingOff = !placingOff;
+		hover = null;
+		PlayerEntity player = MinecraftClient.getInstance().player;
+		if (player != null) {
+			player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5F, placingOff ? 0.9F : 1.2F);
+		}
+		TableNotices.info(Text.translatable(placingOff ? "gui.the_dream_table.placing_off" : "gui.the_dream_table.placing_on"));
+	}
+
+	public static boolean placingOff() {
+		return placingOff;
 	}
 
 	public static void rotate() {
@@ -332,6 +353,7 @@ public final class DreamTableHologram {
 		previewFacing = null;
 		previewMirrored = false;
 		allLayers = false;
+		placingOff = false;
 		checked = null;
 		problem = "";
 		existing = 0;
@@ -363,7 +385,7 @@ public final class DreamTableHologram {
 		if (mapActive) {
 			updateMap(context);
 		}
-		BlockPos cursor = idle && !awaitingSession(tableEntity) ? aim(context) : null;
+		BlockPos cursor = idle && !placingOff && !awaitingSession(tableEntity) ? aim(context) : null;
 		hover = cursor == null ? null : new Placement(cursor, aimFacing(), previewMirrored);
 		// In map mode the reach is drawn even when the crosshair points past it, so the limit is always in sight.
 		if (placement == null && cursor == null && !mapActive) {
@@ -487,7 +509,7 @@ public final class DreamTableHologram {
 	}
 
 	private static boolean tryPlace(PlayerEntity player, BlockHitResult hit) {
-		if (!tableStillThere(player.getWorld()) || farmId.isEmpty() || locked()) {
+		if (placingOff || !tableStillThere(player.getWorld()) || farmId.isEmpty() || locked()) {
 			return false;
 		}
 		if (player.getWorld().getBlockState(hit.getBlockPos()).getBlock() instanceof DreamTableBlock) {

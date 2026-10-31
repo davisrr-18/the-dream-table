@@ -162,8 +162,11 @@ public final class WorkPage implements TablePage {
 
 	@Override
 	public Text subtitle() {
+		if (ui.handler().getPhase() == ProjectState.IDLE && DreamTableHologram.placingOff()) {
+			return Text.translatable("gui.the_dream_table.placing_paused", DreamTableKeys.PLACING.getBoundKeyLocalizedText());
+		}
 		return ui.handler().getPhase() == ProjectState.IDLE
-				? Text.translatable("gui.the_dream_table.aim", DreamTableKeys.ROTATE.getBoundKeyLocalizedText(), DreamTableKeys.MIRROR.getBoundKeyLocalizedText())
+				? Text.translatable("gui.the_dream_table.aim", DreamTableKeys.ROTATE.getBoundKeyLocalizedText(), DreamTableKeys.MIRROR.getBoundKeyLocalizedText(), DreamTableKeys.PLACING.getBoundKeyLocalizedText())
 				: Text.translatable("gui.the_dream_table.project");
 	}
 

@@ -27,6 +27,13 @@ public final class DreamTableKeys {
 			"category.the_dream_table"
 	));
 
+	public static final KeyBinding PLACING = Platform.clientEvents().registerKeyBinding(new KeyBinding(
+			"key.the_dream_table.placing",
+			InputUtil.Type.KEYSYM,
+			InputUtil.GLFW_KEY_P,
+			"category.the_dream_table"
+	));
+
 	public static final KeyBinding MAP = Platform.clientEvents().registerKeyBinding(new KeyBinding(
 			"key.the_dream_table.map",
 			InputUtil.Type.KEYSYM,
@@ -54,6 +61,9 @@ public final class DreamTableKeys {
 			}
 			while (MIRROR.wasPressed()) {
 				DreamTableHologram.mirror();
+			}
+			while (PLACING.wasPressed()) {
+				DreamTableHologram.togglePlacing();
 			}
 			while (LAYERS.wasPressed()) {
 				DreamTableHologram.toggleLayers();
