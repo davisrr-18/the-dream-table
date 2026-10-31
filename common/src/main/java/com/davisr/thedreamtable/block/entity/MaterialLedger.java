@@ -273,10 +273,11 @@ public final class MaterialLedger {
 		return stacks;
 	}
 
+	/** Writes copies of the counts: {@code NbtIntArray} keeps the array it is given, so a kept save would follow later changes. */
 	public void write(NbtCompound nbt) {
-		nbt.putIntArray("Deposited", deposited);
-		nbt.putIntArray("Consumed", consumed);
-		nbt.putIntArray("FreeDeposited", free);
+		nbt.putIntArray("Deposited", deposited.clone());
+		nbt.putIntArray("Consumed", consumed.clone());
+		nbt.putIntArray("FreeDeposited", free.clone());
 		writeDelivered(nbt);
 		writeSwaps(nbt, swaps);
 	}
