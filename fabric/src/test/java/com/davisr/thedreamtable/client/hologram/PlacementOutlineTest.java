@@ -156,4 +156,75 @@ class PlacementOutlineTest {
 		assertEquals(ribbon[2].y, ribbon[3].y, 1.0E-6);
 		assertTrue(ribbon[2].y >= 68.0);
 	}
+
+	/** Horizontal distance of a loop point from the centre of the table's cell. */
+	private static double reach(Vec3d point) {
+		return Math.hypot(point.x - 0.5, point.z - 0.5);
+	}
+
+	@Test
+	void theRangeLoopOnFlatGroundReachesTheRangeInEveryDirection() {
+		List<Vec3d> loop = PlacementOutline.rangeLoop(TABLE, 48, 16, (x, z) -> 64);
+		assertEquals(16, loop.size());
+		for (Vec3d point : loop) {
+			assertTrue(reach(point) >= 46.5 && reach(point) <= 48.5, "reach " + reach(point));
+			assertEquals(64.05, point.y, DELTA);
+		}
+	}
+
+	@Test
+	void terrainHigherOrLowerThanTheTableShortensTheLoopAsTheSphereBends() {
+		double expected = Math.sqrt(48.0 * 48 - 30.0 * 30);
+		for (int anchorY : new int[] {94, 34}) {
+			for (Vec3d point : PlacementOutline.rangeLoop(TABLE, 48, 8, (x, z) -> anchorY)) {
+				assertEquals(expected, reach(point), 1.0, "anchor " + anchorY);
+				assertEquals(anchorY + 0.05, point.y, DELTA);
+			}
+		}
+	}
+
+	@Test
+	void aColumnWithoutGroundCutsTheLoopShort() {
+		List<Vec3d> loop = PlacementOutline.rangeLoop(TABLE, 48, 8, (x, z) -> x >= 10 ? Integer.MIN_VALUE : 64);
+		assertEquals(9.5, loop.get(0).x, DELTA);
+		assertEquals(0.5, loop.get(0).z, DELTA);
+	}
+
+	@Test
+	void withoutGroundAnywhereEveryPointStaysAtTheTableCentre() {
+		for (Vec3d point : PlacementOutline.rangeLoop(TABLE, 48, 8, (x, z) -> Integer.MIN_VALUE)) {
+			assertEquals(0.5, point.x, DELTA);
+			assertEquals(64.05, point.y, DELTA);
+			assertEquals(0.5, point.z, DELTA);
+		}
+	}
+
+	@Test
+	void theTablesOwnColumnDoesNotCutTheLoop() {
+		List<Vec3d> loop = PlacementOutline.rangeLoop(TABLE, 48, 16, (x, z) -> x == 0 && z == 0 ? Integer.MIN_VALUE : 64);
+		for (Vec3d point : loop) {
+			assertTrue(reach(point) >= 46.5 && reach(point) <= 48.5, "reach " + reach(point));
+		}
+	}
+
+	@Test
+	void everySideOfALoopInFrontOfTheCameraGetsARibbon() {
+		List<Vec3d> square = List.of(new Vec3d(-5, 64, -5), new Vec3d(5, 64, -5), new Vec3d(5, 64, 5), new Vec3d(-5, 64, 5));
+		Vec3d camera = new Vec3d(-20, 70, 0);
+		Vec3d forward = new Vec3d(1, 0, 0);
+		List<Vec3d[]> ribbons = PlacementOutline.loopRibbons(square, camera, forward, 0.1, 0.0026, 0.05);
+		assertEquals(4, ribbons.size());
+		for (Vec3d[] ribbon : ribbons) {
+			for (Vec3d corner : ribbon) {
+				assertTrue(corner.subtract(camera).dotProduct(forward) > 0.05, "in front " + corner);
+			}
+		}
+	}
+
+	@Test
+	void aSideWhollyBehindTheCameraIsDropped() {
+		List<Vec3d> loop = List.of(new Vec3d(-30, 64, 0), new Vec3d(-30, 64, 1), new Vec3d(10, 64, 0), new Vec3d(10, 64, 1));
+		List<Vec3d[]> ribbons = PlacementOutline.loopRibbons(loop, new Vec3d(-20, 70, 0), new Vec3d(1, 0, 0), 0.1, 0.0026, 0.05);
+		assertEquals(3, ribbons.size());
+	}
 }

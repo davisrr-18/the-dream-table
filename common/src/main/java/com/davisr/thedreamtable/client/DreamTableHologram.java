@@ -5,6 +5,8 @@ import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.client.hologram.GhostRenderer;
 import com.davisr.thedreamtable.client.hologram.PlacementOutline;
+import com.davisr.thedreamtable.client.map.MapMode;
+import com.davisr.thedreamtable.client.map.MapTerrain;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
@@ -30,6 +32,8 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.joml.Vector3f;
+
+import java.util.List;
 
 /**
  * Where the farm preview sits. Before the build the player aims, anchors with a right-click, rotates with R and mirrors with M;
@@ -60,6 +64,13 @@ public final class DreamTableHologram {
 	private static Placement hoverChecked;
 	private static String hoverProblem = "";
 	private static int hoverTicks;
+	/** Map mode: while active, the aimed spot is the map cursor's instead of the crosshair's. */
+	private static boolean mapActive;
+	private static BlockPos mapCursor;
+	/** The range circle of the map, and the world time it was built at: it follows the terrain, so it is rebuilt now and then, not per frame. */
+	private static List<Vec3d> mapLoop = List.of();
+	private static long mapLoopTime = Long.MIN_VALUE;
+	private static final int MAP_LOOP_TICKS = 100;
 
 	private DreamTableHologram() {
 	}
@@ -94,6 +105,42 @@ public final class DreamTableHologram {
 			}
 			askAboutHover();
 		});
+	}
+
+	/** Whether the map mode may open: a table is followed, a farm is chosen and no build is running. */
+	public static boolean mapAvailable() {
+		return tablePos != null && !farmId.isEmpty() && !locked();
+	}
+
+	/** Map mode switches the aim from the crosshair to the map cursor; leaving it forgets the cursor. */
+	public static void setMapActive(boolean active) {
+		mapActive = active;
+		mapCursor = null;
+		mapLoop = List.of();
+		mapLoopTime = Long.MIN_VALUE;
+	}
+
+	/** The anchor under the map cursor, or null when the cursor is outside the range or over no ground. */
+	public static void setMapCursor(BlockPos anchor) {
+		mapCursor = anchor;
+	}
+
+	/** Places the farm at the map cursor like a right-click at the crosshair would; false when there is no valid spot under it. */
+	public static boolean mapPlace() {
+		PlayerEntity player = MinecraftClient.getInstance().player;
+		if (player == null || mapCursor == null || !mapAvailable() || mapCursor.equals(tablePos)) {
+			return false;
+		}
+		anchor(mapCursor);
+		check();
+		player.swingHand(Hand.MAIN_HAND);
+		player.playSound(SoundEvents.BLOCK_AMETHYST_BLOCK_PLACE, 0.7F, 1.4F);
+		return true;
+	}
+
+	/** The followed table, for map mode to centre on. Null when none. */
+	public static BlockPos mapTable() {
+		return tablePos;
 	}
 
 	/** While a farm spot is being aimed, the game's selection outline of the cube underneath would only add noise to the marker. */
@@ -277,6 +324,8 @@ public final class DreamTableHologram {
 		hover = null;
 		hoverChecked = null;
 		hoverProblem = "";
+		mapActive = false;
+		mapCursor = null;
 	}
 
 	private static void render(RenderFrame context) {
@@ -297,6 +346,9 @@ public final class DreamTableHologram {
 		boolean idle = table == null || DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase());
 		Placement placement = placement(table);
 		// A table whose chunk just loaded again reads as idle until the server sends the session, so no aim marker yet.
+		if (mapActive) {
+			updateMap(context);
+		}
 		BlockPos cursor = idle && !awaitingSession(tableEntity) ? aim(context) : null;
 		hover = cursor == null ? null : new Placement(cursor, aimFacing(), previewMirrored);
 		if (placement == null && cursor == null) {
@@ -309,6 +361,9 @@ public final class DreamTableHologram {
 		float wave = (float) (0.5 + 0.5 * Math.sin(context.world().getTime() * 0.3));
 		matrices.push();
 		matrices.translate(-camera.x, -camera.y, -camera.z);
+		if (mapActive && !mapLoop.isEmpty()) {
+			GhostRenderer.drawLoop(matrices, mapLoop, camera, forward);
+		}
 		if (cursor != null && (placement == null || !cursor.equals(placement.anchor()))) {
 			// Once a spot is placed the aim is only a marker; its own outline would need checks the placed spot is using.
 			Box aimedFootprint = placement == null && !template.steps().isEmpty()
@@ -443,10 +498,28 @@ public final class DreamTableHologram {
 		return hasPlacement() ? new Placement(aimed, previewFacing(), previewMirrored) : null;
 	}
 
+	/** Finds the spot under the map cursor and keeps the range circle up to date. */
+	private static void updateMap(RenderFrame context) {
+		if (context.camera() == null) {
+			return;
+		}
+		MinecraftClient client = MinecraftClient.getInstance();
+		mapCursor = MapTerrain.cursorAnchor(context.world(), tablePos, context.camera().getPos(), MapMode.ndcX(), MapMode.ndcY(),
+				MapMode.tanHalfFovY(client), MapMode.aspect()).orElse(null);
+		long now = context.world().getTime();
+		if (mapLoopTime == Long.MIN_VALUE || now - mapLoopTime >= MAP_LOOP_TICKS || now < mapLoopTime) {
+			mapLoop = MapTerrain.rangeLoop(context.world(), tablePos);
+			mapLoopTime = now;
+		}
+	}
+
 	private static BlockPos aim(RenderFrame context) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		if (client.player == null || context.world() == null || tablePos == null) {
 			return null;
+		}
+		if (mapActive) {
+			return mapCursor;
 		}
 		HitResult hit = client.player.raycast(FarmGeometry.AIM_RANGE, 1.0F, false);
 		if (!(hit instanceof BlockHitResult block) || block.getType() != HitResult.Type.BLOCK) {
