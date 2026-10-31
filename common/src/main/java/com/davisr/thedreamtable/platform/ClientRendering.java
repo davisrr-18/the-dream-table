@@ -11,6 +11,7 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.text.Text;
 
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -18,6 +19,9 @@ import java.util.function.Supplier;
 public interface ClientRendering {
 	/** Draws in the world at the given stage of every frame. */
 	void onWorldRender(RenderStage stage, Consumer<RenderFrame> listener);
+
+	/** Skips the game's own selection outline of the looked-at block in every frame in which the supplier says so. */
+	void hideBlockOutlineWhen(BooleanSupplier hidden);
 
 	/** Draws on the in-game HUD every frame. */
 	void onHud(Consumer<DrawContext> listener);

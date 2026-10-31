@@ -66,6 +66,7 @@ public final class DreamTableHologram {
 
 	public static void register() {
 		Platform.clientRendering().onWorldRender(RenderStage.AFTER_TRANSLUCENT, DreamTableHologram::render);
+		Platform.clientRendering().hideBlockOutlineWhen(DreamTableHologram::hidesBlockOutline);
 	}
 
 	public static void registerChecks() {
@@ -93,6 +94,11 @@ public final class DreamTableHologram {
 			}
 			askAboutHover();
 		});
+	}
+
+	/** While a farm spot is being aimed, the game's selection outline of the cube underneath would only add noise to the marker. */
+	static boolean hidesBlockOutline() {
+		return hover != null;
 	}
 
 	/** Asks the server about the spot under the crosshair when it changed (or its turn did), so the outline can be coloured before the click. */
@@ -275,6 +281,7 @@ public final class DreamTableHologram {
 
 	private static void render(RenderFrame context) {
 		GhostRenderer.beginFrame();
+		hover = null;
 		if (tablePos == null || context.world() == null || context.matrixStack() == null || !tableStillThere(context.world())) {
 			return;
 		}
