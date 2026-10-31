@@ -569,7 +569,12 @@ public final class TableSession {
 		sync();
 	}
 
+	/** For a project the broken table can't keep: what a repair placed is merged into the farm's record, as {@link #park} does. */
 	void dropMaterials(World world) {
+		RepairContext repair = progress.repairContext();
+		if (repair != null && world instanceof ServerWorld serverWorld) {
+			FarmAreas.of(serverWorld).mergePlacement(repair.farmKey().instanceId(), progress.placedSteps(), progress.paidSteps());
+		}
 		desk.returnAll(world, getPos(), null);
 		releaseArea();
 	}
@@ -583,7 +588,7 @@ public final class TableSession {
 	 */
 	@Nullable NbtCompound park(ServerWorld world, RegistryWrapper.WrapperLookup registries) {
 		RepairContext repair = progress.repairContext();
-		ParkKind kind = parkKind(isEmpty(), progress.is(PHASE_DONE), desk.holdsItems(), repair != null, buildInProgress(), placement.placed());
+		ParkKind kind = parkKind();
 		if (kind == ParkKind.NOTHING) {
 			releaseArea();
 			return null;
@@ -612,6 +617,11 @@ public final class TableSession {
 		desk.slots().clear();
 		desk.reset();
 		return nbt;
+	}
+
+	/** What a broken table would keep of this session now. */
+	ParkKind parkKind() {
+		return parkKind(isEmpty(), progress.is(PHASE_DONE), desk.holdsItems(), progress.repairContext() != null, buildInProgress(), placement.placed());
 	}
 
 	/** What a broken table keeps of a session. */

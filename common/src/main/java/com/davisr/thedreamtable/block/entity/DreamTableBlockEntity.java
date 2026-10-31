@@ -268,6 +268,11 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		RegistryWrapper.WrapperLookup registries = serverWorld.getRegistryManager();
 		for (TableSession session : sessions.values()) {
 			if (session.player().equals(SHARED) || !parked.canPark(session.player())) {
+				// Only a project that would have been kept is worth telling about.
+				ServerPlayerEntity owner = session.player().equals(SHARED) || session.parkKind() == TableSession.ParkKind.NOTHING ? null : session.onlineOwner(serverWorld);
+				if (owner != null) {
+					owner.sendMessage(Text.translatable("gui.the_dream_table.project_not_kept"), false);
+				}
 				session.dropMaterials(world);
 				continue;
 			}

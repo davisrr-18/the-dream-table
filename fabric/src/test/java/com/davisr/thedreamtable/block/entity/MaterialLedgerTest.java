@@ -432,4 +432,19 @@ class MaterialLedgerTest {
 		back.read(saved);
 		assertEquals(4, back.deposited(0));
 	}
+
+	/** The same holds for every count the ledger saves: consumed and creative-free deliveries too. */
+	@Test
+	void everySavedCountStaysWhenTheLedgerIsEmptiedAfterwards() {
+		MaterialLedger ledger = new MaterialLedger();
+		ledger.accept(farm, new ItemStack(Items.STONE, 3), false);
+		ledger.accept(farm, new ItemStack(Items.STONE, 2), true);
+		// Creative items are used first: one free, one consumed and four deposited are saved.
+		assertFalse(ledger.consume(farm, Items.STONE));
+		NbtCompound saved = new NbtCompound();
+		ledger.write(saved);
+		NbtCompound before = saved.copy();
+		ledger.reset();
+		assertEquals(before, saved);
+	}
 }
