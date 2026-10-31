@@ -30,7 +30,7 @@ public final class FarmMiniature implements BlockEntityRenderer<DreamTableBlockE
 	private static final int RENDER_DISTANCE = 32;
 	private static final float MAX_WIDTH = 1.4F;
 	private static final float MAX_HEIGHT = 1.8F;
-	private static final float LIFT = 1.2F;
+	private static final float LIFT = 1.5F;
 	private static final float DEGREES_PER_TICK = 0.75F;
 	private static final Map<String, Fit> FITS = new HashMap<>();
 
