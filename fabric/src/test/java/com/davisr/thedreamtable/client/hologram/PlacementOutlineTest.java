@@ -137,6 +137,18 @@ class PlacementOutlineTest {
 	}
 
 	@Test
+	void aBlockInFrontOfTheCameraGetsThreeArmsOnEachOfItsEightCorners() {
+		BlockPos block = new BlockPos(0, 64, 0);
+		List<Vec3d[]> arms = PlacementOutline.cornerBrackets(block, new Vec3d(0.5, 70, -20), new Vec3d(0, 0, 1), 0.1, 0.0104, 0.05);
+		assertEquals(24, arms.size());
+		for (Vec3d[] arm : arms) {
+			for (Vec3d point : arm) {
+				assertTrue(point.x > -0.1 && point.x < 1.1 && point.y > 63.9 && point.y < 65.1 && point.z > -0.1 && point.z < 1.1);
+			}
+		}
+	}
+
+	@Test
 	void bracketsNeverWidenPastTheirCap() {
 		BlockPos anchor = new BlockPos(0, 64, 0);
 		List<Vec3d[]> arms = PlacementOutline.brackets(anchor, new Vec3d(0.5, 70, -300), new Vec3d(0, 0, 1), 0.1, 0.0104, 0.05);

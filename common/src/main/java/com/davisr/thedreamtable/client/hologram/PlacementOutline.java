@@ -110,6 +110,28 @@ public final class PlacementOutline {
 		return List.copyOf(arms);
 	}
 
+	/**
+	 * L-shaped brackets on all eight corners of a block, each corner three arms {@link #BRACKET_ARM} long along its edges, as
+	 * ribbons turned to the camera, so the block is marked from every side. Widths follow {@link #brackets}.
+	 */
+	public static List<Vec3d[]> cornerBrackets(BlockPos block, Vec3d camera, Vec3d forward, double near, double halfWidthPerBlock, double maxHalf) {
+		List<Vec3d[]> arms = new ArrayList<>(24);
+		for (int dx = 0; dx <= 1; dx++) {
+			for (int dy = 0; dy <= 1; dy++) {
+				for (int dz = 0; dz <= 1; dz++) {
+					Vec3d corner = new Vec3d(block.getX() + dx, block.getY() + dy, block.getZ() + dz);
+					double sx = dx == 0 ? BRACKET_ARM : -BRACKET_ARM;
+					double sy = dy == 0 ? BRACKET_ARM : -BRACKET_ARM;
+					double sz = dz == 0 ? BRACKET_ARM : -BRACKET_ARM;
+					ribbon(arms, corner, corner.add(sx, 0, 0), camera, forward, near, halfWidthPerBlock, false, maxHalf);
+					ribbon(arms, corner, corner.add(0, sy, 0), camera, forward, near, halfWidthPerBlock, false, maxHalf);
+					ribbon(arms, corner, corner.add(0, 0, sz), camera, forward, near, halfWidthPerBlock, false, maxHalf);
+				}
+			}
+		}
+		return List.copyOf(arms);
+	}
+
 	/** Length of a bracket arm, in blocks. */
 	private static final double BRACKET_ARM = 0.3;
 
