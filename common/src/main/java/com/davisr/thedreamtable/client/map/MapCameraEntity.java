@@ -1,28 +1,45 @@
 package com.davisr.thedreamtable.client.map;
 
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.EntityType;
-import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.entity.data.DataTracker;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * The client-only entity the game's camera follows in map mode. It is never added to the world. Its eye height is the player's
- * own, so the game's camera does not ease to a different height after the mode opens.
+ * The client-only entity the game's camera follows in map mode. It is never added to the world. It is a plain entity on
+ * purpose: the camera reads {@code getYaw(tickDelta)}, which a living entity answers with its head yaw instead of its yaw,
+ * so a living camera never turns. Its eye height is the player's own, so the camera does not ease to another height.
  */
-final class MapCameraEntity extends ArmorStandEntity {
+final class MapCameraEntity extends Entity {
 	private final float eyeHeight;
 
 	MapCameraEntity(ClientWorld world, float eyeHeight) {
-		super(EntityType.ARMOR_STAND, world);
+		super(EntityType.MARKER, world);
 		this.eyeHeight = eyeHeight;
+		// The constructor measured the entity before the eye height was set.
+		calculateDimensions();
 	}
 
 	@Override
-	public EntityDimensions getBaseDimensions(EntityPose pose) {
-		return super.getBaseDimensions(pose).withEyeHeight(eyeHeight);
+	public EntityDimensions getDimensions(EntityPose pose) {
+		return EntityDimensions.fixed(0.0F, 0.0F).withEyeHeight(eyeHeight);
+	}
+
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+	}
+
+	@Override
+	protected void readCustomDataFromNbt(NbtCompound nbt) {
+	}
+
+	@Override
+	protected void writeCustomDataToNbt(NbtCompound nbt) {
 	}
 
 	/**
