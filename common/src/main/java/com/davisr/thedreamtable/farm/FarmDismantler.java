@@ -352,7 +352,7 @@ public final class FarmDismantler {
 	 * crops planted on farmland, torches, redstone or an extended piston's head, would float. Once a batch is out,
 	 * its neighbors are told, and what lost its support drops as items, as it would when mined by hand.
 	 */
-	private static void settle(ServerWorld world, List<BlockPos> cleared) {
+	static void settle(ServerWorld world, List<BlockPos> cleared) {
 		BlockState air = Blocks.AIR.getDefaultState();
 		for (BlockPos pos : cleared) {
 			air.updateNeighbors(world, pos, Block.NOTIFY_ALL);
@@ -364,7 +364,7 @@ public final class FarmDismantler {
 	 * Removal skips neighbor updates, so liquid that already flowed out of a removed source would stay frozen.
 	 * Only the liquid touching those spots gets a tick; it then drains on its own, like picking up a source with a bucket.
 	 */
-	private static void drain(ServerWorld world, List<BlockPos> liquids) {
+	static void drain(ServerWorld world, List<BlockPos> liquids) {
 		for (BlockPos pos : liquids) {
 			for (Direction side : Direction.values()) {
 				BlockPos next = pos.offset(side);

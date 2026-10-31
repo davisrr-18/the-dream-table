@@ -3,6 +3,7 @@ package com.davisr.thedreamtable.block.entity;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmKey;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -325,5 +326,84 @@ class BuildProgressTest {
 		loaded.reset(false);
 		assertEquals("", loaded.returnNotice());
 		assertEquals("", new BuildProgress().returnNotice());
+	}
+
+	@Test
+	void aBuildFromScratchStartsWithNoLayerClearedAndRemembersEachLayerItClears() {
+		BuildProgress progress = new BuildProgress();
+		progress.start(UUID.randomUUID(), true, 7L);
+		assertFalse(progress.layerCleared(0));
+		progress.markLayerCleared(0);
+		assertTrue(progress.layerCleared(0));
+		assertFalse(progress.layerCleared(1));
+	}
+
+	@Test
+	void aSaveWithoutTheClearedLayersKeyCountsEveryLayerAsClearedAndStaysSo() {
+		NbtCompound nbt = new NbtCompound();
+		nbt.putString("Phase", DreamTableBlockEntity.PHASE_PAUSED);
+		nbt.putInt("BuildIndex", 5);
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+		assertTrue(loaded.layerCleared(0));
+		assertTrue(loaded.layerCleared(40));
+
+		loaded.start(UUID.randomUUID(), false, 7L);
+		loaded.markLayerCleared(0);
+		assertTrue(loaded.layerCleared(40));
+		NbtCompound saved = new NbtCompound();
+		loaded.write(saved);
+		assertFalse(saved.contains("ClearedLayers"));
+	}
+
+	@Test
+	void clearedLayersSurviveASaveAndAResumeButAFreshStartForgetsThem() {
+		UUID owner = UUID.randomUUID();
+		BuildProgress progress = new BuildProgress();
+		progress.start(owner, true, 7L);
+		progress.markLayerCleared(0);
+		progress.markLayerCleared(3);
+		progress.stop(DreamTableBlockEntity.PHASE_PAUSED);
+		NbtCompound nbt = new NbtCompound();
+		progress.write(nbt);
+		assertTrue(nbt.contains("ClearedLayers", NbtElement.LONG_ARRAY_TYPE));
+
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+		assertTrue(loaded.layerCleared(0));
+		assertFalse(loaded.layerCleared(1));
+		assertTrue(loaded.layerCleared(3));
+
+		loaded.start(owner, false, 7L);
+		assertTrue(loaded.layerCleared(3));
+		assertFalse(loaded.layerCleared(1));
+
+		loaded.start(owner, true, 7L);
+		assertFalse(loaded.layerCleared(0));
+		assertFalse(loaded.layerCleared(3));
+	}
+
+	@Test
+	void aFreshBuildSavesTheKeyEvenBeforeAnyLayerIsCleared() {
+		BuildProgress progress = new BuildProgress();
+		progress.start(UUID.randomUUID(), true, 7L);
+		NbtCompound nbt = new NbtCompound();
+		progress.write(nbt);
+		assertTrue(nbt.contains("ClearedLayers", NbtElement.LONG_ARRAY_TYPE));
+
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+		assertFalse(loaded.layerCleared(0));
+	}
+
+	@Test
+	void resetForgetsTheClearedLayersSoAnIdleSessionSavesNone() {
+		BuildProgress progress = new BuildProgress();
+		progress.start(UUID.randomUUID(), true, 7L);
+		progress.markLayerCleared(2);
+		progress.reset(true);
+		NbtCompound nbt = new NbtCompound();
+		progress.write(nbt);
+		assertFalse(nbt.contains("ClearedLayers"));
 	}
 }
