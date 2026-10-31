@@ -150,6 +150,7 @@
 	"gui.the_dream_table.farm_busy": "Descarte a farm atual antes de começar outra",
 	"gui.the_dream_table.build": "Construir",
 	"gui.the_dream_table.discard": "Descartar",
+	"gui.the_dream_table.farm_covers_table": "A farm cobriria esta Dream Table. Posicione-a mais longe da mesa.",
 	"gui.the_dream_table.out_of_world": "A farm não cabe aqui: parte dela fica acima ou abaixo do mundo, ou além da borda",
 	"gui.the_dream_table.dismantling": "Desfazendo a construção; os blocos voltam para você conforme são removidos",
 	"gui.the_dream_table.protected_area": "Não dá para construir a farm inteira aqui: parte da área é protegida",
