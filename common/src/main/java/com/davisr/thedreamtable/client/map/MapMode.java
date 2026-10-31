@@ -89,14 +89,14 @@ public final class MapMode {
 			return false;
 		}
 		Vec3d eye = player.getEyePos();
-		if (eye.y < tablePos.getY() - FLOOR_BELOW_TABLE || MapChecks.solidGround(clientWorld, eye)) {
+		if (eye.y < tablePos.getY() - FLOOR_BELOW_TABLE) {
 			refuse("gui.the_dream_table.map_too_deep");
 			return false;
 		}
 		MapCamera start = new MapCamera(eye, player.getYaw(), player.getPitch());
 		start.clampTo(centreOf(tablePos), WALL_RADIUS);
 		if (MapChecks.solidGround(clientWorld, start.position())) {
-			refuse("gui.the_dream_table.map_too_deep");
+			refuse("gui.the_dream_table.map_too_close");
 			return false;
 		}
 		table = tablePos.toImmutable();

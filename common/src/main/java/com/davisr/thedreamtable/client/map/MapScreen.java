@@ -138,8 +138,9 @@ public final class MapScreen extends Screen {
 
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
-		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && DreamTableHologram.mapPlace()) {
-			close();
+		// The view stays open after a click, so the placed farm can be judged and placed again elsewhere.
+		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+			DreamTableHologram.mapPlace();
 		}
 		return true;
 	}

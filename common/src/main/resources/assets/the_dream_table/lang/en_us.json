@@ -119,6 +119,7 @@
 	"gui.the_dream_table.map_terrain_not_loaded": "The land around the Dream Table is not loaded yet",
 	"gui.the_dream_table.map_first_person": "Map mode works only in first person",
 	"gui.the_dream_table.map_too_deep": "Go to the surface near the table to use the map.",
+	"gui.the_dream_table.map_too_close": "Step away from the wall to open the map.",
 	"category.the_dream_table": "The Dream Table",
 	"gui.the_dream_table.requirements": "Requirements",
 	"gui.the_dream_table.totals": "Totals",
