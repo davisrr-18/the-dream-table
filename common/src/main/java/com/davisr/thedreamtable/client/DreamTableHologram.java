@@ -376,7 +376,7 @@ public final class DreamTableHologram {
 		matrices.push();
 		matrices.translate(-camera.x, -camera.y, -camera.z);
 		if (mapActive && !mapEdge.isEmpty()) {
-			GhostRenderer.drawEdge(matrices, mapEdge, wave);
+			GhostRenderer.drawEdge(matrices, mapEdge, camera, forward);
 		}
 		if (cursor != null && (placement == null || !cursor.equals(placement.anchor()))) {
 			// Once a spot is placed the aim is only a marker; its own outline would need checks the placed spot is using.

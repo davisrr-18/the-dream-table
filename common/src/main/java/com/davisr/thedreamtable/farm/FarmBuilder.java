@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
+import com.davisr.thedreamtable.block.DreamTableBlock;
 import com.davisr.thedreamtable.block.entity.BuildIssue;
 import com.davisr.thedreamtable.block.entity.RepairContext;
 import com.davisr.thedreamtable.block.entity.TableSession;
@@ -96,7 +97,9 @@ public final class FarmBuilder {
 				return BuildIssue.of(BuildIssue.Kind.OTHER_FARM, target, existing.getBlock());
 			}
 			if (!ObstacleRules.clearable(world, table.getPos(), target, existing)) {
-				return BuildIssue.of(BuildIssue.Kind.OBSTACLE, target, existing.getBlock());
+				return existing.getBlock() instanceof DreamTableBlock
+						? BuildIssue.at(BuildIssue.Kind.TABLE_IN_WAY, target)
+						: BuildIssue.of(BuildIssue.Kind.OBSTACLE, target, existing.getBlock());
 			}
 		}
 		if (!permitted(world, owner, target, existing, placed)) {

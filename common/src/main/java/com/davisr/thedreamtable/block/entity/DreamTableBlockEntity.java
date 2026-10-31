@@ -32,6 +32,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -213,8 +214,8 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 
 	/**
 	 * What each player has at stake here, for {@link TableBreakGuard}: a running or paused build, delivered materials, or a
-	 * Take Down or discard still being taken apart. Saved sessions and jobs this version couldn't read count for the
-	 * player they name, since breaking the table would lose them.
+	 * Take Down or discard still being taken apart. Saved sessions and jobs this version couldn't read are claims of their
+	 * own, which stop everyone but operators, since breaking the table would lose them.
 	 */
 	public List<TableBreakGuard.Claim> breakClaims() {
 		List<TableBreakGuard.Claim> claims = new ArrayList<>();
@@ -229,16 +230,17 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 			claims.add(new TableBreakGuard.Claim(job.player(), TableBreakGuard.Reason.TAKE_DOWN));
 		}
 		for (NbtCompound raw : unreadableSessions) {
-			if (raw.containsUuid("Player")) {
-				claims.add(new TableBreakGuard.Claim(raw.getUuid("Player"), TableBreakGuard.Reason.MATERIALS));
-			}
+			claims.add(new TableBreakGuard.Claim(namedPlayer(raw), TableBreakGuard.Reason.UNREADABLE));
 		}
 		for (NbtCompound raw : unreadableJobs) {
-			if (raw.containsUuid("Player")) {
-				claims.add(new TableBreakGuard.Claim(raw.getUuid("Player"), TableBreakGuard.Reason.TAKE_DOWN));
-			}
+			claims.add(new TableBreakGuard.Claim(namedPlayer(raw), TableBreakGuard.Reason.UNREADABLE));
 		}
 		return claims;
+	}
+
+	/** The player a saved entry names, or null when it names none. */
+	private static @Nullable UUID namedPlayer(NbtCompound raw) {
+		return raw.containsUuid("Player") ? raw.getUuid("Player") : null;
 	}
 
 	/** When the table is broken, everyone's delivered materials drop and its farm areas are freed. Built blocks stay, even half-dismantled ones. */

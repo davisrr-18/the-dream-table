@@ -3,6 +3,7 @@ package com.davisr.thedreamtable.block;
 import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableBreakGuard;
+import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.mojang.serialization.MapCodec;
@@ -29,6 +30,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
@@ -78,8 +80,20 @@ public class DreamTableBlock extends BlockWithEntity {
 		return CODEC;
 	}
 
+	/**
+	 * A null state refuses the placement: BlockItem places nothing. On the server a table can't go inside a farm area, since
+	 * builds, take-downs and finished farms keep their blocks as they are. The refused player is told, and their inventory is
+	 * sent again, since the client predicted the placement from the same state.
+	 */
 	@Override
-	public BlockState getPlacementState(ItemPlacementContext ctx) {
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		if (ctx.getWorld() instanceof ServerWorld world && FarmAreas.of(world).reserved(world, ctx.getBlockPos())) {
+			if (ctx.getPlayer() instanceof ServerPlayerEntity player) {
+				TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.table_in_farm_area"));
+				player.playerScreenHandler.syncState();
+			}
+			return null;
+		}
 		return getDefaultState().with(Properties.HORIZONTAL_FACING, ctx.getHorizontalPlayerFacing().getOpposite());
 	}
 

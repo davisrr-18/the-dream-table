@@ -47,6 +47,16 @@ class BuildIssueTest {
 	}
 
 	@Test
+	void aDreamTableInTheWaySurvivesSavingAndNeedsThePlayer() {
+		BuildIssue issue = BuildIssue.at(BuildIssue.Kind.TABLE_IN_WAY, new BlockPos(4, 70, -2));
+		NbtCompound nbt = new NbtCompound();
+		issue.write(nbt);
+		assertEquals(issue, BuildIssue.read(nbt));
+		assertFalse(issue.temporary());
+		assertEquals("gui.the_dream_table.issue.table_in_way.fix", ((TranslatableTextContent) issue.fix().getContent()).getKey());
+	}
+
+	@Test
 	void aFailureThatRepeatsNeedsThePlayer() {
 		BuildIssue failed = BuildIssue.of(BuildIssue.Kind.PLACE_FAILED, BlockPos.ORIGIN, Blocks.HOPPER);
 		assertFalse(failed.again(BuildIssue.REPEATED).temporary());
