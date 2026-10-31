@@ -47,7 +47,9 @@ public final class FarmMiniature implements BlockEntityRenderer<DreamTableBlockE
 	@Override
 	public void render(DreamTableBlockEntity table, float tickDelta, MatrixStack matrices, VertexConsumerProvider consumers, int light, int overlay) {
 		PlayerEntity player = MinecraftClient.getInstance().player;
-		if (player == null || table.getWorld() == null) {
+		// A broken table can stay in the renderer's list of unculled block entities: when its chunk section is left with only
+		// air, the game rebuilds the section without updating that list, so the model would float there until the chunk unloads.
+		if (player == null || table.getWorld() == null || table.isRemoved()) {
 			return;
 		}
 		TableSession session = table.session(player);
