@@ -21,6 +21,11 @@ class DreamTableHologramTest {
 	}
 
 	@Test
+	void theGameOutlineStaysWhenNoSpotIsAimed() {
+		assertFalse(DreamTableHologram.hidesBlockOutline());
+	}
+
+	@Test
 	void anUnloadedChunkIsAwayNotGone() {
 		assertEquals(TableView.AWAY, DreamTableHologram.viewOf(false, false), "an unloaded chunk reads as air");
 		assertEquals(TableView.AWAY, DreamTableHologram.viewOf(false, true));

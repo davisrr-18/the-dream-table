@@ -16,9 +16,11 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
+import net.neoforged.neoforge.client.event.RenderHighlightEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -39,6 +41,15 @@ final class NeoForgeClientRendering implements ClientRendering {
 		NeoForge.EVENT_BUS.addListener(RenderLevelStageEvent.class, event -> {
 			if (event.getStage() == neoStage) {
 				listener.accept(frame(event));
+			}
+		});
+	}
+
+	@Override
+	public void hideBlockOutlineWhen(BooleanSupplier hidden) {
+		NeoForge.EVENT_BUS.addListener(RenderHighlightEvent.Block.class, event -> {
+			if (hidden.getAsBoolean()) {
+				event.setCanceled(true);
 			}
 		});
 	}

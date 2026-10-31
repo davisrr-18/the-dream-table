@@ -17,6 +17,7 @@ import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerType;
 
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -28,6 +29,11 @@ final class FabricClientRendering implements ClientRendering {
 			case AFTER_ENTITIES -> WorldRenderEvents.AFTER_ENTITIES.register(context -> listener.accept(frame(context)));
 			case AFTER_TRANSLUCENT -> WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> listener.accept(frame(context)));
 		}
+	}
+
+	@Override
+	public void hideBlockOutlineWhen(BooleanSupplier hidden) {
+		WorldRenderEvents.BLOCK_OUTLINE.register((context, outline) -> !hidden.getAsBoolean());
 	}
 
 	@Override
