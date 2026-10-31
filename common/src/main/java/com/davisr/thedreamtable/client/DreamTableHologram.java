@@ -65,7 +65,7 @@ public final class DreamTableHologram {
 	private static Placement hoverChecked;
 	private static String hoverProblem = "";
 	private static int hoverTicks;
-	/** Map mode: while active, the aimed spot is the map cursor's instead of the crosshair's. */
+	/** Map mode: while active, the aimed spot is the one under the crosshair as the map camera draws it. */
 	private static boolean mapActive;
 	private static BlockPos mapCursor;
 	/** The range circle of the map, and the world time it was built at: it follows the terrain, so it is rebuilt now and then, not per frame. */
@@ -115,7 +115,7 @@ public final class DreamTableHologram {
 		return tablePos != null && !farmId.isEmpty() && !locked();
 	}
 
-	/** Map mode switches the aim from the crosshair to the map cursor; leaving it forgets the cursor. */
+	/** Map mode aims with the crosshair of the map camera, which is the same ray as the game's; leaving the mode forgets the spot. */
 	public static void setMapActive(boolean active) {
 		mapActive = active;
 		mapCursor = null;
@@ -123,7 +123,7 @@ public final class DreamTableHologram {
 		mapLoopTime = Long.MIN_VALUE;
 	}
 
-	/** Places the farm at the map cursor like a right-click at the crosshair would; false when there is no valid spot under it. */
+	/** Places the farm at the spot under the map's crosshair, as a right-click would; false when there is no valid spot there. */
 	public static boolean mapPlace() {
 		PlayerEntity player = MinecraftClient.getInstance().player;
 		if (player == null || mapCursor == null || !mapAvailable() || mapCursor.equals(tablePos)) {
@@ -496,7 +496,7 @@ public final class DreamTableHologram {
 		return hasPlacement() ? new Placement(aimed, previewFacing(), previewMirrored) : null;
 	}
 
-	/** Finds the spot under the map cursor and keeps the range circle up to date. */
+	/** Finds the spot under the map's crosshair and keeps the range circle up to date. */
 	private static void updateMap(RenderFrame context) {
 		mapCursor = mapAim(context.world(), MinecraftClient.getInstance());
 		long now = context.world().getTime();
@@ -506,7 +506,7 @@ public final class DreamTableHologram {
 		}
 	}
 
-	/** The anchor the pointer's ray meets first, by the same rules as the crosshair aim; null when it meets no block in reach. */
+	/** The anchor the crosshair's ray meets first, by the same rules as the crosshair aim; null when it meets no block in reach. */
 	private static BlockPos mapAim(World world, MinecraftClient client) {
 		Vec3d origin = MapMode.rayOrigin(client);
 		Vec3d direction = MapMode.rayDirection(client);

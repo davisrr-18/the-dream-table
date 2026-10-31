@@ -6,25 +6,30 @@ import com.davisr.thedreamtable.client.TableNotices;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.render.Camera;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.decoration.ArmorStandEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Vector3f;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.Predicate;
+
 /**
- * Map placement mode: a free camera that starts at the player's eyes, flies inside the table's reach and looks wherever the
- * player turns it. The camera is a client-only entity that is never added to the world, so the player's body stays put.
+ * Map placement mode: a spectator-like free camera that starts at the player's eyes and flies inside the table's reach. The
+ * crosshair is the aim and the mouse turns the view as in the game. The camera never enters solid ground and never goes far
+ * below the table. It is a client-only entity that is never added to the world, so the player's body stays put.
  */
 public final class MapMode {
 	/** One block short of the aim's reach, so the camera never sees farther than the aim can place. */
 	private static final double WALL_RADIUS = FarmGeometry.AIM_RANGE - 1.0;
-	/** Blocks per tick of held movement, about 10 a second. */
+	/** How far below the table's block the camera may go. Deeper, the ground could be scouted through open shafts. */
+	private static final int FLOOR_BELOW_TABLE = 12;
+	/** Blocks per tick of held movement, about 10 a second. Ctrl multiplies it by {@link #SPRINT_FACTOR}. */
 	private static final double MOVE_PER_TICK = 0.5;
+	private static final double SPRINT_FACTOR = 3.0;
+	/** A frame longer than this many ticks (100 ms) is cut short, so a stall does not throw the camera across the reach. */
+	private static final double MAX_FRAME_TICKS = 2.0;
 	private static final double BLOCKS_PER_NOTCH = 3.0;
 	/** Ticks between two notices that the camera is at the edge of the reach, so pushing against the wall does not repeat it. */
 	private static final int LIMIT_NOTICE_TICKS = 40;
@@ -33,11 +38,8 @@ public final class MapMode {
 	private static BlockPos table;
 	private static ClientWorld world;
 	private static MapCamera view;
-	private static ArmorStandEntity camera;
+	private static MapCameraEntity camera;
 	private static int limitCooldown;
-	private static double ndcX;
-	private static double ndcY;
-	private static double aspect = 1.0;
 
 	private MapMode() {
 	}
@@ -86,14 +88,24 @@ public final class MapMode {
 			refuse("gui.the_dream_table.map_no_table");
 			return false;
 		}
+		Vec3d eye = player.getEyePos();
+		if (eye.y < tablePos.getY() - FLOOR_BELOW_TABLE || MapChecks.solidGround(clientWorld, eye)) {
+			refuse("gui.the_dream_table.map_too_deep");
+			return false;
+		}
+		MapCamera start = new MapCamera(eye, player.getYaw(), player.getPitch());
+		start.clampTo(centreOf(tablePos), WALL_RADIUS);
+		if (MapChecks.solidGround(clientWorld, start.position())) {
+			refuse("gui.the_dream_table.map_too_deep");
+			return false;
+		}
 		table = tablePos.toImmutable();
 		world = clientWorld;
-		view = new MapCamera(player.getEyePos(), player.getYaw(), player.getPitch());
-		view.clampTo(centre(), WALL_RADIUS);
-		camera = new ArmorStandEntity(EntityType.ARMOR_STAND, clientWorld);
+		view = start;
+		camera = new MapCameraEntity(clientWorld, player.getStandingEyeHeight());
+		camera.place(view);
 		limitCooldown = 0;
 		active = true;
-		setPose(false);
 		client.setCameraEntity(camera);
 		// The first-person hand would be drawn from the free camera, so it is off while the mode is open.
 		client.gameRenderer.setRenderHand(false);
@@ -119,9 +131,21 @@ public final class MapMode {
 	}
 
 	/**
-	 * Applies the held keys, keeps the camera inside the reach and gives the game's camera this tick's pose. Ends the mode when
-	 * the player, world, screen or table no longer fit it.
+	 * Moves the camera by the held keys for one rendered frame and gives the game's camera the new pose. The screen calls it
+	 * from its render, so the view moves with the frame rate rather than in 20 steps a second.
 	 */
+	public static void frame(MinecraftClient client, MapScreen.Movement held, float frameTicks) {
+		if (!active) {
+			return;
+		}
+		double ticks = Math.min(Math.max(frameTicks, 0.0), MAX_FRAME_TICKS);
+		double speed = MOVE_PER_TICK * ticks * (held.fast() ? SPRINT_FACTOR : 1.0);
+		Vec3d before = view.position();
+		view.move(held.forward(), held.strafe(), held.vertical(), speed, blocked(), floorY());
+		settle(before);
+	}
+
+	/** Ends the mode when the player, world, screen or table no longer fit it, and counts down the limit notice. */
 	public static void tick(MinecraftClient client) {
 		if (!active) {
 			return;
@@ -136,104 +160,77 @@ public final class MapMode {
 		if (limitCooldown > 0) {
 			limitCooldown--;
 		}
-		if (client.currentScreen instanceof MapScreen screen) {
-			MapScreen.Movement held = screen.movement();
-			view.move(held.forward(), held.strafe(), held.vertical(), MOVE_PER_TICK);
-		}
-		if (view.clampTo(centre(), WALL_RADIUS) && limitCooldown == 0) {
-			TableNotices.problem(Text.translatable("gui.the_dream_table.map_limit"));
-			limitCooldown = LIMIT_NOTICE_TICKS;
-		}
-		setPose(true);
 	}
 
-	/** Turns the view by the mouse drag, in degrees. */
+	/** Turns the view by the mouse, in degrees, and gives the game's camera the new pose at once. */
 	public static void look(double deltaYaw, double deltaPitch) {
 		if (active) {
 			view.look(deltaYaw, deltaPitch);
+			camera.place(view);
 		}
 	}
 
 	/** Scroll forward moves the camera forward along the look direction, {@link #BLOCKS_PER_NOTCH} blocks per notch. */
 	public static void scroll(double notches) {
-		if (active) {
-			view.dolly(notches * BLOCKS_PER_NOTCH);
-		}
-	}
-
-	/** Half the vertical field of view's tangent, from the FOV option. Status-effect and zoom changes to the FOV are not applied. */
-	public static double tanHalfFovY(MinecraftClient client) {
-		return Math.tan(Math.toRadians(client.options.getFov().getValue()) / 2.0);
-	}
-
-	/** The latest pointer, scaled to the window and converted to normalized device coordinates (x right, y up, each -1 to 1). */
-	public static void pointer(double scaledX, double scaledY, int scaledWidth, int scaledHeight) {
-		if (scaledWidth <= 0 || scaledHeight <= 0) {
+		if (!active) {
 			return;
 		}
-		ndcX = scaledX / scaledWidth * 2.0 - 1.0;
-		ndcY = 1.0 - scaledY / scaledHeight * 2.0;
-		aspect = (double) scaledWidth / scaledHeight;
+		Vec3d before = view.position();
+		view.dolly(notches * BLOCKS_PER_NOTCH, blocked(), floorY());
+		settle(before);
 	}
 
-	public static double ndcX() {
-		return ndcX;
-	}
-
-	public static double ndcY() {
-		return ndcY;
-	}
-
-	public static double aspect() {
-		return aspect;
-	}
-
-	/**
-	 * Where the aim ray starts: the camera as the game draws it this frame, which lags the view state by up to a tick while
-	 * the camera moves, so the spot under the pointer is the one on screen.
-	 */
+	/** Where the aim ray starts: the camera as the game draws it this frame, so the spot under the crosshair is the one on screen. */
 	@Nullable
 	public static Vec3d rayOrigin(MinecraftClient client) {
 		return active ? client.gameRenderer.getCamera().getPos() : null;
 	}
 
-	/** The aim ray's unit direction through the pointer, from the camera as it is drawn; null when the mode is off. */
+	/** The aim ray's unit direction: the drawn camera's look vector, which runs through the centre of the screen. Null when the mode is off. */
 	@Nullable
 	public static Vec3d rayDirection(MinecraftClient client) {
 		if (!active) {
 			return null;
 		}
-		Camera drawn = client.gameRenderer.getCamera();
-		return new MapCamera(drawn.getPos(), drawn.getYaw(), drawn.getPitch()).rayThrough(ndcX, ndcY, tanHalfFovY(client), aspect);
+		Vector3f look = client.gameRenderer.getCamera().getHorizontalPlane();
+		return new Vec3d(look.x(), look.y(), look.z()).normalize();
 	}
 
 	/**
-	 * Gives the dummy camera the view's pose. With {@code glide} the pose it had is kept as the previous one, so the game's
-	 * camera interpolates between ticks; without it both are the same, for the first pose. The yaw is unwrapped to the side
-	 * of the previous yaw, so turning across south does not spin the camera the long way round.
+	 * Keeps the camera inside the reach. A move the reach pulls into ground is undone, so the camera never ends in solid ground;
+	 * the limit notice is shown either way. Then the game's camera gets the pose.
 	 */
-	private static void setPose(boolean glide) {
-		Vec3d eye = view.position();
-		double eyeY = eye.y - camera.getStandingEyeHeight();
-		float previousYaw = camera.getYaw();
-		float yaw = (float) (previousYaw + MathHelper.wrapDegrees(view.yaw() - previousYaw));
-		float pitch = (float) view.pitch();
-		if (glide) {
-			camera.prevX = camera.getX();
-			camera.prevY = camera.getY();
-			camera.prevZ = camera.getZ();
-			camera.prevYaw = previousYaw;
-			camera.prevPitch = camera.getPitch();
-			camera.setPosition(eye.x, eyeY, eye.z);
-			camera.setYaw(yaw);
-			camera.setPitch(pitch);
-		} else {
-			camera.refreshPositionAndAngles(eye.x, eyeY, eye.z, yaw, pitch);
+	private static void settle(Vec3d before) {
+		if (view.clampTo(centre(), WALL_RADIUS)) {
+			if (blocked().test(view.position())) {
+				view.moveTo(before);
+			}
+			notifyLimit();
+		}
+		camera.place(view);
+	}
+
+	private static void notifyLimit() {
+		if (limitCooldown == 0) {
+			TableNotices.problem(Text.translatable("gui.the_dream_table.map_limit"));
+			limitCooldown = LIMIT_NOTICE_TICKS;
 		}
 	}
 
+	private static Predicate<Vec3d> blocked() {
+		return point -> MapChecks.solidGround(world, point);
+	}
+
+	private static double floorY() {
+		return table.getY() - FLOOR_BELOW_TABLE;
+	}
+
 	private static Vec3d centre() {
-		return new Vec3d(table.getX() + 0.5, table.getY() + 0.5, table.getZ() + 0.5);
+		return centreOf(table);
+	}
+
+	private static Vec3d centreOf(BlockPos pos) {
+		return new Vec3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
 	}
 
 	private static boolean stillFits(MinecraftClient client) {
