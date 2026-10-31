@@ -58,7 +58,7 @@ public final class GhostRenderer {
 	private static final double RIBBON_HALF_WIDTH = 0.0026;
 	private static final double RIBBON_NEAR = 0.1;
 	/** The cross on the aimed block is this many times wider than the frame, since it is small and must read at a glance. */
-	private static final double CROSS_WIDTH_FACTOR = 2.5;
+	private static final double CROSS_WIDTH_FACTOR = 12.5;
 	/** The frame sits this far outside the footprint so the ghost blocks never hide it. */
 	private static final double OUTLINE_GROW = 0.01;
 	private static final Matrix4f IDENTITY = new Matrix4f();
