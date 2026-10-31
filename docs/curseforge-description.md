@@ -11,6 +11,7 @@ The Dream Table is a block that builds vanilla farms for you. Choose a farm, pla
    - **H** switches between the full farm and the current build layer.
    - **J** hides the farm's blocks, keeping only its outline, then only the aim marker, then shows everything again.
    - **G** opens the map placement mode (see below).
+   - **P** stops placing, so right-click works normally again (open a chest, use an item) while your farm stays chosen, with its spot and the materials you delivered. Press it again to keep placing.
 4. Deliver the required materials. The clipboard next to the table lists every block needed. **Deliver All** moves everything the farm still needs from your inventory in one click, and **Deliver From Nearby** also takes it from chests, barrels and placed shulker boxes within 6 blocks.
 5. Press Build to start construction. The table places blocks one by one and waits if materials are missing, automatically resuming when you deliver them.
 
