@@ -165,6 +165,10 @@ public final class MapScreen extends Screen {
 			DreamTableHologram.mirror();
 			return true;
 		}
+		if (DreamTableKeys.HOLOGRAM.matchesKey(keyCode, scanCode)) {
+			DreamTableHologram.toggleGhosts();
+			return true;
+		}
 		if (DreamTableKeys.LAYERS.matchesKey(keyCode, scanCode)) {
 			DreamTableHologram.toggleLayers();
 			return true;
