@@ -419,4 +419,17 @@ class MaterialLedgerTest {
 		assertEquals(0, count(legacy.drainIncompatible(otherFarm())));
 		assertEquals(4, legacy.deposited(0));
 	}
+
+	/** A broken table saves the session and then empties it; the saved copy must not follow the live counts. */
+	@Test
+	void aSavedCopyKeepsItsCountsWhenTheLedgerIsEmptiedAfterwards() {
+		MaterialLedger ledger = new MaterialLedger();
+		assertEquals(4, ledger.accept(farm, new ItemStack(Items.STONE, 4), false));
+		NbtCompound saved = new NbtCompound();
+		ledger.write(saved);
+		ledger.reset();
+		MaterialLedger back = new MaterialLedger();
+		back.read(saved);
+		assertEquals(4, back.deposited(0));
+	}
 }
