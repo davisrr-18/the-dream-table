@@ -173,4 +173,14 @@ class PlacementOutlineTest {
 	private static double reach(Vec3d point) {
 		return Math.hypot(point.x - 0.5, point.z - 0.5);
 	}
+
+	@Test
+	void blocksOutsideTheViewConeAreSkippedButNearOnesAreNot() {
+		Vec3d forward = new Vec3d(0, 0, 1);
+		assertTrue(!PlacementOutline.outsideView(new Vec3d(0, 0, 30), forward));
+		assertTrue(!PlacementOutline.outsideView(new Vec3d(20, 0, 20), forward));
+		assertTrue(PlacementOutline.outsideView(new Vec3d(30, 0, 1), forward));
+		assertTrue(PlacementOutline.outsideView(new Vec3d(0, 0, -30), forward));
+		assertTrue(!PlacementOutline.outsideView(new Vec3d(3, 0, 0), forward));
+	}
 }

@@ -146,7 +146,7 @@ public final class MapMode {
 	 * from its render, so the view moves with the frame rate rather than in 20 steps a second.
 	 */
 	public static void frame(MinecraftClient client, MapScreen.Movement held, float frameTicks) {
-		if (!active) {
+		if (!active || client.world != world) {
 			return;
 		}
 		double ticks = Math.min(Math.max(frameTicks, 0.0), MAX_FRAME_TICKS);

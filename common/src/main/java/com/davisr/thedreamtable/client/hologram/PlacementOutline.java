@@ -184,4 +184,10 @@ public final class PlacementOutline {
 				a.add(side.multiply(widthA)), a.subtract(side.multiply(widthA)),
 				b.subtract(side.multiply(widthB)), b.add(side.multiply(widthB))});
 	}
+
+	/** Beyond about 81 degrees off the look direction nothing of a block can be on screen; blocks within 4 blocks always count. */
+	public static boolean outsideView(Vec3d toBlock, Vec3d forward) {
+		double dot = toBlock.dotProduct(forward);
+		return dot < -1.0 || (toBlock.lengthSquared() > 16.0 && dot < 0.15 * toBlock.length());
+	}
 }
