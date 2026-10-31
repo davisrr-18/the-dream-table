@@ -19,6 +19,11 @@ public final class FarmGeometry {
 	private FarmGeometry() {
 	}
 
+	/** Whether a farm anchored at {@code anchor} is within the reach a table places farms at. */
+	public static boolean withinReach(BlockPos table, BlockPos anchor) {
+		return anchor.getSquaredDistance(table) <= (double) AIM_RANGE * AIM_RANGE;
+	}
+
 	public static BlockRotation rotation(Direction facing) {
 		return switch (facing) {
 			case EAST -> BlockRotation.COUNTERCLOCKWISE_90;

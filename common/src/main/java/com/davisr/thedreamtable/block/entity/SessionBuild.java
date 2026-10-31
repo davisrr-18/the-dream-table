@@ -237,6 +237,13 @@ public final class SessionBuild {
 			TableNoticePayload.problem(starter, Text.translatable("gui.the_dream_table.farm_changed"));
 			return false;
 		}
+		if (!fromScratch && session.movedBuild()) {
+			String problem = session.movedBuildProblem(world, starter, template);
+			if (problem != null) {
+				TableNoticePayload.problem(starter, Text.translatable(problem));
+				return false;
+			}
+		}
 		BuildIssue previous = fromScratch ? null : progress.issue();
 		if (previous != null && !previous.temporary()) {
 			BuildIssue now = FarmBuilder.check(session, world);
@@ -250,6 +257,7 @@ public final class SessionBuild {
 		}
 		session.reconcileMaterials(starter);
 		areas.claim(world, template);
+		session.settleMovedBuild();
 		verified = null;
 		progress.start(session.player(), fromScratch, template.signature());
 		if (fromScratch) {

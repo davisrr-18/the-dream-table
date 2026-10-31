@@ -144,7 +144,7 @@ public class DreamTableBlock extends BlockWithEntity {
 	protected void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
 		// Only the server owns the sessions: the client's copy gets this call too when the server's block change arrives.
 		if (!world.isClient() && !state.isOf(newState.getBlock()) && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table) {
-			table.dropMaterials(world);
+			table.onBroken(world);
 		}
 		super.onStateReplaced(state, world, pos, newState, moved);
 	}
