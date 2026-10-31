@@ -9,15 +9,14 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.Heightmap;
 
+import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.OptionalInt;
 
 /**
- * Reads the client's terrain for map mode: the spot under the map cursor, and the ground the range circle follows.
- * A column whose chunk the client has not received counts as no ground.
+ * Reads the client's terrain for the map's range ring. A column whose chunk the client has not received counts as no ground.
  */
 public final class MapTerrain {
 	private static final int RANGE = FarmGeometry.AIM_RANGE;
@@ -26,32 +25,26 @@ public final class MapTerrain {
 	private MapTerrain() {
 	}
 
-	/** The anchor under the map cursor, or empty when the cursor is over no loaded ground or outside the range. */
-	public static Optional<BlockPos> cursorAnchor(ClientWorld world, BlockPos table, Vec3d camera, double ndcX, double ndcY, double tanHalfFovY, double aspect) {
-		Optional<MapGround.Ground> ground = MapGround.pick(camera.x, camera.y, camera.z, ndcX, ndcY, tanHalfFovY, aspect,
-				(x, z) -> surfaceY(world, table, (int) Math.floor(x), (int) Math.floor(z)));
-		return ground.flatMap(g -> MapGround.anchorAt(probe(world), table, (int) Math.floor(g.x()), (int) Math.floor(g.z()), RANGE));
-	}
-
-	/** The closed loop where the range reaches, following the terrain; rebuilt now and then, not every frame. */
+	/**
+	 * The closed loop where the range reaches, following the terrain. Each column is scanned once per build: the ring's rays
+	 * cross the same columns many times, and a column's anchor is the same every time.
+	 */
 	public static List<Vec3d> rangeLoop(ClientWorld world, BlockPos table) {
-		return PlacementOutline.rangeLoop(table, RANGE, LOOP_POINTS, (x, z) -> {
-			OptionalInt y = anchorY(world, table, x, z);
-			return y.isPresent() ? y.getAsInt() : Integer.MIN_VALUE;
-		});
+		Map<Long, Integer> columns = new HashMap<>();
+		return PlacementOutline.rangeLoop(table, RANGE, LOOP_POINTS,
+				(x, z) -> columns.computeIfAbsent(BlockPos.asLong(x, 0, z), key -> anchorY(world, table, x, z)));
 	}
 
-	private static double surfaceY(ClientWorld world, BlockPos table, int x, int z) {
-		OptionalInt y = anchorY(world, table, x, z);
-		return y.isPresent() ? y.getAsInt() : Double.NaN;
-	}
-
-	private static OptionalInt anchorY(ClientWorld world, BlockPos table, int x, int z) {
+	/**
+	 * The column's anchor Y, or {@link Integer#MIN_VALUE} for none. The scan starts at the top of the reach rather than at the
+	 * client's heightmap: that is only what the client last received, so a block placed above it would be missed.
+	 */
+	private static int anchorY(ClientWorld world, BlockPos table, int x, int z) {
 		if (!world.getChunkManager().isChunkLoaded(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z))) {
-			return OptionalInt.empty();
+			return Integer.MIN_VALUE;
 		}
-		int top = Math.min(table.getY() + RANGE, world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z));
-		return MapGround.anchorY(probe(world), x, z, table.getY() - RANGE, top);
+		OptionalInt y = MapGround.anchorY(probe(world), x, z, table.getY() - RANGE, table.getY() + RANGE);
+		return y.isPresent() ? y.getAsInt() : Integer.MIN_VALUE;
 	}
 
 	/** What a ray that ignores fluids would meet in the cell, as the crosshair aim does. */

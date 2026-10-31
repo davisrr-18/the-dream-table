@@ -30,6 +30,7 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 import org.joml.Vector3f;
 
@@ -71,6 +72,8 @@ public final class DreamTableHologram {
 	private static List<Vec3d> mapLoop = List.of();
 	private static long mapLoopTime = Long.MIN_VALUE;
 	private static final int MAP_LOOP_TICKS = 100;
+	/** Long enough to reach past the table's whole aim range from any point the map camera can take. */
+	private static final double MAP_RAY_LENGTH = 128.0;
 
 	private DreamTableHologram() {
 	}
@@ -118,11 +121,6 @@ public final class DreamTableHologram {
 		mapCursor = null;
 		mapLoop = List.of();
 		mapLoopTime = Long.MIN_VALUE;
-	}
-
-	/** The anchor under the map cursor, or null when the cursor is outside the range or over no ground. */
-	public static void setMapCursor(BlockPos anchor) {
-		mapCursor = anchor;
 	}
 
 	/** Places the farm at the map cursor like a right-click at the crosshair would; false when there is no valid spot under it. */
@@ -500,17 +498,25 @@ public final class DreamTableHologram {
 
 	/** Finds the spot under the map cursor and keeps the range circle up to date. */
 	private static void updateMap(RenderFrame context) {
-		if (context.camera() == null) {
-			return;
-		}
-		MinecraftClient client = MinecraftClient.getInstance();
-		mapCursor = MapTerrain.cursorAnchor(context.world(), tablePos, context.camera().getPos(), MapMode.ndcX(), MapMode.ndcY(),
-				MapMode.tanHalfFovY(client), MapMode.aspect()).orElse(null);
+		mapCursor = mapAim(context.world(), MinecraftClient.getInstance());
 		long now = context.world().getTime();
 		if (mapLoopTime == Long.MIN_VALUE || now - mapLoopTime >= MAP_LOOP_TICKS || now < mapLoopTime) {
 			mapLoop = MapTerrain.rangeLoop(context.world(), tablePos);
 			mapLoopTime = now;
 		}
+	}
+
+	/** The anchor the pointer's ray meets first, by the same rules as the crosshair aim; null when it meets no block in reach. */
+	private static BlockPos mapAim(World world, MinecraftClient client) {
+		Vec3d origin = MapMode.rayOrigin(client);
+		Vec3d direction = MapMode.rayDirection(client);
+		if (origin == null || direction == null || client.player == null) {
+			return null;
+		}
+		Vec3d end = origin.add(direction.multiply(MAP_RAY_LENGTH));
+		BlockHitResult hit = world.raycast(new RaycastContext(origin, end, RaycastContext.ShapeType.OUTLINE,
+				RaycastContext.FluidHandling.NONE, client.player));
+		return hit.getType() == HitResult.Type.BLOCK ? anchorFrom(hit, world) : null;
 	}
 
 	private static BlockPos aim(RenderFrame context) {
