@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.util.Window;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
@@ -107,12 +108,44 @@ public final class MapScreen extends Screen {
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
 		MapMode.frame(client, movement(), client.getRenderTickCounter().getLastFrameDuration());
-		List<OrderedText> lines = textRenderer.wrapLines(Text.translatable("gui.the_dream_table.map_hint"), width - 2 * MARGIN);
+		List<OrderedText> lines = textRenderer.wrapLines(hint(), width - 2 * MARGIN);
 		int y = height - MARGIN - lines.size() * LINE;
 		for (OrderedText line : lines) {
 			context.drawTextWithShadow(textRenderer, line, (width - textRenderer.getWidth(line)) / 2, y, HINT_COLOR);
 			y += LINE;
 		}
+	}
+
+	/**
+	 * The controls line, built from the player's own key bindings so a rebound key shows as it is: each control is its key, a
+	 * colon and what it does.
+	 */
+	private Text hint() {
+		GameOptions options = client.options;
+		Text move = Text.empty().append(options.forwardKey.getBoundKeyLocalizedText()).append("/")
+				.append(options.leftKey.getBoundKeyLocalizedText()).append("/")
+				.append(options.backKey.getBoundKeyLocalizedText()).append("/")
+				.append(options.rightKey.getBoundKeyLocalizedText());
+		Text back = Text.empty().append(Text.translatable("key.keyboard.escape")).append("/").append(DreamTableKeys.MAP.getBoundKeyLocalizedText());
+		MutableText line = Text.empty();
+		control(line, move, "move");
+		control(line, options.jumpKey.getBoundKeyLocalizedText(), "up");
+		control(line, options.sneakKey.getBoundKeyLocalizedText(), "down");
+		control(line, options.sprintKey.getBoundKeyLocalizedText(), "faster");
+		control(line, Text.translatable("key.mouse.left"), "place");
+		control(line, DreamTableKeys.ROTATE.getBoundKeyLocalizedText(), "turn");
+		control(line, DreamTableKeys.MIRROR.getBoundKeyLocalizedText(), "mirror");
+		control(line, DreamTableKeys.LAYERS.getBoundKeyLocalizedText(), "layers");
+		control(line, DreamTableKeys.HOLOGRAM.getBoundKeyLocalizedText(), "hologram");
+		control(line, back, "back");
+		return line;
+	}
+
+	private static void control(MutableText line, Text key, String action) {
+		if (!line.getSiblings().isEmpty()) {
+			line.append("   ");
+		}
+		line.append(Text.translatable("gui.the_dream_table.map_control", key, Text.translatable("gui.the_dream_table.map_action." + action)));
 	}
 
 	/**
