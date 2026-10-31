@@ -1,39 +1,40 @@
 package com.davisr.thedreamtable.client.map;
 
 import com.davisr.thedreamtable.block.DreamTableBlock;
-import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.TableNotices;
-import net.minecraft.block.entity.BlockEntity;
+import com.davisr.thedreamtable.farm.FarmGeometry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.render.Camera;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.decoration.ArmorStandEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkSectionPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Map placement mode: the camera rises straight above the followed Dream Table and looks down, north at the top of the
- * screen. The camera follows a client-only entity that is never added to the world, so the player's body stays put.
+ * Map placement mode: a free camera that starts at the player's eyes, flies inside the table's reach and looks wherever the
+ * player turns it. The camera is a client-only entity that is never added to the world, so the player's body stays put.
  */
 public final class MapMode {
-	private static final double DEFAULT_HEIGHT = 80.0;
-	private static final double MIN_HEIGHT = 10.0;
-	private static final double MAX_HEIGHT = 110.0;
-	private static final double ZOOM_PER_NOTCH = 0.85;
-	/** Yaw 180 faces north; with pitch 90 the screen's top is north and its right is east. */
-	private static final float YAW = 180.0F;
-	private static final float PITCH = 90.0F;
+	/** One block short of the aim's reach, so the camera never sees farther than the aim can place. */
+	private static final double WALL_RADIUS = FarmGeometry.AIM_RANGE - 1.0;
+	/** Blocks per tick of held movement, about 10 a second. */
+	private static final double MOVE_PER_TICK = 0.5;
+	private static final double BLOCKS_PER_NOTCH = 3.0;
+	/** Ticks between two notices that the camera is at the edge of the reach, so pushing against the wall does not repeat it. */
+	private static final int LIMIT_NOTICE_TICKS = 40;
 
 	private static boolean active;
 	private static BlockPos table;
 	private static ClientWorld world;
+	private static MapCamera view;
 	private static ArmorStandEntity camera;
-	private static double height = DEFAULT_HEIGHT;
+	private static int limitCooldown;
 	private static double ndcX;
 	private static double ndcY;
 	private static double aspect = 1.0;
@@ -53,16 +54,16 @@ public final class MapMode {
 		BlockPos followed = DreamTableHologram.mapTable();
 		if (followed == null) {
 			refuse("gui.the_dream_table.map_no_table");
-		} else if (client.world == null || !terrainLoaded(client.world, followed)) {
+		} else if (client.world == null || !MapChecks.terrainLoaded(client.world, followed)) {
 			refuse("gui.the_dream_table.map_terrain_not_loaded");
 		} else if (!DreamTableHologram.mapAvailable()) {
-			refuse(farmChosen(client, followed) ? "gui.the_dream_table.map_not_ready" : "gui.the_dream_table.map_no_farm");
+			refuse(MapChecks.farmChosen(client, followed) ? "gui.the_dream_table.map_not_ready" : "gui.the_dream_table.map_no_farm");
 		} else if (enter(client, followed)) {
 			client.setScreen(new MapScreen());
 		}
 	}
 
-	/** Starts the mode above the table; false with a notice when it cannot start here. */
+	/** Starts the mode at the player's eyes; false with a notice when it cannot start here. */
 	public static boolean enter(MinecraftClient client, BlockPos tablePos) {
 		if (active) {
 			return true;
@@ -77,7 +78,7 @@ public final class MapMode {
 			refuse("gui.the_dream_table.map_first_person");
 			return false;
 		}
-		if (!terrainLoaded(clientWorld, tablePos)) {
+		if (!MapChecks.terrainLoaded(clientWorld, tablePos)) {
 			refuse("gui.the_dream_table.map_terrain_not_loaded");
 			return false;
 		}
@@ -87,12 +88,14 @@ public final class MapMode {
 		}
 		table = tablePos.toImmutable();
 		world = clientWorld;
+		view = new MapCamera(player.getEyePos(), player.getYaw(), player.getPitch());
+		view.clampTo(centre(), WALL_RADIUS);
 		camera = new ArmorStandEntity(EntityType.ARMOR_STAND, clientWorld);
-		height = DEFAULT_HEIGHT;
+		limitCooldown = 0;
 		active = true;
-		place();
+		setPose(false);
 		client.setCameraEntity(camera);
-		// The first-person hand would be drawn from the overhead camera, so it is off while the mode is open.
+		// The first-person hand would be drawn from the free camera, so it is off while the mode is open.
 		client.gameRenderer.setRenderHand(false);
 		DreamTableHologram.setMapActive(true);
 		return true;
@@ -108,13 +111,17 @@ public final class MapMode {
 			client.setCameraEntity(client.player);
 		}
 		camera = null;
+		view = null;
 		table = null;
 		world = null;
 		client.gameRenderer.setRenderHand(true);
 		DreamTableHologram.setMapActive(false);
 	}
 
-	/** Keeps the camera above the table, and ends the mode when the player, world, screen or table no longer fit it. */
+	/**
+	 * Applies the held keys, keeps the camera inside the reach and gives the game's camera this tick's pose. Ends the mode when
+	 * the player, world, screen or table no longer fit it.
+	 */
 	public static void tick(MinecraftClient client) {
 		if (!active) {
 			return;
@@ -126,26 +133,32 @@ public final class MapMode {
 			}
 			return;
 		}
-		place();
-	}
-
-	/** Scroll up zooms in. Each notch scales the height by 0.85, kept between 10 and 110 blocks above the table. */
-	public static void zoom(double scrollDelta) {
-		if (!active) {
-			return;
+		if (limitCooldown > 0) {
+			limitCooldown--;
 		}
-		height = Math.clamp(height * Math.pow(ZOOM_PER_NOTCH, scrollDelta), MIN_HEIGHT, MAX_HEIGHT);
-		place();
+		if (client.currentScreen instanceof MapScreen screen) {
+			MapScreen.Movement held = screen.movement();
+			view.move(held.forward(), held.strafe(), held.vertical(), MOVE_PER_TICK);
+		}
+		if (view.clampTo(centre(), WALL_RADIUS) && limitCooldown == 0) {
+			TableNotices.problem(Text.translatable("gui.the_dream_table.map_limit"));
+			limitCooldown = LIMIT_NOTICE_TICKS;
+		}
+		setPose(true);
 	}
 
-	public static double height() {
-		return height;
+	/** Turns the view by the mouse drag, in degrees. */
+	public static void look(double deltaYaw, double deltaPitch) {
+		if (active) {
+			view.look(deltaYaw, deltaPitch);
+		}
 	}
 
-	/** The camera's position: the table block's centre at the set height, or null when the mode is off. */
-	@Nullable
-	public static Vec3d cameraPos() {
-		return active ? eyePos() : null;
+	/** Scroll forward moves the camera forward along the look direction, {@link #BLOCKS_PER_NOTCH} blocks per notch. */
+	public static void scroll(double notches) {
+		if (active) {
+			view.dolly(notches * BLOCKS_PER_NOTCH);
+		}
 	}
 
 	/** Half the vertical field of view's tangent, from the FOV option. Status-effect and zoom changes to the FOV are not applied. */
@@ -176,51 +189,57 @@ public final class MapMode {
 	}
 
 	/**
-	 * The entity sits so that the camera, which adds the entity's standing eye height to its position, lands exactly on the
-	 * eye point. The previous position and angles equal the current ones, so no interpolation drifts between ticks.
+	 * Where the aim ray starts: the camera as the game draws it this frame, which lags the view state by up to a tick while
+	 * the camera moves, so the spot under the pointer is the one on screen.
 	 */
-	private static void place() {
-		Vec3d eye = eyePos();
-		camera.refreshPositionAndAngles(eye.x, eye.y - camera.getStandingEyeHeight(), eye.z, YAW, PITCH);
-		camera.prevYaw = YAW;
-		camera.prevPitch = PITCH;
+	@Nullable
+	public static Vec3d rayOrigin(MinecraftClient client) {
+		return active ? client.gameRenderer.getCamera().getPos() : null;
 	}
 
-	private static Vec3d eyePos() {
-		return new Vec3d(table.getX() + 0.5, table.getY() + height, table.getZ() + 0.5);
+	/** The aim ray's unit direction through the pointer, from the camera as it is drawn; null when the mode is off. */
+	@Nullable
+	public static Vec3d rayDirection(MinecraftClient client) {
+		if (!active) {
+			return null;
+		}
+		Camera drawn = client.gameRenderer.getCamera();
+		return new MapCamera(drawn.getPos(), drawn.getYaw(), drawn.getPitch()).rayThrough(ndcX, ndcY, tanHalfFovY(client), aspect);
+	}
+
+	/**
+	 * Gives the dummy camera the view's pose. With {@code glide} the pose it had is kept as the previous one, so the game's
+	 * camera interpolates between ticks; without it both are the same, for the first pose. The yaw is unwrapped to the side
+	 * of the previous yaw, so turning across south does not spin the camera the long way round.
+	 */
+	private static void setPose(boolean glide) {
+		Vec3d eye = view.position();
+		double eyeY = eye.y - camera.getStandingEyeHeight();
+		float previousYaw = camera.getYaw();
+		float yaw = (float) (previousYaw + MathHelper.wrapDegrees(view.yaw() - previousYaw));
+		float pitch = (float) view.pitch();
+		if (glide) {
+			camera.prevX = camera.getX();
+			camera.prevY = camera.getY();
+			camera.prevZ = camera.getZ();
+			camera.prevYaw = previousYaw;
+			camera.prevPitch = camera.getPitch();
+			camera.setPosition(eye.x, eyeY, eye.z);
+			camera.setYaw(yaw);
+			camera.setPitch(pitch);
+		} else {
+			camera.refreshPositionAndAngles(eye.x, eyeY, eye.z, yaw, pitch);
+		}
+	}
+
+	private static Vec3d centre() {
+		return new Vec3d(table.getX() + 0.5, table.getY() + 0.5, table.getZ() + 0.5);
 	}
 
 	private static boolean stillFits(MinecraftClient client) {
 		ClientPlayerEntity player = client.player;
 		return player != null && player.isAlive() && client.world == world && client.getCameraEntity() == camera
-				&& client.currentScreen instanceof MapScreen && tableStanding(world, table);
-	}
-
-	private static boolean farmChosen(MinecraftClient client, BlockPos followed) {
-		BlockEntity entity = client.world == null ? null : client.world.getBlockEntity(followed);
-		return client.player != null && entity instanceof DreamTableBlockEntity tableEntity
-				&& !tableEntity.session(client.player).getSelectedFarm().isEmpty();
-	}
-
-	private static boolean tableStanding(ClientWorld clientWorld, BlockPos pos) {
-		return chunkLoaded(clientWorld, ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()))
-				&& clientWorld.getBlockState(pos).getBlock() instanceof DreamTableBlock;
-	}
-
-	/** The table's chunk and the four chunks next to it, which is what the view over the farm site reads. */
-	private static boolean terrainLoaded(ClientWorld clientWorld, BlockPos pos) {
-		int chunkX = ChunkSectionPos.getSectionCoord(pos.getX());
-		int chunkZ = ChunkSectionPos.getSectionCoord(pos.getZ());
-		return chunkLoaded(clientWorld, chunkX, chunkZ)
-				&& chunkLoaded(clientWorld, chunkX + 1, chunkZ)
-				&& chunkLoaded(clientWorld, chunkX - 1, chunkZ)
-				&& chunkLoaded(clientWorld, chunkX, chunkZ + 1)
-				&& chunkLoaded(clientWorld, chunkX, chunkZ - 1);
-	}
-
-	/** The client's chunk manager, not {@code ClientWorld.isChunkLoaded}, which always answers true. */
-	private static boolean chunkLoaded(ClientWorld clientWorld, int chunkX, int chunkZ) {
-		return clientWorld.getChunkManager().isChunkLoaded(chunkX, chunkZ);
+				&& client.currentScreen instanceof MapScreen && MapChecks.tableStanding(world, table);
 	}
 
 	private static void refuse(String key) {
