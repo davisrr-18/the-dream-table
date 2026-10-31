@@ -145,7 +145,9 @@ public final class FarmBuilder {
 			table.build().waitingFor(world, target);
 			return Outcome.STOPPED;
 		}
-		Outcome clearing = LayerClearer.clearFirst(table, world, owner, template, site, target);
+		// Clearing destroys without drops, so it waits until the step can go on: a build short of material clears nothing.
+		boolean affordable = step.item() == null || owner.isCreative() || table.hasMaterial(step.item());
+		Outcome clearing = affordable ? LayerClearer.clearFirst(table, world, owner, template, site, target) : null;
 		if (clearing != null) {
 			return clearing;
 		}

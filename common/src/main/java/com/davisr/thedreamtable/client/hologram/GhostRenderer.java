@@ -139,7 +139,7 @@ public final class GhostRenderer {
 
 	/**
 	 * The map's reach: each ground block on its edge gets L brackets on all its corners, so the limit reads from any side. They
-	 * are drawn over the terrain, so no block hides them. Blocks behind the camera are skipped.
+	 * are drawn over the terrain, so no block hides them. Blocks outside the view cone are skipped.
 	 */
 	public static void drawEdge(MatrixStack matrices, List<BlockPos> edge, Vec3d camera, Vec3d forward) {
 		RenderSystem.disableDepthTest();
@@ -148,7 +148,7 @@ public final class GhostRenderer {
 		Matrix4f matrix = matrices.peek().getPositionMatrix();
 		BufferBuilder corners = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		for (BlockPos pos : edge) {
-			if (Vec3d.ofCenter(pos).subtract(camera).dotProduct(forward) < -1.0) {
+			if (PlacementOutline.outsideView(Vec3d.ofCenter(pos).subtract(camera), forward)) {
 				continue;
 			}
 			emit(corners, matrix, PlacementOutline.cornerBrackets(pos, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BRACKET_WIDTH_FACTOR, BRACKET_MAX_HALF), EDGE_RGB);
