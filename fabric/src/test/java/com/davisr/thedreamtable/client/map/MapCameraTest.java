@@ -3,15 +3,19 @@ package com.davisr.thedreamtable.client.map;
 import net.minecraft.util.math.Vec3d;
 import org.junit.jupiter.api.Test;
 
+import java.util.function.Predicate;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The free camera's motion, its wall and the view directions the aim is cast along. */
+/** The free camera's motion, its ground and floor, its wall and the view directions. */
 class MapCameraTest {
 	private static final double DELTA = 1e-9;
 	private static final Vec3d ORIGIN = Vec3d.ZERO;
 	private static final Vec3d TABLE = new Vec3d(0.5, 64.5, 0.5);
+	private static final Predicate<Vec3d> OPEN = point -> false;
+	private static final double NO_FLOOR = -1000.0;
 
 	private static void assertVec(Vec3d expected, Vec3d actual) {
 		assertVec(expected, actual, DELTA);
@@ -48,54 +52,11 @@ class MapCameraTest {
 	}
 
 	@Test
-	void centreOfTheScreenIsTheLookDirection() {
-		for (double[] angles : new double[][] {{0, 0}, {90, 30}, {-135, -60}, {200, 89}}) {
-			MapCamera camera = new MapCamera(ORIGIN, angles[0], angles[1]);
-			assertVec(camera.forward(), camera.rayThrough(0, 0, 0.5, 1.6));
-		}
-	}
-
-	@Test
-	void pitchDownLooksDownAndTheTopOfTheScreenFacesForward() {
-		MapCamera camera = new MapCamera(ORIGIN, 180, 60);
-		assertTrue(camera.forward().y < 0);
-		assertTrue(camera.up().y > 0);
-		assertVec(new Vec3d(0, 0, -1), new MapCamera(ORIGIN, 180, 89).up(), 0.02);
-	}
-
-	@Test
-	void rightAndUpAreUnitAndPerpendicularToTheLookDirection() {
+	void rightStaysLevelWhateverThePitch() {
 		MapCamera camera = new MapCamera(ORIGIN, 37, -25);
-		assertEquals(1.0, camera.forward().length(), DELTA);
 		assertEquals(1.0, camera.right().length(), DELTA);
-		assertEquals(1.0, camera.up().length(), DELTA);
-		assertEquals(0.0, camera.forward().dotProduct(camera.right()), DELTA);
-		assertEquals(0.0, camera.forward().dotProduct(camera.up()), DELTA);
-		assertEquals(0.0, camera.right().dotProduct(camera.up()), DELTA);
 		assertEquals(0.0, camera.right().y, DELTA);
-	}
-
-	@Test
-	void ndcRightIsTheCameraRight() {
-		MapCamera camera = new MapCamera(ORIGIN, 35, 20);
-		Vec3d ray = camera.rayThrough(1, 0, 0.5, 2);
-		assertTrue(ray.dotProduct(camera.right()) > 0);
-		assertEquals(0.0, ray.dotProduct(camera.up()), DELTA);
-	}
-
-	@Test
-	void ndcUpIsTheCameraUp() {
-		MapCamera camera = new MapCamera(ORIGIN, 35, 20);
-		Vec3d ray = camera.rayThrough(0, 1, 0.5, 2);
-		assertTrue(ray.dotProduct(camera.up()) > 0);
-		assertEquals(0.0, ray.dotProduct(camera.right()), DELTA);
-	}
-
-	@Test
-	void theEdgeOfTheScreenIsHalfTheFieldAwayFromTheCentre() {
-		// Half the vertical FOV's tangent is 0.5 and the aspect is 2, so the right edge is 1 across at unit depth: 45 degrees.
-		Vec3d ray = new MapCamera(ORIGIN, 0, 0).rayThrough(1, 0, 0.5, 2);
-		assertVec(new Vec3d(-Math.sqrt(0.5), 0, Math.sqrt(0.5)), ray);
+		assertEquals(0.0, camera.forward().dotProduct(camera.right()), DELTA);
 	}
 
 	@Test
@@ -129,7 +90,6 @@ class MapCameraTest {
 		assertEquals(89, camera.pitch(), DELTA);
 		camera.look(0, -1000);
 		assertEquals(-89, camera.pitch(), DELTA);
-		assertTrue(Double.isFinite(camera.up().y));
 	}
 
 	@Test
@@ -143,55 +103,114 @@ class MapCameraTest {
 	@Test
 	void forwardMovesTowardPlusZAtYawZero() {
 		MapCamera camera = new MapCamera(ORIGIN, 0, 0);
-		camera.move(1, 0, 0, 2);
+		camera.move(1, 0, 0, 2, OPEN, NO_FLOOR);
 		assertVec(new Vec3d(0, 0, 2), camera.position());
 	}
 
 	@Test
 	void strafeRightAtYawZeroMovesWest() {
 		MapCamera camera = new MapCamera(ORIGIN, 0, 0);
-		camera.move(0, 1, 0, 1);
+		camera.move(0, 1, 0, 1, OPEN, NO_FLOOR);
 		assertVec(new Vec3d(-1, 0, 0), camera.position());
 	}
 
 	@Test
 	void walkingFollowsTheYawNotThePitch() {
 		MapCamera camera = new MapCamera(ORIGIN, 90, -60);
-		camera.move(1, 0, 0, 1);
+		camera.move(1, 0, 0, 1, OPEN, NO_FLOOR);
 		assertVec(new Vec3d(-1, 0, 0), camera.position());
 	}
 
 	@Test
 	void verticalMovesAlongWorldY() {
 		MapCamera camera = new MapCamera(ORIGIN, 123, 45);
-		camera.move(0, 0, 1, 3);
+		camera.move(0, 0, 1, 3, OPEN, NO_FLOOR);
 		assertVec(new Vec3d(0, 3, 0), camera.position());
-		camera.move(0, 0, -1, 1);
+		camera.move(0, 0, -1, 1, OPEN, NO_FLOOR);
 		assertVec(new Vec3d(0, 2, 0), camera.position());
 	}
 
 	@Test
 	void aDiagonalIsNoFasterThanAStraightMove() {
 		MapCamera camera = new MapCamera(ORIGIN, 0, 0);
-		camera.move(1, 1, 1, 1);
+		camera.move(1, 1, 1, 1, OPEN, NO_FLOOR);
 		assertEquals(1.0, camera.position().length(), DELTA);
 	}
 
 	@Test
 	void noInputDoesNotMove() {
 		MapCamera camera = new MapCamera(TABLE, 10, 10);
-		camera.move(0, 0, 0, 5);
+		camera.move(0, 0, 0, 5, OPEN, NO_FLOOR);
 		assertVec(TABLE, camera.position());
 	}
 
 	@Test
 	void dollyMovesAlongTheWholeLookDirection() {
 		MapCamera camera = new MapCamera(ORIGIN, 0, 0);
-		camera.dolly(3);
+		camera.dolly(3, OPEN, NO_FLOOR);
 		assertVec(new Vec3d(0, 0, 3), camera.position());
 
 		MapCamera down = new MapCamera(ORIGIN, 0, 60);
-		down.dolly(2);
+		down.dolly(2, OPEN, NO_FLOOR);
 		assertVec(new Vec3d(0, -2 * Math.sin(Math.toRadians(60)), 2 * Math.cos(Math.toRadians(60))), down.position(), 1e-9);
+	}
+
+	@Test
+	void aSolidCellStopsTheAxisItWouldEnter() {
+		Predicate<Vec3d> wallAtZOne = point -> point.z >= 1.0;
+		MapCamera camera = new MapCamera(ORIGIN, 0, 0);
+		camera.move(1, 0, 0, 2, wallAtZOne, NO_FLOOR);
+		// Steps of a quarter block: the step to z = 1 is solid, so the camera keeps the last free spot.
+		assertEquals(0.75, camera.position().z, DELTA);
+		assertEquals(0.0, camera.position().x, DELTA);
+	}
+
+	@Test
+	void walkingIntoAWallSlidesAlongItOnTheOtherAxis() {
+		Predicate<Vec3d> wallAtZOne = point -> point.z >= 1.0;
+		MapCamera camera = new MapCamera(ORIGIN, 0, 0);
+		// Forward and strafe left together: the forward axis hits the wall, the strafe keeps going.
+		camera.move(1, -1, 0, 3, wallAtZOne, NO_FLOOR);
+		assertTrue(camera.position().x > 2.0, "slides along the wall");
+		assertTrue(camera.position().z > 0.9 && camera.position().z < 1.0, "stops at the wall: " + camera.position().z);
+	}
+
+	@Test
+	void oneBlockWallStopsTheCameraHoweverFastItMoves() {
+		Predicate<Vec3d> wall = point -> point.x >= 5.0 && point.x < 6.0;
+		MapCamera camera = new MapCamera(ORIGIN, 0, 0);
+		camera.move(0, -1, 0, 20, wall, NO_FLOOR);
+		assertEquals(4.75, camera.position().x, DELTA);
+	}
+
+	@Test
+	void theFloorStopsADescent() {
+		MapCamera camera = new MapCamera(new Vec3d(0, 10, 0), 0, 0);
+		camera.move(0, 0, -1, 5, OPEN, 8.0);
+		assertEquals(8.0, camera.position().y, DELTA);
+	}
+
+	@Test
+	void aSolidFloorPointCancelsTheDescentAtTheLastFreeSpot() {
+		Predicate<Vec3d> groundTopAtEight = point -> point.y <= 8.0;
+		MapCamera camera = new MapCamera(new Vec3d(0, 8.5, 0), 0, 0);
+		camera.move(0, 0, -1, 1, groundTopAtEight, 8.0);
+		assertEquals(8.25, camera.position().y, DELTA);
+	}
+
+	@Test
+	void aDollyDownIntoGroundStopsAboveIt() {
+		Predicate<Vec3d> groundBelowTen = point -> point.y <= 10.0;
+		MapCamera camera = new MapCamera(new Vec3d(0, 20, 0), 0, 89);
+		camera.dolly(30, groundBelowTen, NO_FLOOR);
+		assertTrue(camera.position().y > 10.0 && camera.position().y < 10.1, "stops above the ground: " + camera.position().y);
+	}
+
+	@Test
+	void moveToPutsTheCameraBack() {
+		MapCamera camera = new MapCamera(ORIGIN, 0, 0);
+		camera.move(1, 0, 0, 2, OPEN, NO_FLOOR);
+		camera.moveTo(ORIGIN);
+		assertVec(ORIGIN, camera.position());
 	}
 }

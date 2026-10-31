@@ -2,15 +2,31 @@ package com.davisr.thedreamtable.client.map;
 
 import com.davisr.thedreamtable.block.DreamTableBlock;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
+import net.minecraft.util.math.Vec3d;
 
 /** What map mode asks of the client's world before it opens and while it runs. */
 final class MapChecks {
 	private MapChecks() {
+	}
+
+	/**
+	 * Whether the camera may not enter this point: the cell holding it is a full cube of ground, except leaves and logs, so the
+	 * camera can still fly through trees. A cell in a chunk the client does not hold counts as solid, as its blocks are unknown.
+	 */
+	static boolean solidGround(ClientWorld clientWorld, Vec3d point) {
+		BlockPos pos = BlockPos.ofFloored(point.x, point.y, point.z);
+		if (!chunkLoaded(clientWorld, ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()))) {
+			return true;
+		}
+		BlockState state = clientWorld.getBlockState(pos);
+		return state.isFullCube(clientWorld, pos) && !state.isIn(BlockTags.LEAVES) && !state.isIn(BlockTags.LOGS);
 	}
 
 	/** Whether the table is still a table, in a chunk the client holds. */
