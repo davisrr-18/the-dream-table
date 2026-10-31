@@ -496,7 +496,16 @@ public final class FarmAreas extends PersistentState {
 		return find(world, asker, ignoredFinished, other -> other.contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5));
 	}
 
-	private boolean find(ServerWorld world, Key asker, @Nullable UUID ignoredFinished, Predicate<Box> test) {
+	/**
+	 * True when a build, a take-apart or a finished farm of any player covers the spot, so a Dream Table can't be placed there:
+	 * a table inside a farm would be guarded by no record of its own.
+	 */
+	public boolean reserved(ServerWorld world, BlockPos pos) {
+		return find(world, null, null, area -> area.contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5));
+	}
+
+	/** Whether any area other than the asker's (none when {@code asker} is null) and not ignored satisfies {@code test}. */
+	private boolean find(ServerWorld world, @Nullable Key asker, @Nullable UUID ignoredFinished, Predicate<Box> test) {
 		Iterator<Map.Entry<Key, Area>> entries = areas.entrySet().iterator();
 		while (entries.hasNext()) {
 			Map.Entry<Key, Area> entry = entries.next();

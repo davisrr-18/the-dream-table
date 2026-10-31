@@ -23,6 +23,8 @@ public record BuildIssue(Kind kind, BlockPos where, String subject, int attempts
 	public enum Kind {
 		/** A block the table never clears: it holds items, data or redstone, or can't be broken. */
 		OBSTACLE(false),
+		/** A Dream Table stands where the farm goes. Breaking it would drop its materials, so it is never cleared. */
+		TABLE_IN_WAY(false),
 		/** A block of another player's or table's farm. */
 		OTHER_FARM(false),
 		/** Spawn protection, the world border or a land claim. */
@@ -77,7 +79,7 @@ public record BuildIssue(Kind kind, BlockPos where, String subject, int attempts
 		return switch (kind) {
 			case OBSTACLE, OTHER_FARM, PLACE_FAILED -> Text.translatable(kind.key(), subjectName(), where.getX(), where.getY(), where.getZ());
 			case FARM_CHANGED -> Text.translatable(kind.key());
-			case PROTECTED, ENTITY_BLOCKED -> Text.translatable(kind.key(), where.getX(), where.getY(), where.getZ());
+			case PROTECTED, ENTITY_BLOCKED, TABLE_IN_WAY -> Text.translatable(kind.key(), where.getX(), where.getY(), where.getZ());
 			case MATERIAL -> Text.translatable(kind.key(), subjectName());
 			case UNLOADED -> Text.translatable(kind.key(), where.getX(), where.getZ());
 			case ERROR -> Text.translatable(kind.key(), subject);

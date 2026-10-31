@@ -9,27 +9,33 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Keeps a player from breaking a Dream Table that holds another player's delivered materials, running or paused build, or
- * Take Down: breaking it would drop their materials and end their work. The player who owns every such session, and server
- * operators, may break it; a table with only the breaker's own sessions, or empty ones, breaks as before. It goes through
- * the same break seam as {@code FarmProtection}, so it covers players only: explosions, pistons and other mods' block
- * removal are not covered.
+ * Keeps a player from breaking a Dream Table that holds work or materials they must not lose: another player's delivered
+ * materials, running or paused build, or Take Down, breaking it would drop their materials and end their work. A player's
+ * own running build stops them too, since breaking the table would orphan its placed blocks, and saved data this version
+ * cannot read stops everyone, the owner included. Server operators may always break it, and a table with only the breaker's
+ * own delivered materials, Take Down or empty sessions breaks as before. It goes through the same break seam as
+ * {@code FarmProtection}, so it covers players only: explosions, pistons and other mods' block removal are not covered.
  */
 public final class TableBreakGuard {
 	/** Permission level from which a player may always break a table, like the vanilla command operators. */
 	static final int OPERATOR_LEVEL = 2;
 
-	/** Why a session keeps the table from being broken, strongest last so {@link #blocker} can pick the clearest reason. */
+	/** The notice to the player whose own build is running at the table. */
+	static final String OWN_BUILD_KEY = "gui.the_dream_table.table_break_own_build";
+
+	/** Why a session or saved entry keeps the table from being broken, strongest last so {@link #blocker} can pick the clearest reason. */
 	public enum Reason {
 		MATERIALS("gui.the_dream_table.table_break_materials"),
 		BUILD("gui.the_dream_table.table_break_build"),
-		TAKE_DOWN("gui.the_dream_table.table_break_take_down");
+		TAKE_DOWN("gui.the_dream_table.table_break_take_down"),
+		UNREADABLE("gui.the_dream_table.table_break_unreadable");
 
 		private final String key;
 
@@ -42,8 +48,8 @@ public final class TableBreakGuard {
 		}
 	}
 
-	/** What one player has at stake at a table. */
-	public record Claim(UUID player, Reason reason) {
+	/** What one player has at stake at a table. {@code player} is null only for a saved entry that names no player. */
+	public record Claim(@Nullable UUID player, Reason reason) {
 	}
 
 	private TableBreakGuard() {
@@ -66,9 +72,9 @@ public final class TableBreakGuard {
 	}
 
 	/**
-	 * The claim that stops this player from breaking the table, or empty when they may. A claim of the breaker's own never
-	 * stops them, and an operator is never stopped. When several players have something at stake, the one with the
-	 * strongest reason is reported.
+	 * The claim that stops this player from breaking the table, or empty when they may. An operator is never stopped. Unreadable
+	 * saved data and a running build stop every player, the owner included; other claims stop only players other than their
+	 * owner. When several claims stop the breaker, the one with the strongest reason is reported.
 	 */
 	public static Optional<Claim> blocker(Collection<Claim> claims, UUID breaker, boolean operator) {
 		if (operator) {
@@ -76,11 +82,16 @@ public final class TableBreakGuard {
 		}
 		Claim worst = null;
 		for (Claim claim : claims) {
-			if (!claim.player().equals(breaker) && (worst == null || claim.reason().compareTo(worst.reason()) > 0)) {
+			if (stops(claim, breaker) && (worst == null || claim.reason().compareTo(worst.reason()) > 0)) {
 				worst = claim;
 			}
 		}
 		return Optional.ofNullable(worst);
+	}
+
+	/** Whether this claim keeps the breaker from breaking the table, before the operator rule. */
+	static boolean stops(Claim claim, UUID breaker) {
+		return claim.reason() == Reason.UNREADABLE || claim.reason() == Reason.BUILD || !breaker.equals(claim.player());
 	}
 
 	/** The claim that stops this player from breaking the table at {@code pos}, or empty when it is not a table or they may. */
@@ -92,6 +103,14 @@ public final class TableBreakGuard {
 	}
 
 	public static void tell(ServerWorld world, ServerPlayerEntity player, Claim claim) {
-		TableNoticePayload.problem(player, Text.translatable(claim.reason().key(), FarmProtection.ownerName(world.getServer(), claim.player())));
+		Text text;
+		if (claim.reason() == Reason.UNREADABLE) {
+			text = Text.translatable(Reason.UNREADABLE.key());
+		} else if (claim.reason() == Reason.BUILD && player.getUuid().equals(claim.player())) {
+			text = Text.translatable(OWN_BUILD_KEY);
+		} else {
+			text = Text.translatable(claim.reason().key(), FarmProtection.ownerName(world.getServer(), claim.player()));
+		}
+		TableNoticePayload.problem(player, text);
 	}
 }

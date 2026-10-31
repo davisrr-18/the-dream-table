@@ -28,8 +28,8 @@ public final class MapMode {
 	/** Blocks per tick of held movement, about 10 a second. Ctrl multiplies it by {@link #SPRINT_FACTOR}. */
 	private static final double MOVE_PER_TICK = 0.5;
 	private static final double SPRINT_FACTOR = 3.0;
-	/** How fast the movement eases in and out: about two thirds of the way in this many ticks, near full in a quarter second. */
-	private static final double EASE_TICKS = 1.5;
+	/** How fast the movement eases in and out: about two thirds of the way in this many ticks, near full in half a second. */
+	private static final double EASE_TICKS = 3.0;
 	/** A frame longer than this many ticks (100 ms) is cut short, so a stall does not throw the camera across the reach. */
 	private static final double MAX_FRAME_TICKS = 2.0;
 	private static final double BLOCKS_PER_NOTCH = 3.0;

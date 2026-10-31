@@ -63,8 +63,7 @@ public final class GhostRenderer {
 	private static final double BEAM_WIDTH_FACTOR = 1.5;
 	private static final double BEAM_MAX_HALF = 0.04;
 	private static final double BEAM_HEIGHT = 1.5;
-	/** The glow on the map's edge blocks: how far it sits outside them, and its colour. */
-	private static final double EDGE_GROW = 0.004;
+	/** The colour of the brackets on the map's edge blocks. */
 	private static final float[] EDGE_RGB = {0.55F, 0.85F, 1.0F};
 	/** The frame sits this far outside the footprint so the ghost blocks never hide it. */
 	private static final double OUTLINE_GROW = 0.01;
@@ -130,16 +129,17 @@ public final class GhostRenderer {
 		RenderSystem.disableBlend();
 	}
 
-	/** The map's reach: the ground blocks on its edge glow, pulsing, so the limit reads on any terrain. */
-	public static void drawEdge(MatrixStack matrices, List<BlockPos> edge, float wave) {
+	/** The map's reach: each ground block on its edge gets the aim marker's corner brackets on its top, so the limit reads on any terrain. */
+	public static void drawEdge(MatrixStack matrices, List<BlockPos> edge, Vec3d camera, Vec3d forward) {
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
 		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-		BufferBuilder glow = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+		Matrix4f matrix = matrices.peek().getPositionMatrix();
+		BufferBuilder corners = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		for (BlockPos pos : edge) {
-			fill(matrices, glow, new Box(pos).expand(EDGE_GROW), EDGE_RGB, 0.25F + 0.2F * wave);
+			emit(corners, matrix, PlacementOutline.brackets(pos.up(), camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BRACKET_WIDTH_FACTOR, BRACKET_MAX_HALF), EDGE_RGB);
 		}
-		drawPass(glow, true);
+		drawPass(corners, false);
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
 		RenderSystem.disableBlend();
