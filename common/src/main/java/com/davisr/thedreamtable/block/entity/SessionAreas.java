@@ -10,11 +10,14 @@ import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.chunk.WorldChunk;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.BitSet;
@@ -38,7 +41,7 @@ final class SessionAreas {
 	}
 
 	/**
-	 * Why the farm can't start at the site, as a lang key, or null when it can: it is in a dimension the farm is not made for, it leaves the world, covers its own table, overlaps another farm
+	 * Why the farm can't start at the site, as a lang key, or null when it can: it is in a dimension the farm is not made for, it leaves the world, covers its own or another Dream Table (new builds only), overlaps another farm
 	 * at any table, or touches land the player may not build in. Build and the hologram check both ask this.
 	 */
 	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template) {
@@ -53,9 +56,14 @@ final class SessionAreas {
 		if (!site.fits(world, template)) {
 			return "gui.the_dream_table.out_of_world";
 		}
-		// The build clears its whole area, and the table can be neither cleared nor built over: the build would stop at it for good.
-		if (covers(area, session.getPos())) {
+		// A new build clears its whole area, and a table can be neither cleared nor built over: the build would stop at it for good.
+		// A repair clears nothing and leaves what stands, so a farm finished before this check existed can still be repaired.
+		boolean repair = ignoredFinished != null;
+		if (!repair && covers(area, session.getPos())) {
 			return "gui.the_dream_table.farm_covers_table";
+		}
+		if (!repair && holdsOtherTable(world, area, session.getPos())) {
+			return "gui.the_dream_table.farm_covers_other_table";
 		}
 		if (session.table().overlapsOthers(session, area)) {
 			return "gui.the_dream_table.farm_overlaps";
@@ -71,6 +79,31 @@ final class SessionAreas {
 			return "gui.the_dream_table.protected_area";
 		}
 		return null;
+	}
+
+	/**
+	 * Whether another Dream Table stands inside the farm's area, in a chunk the server holds. Only the block entities of the chunks
+	 * under the area are looked at, so a large area costs a map lookup per chunk, not a block lookup per cell.
+	 */
+	static boolean holdsOtherTable(ServerWorld world, Box area, BlockPos ownTable) {
+		int minChunkX = ChunkSectionPos.getSectionCoord((int) Math.floor(area.minX));
+		int maxChunkX = ChunkSectionPos.getSectionCoord((int) Math.ceil(area.maxX) - 1);
+		int minChunkZ = ChunkSectionPos.getSectionCoord((int) Math.floor(area.minZ));
+		int maxChunkZ = ChunkSectionPos.getSectionCoord((int) Math.ceil(area.maxZ) - 1);
+		for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+			for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+				WorldChunk chunk = world.getChunkManager().getWorldChunk(chunkX, chunkZ);
+				if (chunk == null) {
+					continue;
+				}
+				for (BlockEntity entity : chunk.getBlockEntities().values()) {
+					if (entity instanceof DreamTableBlockEntity && !entity.getPos().equals(ownTable) && covers(area, entity.getPos())) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	/** Whether the farm's area holds the block at {@code pos}. */

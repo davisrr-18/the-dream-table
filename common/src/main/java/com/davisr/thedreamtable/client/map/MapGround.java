@@ -23,6 +23,11 @@ public final class MapGround {
 		TABLE
 	}
 
+	/** A column's anchor Y when the column has no ground the aim could meet. */
+	public static final int NO_GROUND = Integer.MIN_VALUE;
+	/** A column's anchor Y when the client has not received its chunk: neither inside nor outside the reach, so it draws no edge. */
+	public static final int UNKNOWN = Integer.MAX_VALUE;
+
 	/** The cell at a position, as the world reports it. */
 	public interface Probe {
 		Cell at(int x, int y, int z);
@@ -55,8 +60,9 @@ public final class MapGround {
 
 	/**
 	 * The ground blocks along the edge of the reach: one per column whose anchor is in range while a neighbouring column's is not
-	 * (out of range or without ground). {@code anchorYAt} gives a column's anchor Y, or {@link Integer#MIN_VALUE} for none; the
-	 * table's own column counts as inside, so the table does not ring itself.
+	 * (out of range or without ground). {@code anchorYAt} gives a column's anchor Y, {@link #NO_GROUND} for none, or
+	 * {@link #UNKNOWN} when the client does not hold it yet, which never makes an edge; the table's own column counts as inside,
+	 * so the table does not ring itself.
 	 */
 	public static List<BlockPos> rangeEdge(BlockPos table, int range, IntBinaryOperator anchorYAt) {
 		List<BlockPos> edge = new ArrayList<>();
@@ -81,10 +87,11 @@ public final class MapGround {
 		if (x == table.getX() && z == table.getZ()) {
 			return false;
 		}
-		return !inside(table, range, x, anchorYAt.applyAsInt(x, z), z);
+		int y = anchorYAt.applyAsInt(x, z);
+		return y != UNKNOWN && !inside(table, range, x, y, z);
 	}
 
 	private static boolean inside(BlockPos table, int range, int x, int y, int z) {
-		return y != Integer.MIN_VALUE && inRange(new BlockPos(x, y, z), table, range);
+		return y != NO_GROUND && y != UNKNOWN && inRange(new BlockPos(x, y, z), table, range);
 	}
 }

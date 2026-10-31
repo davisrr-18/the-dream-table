@@ -9,6 +9,7 @@ import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -29,13 +30,13 @@ class LayerClearTest {
 		GameSetup.bootstrap();
 	}
 
-	/** A footprint starting at x 10, y 64, z -5, with the given size and step cells. */
+	/** A footprint starting at x 10, y 64, z -5, four layers high, with the given size and step cells. */
 	private static LayerClear footprint(int width, int depth, BlockPos... steps) {
 		LongOpenHashSet cells = new LongOpenHashSet();
 		for (BlockPos step : steps) {
 			cells.add(step.asLong());
 		}
-		return new LayerClear(10, 64, -5, width, depth, cells);
+		return new LayerClear(10, 64, -5, width, 4, depth, cells);
 	}
 
 	@Test
@@ -109,10 +110,34 @@ class LayerClearTest {
 
 	@Test
 	void aLayerIsClearedOnceAndNeverDuringARepair() {
-		assertTrue(LayerClearer.clearDue(false, false));
-		assertFalse(LayerClearer.clearDue(false, true));
-		assertFalse(LayerClearer.clearDue(true, false));
-		assertFalse(LayerClearer.clearDue(true, true));
+		BitSet cleared = new BitSet();
+		assertEquals(0, LayerClearer.layerDue(false, cleared::get, 2));
+		cleared.set(0);
+		assertEquals(1, LayerClearer.layerDue(false, cleared::get, 2));
+		assertEquals(-1, LayerClearer.layerDue(true, cleared::get, 2));
+		cleared.set(1, 3);
+		assertEquals(-1, LayerClearer.layerDue(false, cleared::get, 2));
+	}
+
+	@Test
+	void layersWithoutAStepOfTheirOwnAreClearedOnTheWayUp() {
+		BitSet cleared = new BitSet();
+		cleared.set(0);
+		cleared.set(2);
+		// Layer 1 holds no step (or only growth steps): reaching layer 3 still clears it first, from the bottom.
+		assertEquals(1, LayerClear.nextUncleared(cleared::get, 3));
+		assertEquals(-1, LayerClear.nextUncleared(cleared::get, 0));
+	}
+
+	@Test
+	void theFootprintKnowsItsTopLayerAndItsBox() {
+		LayerClear clear = footprint(3, 2);
+		assertEquals(3, clear.topLayer());
+		assertTrue(clear.contains(new BlockPos(12, 67, -4)));
+		assertFalse(clear.contains(new BlockPos(12, 68, -4)));
+		assertFalse(clear.contains(new BlockPos(13, 64, -5)));
+		assertFalse(clear.contains(new BlockPos(10, 63, -5)));
+		assertFalse(clear.contains(new BlockPos(10, 64, -3)));
 	}
 
 	@Test

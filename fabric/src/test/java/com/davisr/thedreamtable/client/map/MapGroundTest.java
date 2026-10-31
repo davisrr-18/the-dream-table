@@ -111,4 +111,13 @@ class MapGroundTest {
 			assertTrue(distance <= reach && distance > reach - 2, "edge column at " + distance);
 		}
 	}
+
+	@Test
+	void columnsTheClientDoesNotHoldDrawNoEdge() {
+		// Beyond x 20 the chunks are not loaded: the reach goes on there, so no edge is drawn along that boundary.
+		List<BlockPos> edge = MapGround.rangeEdge(TABLE, RANGE, (x, z) -> x > 20 ? MapGround.UNKNOWN : TABLE.getY());
+		assertFalse(edge.contains(new BlockPos(20, TABLE.getY() - 1, 0)));
+		assertTrue(edge.stream().noneMatch(ground -> ground.getX() > 20));
+		assertTrue(edge.contains(new BlockPos(0, TABLE.getY() - 1, -RANGE)));
+	}
 }

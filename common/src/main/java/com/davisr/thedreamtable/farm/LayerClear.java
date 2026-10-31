@@ -5,6 +5,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.IntPredicate;
+
 /**
  * Walks the cells of one footprint layer for the clear that runs before the layer's first step. It holds the cursor of
  * the layer being cleared, the step cells the clear must leave alone, and the cells looked at this tick, so a large footprint
@@ -19,6 +21,7 @@ public final class LayerClear {
 	private final int minZ;
 	private final int width;
 	private final int depth;
+	private final int height;
 	private final LongOpenHashSet steps;
 	private int layer;
 	/** Index of the next cell in the layer, counted x first; -1 when no layer is being cleared. */
@@ -26,11 +29,12 @@ public final class LayerClear {
 	private long budgetTime = Long.MIN_VALUE;
 	private int spent;
 
-	LayerClear(int minX, int minY, int minZ, int width, int depth, LongOpenHashSet steps) {
+	LayerClear(int minX, int minY, int minZ, int width, int height, int depth, LongOpenHashSet steps) {
 		this.minX = minX;
 		this.minY = minY;
 		this.minZ = minZ;
 		this.width = width;
+		this.height = height;
 		this.depth = depth;
 		this.steps = steps;
 	}
@@ -42,7 +46,34 @@ public final class LayerClear {
 		for (FarmStep step : template.steps()) {
 			steps.add(site.target(template, step).asLong());
 		}
-		return new LayerClear((int) box.minX, (int) box.minY, (int) box.minZ, (int) (box.maxX - box.minX), (int) (box.maxZ - box.minZ), steps);
+		return new LayerClear((int) box.minX, (int) box.minY, (int) box.minZ, (int) (box.maxX - box.minX), (int) (box.maxY - box.minY),
+				(int) (box.maxZ - box.minZ), steps);
+	}
+
+	/** The footprint's highest layer. */
+	public int topLayer() {
+		return height - 1;
+	}
+
+	/** Whether a cell lies inside the footprint's box. */
+	public boolean contains(BlockPos pos) {
+		int x = pos.getX() - minX;
+		int y = pos.getY() - minY;
+		int z = pos.getZ() - minZ;
+		return x >= 0 && x < width && y >= 0 && y < height && z >= 0 && z < depth;
+	}
+
+	/**
+	 * The lowest layer up to {@code through} that is not cleared yet, or -1 when all are. Layers are cleared from the bottom, so a
+	 * layer with no step of its own, or only growth steps, is cleared on the way to the next one that has a step.
+	 */
+	public static int nextUncleared(IntPredicate cleared, int through) {
+		for (int layer = 0; layer <= through; layer++) {
+			if (!cleared.test(layer)) {
+				return layer;
+			}
+		}
+		return -1;
 	}
 
 	/** The layer of a cell: its height above the footprint's lowest block. */

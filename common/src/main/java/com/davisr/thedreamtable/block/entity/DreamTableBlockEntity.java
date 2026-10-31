@@ -245,6 +245,13 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 
 	/** When the table is broken, everyone's delivered materials drop and its farm areas are freed. Built blocks stay, even half-dismantled ones. */
 	public void dropMaterials(World world) {
+		// Saved data this version cannot read is lost with the table (an operator, an explosion or the guard turned off broke it), so the log keeps a copy.
+		for (NbtCompound raw : unreadableSessions) {
+			TheDreamTableMod.LOGGER.warn("Dream Table at {} broken with an unreadable saved session; its data was: {}", pos, raw);
+		}
+		for (NbtCompound raw : unreadableJobs) {
+			TheDreamTableMod.LOGGER.warn("Dream Table at {} broken with an unreadable saved take-apart job; its data was: {}", pos, raw);
+		}
 		for (TableSession session : sessions.values()) {
 			session.dropMaterials(world);
 		}

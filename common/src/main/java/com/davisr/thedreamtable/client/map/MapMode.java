@@ -96,6 +96,11 @@ public final class MapMode {
 			return false;
 		}
 		Vec3d eye = player.getEyePos();
+		// The camera starts at the eyes, and the server answers placement checks only for a player near the table.
+		if (eye.squaredDistanceTo(centreOf(tablePos)) > (double) FarmGeometry.AIM_RANGE * FarmGeometry.AIM_RANGE) {
+			refuse("gui.the_dream_table.map_too_far");
+			return false;
+		}
 		if (eye.y < tablePos.getY() - FLOOR_BELOW_TABLE) {
 			refuse("gui.the_dream_table.map_too_deep");
 			return false;

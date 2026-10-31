@@ -125,11 +125,21 @@ public final class FarmBuilder {
 		if (template == null) {
 			return Outcome.STOPPED;
 		}
+		ServerPlayerEntity owner = table.onlineOwner(world);
 		if (table.getBuildIndex() >= template.steps().size()) {
+			// The layers above the last step are cleared before the build counts as done.
+			FarmSite site = site(table);
+			Outcome clearing = owner == null ? null : LayerClearer.clearRest(table, world, owner, template, site);
+			if (clearing != null) {
+				return clearing;
+			}
+			if (LayerClearer.layersLeft(table, template, site)) {
+				return Outcome.STOPPED;
+			}
+			settle(world, template, site);
 			table.build().finish();
 			return Outcome.STOPPED;
 		}
-		ServerPlayerEntity owner = table.onlineOwner(world);
 		if (owner == null) {
 			return Outcome.STOPPED;
 		}
@@ -145,8 +155,11 @@ public final class FarmBuilder {
 			table.build().waitingFor(world, target);
 			return Outcome.STOPPED;
 		}
-		// Clearing destroys without drops, so it waits until the step can go on: a build short of material clears nothing.
-		boolean affordable = step.item() == null || owner.isCreative() || table.hasMaterial(step.item());
+		// Clearing destroys without drops, so it waits until the step can go on: a build short of material clears nothing. A step
+		// whose block already stands goes on too, so every step that counts as placed sits in a cleared layer.
+		BlockState wanted = placedState(table, site, step);
+		boolean affordable = step.item() == null || owner.isCreative() || table.hasMaterial(step.item())
+				|| (wanted != null && BlockMatch.sameBlock(world.getBlockState(target), wanted));
 		Outcome clearing = affordable ? LayerClearer.clearFirst(table, world, owner, template, site, target) : null;
 		if (clearing != null) {
 			return clearing;
@@ -272,7 +285,8 @@ public final class FarmBuilder {
 
 	private static void advance(ServerWorld world, TableSession table, FarmTemplate template, FarmSite site) {
 		table.build().advance();
-		if (table.getBuildIndex() >= template.steps().size()) {
+		// With layers still to clear above the last step, the next call clears them and then finishes.
+		if (table.getBuildIndex() >= template.steps().size() && !LayerClearer.layersLeft(table, template, site)) {
 			settle(world, template, site);
 			table.build().finish();
 		}
