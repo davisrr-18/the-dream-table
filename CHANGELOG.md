@@ -1,6 +1,6 @@
 # The Dream Table 1.1.0
 
-Release date: 2026-10-29
+Release date: 2026-10-31
 
 Bulk material delivery, mirrored farms, farm protection and a Brazilian Portuguese translation, plus fixes across the table, the HUD and schematic import. Worlds, finished farms and builds in progress from 1.0.0 carry over. The client and the server must both run 1.1.0.
 
