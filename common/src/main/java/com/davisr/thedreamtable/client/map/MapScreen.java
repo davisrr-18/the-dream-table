@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.client.DreamTableKeys;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.GameOptions;
+import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.util.Window;
 import net.minecraft.text.Text;
@@ -12,6 +13,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * The transparent screen of map mode. While it is open the cursor is grabbed, so the mouse turns the view as in the game and
@@ -54,6 +56,10 @@ public final class MapScreen extends Screen {
 	private double lastX;
 	private double lastY;
 	private boolean hasLast;
+	/** The controls panel as last laid out, kept until a binding or the screen width changes. */
+	private String controlsKey = "";
+	private List<Control> controls = List.of();
+	private int[] widths = new int[0];
 
 	public MapScreen() {
 		super(Text.translatable("gui.the_dream_table.map_title"));
@@ -113,6 +119,10 @@ public final class MapScreen extends Screen {
 	 */
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+		// A key let go while the window is in the background sends no release, so nothing counts as held without focus.
+		if (!client.isWindowFocused()) {
+			held.clear();
+		}
 		MapMode.frame(client, movement(), client.getRenderTickCounter().getLastFrameDuration());
 		drawControls(context);
 	}
@@ -122,11 +132,7 @@ public final class MapScreen extends Screen {
 	 * it does beside it. Items flow into centred rows and are never split.
 	 */
 	private void drawControls(DrawContext context) {
-		List<Control> controls = controls();
-		int[] widths = new int[controls.size()];
-		for (int i = 0; i < widths.length; i++) {
-			widths[i] = itemWidth(controls.get(i));
-		}
+		layOutControls();
 		List<List<Integer>> rows = MapControls.rows(widths, width - 2 * (MARGIN + PADDING), ITEM_GAP);
 		int panelWidth = 0;
 		for (List<Integer> row : rows) {
@@ -146,6 +152,30 @@ public final class MapScreen extends Screen {
 			}
 			y += ROW;
 		}
+	}
+
+	/** Builds the controls and their widths again only when a binding, the language or the screen width changed. */
+	private void layOutControls() {
+		StringBuilder key = new StringBuilder().append(width).append(client.options.language);
+		for (KeyBinding binding : shownBindings()) {
+			key.append('|').append(binding.getBoundKeyTranslationKey());
+		}
+		String now = key.toString();
+		if (now.equals(controlsKey)) {
+			return;
+		}
+		controlsKey = now;
+		controls = controls();
+		widths = new int[controls.size()];
+		for (int i = 0; i < widths.length; i++) {
+			widths[i] = itemWidth(controls.get(i));
+		}
+	}
+
+	private List<KeyBinding> shownBindings() {
+		GameOptions options = client.options;
+		return List.of(options.forwardKey, options.leftKey, options.backKey, options.rightKey, options.jumpKey, options.sneakKey,
+				options.sprintKey, DreamTableKeys.ROTATE, DreamTableKeys.MIRROR, DreamTableKeys.LAYERS, DreamTableKeys.HOLOGRAM, DreamTableKeys.MAP);
 	}
 
 	private int itemWidth(Control control) {
@@ -215,6 +245,24 @@ public final class MapScreen extends Screen {
 		// The view stays open after a click, so the placed farm can be judged and placed again elsewhere.
 		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 			DreamTableHologram.mapPlace();
+			return true;
+		}
+		// Other buttons drive whatever the player bound to them, as keys do.
+		Predicate<KeyBinding> bound = binding -> binding.matchesMouse(button);
+		if (!act(bound)) {
+			Move move = moveFor(bound);
+			if (move != null) {
+				held.add(move);
+			}
+		}
+		return true;
+	}
+
+	@Override
+	public boolean mouseReleased(double mouseX, double mouseY, int button) {
+		Move move = moveFor(binding -> binding.matchesMouse(button));
+		if (move != null) {
+			held.remove(move);
 		}
 		return true;
 	}
@@ -227,27 +275,11 @@ public final class MapScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-		if (DreamTableKeys.MAP.matchesKey(keyCode, scanCode)) {
-			close();
+		Predicate<KeyBinding> bound = binding -> binding.matchesKey(keyCode, scanCode);
+		if (act(bound)) {
 			return true;
 		}
-		if (DreamTableKeys.ROTATE.matchesKey(keyCode, scanCode)) {
-			DreamTableHologram.rotate();
-			return true;
-		}
-		if (DreamTableKeys.MIRROR.matchesKey(keyCode, scanCode)) {
-			DreamTableHologram.mirror();
-			return true;
-		}
-		if (DreamTableKeys.HOLOGRAM.matchesKey(keyCode, scanCode)) {
-			DreamTableHologram.toggleGhosts();
-			return true;
-		}
-		if (DreamTableKeys.LAYERS.matchesKey(keyCode, scanCode)) {
-			DreamTableHologram.toggleLayers();
-			return true;
-		}
-		Move move = moveFor(keyCode, scanCode);
+		Move move = moveFor(bound);
 		if (move != null) {
 			held.add(move);
 			return true;
@@ -255,9 +287,27 @@ public final class MapScreen extends Screen {
 		return super.keyPressed(keyCode, scanCode, modifiers);
 	}
 
+	/** Runs the map's own action bound to the pressed key or button; false when it drives none. */
+	private boolean act(Predicate<KeyBinding> bound) {
+		if (bound.test(DreamTableKeys.MAP)) {
+			close();
+		} else if (bound.test(DreamTableKeys.ROTATE)) {
+			DreamTableHologram.rotate();
+		} else if (bound.test(DreamTableKeys.MIRROR)) {
+			DreamTableHologram.mirror();
+		} else if (bound.test(DreamTableKeys.HOLOGRAM)) {
+			DreamTableHologram.toggleGhosts();
+		} else if (bound.test(DreamTableKeys.LAYERS)) {
+			DreamTableHologram.toggleLayers();
+		} else {
+			return false;
+		}
+		return true;
+	}
+
 	@Override
 	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
-		Move move = moveFor(keyCode, scanCode);
+		Move move = moveFor(binding -> binding.matchesKey(keyCode, scanCode));
 		if (move != null) {
 			held.remove(move);
 			return true;
@@ -265,28 +315,28 @@ public final class MapScreen extends Screen {
 		return super.keyReleased(keyCode, scanCode, modifiers);
 	}
 
-	/** The movement a key drives, through the player's own bindings so a rebound key works too; null for other keys. */
-	private Move moveFor(int keyCode, int scanCode) {
+	/** The movement a key or button drives, through the player's own bindings so a rebound one works too; null for others. */
+	private Move moveFor(Predicate<KeyBinding> bound) {
 		GameOptions options = client.options;
-		if (options.forwardKey.matchesKey(keyCode, scanCode)) {
+		if (bound.test(options.forwardKey)) {
 			return Move.FORWARD;
 		}
-		if (options.backKey.matchesKey(keyCode, scanCode)) {
+		if (bound.test(options.backKey)) {
 			return Move.BACK;
 		}
-		if (options.leftKey.matchesKey(keyCode, scanCode)) {
+		if (bound.test(options.leftKey)) {
 			return Move.LEFT;
 		}
-		if (options.rightKey.matchesKey(keyCode, scanCode)) {
+		if (bound.test(options.rightKey)) {
 			return Move.RIGHT;
 		}
-		if (options.jumpKey.matchesKey(keyCode, scanCode)) {
+		if (bound.test(options.jumpKey)) {
 			return Move.UP;
 		}
-		if (options.sneakKey.matchesKey(keyCode, scanCode)) {
+		if (bound.test(options.sneakKey)) {
 			return Move.DOWN;
 		}
-		if (options.sprintKey.matchesKey(keyCode, scanCode)) {
+		if (bound.test(options.sprintKey)) {
 			return Move.FAST;
 		}
 		return null;

@@ -34,8 +34,6 @@ import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 import org.joml.Vector3f;
 
-import java.util.List;
-
 /**
  * Where the farm preview sits. Before the build the player aims, anchors with a right-click, rotates with R and mirrors with M;
  * once building, the table's saved anchor and facing are used instead.
@@ -74,9 +72,11 @@ public final class DreamTableHologram {
 	private static boolean mapActive;
 	private static BlockPos mapCursor;
 	/** The range circle of the map, and the world time it was built at: it follows the terrain, so it is rebuilt now and then, not per frame. */
-	private static List<BlockPos> mapEdge = List.of();
-	private static long mapLoopTime = Long.MIN_VALUE;
-	private static final int MAP_LOOP_TICKS = 100;
+	/** The map's range ring, made when the mode opens and rescanned a slice per tick. Null outside map mode. */
+	private static MapTerrain.Ring mapRing;
+	private static long mapRingTime = Long.MIN_VALUE;
+	/** The ring sees the whole reach again about this often, in ticks. */
+	private static final int MAP_RING_TICKS = 100;
 	/** Long enough to reach past the table's whole aim range from any point the map camera can take. */
 	private static final double MAP_RAY_LENGTH = 128.0;
 
@@ -124,8 +124,8 @@ public final class DreamTableHologram {
 	public static void setMapActive(boolean active) {
 		mapActive = active;
 		mapCursor = null;
-		mapEdge = List.of();
-		mapLoopTime = Long.MIN_VALUE;
+		mapRing = null;
+		mapRingTime = Long.MIN_VALUE;
 	}
 
 	/** Places the farm at the spot under the map's crosshair, as a right-click would; false when there is no valid spot there. */
@@ -376,8 +376,8 @@ public final class DreamTableHologram {
 		float wave = (float) (0.5 + 0.5 * Math.sin(context.world().getTime() * 0.3));
 		matrices.push();
 		matrices.translate(-camera.x, -camera.y, -camera.z);
-		if (mapActive && !mapEdge.isEmpty()) {
-			GhostRenderer.drawEdge(matrices, mapEdge, camera, forward);
+		if (mapActive && mapRing != null && !mapRing.edge().isEmpty()) {
+			GhostRenderer.drawEdge(matrices, mapRing.edge(), camera, forward);
 		}
 		if (cursor != null && (placement == null || !cursor.equals(placement.anchor()))) {
 			// Once a spot is placed the aim is only a marker; its own outline would need checks the placed spot is using.
@@ -524,10 +524,13 @@ public final class DreamTableHologram {
 	private static void updateMap(RenderFrame context) {
 		mapCursor = mapAim(context.world(), MinecraftClient.getInstance());
 		long now = context.world().getTime();
-		if (mapLoopTime == Long.MIN_VALUE || now - mapLoopTime >= MAP_LOOP_TICKS || now < mapLoopTime) {
-			mapEdge = MapTerrain.rangeEdge(context.world(), tablePos);
-			mapLoopTime = now;
+		if (mapRing == null || !mapRing.isFor(tablePos)) {
+			mapRing = new MapTerrain.Ring(context.world(), tablePos);
+		} else if (now != mapRingTime) {
+			// Once per world tick, however many frames are drawn.
+			mapRing.refresh(context.world(), MapTerrain.columnsPerTick(MAP_RING_TICKS));
 		}
+		mapRingTime = now;
 	}
 
 	/** The anchor the crosshair's ray meets first, by the same rules as the crosshair aim; null when it meets no block in reach. */
@@ -569,7 +572,9 @@ public final class DreamTableHologram {
 		if (!world.getBlockState(pos).isReplaceable()) {
 			pos = pos.offset(hit.getSide());
 		}
-		if (pos.equals(tablePos) || pos.getSquaredDistance(tablePos) > (double) FarmGeometry.AIM_RANGE * FarmGeometry.AIM_RANGE) {
+		// The server refuses a spot outside the world's height, so the aim offers none there.
+		if (pos.equals(tablePos) || world.isOutOfHeightLimit(pos)
+				|| pos.getSquaredDistance(tablePos) > (double) FarmGeometry.AIM_RANGE * FarmGeometry.AIM_RANGE) {
 			return null;
 		}
 		return pos;
