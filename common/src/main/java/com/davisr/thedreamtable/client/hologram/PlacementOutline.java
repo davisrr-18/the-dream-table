@@ -84,23 +84,22 @@ public final class PlacementOutline {
 	}
 
 	/**
-	 * Four corner brackets around the aimed block, eight flat ribbons lying on the ground, each arm {@link #BRACKET_ARM} long.
-	 * Their half width widens with the distance but never passes {@code maxHalf}, so far away they stay slim marks.
+	 * The four sides of the aimed block's cell as flat ribbons lying on the ground, centred on the block's edges so they
+	 * trace exactly where the block's sides are, like an outline drawn over it. Their half width widens with the distance but
+	 * never passes {@code maxHalf}, so far away they stay slim.
 	 */
-	public static List<Vec3d[]> brackets(BlockPos anchor, Vec3d camera, Vec3d forward, double near, double halfWidthPerBlock, double maxHalf) {
+	public static List<Vec3d[]> border(BlockPos anchor, Vec3d camera, Vec3d forward, double near, double halfWidthPerBlock, double maxHalf) {
 		double y = anchor.getY() + 0.03;
-		List<Vec3d[]> arms = new ArrayList<>(8);
-		for (int dx = 0; dx <= 1; dx++) {
-			for (int dz = 0; dz <= 1; dz++) {
-				double cx = anchor.getX() + (dx == 0 ? BRACKET_INSET : 1.0 - BRACKET_INSET);
-				double cz = anchor.getZ() + (dz == 0 ? BRACKET_INSET : 1.0 - BRACKET_INSET);
-				double toX = dx == 0 ? BRACKET_ARM : -BRACKET_ARM;
-				double toZ = dz == 0 ? BRACKET_ARM : -BRACKET_ARM;
-				ribbon(arms, new Vec3d(cx, y, cz), new Vec3d(cx + toX, y, cz), camera, forward, near, halfWidthPerBlock, true, maxHalf);
-				ribbon(arms, new Vec3d(cx, y, cz), new Vec3d(cx, y, cz + toZ), camera, forward, near, halfWidthPerBlock, true, maxHalf);
-			}
-		}
-		return List.copyOf(arms);
+		double x0 = anchor.getX();
+		double x1 = anchor.getX() + 1.0;
+		double z0 = anchor.getZ();
+		double z1 = anchor.getZ() + 1.0;
+		List<Vec3d[]> sides = new ArrayList<>(4);
+		ribbon(sides, new Vec3d(x0, y, z0), new Vec3d(x1, y, z0), camera, forward, near, halfWidthPerBlock, true, maxHalf);
+		ribbon(sides, new Vec3d(x1, y, z0), new Vec3d(x1, y, z1), camera, forward, near, halfWidthPerBlock, true, maxHalf);
+		ribbon(sides, new Vec3d(x1, y, z1), new Vec3d(x0, y, z1), camera, forward, near, halfWidthPerBlock, true, maxHalf);
+		ribbon(sides, new Vec3d(x0, y, z1), new Vec3d(x0, y, z0), camera, forward, near, halfWidthPerBlock, true, maxHalf);
+		return List.copyOf(sides);
 	}
 
 	/**
@@ -114,10 +113,6 @@ public final class PlacementOutline {
 		ribbon(beam, new Vec3d(x, anchor.getY(), z), new Vec3d(x, anchor.getY() + height, z), camera, forward, near, halfWidthPerBlock, false, maxHalf);
 		return List.copyOf(beam);
 	}
-
-	/** Length of a bracket arm and how far the brackets sit inside the block's edge, in blocks. */
-	private static final double BRACKET_ARM = 0.3;
-	private static final double BRACKET_INSET = 0.04;
 
 	private static void ribbon(List<Vec3d[]> out, Vec3d start, Vec3d end, Vec3d camera, Vec3d forward, double near, double perBlock) {
 		ribbon(out, start, end, camera, forward, near, perBlock, false, Double.MAX_VALUE);
