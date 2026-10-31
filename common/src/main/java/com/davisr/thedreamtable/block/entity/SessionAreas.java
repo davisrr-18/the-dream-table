@@ -12,7 +12,9 @@ import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.BitSet;
@@ -36,7 +38,7 @@ final class SessionAreas {
 	}
 
 	/**
-	 * Why the farm can't start at the site, as a lang key, or null when it can: it is in a dimension the farm is not made for, it leaves the world, overlaps another farm
+	 * Why the farm can't start at the site, as a lang key, or null when it can: it is in a dimension the farm is not made for, it leaves the world, covers its own table, overlaps another farm
 	 * at any table, or touches land the player may not build in. Build and the hologram check both ask this.
 	 */
 	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template) {
@@ -50,6 +52,10 @@ final class SessionAreas {
 		}
 		if (!site.fits(world, template)) {
 			return "gui.the_dream_table.out_of_world";
+		}
+		// The build clears its whole area, and the table can be neither cleared nor built over: the build would stop at it for good.
+		if (covers(area, session.getPos())) {
+			return "gui.the_dream_table.farm_covers_table";
 		}
 		if (session.table().overlapsOthers(session, area)) {
 			return "gui.the_dream_table.farm_overlaps";
@@ -65,6 +71,11 @@ final class SessionAreas {
 			return "gui.the_dream_table.protected_area";
 		}
 		return null;
+	}
+
+	/** Whether the farm's area holds the block at {@code pos}. */
+	static boolean covers(Box area, BlockPos pos) {
+		return area.contains(Vec3d.ofCenter(pos));
 	}
 
 	/** How much of this farm already stands at the site, so a farm built before areas existed can be built over and protected. */
