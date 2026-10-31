@@ -57,12 +57,12 @@ public final class GhostRenderer {
 	/** Half width of the frame per block of distance (about four pixels across), and the plane it is cut at in front of the camera. */
 	private static final double RIBBON_HALF_WIDTH = 0.0026;
 	private static final double RIBBON_NEAR = 0.1;
-	/** The aimed block's brackets and beam: widths as multiples of the frame's, and the most they widen in world blocks. */
-	private static final double BRACKET_WIDTH_FACTOR = 4.0;
-	private static final double BRACKET_MAX_HALF = 0.05;
+	/** The aimed block's border and beam: widths as multiples of the frame's, and the most they widen in world blocks. */
+	private static final double BORDER_WIDTH_FACTOR = 4.0;
+	private static final double BORDER_MAX_HALF = 0.05;
 	private static final double BEAM_WIDTH_FACTOR = 1.5;
 	private static final double BEAM_MAX_HALF = 0.04;
-	private static final double BEAM_HEIGHT = 4.0;
+	private static final double BEAM_HEIGHT = 1.5;
 	/** The frame sits this far outside the footprint so the ghost blocks never hide it. */
 	private static final double OUTLINE_GROW = 0.01;
 	private static final Matrix4f IDENTITY = new Matrix4f();
@@ -89,12 +89,12 @@ public final class GhostRenderer {
 
 	/**
 	 * The farm's footprint as a frame of camera-facing ribbons and a translucent floor, coloured by what the server said about the spot, and the
-	 * aimed block marked with corner brackets and a fading beam when the player is still aiming (a null footprint draws only that mark). Ribbons keep one width on screen, so the frame reads the same near and far.
+	 * aimed block outlined on its four sides, with a short fading beam above it when the player is still aiming (a null footprint draws only that mark). Ribbons keep one width on screen, so the frame reads the same near and far.
 	 */
 	public static void drawOutline(MatrixStack matrices, Box footprint, BlockPos anchor, PlacementOutline.Status status, Vec3d camera, Vec3d forward, float wave) {
 		float[] rgb = status.rgb();
 		// The frame is drawn as ribbons that face the camera and widen with distance, so it keeps one width on screen
-		// and never splits or stretches; the aimed block gets bracketed corners and a beam that fades upward, and only the floor and the beam are translucent.
+		// and never splits or stretches; the aimed block gets an outline of its four sides and a short beam that fades upward, and only the floor and the beam are translucent.
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
 		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
@@ -109,10 +109,10 @@ public final class GhostRenderer {
 			drawPass(floor, true);
 		}
 		if (anchor != null) {
-			// The block's corners are bracketed, and a beam fading upward finds the spot from far away.
-			BufferBuilder brackets = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-			emit(brackets, matrix, PlacementOutline.brackets(anchor, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BRACKET_WIDTH_FACTOR, BRACKET_MAX_HALF), rgb);
-			drawPass(brackets, false);
+			// The block's sides are outlined, and a beam fading upward finds the spot from far away.
+			BufferBuilder border = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			emit(border, matrix, PlacementOutline.border(anchor, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BORDER_WIDTH_FACTOR, BORDER_MAX_HALF), rgb);
+			drawPass(border, false);
 			BufferBuilder beam = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 			float[] alpha = {1.0F, 1.0F, 0.0F, 0.0F};
 			for (Vec3d[] ribbon : PlacementOutline.beam(anchor, BEAM_HEIGHT, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BEAM_WIDTH_FACTOR, BEAM_MAX_HALF)) {
