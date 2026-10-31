@@ -115,7 +115,6 @@
 	"gui.the_dream_table.hologram_off": "Holograma: oculto, só o contorno",
 	"key.the_dream_table.map": "Modo Mapa de Posicionamento",
 	"gui.the_dream_table.map_title": "Posicionamento no mapa",
-	"gui.the_dream_table.map_control": "%1$s: %2$s",
 	"gui.the_dream_table.map_action.move": "mover",
 	"gui.the_dream_table.map_action.up": "subir",
 	"gui.the_dream_table.map_action.down": "descer",

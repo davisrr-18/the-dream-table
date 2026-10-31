@@ -7,8 +7,6 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.util.Window;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
@@ -21,9 +19,17 @@ import java.util.List;
  * hologram, so the world behind it is never dimmed or blurred.
  */
 public final class MapScreen extends Screen {
-	private static final int MARGIN = 8;
-	private static final int LINE = 10;
-	private static final int HINT_COLOR = 0xFFFFFFFF;
+	/** The controls panel: its distance from the screen's bottom, inner padding, row height and the gaps between items. */
+	private static final int MARGIN = 6;
+	private static final int PADDING = 5;
+	private static final int ROW = 14;
+	private static final int ITEM_GAP = 12;
+	private static final int KEY_PAD = 3;
+	private static final int PANEL_COLOR = 0x99000000;
+	private static final int KEY_FILL = 0xCC1E2A33;
+	private static final int KEY_BORDER = 0xFF8CD8FF;
+	private static final int KEY_TEXT = 0xFFFFFFFF;
+	private static final int ACTION_TEXT = 0xFFD8D8D8;
 
 	/**
 	 * The held movement: forward and strafe (right is positive) follow the view, vertical is world Y, each is -1, 0 or 1.
@@ -108,44 +114,79 @@ public final class MapScreen extends Screen {
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
 		MapMode.frame(client, movement(), client.getRenderTickCounter().getLastFrameDuration());
-		List<OrderedText> lines = textRenderer.wrapLines(hint(), width - 2 * MARGIN);
-		int y = height - MARGIN - lines.size() * LINE;
-		for (OrderedText line : lines) {
-			context.drawTextWithShadow(textRenderer, line, (width - textRenderer.getWidth(line)) / 2, y, HINT_COLOR);
-			y += LINE;
-		}
+		drawControls(context);
 	}
 
 	/**
-	 * The controls line, built from the player's own key bindings so a rebound key shows as it is: each control is its key, a
-	 * colon and what it does.
+	 * The controls panel at the bottom: a dark translucent band with one item per control, the key in a framed chip and what
+	 * it does beside it. Items flow into centred rows and are never split.
 	 */
-	private Text hint() {
-		GameOptions options = client.options;
-		Text move = Text.empty().append(options.forwardKey.getBoundKeyLocalizedText()).append("/")
-				.append(options.leftKey.getBoundKeyLocalizedText()).append("/")
-				.append(options.backKey.getBoundKeyLocalizedText()).append("/")
-				.append(options.rightKey.getBoundKeyLocalizedText());
-		Text back = Text.empty().append(Text.translatable("key.keyboard.escape")).append("/").append(DreamTableKeys.MAP.getBoundKeyLocalizedText());
-		MutableText line = Text.empty();
-		control(line, move, "move");
-		control(line, options.jumpKey.getBoundKeyLocalizedText(), "up");
-		control(line, options.sneakKey.getBoundKeyLocalizedText(), "down");
-		control(line, options.sprintKey.getBoundKeyLocalizedText(), "faster");
-		control(line, Text.translatable("key.mouse.left"), "place");
-		control(line, DreamTableKeys.ROTATE.getBoundKeyLocalizedText(), "turn");
-		control(line, DreamTableKeys.MIRROR.getBoundKeyLocalizedText(), "mirror");
-		control(line, DreamTableKeys.LAYERS.getBoundKeyLocalizedText(), "layers");
-		control(line, DreamTableKeys.HOLOGRAM.getBoundKeyLocalizedText(), "hologram");
-		control(line, back, "back");
-		return line;
+	private void drawControls(DrawContext context) {
+		List<Control> controls = controls();
+		int[] widths = new int[controls.size()];
+		for (int i = 0; i < widths.length; i++) {
+			widths[i] = itemWidth(controls.get(i));
+		}
+		List<List<Integer>> rows = MapControls.rows(widths, width - 2 * (MARGIN + PADDING), ITEM_GAP);
+		int panelWidth = 0;
+		for (List<Integer> row : rows) {
+			panelWidth = Math.max(panelWidth, MapControls.rowWidth(row, widths, ITEM_GAP));
+		}
+		panelWidth += 2 * PADDING;
+		int panelHeight = rows.size() * ROW + 2 * PADDING - (ROW - 12);
+		int panelX = (width - panelWidth) / 2;
+		int panelY = height - MARGIN - panelHeight;
+		context.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, PANEL_COLOR);
+		int y = panelY + PADDING;
+		for (List<Integer> row : rows) {
+			int x = (width - MapControls.rowWidth(row, widths, ITEM_GAP)) / 2;
+			for (int index : row) {
+				drawControl(context, controls.get(index), x, y);
+				x += widths[index] + ITEM_GAP;
+			}
+			y += ROW;
+		}
 	}
 
-	private static void control(MutableText line, Text key, String action) {
-		if (!line.getSiblings().isEmpty()) {
-			line.append("   ");
-		}
-		line.append(Text.translatable("gui.the_dream_table.map_control", key, Text.translatable("gui.the_dream_table.map_action." + action)));
+	private int itemWidth(Control control) {
+		return textRenderer.getWidth(control.key()) + 2 * KEY_PAD + 4 + textRenderer.getWidth(control.action());
+	}
+
+	private void drawControl(DrawContext context, Control control, int x, int y) {
+		int keyWidth = textRenderer.getWidth(control.key()) + 2 * KEY_PAD;
+		context.fill(x, y, x + keyWidth, y + 12, KEY_BORDER);
+		context.fill(x + 1, y + 1, x + keyWidth - 1, y + 11, KEY_FILL);
+		context.drawTextWithShadow(textRenderer, control.key(), x + KEY_PAD, y + 2, KEY_TEXT);
+		context.drawTextWithShadow(textRenderer, control.action(), x + keyWidth + 4, y + 2, ACTION_TEXT);
+	}
+
+	/** One control of the panel: the key as the player has it bound, and what it does. */
+	private record Control(Text key, Text action) {
+	}
+
+	/** The map's controls, from the player's own key bindings, so a rebound key shows as it is. */
+	private List<Control> controls() {
+		GameOptions options = client.options;
+		Text move = Text.empty().append(options.forwardKey.getBoundKeyLocalizedText()).append(" ")
+				.append(options.leftKey.getBoundKeyLocalizedText()).append(" ")
+				.append(options.backKey.getBoundKeyLocalizedText()).append(" ")
+				.append(options.rightKey.getBoundKeyLocalizedText());
+		Text back = Text.empty().append(Text.translatable("key.keyboard.escape")).append(" / ").append(DreamTableKeys.MAP.getBoundKeyLocalizedText());
+		return List.of(
+				control(move, "move"),
+				control(options.jumpKey.getBoundKeyLocalizedText(), "up"),
+				control(options.sneakKey.getBoundKeyLocalizedText(), "down"),
+				control(options.sprintKey.getBoundKeyLocalizedText(), "faster"),
+				control(Text.translatable("key.mouse.left"), "place"),
+				control(DreamTableKeys.ROTATE.getBoundKeyLocalizedText(), "turn"),
+				control(DreamTableKeys.MIRROR.getBoundKeyLocalizedText(), "mirror"),
+				control(DreamTableKeys.LAYERS.getBoundKeyLocalizedText(), "layers"),
+				control(DreamTableKeys.HOLOGRAM.getBoundKeyLocalizedText(), "hologram"),
+				control(back, "back"));
+	}
+
+	private static Control control(Text key, String action) {
+		return new Control(key, Text.translatable("gui.the_dream_table.map_action." + action));
 	}
 
 	/**
