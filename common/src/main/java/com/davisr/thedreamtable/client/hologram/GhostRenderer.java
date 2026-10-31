@@ -95,43 +95,56 @@ public final class GhostRenderer {
 		float[] rgb = status.rgb();
 		// The frame is drawn as ribbons that face the camera and widen with distance, so it keeps one width on screen
 		// and never splits or stretches; the aimed block gets tinted, bracketed corners and a beam that fades upward, and only the floor, tint and beam are translucent.
-		BufferBuilder solid = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-		BufferBuilder floor = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-		if (footprint != null) {
-			emit(solid, matrices.peek().getPositionMatrix(), PlacementOutline.ribbons(footprint.expand(OUTLINE_GROW), camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH), rgb);
-			fill(matrices, floor, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
-		}
-		if (anchor != null) {
-			Matrix4f matrix = matrices.peek().getPositionMatrix();
-			// The block itself is tinted, its corners are bracketed, and a beam fading upward finds the spot from far away.
-			fill(matrices, floor, new Box(anchor.getX() + 0.02, anchor.getY() + 0.01, anchor.getZ() + 0.02, anchor.getX() + 0.98, anchor.getY() + 0.03, anchor.getZ() + 0.98), rgb, 0.22F + 0.12F * wave);
-			emit(solid, matrix, PlacementOutline.brackets(anchor, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BRACKET_WIDTH_FACTOR, BRACKET_MAX_HALF), rgb);
-			for (Vec3d[] ribbon : PlacementOutline.beam(anchor, BEAM_HEIGHT, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BEAM_WIDTH_FACTOR, BEAM_MAX_HALF)) {
-				float[] alpha = {0.85F, 0.85F, 0.0F, 0.0F};
-				for (int corner = 0; corner < ribbon.length; corner++) {
-					floor.vertex(matrix, (float) ribbon[corner].x, (float) ribbon[corner].y, (float) ribbon[corner].z).color(rgb[0], rgb[1], rgb[2], alpha[corner]);
-				}
-			}
-		}
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
 		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-		BuiltBuffer solidBuilt = solid.endNullable();
-		if (solidBuilt != null) {
-			RenderSystem.disableBlend();
-			RenderSystem.depthMask(true);
-			BufferRenderer.drawWithGlobalProgram(solidBuilt);
+		Matrix4f matrix = matrices.peek().getPositionMatrix();
+		// One buffer at a time: the passes share the tessellator's memory, so each is drawn before the next is begun.
+		if (footprint != null) {
+			BufferBuilder frame = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			emit(frame, matrix, PlacementOutline.ribbons(footprint.expand(OUTLINE_GROW), camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH), rgb);
+			drawPass(frame, false);
+			BufferBuilder floor = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			fill(matrices, floor, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
+			drawPass(floor, true);
 		}
-		BuiltBuffer floorBuilt = floor.endNullable();
-		if (floorBuilt != null) {
-			RenderSystem.enableBlend();
-			RenderSystem.defaultBlendFunc();
-			RenderSystem.depthMask(false);
-			BufferRenderer.drawWithGlobalProgram(floorBuilt);
+		if (anchor != null) {
+			// The block is lightly tinted, its corners are bracketed, and a beam fading upward finds the spot from far away.
+			BufferBuilder brackets = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			emit(brackets, matrix, PlacementOutline.brackets(anchor, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BRACKET_WIDTH_FACTOR, BRACKET_MAX_HALF), rgb);
+			drawPass(brackets, false);
+			BufferBuilder tint = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			fill(matrices, tint, new Box(anchor.getX() + 0.02, anchor.getY() + 0.01, anchor.getZ() + 0.02, anchor.getX() + 0.98, anchor.getY() + 0.03, anchor.getZ() + 0.98), rgb, 0.1F + 0.06F * wave);
+			drawPass(tint, true);
+			BufferBuilder beam = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			float[] alpha = {0.85F, 0.85F, 0.0F, 0.0F};
+			for (Vec3d[] ribbon : PlacementOutline.beam(anchor, BEAM_HEIGHT, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BEAM_WIDTH_FACTOR, BEAM_MAX_HALF)) {
+				for (int corner = 0; corner < ribbon.length; corner++) {
+					beam.vertex(matrix, (float) ribbon[corner].x, (float) ribbon[corner].y, (float) ribbon[corner].z).color(rgb[0], rgb[1], rgb[2], alpha[corner]);
+				}
+			}
+			drawPass(beam, true);
 		}
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
 		RenderSystem.disableBlend();
+	}
+
+	/** Draws one finished buffer, solid (no blending, writes depth) or translucent (blended, no depth write). */
+	private static void drawPass(BufferBuilder buffer, boolean translucent) {
+		BuiltBuffer built = buffer.endNullable();
+		if (built == null) {
+			return;
+		}
+		if (translucent) {
+			RenderSystem.enableBlend();
+			RenderSystem.defaultBlendFunc();
+			RenderSystem.depthMask(false);
+		} else {
+			RenderSystem.disableBlend();
+			RenderSystem.depthMask(true);
+		}
+		BufferRenderer.drawWithGlobalProgram(built);
 	}
 
 	private static void emit(BufferBuilder buffer, Matrix4f matrix, List<Vec3d[]> ribbons, float[] rgb) {
