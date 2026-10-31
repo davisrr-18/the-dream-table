@@ -102,14 +102,14 @@ class PlacementOutlineTest {
 	}
 
 	@Test
-	void theAimedBlockGetsEightFlatBracketArmsRightOnItsEdges() {
+	void theAimedBlockGetsEightFlatBracketArmsHuggingItsEdgesFromInside() {
 		BlockPos anchor = new BlockPos(4, 70, -3);
 		List<Vec3d[]> arms = PlacementOutline.brackets(anchor, new Vec3d(4.5, 75, 0), new Vec3d(0, -1, 0), 0.1, 0.0104, 0.05);
 		assertEquals(8, arms.size());
 		for (Vec3d[] arm : arms) {
 			for (Vec3d corner : arm) {
 				assertEquals(70.03, corner.y, 0.001);
-				assertTrue(corner.x > 3.9 && corner.x < 5.1 && corner.z > -3.1 && corner.z < -1.9);
+				assertTrue(corner.x >= 4 - 1.0E-6 && corner.x <= 5 + 1.0E-6 && corner.z >= -3 - 1.0E-6 && corner.z <= -2 + 1.0E-6, "inside the cell " + corner);
 			}
 		}
 		// Each corner of the block is covered by two arms.

@@ -85,8 +85,9 @@ public final class PlacementOutline {
 
 	/**
 	 * Four L-shaped corner brackets on the aimed block's cell, eight flat ribbons lying on the ground, each arm
-	 * {@link #BRACKET_ARM} long and centred right on the block's edges, so they trace where its sides are. Their half width
-	 * widens with the distance but never passes {@code maxHalf}, so far away they stay slim.
+	 * {@link #BRACKET_ARM} long. The outer side of every ribbon sits exactly on the block's edge and the ribbon lies inside the
+	 * block, so the brackets hug the block like the game's own selection outline. Their half width widens with the distance but
+	 * never passes {@code maxHalf}, so far away they stay slim.
 	 */
 	public static List<Vec3d[]> brackets(BlockPos anchor, Vec3d camera, Vec3d forward, double near, double halfWidthPerBlock, double maxHalf) {
 		double y = anchor.getY() + 0.03;
@@ -95,10 +96,15 @@ public final class PlacementOutline {
 			for (int dz = 0; dz <= 1; dz++) {
 				double cx = anchor.getX() + dx;
 				double cz = anchor.getZ() + dz;
-				double toX = dx == 0 ? BRACKET_ARM : -BRACKET_ARM;
-				double toZ = dz == 0 ? BRACKET_ARM : -BRACKET_ARM;
-				ribbon(arms, new Vec3d(cx, y, cz), new Vec3d(cx + toX, y, cz), camera, forward, near, halfWidthPerBlock, true, maxHalf);
-				ribbon(arms, new Vec3d(cx, y, cz), new Vec3d(cx, y, cz + toZ), camera, forward, near, halfWidthPerBlock, true, maxHalf);
+				double half = Math.min(maxHalf, Math.max(camera.distanceTo(new Vec3d(cx, y, cz)), near) * halfWidthPerBlock);
+				double sx = dx == 0 ? 1.0 : -1.0;
+				double sz = dz == 0 ? 1.0 : -1.0;
+				// The centre lines sit half a width inside the edges, and each arm starts half a width in, so the ribbon's own
+				// extension at its start reaches the corner exactly.
+				double lineX = cx + sx * half;
+				double lineZ = cz + sz * half;
+				ribbon(arms, new Vec3d(lineX, y, lineZ), new Vec3d(cx + sx * BRACKET_ARM, y, lineZ), camera, forward, near, halfWidthPerBlock, true, maxHalf);
+				ribbon(arms, new Vec3d(lineX, y, lineZ), new Vec3d(lineX, y, cz + sz * BRACKET_ARM), camera, forward, near, halfWidthPerBlock, true, maxHalf);
 			}
 		}
 		return List.copyOf(arms);
