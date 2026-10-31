@@ -83,14 +83,14 @@ public final class PlacementOutline {
 		return List.copyOf(ribbons);
 	}
 
-	/** The two arms of the cross lying on the aimed block, as ribbons like the frame's: one width on screen at any distance. */
+	/** The two arms of the cross lying on the aimed block, as ribbons laid flat on the ground, widening with the distance like the frame's. */
 	public static List<Vec3d[]> cross(BlockPos anchor, Vec3d camera, Vec3d forward, double near, double halfWidthPerBlock) {
 		double x = anchor.getX() + 0.5;
 		double y = anchor.getY() + 0.02;
 		double z = anchor.getZ() + 0.5;
 		List<Vec3d[]> arms = new ArrayList<>(2);
-		ribbon(arms, new Vec3d(x - CROSS_ARM, y, z), new Vec3d(x + CROSS_ARM, y, z), camera, forward, near, halfWidthPerBlock);
-		ribbon(arms, new Vec3d(x, y, z - CROSS_ARM), new Vec3d(x, y, z + CROSS_ARM), camera, forward, near, halfWidthPerBlock);
+		ribbon(arms, new Vec3d(x - CROSS_ARM, y, z), new Vec3d(x + CROSS_ARM, y, z), camera, forward, near, halfWidthPerBlock, true);
+		ribbon(arms, new Vec3d(x, y, z - CROSS_ARM), new Vec3d(x, y, z + CROSS_ARM), camera, forward, near, halfWidthPerBlock, true);
 		return List.copyOf(arms);
 	}
 
@@ -98,6 +98,11 @@ public final class PlacementOutline {
 	private static final double CROSS_ARM = 0.4;
 
 	private static void ribbon(List<Vec3d[]> out, Vec3d start, Vec3d end, Vec3d camera, Vec3d forward, double near, double perBlock) {
+		ribbon(out, start, end, camera, forward, near, perBlock, false);
+	}
+
+	/** {@code flat} lays the ribbon in the horizontal plane instead of turning it to the camera, as the cross lies on the ground. */
+	private static void ribbon(List<Vec3d[]> out, Vec3d start, Vec3d end, Vec3d camera, Vec3d forward, double near, double perBlock, boolean flat) {
 		double depthStart = start.subtract(camera).dotProduct(forward);
 		double depthEnd = end.subtract(camera).dotProduct(forward);
 		if (depthStart < near && depthEnd < near) {
@@ -120,7 +125,7 @@ public final class PlacementOutline {
 		if (!cutEnd) {
 			b = b.add(unit.multiply(widthB));
 		}
-		Vec3d side = a.add(b).multiply(0.5).subtract(camera).crossProduct(unit);
+		Vec3d side = flat ? new Vec3d(0, 1, 0).crossProduct(unit) : a.add(b).multiply(0.5).subtract(camera).crossProduct(unit);
 		if (side.lengthSquared() < 1.0E-12) {
 			return;
 		}
