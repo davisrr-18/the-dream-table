@@ -49,7 +49,20 @@ final class SessionAreas {
 		return problemAt(world, asker, site, template, null);
 	}
 
+	/**
+	 * The check a moved build's owner passes to resume it from this table: as {@link #problemAt}, except that the build's own hold
+	 * does not count against its own spot. Other holds, and every other check, still apply.
+	 */
+	String resumeProblemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template) {
+		return problemAt(world, asker, site, template, null, session.seat(world));
+	}
+
 	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template, @Nullable UUID ignoredFinished) {
+		return problemAt(world, asker, site, template, ignoredFinished, null);
+	}
+
+	private String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template, @Nullable UUID ignoredFinished,
+			@Nullable ParkedProjects.Seat own) {
 		Box area = site.footprint(template);
 		if (FarmOptions.byId(session.getSelectedFarm()).filter(option -> option.outsideIntendedDimension(world.getRegistryKey())).isPresent()) {
 			return "gui.the_dream_table.wrong_dimension";
@@ -76,8 +89,8 @@ final class SessionAreas {
 		if (conflict == FarmAreas.Conflict.FINISHED) {
 			return "gui.the_dream_table.farm_overlaps_finished";
 		}
-		// A build kept from a broken table holds its area for its player; restoring it lifts that, before its owner resumes.
-		if (ParkedProjects.of(world.getServer()).reserves(world.getRegistryKey().getValue(), area::intersects)) {
+		// A build kept from a broken table holds its area for others until its owner resumes, discards or breaks it (see ParkedProjects).
+		if (ParkedProjects.of(world.getServer()).reserves(world.getRegistryKey().getValue(), area::intersects, own)) {
 			return "gui.the_dream_table.farm_overlaps";
 		}
 		if (!BuildPermission.canBuildAll(world, asker, site, template)) {

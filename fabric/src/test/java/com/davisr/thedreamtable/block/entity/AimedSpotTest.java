@@ -7,7 +7,9 @@ import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The aimed spot saved with a session: what it writes, it reads back, and an entry missing part of it is no spot. */
 class AimedSpotTest {
@@ -23,6 +25,19 @@ class AimedSpotTest {
 	void aNonHorizontalFacingBecomesSouth() {
 		assertEquals(Direction.SOUTH, new AimedSpot(BlockPos.ORIGIN, Direction.UP, false, OVERWORLD).facing());
 		assertEquals(Direction.SOUTH, new AimedSpot(BlockPos.ORIGIN, null, false, OVERWORLD).facing());
+	}
+
+	/**
+	 * The rule a restored aimed spot must pass, as {@link TableSession#checkRestoredAim} applies it: the table has a farm, the spot
+	 * is in its world and reach, and it is free. Each part alone is enough to drop the spot.
+	 */
+	@Test
+	void aRestoredSpotIsKeptOnlyWhenEveryPartHolds() {
+		assertTrue(TableSession.restoredAimUsable(true, true, true, true));
+		assertFalse(TableSession.restoredAimUsable(false, true, true, true), "no farm to place");
+		assertFalse(TableSession.restoredAimUsable(true, false, true, true), "another world");
+		assertFalse(TableSession.restoredAimUsable(true, true, false, true), "out of reach");
+		assertFalse(TableSession.restoredAimUsable(true, true, true, false), "no longer free");
 	}
 
 	@Test

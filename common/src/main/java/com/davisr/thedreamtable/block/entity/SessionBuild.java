@@ -258,6 +258,8 @@ public final class SessionBuild {
 		session.reconcileMaterials(starter);
 		areas.claim(world, template);
 		session.settleMovedBuild();
+		// The claim now holds the area, so the hold kept for it since the table came back can go.
+		session.releaseHold();
 		verified = null;
 		progress.start(session.player(), fromScratch, template.signature());
 		session.clearAim();

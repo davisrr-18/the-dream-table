@@ -10,9 +10,9 @@ A new farm, water that no longer needs buckets, and a round of fixes for kept pr
 
 ## Water without buckets
 
-- Farms that use water no longer ask you for water buckets. They need an **infinite water source** within 6 blocks of the table: a water source with at least two other water sources next to it on the same level (a 2x2 pool works, or two sources with one gap between them). The requirements list shows one line telling you whether a source is nearby. Nothing is used up, so there is nothing to carry or get back. Water placed by farms never counts, and a single source is not enough.
-- If the source disappears mid-build, the build pauses on a clear message and carries on by itself when a source is back.
-- Water buckets you already delivered to a build from an earlier version are given back to you.
+- Farms that use water no longer ask you for water buckets. They need an **infinite water source** within 6 blocks of the table: a water source with at least two other water sources touching it on its sides (a 2x2 pool works, or three sources in a row). Two sources with a gap between them, or a single source, are not enough. The requirements list shows one line telling you whether a source is nearby. Nothing is used up, so there is nothing to carry or get back. Water placed by farms does not count.
+- If the source disappears while the build is running, the build stops at the next water block with a clear message and carries on by itself when a source is back.
+- A build you had already started in 1.1.1 on a farm with water keeps its progress, but the materials delivered after the first water block are handed back to you and need to be delivered again.
 
 ## Kept projects
 

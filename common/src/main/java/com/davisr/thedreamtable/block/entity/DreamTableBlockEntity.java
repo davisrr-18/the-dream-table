@@ -58,7 +58,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 
 	private static final UUID SHARED = new UUID(0L, 0L);
 	/** Key in {@link ParkedProjects} for an unreadable saved session that names no player. No player has this id, so nobody is offered it. */
-	private static final UUID NO_PLAYER = new UUID(0L, 0L);
+	private static final UUID NO_PLAYER = ParkedProjects.NO_PLAYER;
 	private static final String CLIENT_VIEW = "ClientView";
 	private static final double SEND_DISTANCE = 512.0;
 
@@ -107,7 +107,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 
 	/** The owner's client asked for its session, after the table's chunk loaded or the menu opened. */
 	public void resend(PlayerEntity player) {
-		session(player).markClientDirty();
+		payloadSession(player).markClientDirty();
 	}
 
 	/** On the client: the server's copy of this player's session. Replaces whatever the client had. */
@@ -183,6 +183,21 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 			}
 		}
 		return session(player);
+	}
+
+	/**
+	 * The session a payload from this player acts on. Until the legacy shared session is adopted by its first opener, a player
+	 * with no entry of their own gets an empty session that is not stored, so a payload can't take the shared session.
+	 */
+	public TableSession payloadSession(UUID player) {
+		if (!sessions.containsKey(player) && sessions.containsKey(SHARED)) {
+			return new TableSession(this, player);
+		}
+		return session(player);
+	}
+
+	public TableSession payloadSession(PlayerEntity player) {
+		return payloadSession(player.getUuid());
 	}
 
 	public TableSession session(PlayerEntity player) {
@@ -274,6 +289,8 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		unreadableSessions.clear();
 		RegistryWrapper.WrapperLookup registries = serverWorld.getRegistryManager();
 		for (TableSession session : sessions.values()) {
+			// A build held for this table is parked again, or dropped, as the table breaks.
+			session.releaseHold();
 			if (session.player().equals(SHARED) || !parked.canPark(session.player())) {
 				// Only a project that would have been kept is worth telling about.
 				ServerPlayerEntity owner = session.player().equals(SHARED) || session.parkKind() == TableSession.ParkKind.NOTHING ? null : session.onlineOwner(serverWorld);
@@ -308,6 +325,10 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	private TableSession openSession(ServerPlayerEntity player) {
 		TableSession session = openedSession(player.getUuid());
 		UUID id = player.getUuid();
+		// A hold for this table is only ever held by its build in this table, so one without it is orphaned and lifted here.
+		if (!session.movedBuild()) {
+			session.releaseHold();
+		}
 		if (!session.isEmpty() || !(world instanceof ServerWorld serverWorld)
 				|| unreadableSessions.stream().anyMatch(raw -> id.equals(namedPlayer(raw)))) {
 			return session;
@@ -321,6 +342,10 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 				return false;
 			}
 			sessions.put(id, project);
+			if (project.movedBuild()) {
+				// Kept for others until its owner resumes or discards it here, or this table breaks.
+				ParkedProjects.of(serverWorld.getServer()).hold(project.seat(serverWorld), saved);
+			}
 			return true;
 		});
 		if (!restored) {

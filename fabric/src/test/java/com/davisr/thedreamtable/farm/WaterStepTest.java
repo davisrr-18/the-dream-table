@@ -1,7 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.GameSetup;
-import com.davisr.thedreamtable.block.entity.BuildIssue;
 import net.minecraft.block.Blocks;
 import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
@@ -21,13 +20,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * decisions they are made from.
  */
 class WaterStepTest {
-	private static final FarmStep WATER = FarmStep.block(2, 0, 0, Blocks.WATER.getDefaultState(), Items.WATER_BUCKET);
-	private static final FarmStep STONE = FarmStep.block(0, 0, 0, Blocks.STONE.getDefaultState(), Items.STONE);
-	private static final FarmStep FREE = FarmStep.block(1, 0, 0, Blocks.ANDESITE.getDefaultState(), null);
+	// Block states need the registries, so they are made once they are bootstrapped, not at class load.
+	private static FarmStep WATER;
+	private static FarmStep STONE;
+	private static FarmStep FREE;
 
 	@BeforeAll
 	static void setUp() {
 		GameSetup.bootstrap();
+		WATER = FarmStep.block(2, 0, 0, Blocks.WATER.getDefaultState(), Items.WATER_BUCKET);
+		STONE = FarmStep.block(0, 0, 0, Blocks.STONE.getDefaultState(), Items.STONE);
+		FREE = FarmStep.block(1, 0, 0, Blocks.ANDESITE.getDefaultState(), null);
 	}
 
 	private static FarmTemplate farm(FarmStep... steps) {
@@ -70,13 +73,6 @@ class WaterStepTest {
 	void otherItemsStillComeFromTheDeliveredCounts() {
 		assertEquals(FarmBuilder.Supply.COUNTS, FarmBuilder.supply(STONE, false));
 		assertEquals(FarmBuilder.Supply.FREE, FarmBuilder.supply(FREE, false));
-	}
-
-	@Test
-	void theMissingSourceIsAWaterIssueThatIsCheckedBeforeResuming() {
-		BuildIssue issue = BuildIssue.at(BuildIssue.Kind.WATER, new BlockPos(1, 2, 3));
-		assertEquals(BuildIssue.Kind.WATER, issue.kind());
-		assertFalse(issue.temporary());
 	}
 
 	@Test

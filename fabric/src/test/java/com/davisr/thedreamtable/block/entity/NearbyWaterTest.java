@@ -18,8 +18,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Infinite water near the table, decided on a made-up world of water cells. */
 class NearbyWaterTest {
 	private static final BlockPos TABLE = new BlockPos(100, 64, 100);
-	private static final FluidState SOURCE = Fluids.WATER.getStill(false);
-	private static final FluidState FLOWING = Fluids.WATER.getFlowing(3, false);
 
 	@BeforeAll
 	static void setUp() {
@@ -34,13 +32,13 @@ class NearbyWaterTest {
 
 		Pond sources(BlockPos... cells) {
 			for (BlockPos cell : cells) {
-				fluids.put(cell, SOURCE);
+				fluids.put(cell, Fluids.WATER.getStill(false));
 			}
 			return this;
 		}
 
 		Pond flowing(BlockPos cell) {
-			fluids.put(cell, FLOWING);
+			fluids.put(cell, Fluids.WATER.getFlowing(3, false));
 			return this;
 		}
 
@@ -75,6 +73,21 @@ class NearbyWaterTest {
 	void twoSourcesSideBySideDoNotCount() {
 		// Each one has a single source neighbour, which is not enough to stay a source forever.
 		assertFalse(new Pond().sources(CENTER, CENTER.east()).nearby());
+	}
+
+	@Test
+	void threeInALineCounts() {
+		assertTrue(new Pond().sources(CENTER, CENTER.east(), CENTER.east().east()).nearby());
+	}
+
+	@Test
+	void twoByTwoPoolCounts() {
+		assertTrue(new Pond().sources(CENTER, CENTER.east(), CENTER.south(), CENTER.south().east()).nearby());
+	}
+
+	@Test
+	void twoSourcesOneBlockApartDoNotCount() {
+		assertFalse(new Pond().sources(CENTER, CENTER.east().east()).nearby());
 	}
 
 	@Test

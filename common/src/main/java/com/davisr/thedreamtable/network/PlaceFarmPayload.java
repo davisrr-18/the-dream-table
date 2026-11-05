@@ -42,7 +42,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 			if (blockEntity == null) {
 				return;
 			}
-			TableSession table = blockEntity.session(player);
+			TableSession table = blockEntity.payloadSession(player);
 			if (table.build().canResume()) {
 				table.build().begin(player, false);
 				return;

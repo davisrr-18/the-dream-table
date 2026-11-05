@@ -68,16 +68,12 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 			if (!(world.getBlockEntity(payload.table()) instanceof DreamTableBlockEntity blockEntity)) {
 				return;
 			}
-			TableSession table = blockEntity.session(player);
+			TableSession table = blockEntity.payloadSession(player);
 			if (!DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) || table.getSelectedFarm().isEmpty()
 					|| !PlaceFarmPayload.inRange(table.getPos(), payload.anchor(), player)) {
 				return;
 			}
 			Direction facing = PlaceFarmPayload.horizontal(payload.facing(), player);
-			// Placing, turning or mirroring the hologram sends announce: that spot is what a broken table keeps.
-			if (payload.announce()) {
-				table.rememberAim(world.getRegistryKey().getValue(), payload.anchor(), facing, payload.mirrored());
-			}
 			long now = player.getServer().getTicks();
 			Question question = new Question(payload.table(), payload.anchor(), facing, payload.mirrored(), payload.announce(), table.getSelectedFarm());
 			PlacementResultPayload result = RECENT.get(player.getUuid(), question, now);
@@ -90,6 +86,11 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 				int existing = problem != null ? 0 : payload.announce() ? table.existingPercent(world, site) : PlacementResultPayload.UNCHANGED;
 				result = new PlacementResultPayload(payload.table(), payload.anchor(), facing, site.mirrored(), problem == null ? "" : problem, existing);
 				RECENT.put(player.getUuid(), question, result, now);
+			}
+			// Placing, turning or mirroring the hologram sends announce: that spot is what a broken table keeps. Only after the
+			// budget allowed the answer, so a modified client cannot make the table dirty on every packet.
+			if (payload.announce()) {
+				table.rememberAim(world.getRegistryKey().getValue(), payload.anchor(), facing, payload.mirrored());
 			}
 			Platform.network().send(player, result);
 			if (!result.problem().isEmpty() && payload.announce()) {

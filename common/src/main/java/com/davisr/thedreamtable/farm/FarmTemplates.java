@@ -54,6 +54,8 @@ public final class FarmTemplates {
 	private static final ImportRefresher REFRESHER = new ImportRefresher(ImportedStructures::reload);
 	private static volatile Consumer<MinecraftServer> importsChanged = server -> {
 	};
+	/** Counts every change to the imported or saved designs, so something derived from them knows when to look again. */
+	private static volatile long revision;
 
 	static {
 		register(FarmOptions.SUGAR_CANE, "sugar_cane_farm", () -> PlantFarms.pistonRow(FarmOptions.SUGAR_CANE.id(), true));
@@ -88,6 +90,12 @@ public final class FarmTemplates {
 		reloadedRoot = worldRoot;
 		reloadedAt = now;
 		imports = ImportedStructures.reload(worldRoot);
+		revision++;
+	}
+
+	/** Changes whenever a design an id can name may have changed; see {@link #reloadImports}, {@link #publish}, {@link #keepSaved}, {@link #clearSaved}. */
+	public static long revision() {
+		return revision;
 	}
 
 	/**
@@ -145,6 +153,7 @@ public final class FarmTemplates {
 		}
 		ImportedStructures.Imports previous = imports;
 		imports = result;
+		revision++;
 		if (!previous.sameListing(result)) {
 			importsChanged.accept(server);
 		}
@@ -204,12 +213,15 @@ public final class FarmTemplates {
 
 	/** Keeps a finished farm's design under its saved id. The template's own id must already be that id. */
 	public static void keepSaved(FarmTemplate template) {
-		SAVED.putIfAbsent(template.id(), template);
+		if (SAVED.putIfAbsent(template.id(), template) == null) {
+			revision++;
+		}
 	}
 
 	/** Forgets the designs of the world that just closed; the next server reads its own back as its farms load. */
 	public static void clearSaved() {
 		SAVED.clear();
+		revision++;
 	}
 
 	/** Imported schematics have ids made by {@link ImportedStructures}; anything else is a built-in farm. */

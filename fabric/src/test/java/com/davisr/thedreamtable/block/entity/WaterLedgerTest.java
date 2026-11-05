@@ -76,4 +76,19 @@ class WaterLedgerTest {
 		assertTrue(ledger.drainIncompatible(withWater).isEmpty());
 		assertTrue(ledger.anyDelivered());
 	}
+
+	@Test
+	void aLaterMaterialLeavesTheRecordedBucketHandedBackAndTheCountsIntact() {
+		MaterialLedger ledger = new MaterialLedger();
+		ledger.accept(withWater, new ItemStack(Items.WATER_BUCKET), false);
+		// The design lost its water step, and stone is delivered for the steps that are left.
+		assertEquals(2, ledger.accept(withoutWater, new ItemStack(Items.STONE, 2), false));
+
+		List<ItemStack> back = ledger.drainIncompatible(withoutWater);
+		assertEquals(1, buckets(back));
+		assertTrue(back.stream().noneMatch(stack -> stack.isOf(Items.STONE)));
+		assertEquals(2, ledger.deposited(withoutWater, 0));
+		assertTrue(ledger.complete(withoutWater));
+		assertTrue(ledger.anyDelivered());
+	}
 }

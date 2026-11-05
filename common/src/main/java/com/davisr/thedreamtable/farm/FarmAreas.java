@@ -525,7 +525,9 @@ public final class FarmAreas extends PersistentState {
 				return true;
 			}
 		}
-		return ParkedProjects.of(world.getServer()).reserves(world.getRegistryKey().getValue(), test) || unreadableCovers(test);
+		// A table's own held build never blocks its own farm: its owner resumes it, and FarmBuilder.check asks here before the claim.
+		ParkedProjects.Seat own = asker == null ? null : new ParkedProjects.Seat(asker.player(), world.getRegistryKey().getValue(), asker.table());
+		return ParkedProjects.of(world.getServer()).reserves(world.getRegistryKey().getValue(), test, own) || unreadableCovers(test);
 	}
 
 	/**

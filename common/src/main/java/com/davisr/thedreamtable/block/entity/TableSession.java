@@ -138,13 +138,24 @@ public final class TableSession {
 	/** A build stopped for want of water goes on by itself once a source is nearby. Checked once a second. */
 	private void resumeForWater(ServerWorld world) {
 		BuildIssue issue = progress.issue();
-		if (issue == null || issue.kind() != BuildIssue.Kind.WATER || world.getTime() % BuildPace.TICKS_PER_SECOND != 0) {
+		FarmTemplate template = template();
+		ServerPlayerEntity owner = onlineOwner(world);
+		if (owner == null || !retriesForWater(progress.is(PHASE_BLOCKED) || progress.is(PHASE_NEED), issue != null && issue.kind() == BuildIssue.Kind.WATER,
+				world.getTime() % BuildPace.TICKS_PER_SECOND == 0, movedBuild(), template != null, template != null && progress.matches(template.signature()))) {
 			return;
 		}
-		ServerPlayerEntity owner = onlineOwner(world);
-		if (owner != null && (progress.is(PHASE_BLOCKED) || progress.is(PHASE_NEED)) && FarmBuilder.check(this, world) == null) {
+		if (FarmBuilder.check(this, world) == null) {
 			build.begin(owner, false);
 		}
+	}
+
+	/**
+	 * Whether a stopped water build is retried this second. Only a build that {@link SessionBuild#begin} would accept is retried:
+	 * a moved build waits for its player's Continue, and a build whose farm file is gone or changed stays as it is. Otherwise
+	 * each retry would send the same refusal again.
+	 */
+	static boolean retriesForWater(boolean stopped, boolean waterIssue, boolean secondTick, boolean movedBuild, boolean hasTemplate, boolean signatureMatches) {
+		return stopped && waterIssue && secondTick && !movedBuild && hasTemplate && signatureMatches;
 	}
 
 	/** A built-in farm that left the mod in an update. Its project is dropped and the delivered items handed back. */
@@ -177,6 +188,7 @@ public final class TableSession {
 		progress.reset(false);
 		swapMaterial = -1;
 		placement.clear();
+		releaseHold();
 		movedBuildDimension = null;
 		aim = null;
 		sync();
@@ -323,13 +335,22 @@ public final class TableSession {
 		if (aim == null) {
 			return false;
 		}
-		boolean usable = AimedSpot.usableHere(aim.dimension().equals(world.getRegistryKey().getValue()), FarmGeometry.withinReach(getPos(), aim.anchor()))
-				&& problemAt(world, player, new FarmSite(getPos(), aim.anchor(), aim.facing(), aim.mirrored())) == null;
+		boolean sameWorld = aim.dimension().equals(world.getRegistryKey().getValue());
+		boolean free = problemAt(world, player, new FarmSite(getPos(), aim.anchor(), aim.facing(), aim.mirrored())) == null;
+		boolean usable = restoredAimUsable(template() != null, sameWorld, FarmGeometry.withinReach(getPos(), aim.anchor()), free);
 		if (!usable) {
 			aim = null;
 			sync();
 		}
 		return !usable;
+	}
+
+	/**
+	 * Whether a restored aimed spot is still usable: this table has a farm to place, the spot is in its world and reach, and
+	 * it passes the placement checks ({@code free}).
+	 */
+	static boolean restoredAimUsable(boolean hasTemplate, boolean sameWorld, boolean withinReach, boolean free) {
+		return hasTemplate && AimedSpot.usableHere(sameWorld, withinReach) && free;
 	}
 
 	/**
@@ -548,9 +569,17 @@ public final class TableSession {
 		return desk.has(item);
 	}
 
+	/** Water near the table, read at most once per world tick: a step asks several times, and each answer is a full scan. Not saved. */
+	private long waterTick = Long.MIN_VALUE;
+	private boolean waterNear;
+
 	/** Whether infinite water is within reach of the table, outside every Dream Table farm. See {@link NearbyWater}. */
 	public boolean hasInfiniteWater(ServerWorld world) {
-		return NearbyWater.sourceNear(world, getPos());
+		if (world.getTime() != waterTick) {
+			waterTick = world.getTime();
+			waterNear = NearbyWater.sourceNear(world, getPos());
+		}
+		return waterNear;
 	}
 
 	/** Uses one delivered item. Returns true when it was one the player paid for, so the step can be refunded later. */
@@ -644,6 +673,7 @@ public final class TableSession {
 		desk.reset();
 		swapMaterial = -1;
 		placement.clear();
+		releaseHold();
 		movedBuildDimension = null;
 		aim = null;
 		sync();
@@ -740,6 +770,21 @@ public final class TableSession {
 		return new ParkedProjects.Reservation(world, site.footprint(template));
 	}
 
+	/** The seat a build restored into this table is held in: this owner at this table, in its world. */
+	ParkedProjects.Seat seat(ServerWorld world) {
+		return new ParkedProjects.Seat(player(), world.getRegistryKey().getValue(), getPos().asLong());
+	}
+
+	/**
+	 * Lifts the hold of a build restored into this table, when it is resumed (claimed), discarded (taken apart) or the table breaks
+	 * (parked again). Does nothing when nothing is held.
+	 */
+	void releaseHold() {
+		if (table.getWorld() instanceof ServerWorld world) {
+			ParkedProjects.of(world.getServer()).release(seat(world));
+		}
+	}
+
 	/** Whether this is a started build that came back from a broken table and has not resumed here yet. */
 	boolean movedBuild() {
 		return movedBuildDimension != null;
@@ -761,7 +806,7 @@ public final class TableSession {
 	 */
 	@Nullable String movedBuildProblem(ServerWorld world, ServerPlayerEntity asker, FarmTemplate template) {
 		String blocker = movedBuildBlocker(world);
-		return blocker != null ? blocker : areas.problemAt(world, asker, FarmBuilder.site(this), template);
+		return blocker != null ? blocker : areas.resumeProblemAt(world, asker, FarmBuilder.site(this), template);
 	}
 
 	/** Why a moved build can't be worked on from this table, before its spot is checked, as a lang key, or null. */

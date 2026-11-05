@@ -181,15 +181,88 @@ class ParkedProjectsTest {
 		assertFalse(parked.reserves(OVERWORLD, box -> box.intersects(footprint(ANCHOR.add(100, 0, 0), Direction.SOUTH))));
 	}
 
-	/** Restoring the build takes it out of the kept projects, so the reservation is gone once its owner has it back in a session. */
+	private static final ParkedProjects.Seat SEAT = new ParkedProjects.Seat(PLAYER, OVERWORLD, new BlockPos(0, 64, 0).asLong());
+
+	/**
+	 * Restoring the build into a table holds it: the build keeps reserving its area for others, and it is lifted only when the
+	 * seat releases it (resumed, discarded or the table breaks), never by another table's seat.
+	 */
 	@Test
-	void restoringTheBuildLiftsItsReservation() {
+	void aRestoredBuildStaysReservedForOthersUntilItsSeatReleasesIt() {
 		Box area = footprint(ANCHOR, Direction.SOUTH);
 		ParkedProjects parked = new ParkedProjects();
 		parked.park(PLAYER, build(OVERWORLD, ANCHOR, Direction.SOUTH));
+		List<NbtCompound> back = new ArrayList<>();
+		assertTrue(parked.restore(PLAYER, saved -> back.add(saved)));
+		parked.hold(SEAT, back.get(0));
+		assertEquals(0, parked.count(PLAYER));
 		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(area)));
-		assertTrue(parked.restore(PLAYER, saved -> true));
+		parked.release(new ParkedProjects.Seat(PLAYER, OVERWORLD, new BlockPos(9, 64, 9).asLong()));
+		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(area)));
+		parked.release(SEAT);
 		assertFalse(parked.reserves(OVERWORLD, box -> box.intersects(area)));
+	}
+
+	/** The owner resumes from the table holding the build, so its own hold does not block its spot; another player's seat or table still does. */
+	@Test
+	void theOwnersOwnHoldDoesNotBlockTheirResume() {
+		Box area = footprint(ANCHOR, Direction.SOUTH);
+		ParkedProjects parked = new ParkedProjects();
+		parked.hold(SEAT, build(OVERWORLD, ANCHOR, Direction.SOUTH));
+		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(area)));
+		assertFalse(parked.reserves(OVERWORLD, box -> box.intersects(area), SEAT));
+		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(area),
+				new ParkedProjects.Seat(OTHER, OVERWORLD, SEAT.table())));
+		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(area),
+				new ParkedProjects.Seat(PLAYER, OVERWORLD, new BlockPos(9, 64, 9).asLong())));
+	}
+
+	/** Held builds are saved with their seat and come back held in the same seat; a file from before holds reads as holding nothing. */
+	@Test
+	void aHeldBuildIsSavedWithItsSeat() {
+		Box area = footprint(ANCHOR, Direction.SOUTH);
+		ParkedProjects parked = new ParkedProjects();
+		parked.hold(SEAT, build(OVERWORLD, ANCHOR, Direction.SOUTH));
+		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound(), null), null);
+		assertTrue(read.reserves(OVERWORLD, box -> box.intersects(area)));
+		assertFalse(read.reserves(OVERWORLD, box -> box.intersects(area), SEAT));
+		read.release(SEAT);
+		assertFalse(read.reserves(OVERWORLD, box -> box.intersects(area)));
+		NbtCompound old = new NbtCompound();
+		NbtCompound players = new NbtCompound();
+		players.put(PLAYER.toString(), new NbtList());
+		old.put("Players", players);
+		assertFalse(ParkedProjects.read(old, null).reserves(OVERWORLD, box -> box.intersects(area)));
+	}
+
+	/** Builds kept under the NO_PLAYER key belong to no one and reserve nothing, so their area is never held forever. */
+	@Test
+	void aBuildOfNoPlayerReservesNothing() {
+		ParkedProjects parked = new ParkedProjects();
+		parked.park(ParkedProjects.NO_PLAYER, build(OVERWORLD, ANCHOR, Direction.SOUTH));
+		assertFalse(parked.reserves(OVERWORLD, box -> true));
+	}
+
+	/**
+	 * A build whose farm is not known yet reserves nothing, and must not stay that way: once the farm is known the reservation
+	 * appears, without any park or restore in between.
+	 */
+	@Test
+	void aBuildWhoseFarmIsNotKnownYetIsLookedUpAgain() {
+		String id = "saved:reservation_probe#1";
+		FarmTemplate sugar = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
+		Box area = footprint(ANCHOR, Direction.SOUTH);
+		NbtCompound project = build(OVERWORLD, ANCHOR, Direction.SOUTH);
+		project.putString("SelectedFarm", id);
+		ParkedProjects parked = new ParkedProjects();
+		parked.park(PLAYER, project);
+		assertFalse(parked.reserves(OVERWORLD, box -> box.intersects(area)));
+		FarmTemplates.keepSaved(new FarmTemplate(id, sugar.steps(), sugar.materials(), sugar.center(), sugar.mirrorSum()));
+		try {
+			assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(area)));
+		} finally {
+			FarmTemplates.clearSaved();
+		}
 	}
 
 	/** A build the owner could not take yet stays on record with its reservation, and the reservation follows the file. */
