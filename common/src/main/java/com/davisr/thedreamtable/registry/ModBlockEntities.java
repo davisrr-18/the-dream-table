@@ -12,7 +12,7 @@ import java.util.function.Supplier;
 public final class ModBlockEntities {
 	public static final Supplier<BlockEntityType<DreamTableBlockEntity>> DREAM_TABLE = Platform.content().register(
 			RegistryKeys.BLOCK_ENTITY_TYPE,
-			Identifier.of(TheDreamTableMod.MOD_ID, "dream_table"),
+			new Identifier(TheDreamTableMod.MOD_ID, "dream_table"),
 			() -> Platform.content().blockEntityType(DreamTableBlockEntity::new, ModBlocks.DREAM_TABLE.get())
 	);
 

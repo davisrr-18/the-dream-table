@@ -39,7 +39,6 @@ import java.util.function.UnaryOperator;
  */
 public final class FarmAreas extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_farm_areas";
-	private static final Type<FarmAreas> TYPE = new Type<>(FarmAreas::new, FarmAreas::read, null);
 	private final Map<Key, Area> areas = new LinkedHashMap<>();
 	private final Map<UUID, RepairLease> repairLeases = new LinkedHashMap<>();
 	private final Map<UUID, FarmAlerts> alerts = new LinkedHashMap<>();
@@ -102,7 +101,7 @@ public final class FarmAreas extends PersistentState {
 	}
 
 	public static FarmAreas of(ServerWorld world) {
-		return world.getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
+		return world.getPersistentStateManager().getOrCreate(nbt -> read(nbt, null), FarmAreas::new, STATE_KEY);
 	}
 
 	public void claim(Key key, Box box) {
@@ -636,7 +635,7 @@ public final class FarmAreas extends PersistentState {
 	}
 
 	@Override
-	public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+	public NbtCompound writeNbt(NbtCompound nbt) {
 		NbtList list = new NbtList();
 		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
 			NbtCompound item = new NbtCompound();

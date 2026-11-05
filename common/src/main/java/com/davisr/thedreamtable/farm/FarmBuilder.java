@@ -304,7 +304,7 @@ public final class FarmBuilder {
 			data.putInt("x", target.getX());
 			data.putInt("y", target.getY());
 			data.putInt("z", target.getZ());
-			blockEntity.read(data, world.getRegistryManager());
+			blockEntity.readNbt(data);
 		}
 		if (sound) {
 			world.playSound(null, target, placed.getSoundGroup().getPlaceSound(), SoundCategory.BLOCKS, 0.85F, 0.9F + world.random.nextFloat() * 0.2F);

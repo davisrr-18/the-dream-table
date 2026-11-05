@@ -23,7 +23,7 @@ import net.minecraft.util.math.Direction;
  * so the hologram turns red and the reason shows right away.
  */
 public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction facing, boolean mirrored, boolean announce) implements CustomPayload {
-	public static final Id<CheckPlacementPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "check_placement"));
+	public static final Id<CheckPlacementPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "check_placement"));
 	public static final PacketCodec<RegistryByteBuf, CheckPlacementPayload> CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC, CheckPlacementPayload::table,
 			BlockPos.PACKET_CODEC, CheckPlacementPayload::anchor,

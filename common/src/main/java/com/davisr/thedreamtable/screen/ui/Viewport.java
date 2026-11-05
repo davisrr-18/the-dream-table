@@ -138,7 +138,7 @@ public final class Viewport {
 
 	/** Width available to a collection toolbar without entering the scrollbar gutter. */
 	public int collectionWidth() {
-		return geometry == null ? CARD_WIDTH : geometry.columns().getLast().right() - collectionX();
+		return geometry == null ? CARD_WIDTH : geometry.columns().get(geometry.columns().size() - 1).right() - collectionX();
 	}
 
 	/** X for a single-column page: it starts at the collection edge and spans {@link #flowWidth()}. */

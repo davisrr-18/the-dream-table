@@ -10,8 +10,7 @@ import net.minecraft.block.PlantBlock;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtSizeTracker;
-import net.minecraft.nbt.NbtSizeValidationException;
+import net.minecraft.nbt.NbtTagSizeTracker;
 import net.minecraft.util.math.BlockPos;
 
 import java.io.BufferedInputStream;
@@ -25,6 +24,8 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipException;
 
 /**
  * Turns a schematic file into a farm template, whatever the format, and says what is wrong with it: why it can't be
@@ -61,9 +62,31 @@ public final class SchematicReader {
 	private SchematicReader() {
 	}
 
+	/** 1.20.1's tracker throws a plain RuntimeException past its limit; this one tells a too-large file apart from a broken one. */
+	private static final class SizeLimit extends NbtTagSizeTracker {
+		SizeLimit() {
+			super(MAX_BYTES);
+		}
+
+		@Override
+		public void add(long bytes) {
+			try {
+				super.add(bytes);
+			} catch (RuntimeException tooLarge) {
+				throw new TooLarge();
+			}
+		}
+	}
+
+	private static final class TooLarge extends RuntimeException {
+		TooLarge() {
+			super(null, null, false, false);
+		}
+	}
+
 	/** A bundled farm; null when it can't be used. */
 	public static FarmTemplate read(String id, InputStream stream) throws IOException {
-		return fromRoot(id, NbtIo.readCompressed(stream, NbtSizeTracker.ofUnlimitedBytes()), false).template();
+		return fromRoot(id, NbtIo.readCompressed(stream), false).template();
 	}
 
 	/** A player's file. Never throws: a file that can't be read becomes an {@link ImportNote.Kind#UNREADABLE} result, logged with its cause. */
@@ -73,15 +96,15 @@ public final class SchematicReader {
 				return Result.rejected(ImportNote.Kind.TOO_LARGE, 0);
 			}
 			NbtCompound root;
-			try {
-				root = NbtIo.readCompressed(path, NbtSizeTracker.of(MAX_BYTES));
-			} catch (IOException compressed) {
+			try (DataInputStream input = new DataInputStream(new BufferedInputStream(new GZIPInputStream(Files.newInputStream(path))))) {
+				root = NbtIo.read(input, new SizeLimit());
+			} catch (ZipException uncompressed) {
 				try (DataInputStream input = new DataInputStream(new BufferedInputStream(Files.newInputStream(path)))) {
-					root = NbtIo.readCompound(input, NbtSizeTracker.of(MAX_BYTES));
+					root = NbtIo.read(input, new SizeLimit());
 				}
 			}
 			return fromRoot(id, root, true);
-		} catch (NbtSizeValidationException tooLarge) {
+		} catch (TooLarge tooLarge) {
 			TheDreamTableMod.LOGGER.warn("Schematic {} holds more than {} bytes of data", path.getFileName(), MAX_BYTES);
 			return Result.rejected(ImportNote.Kind.TOO_LARGE, 0);
 		} catch (IOException | RuntimeException exception) {

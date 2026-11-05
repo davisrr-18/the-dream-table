@@ -35,7 +35,7 @@ class FarmAreasLegacyRecordTest {
 		FarmAreas areas = new FarmAreas();
 		FarmSite site = new FarmSite(new BlockPos(0, 64, 0), new BlockPos(10, 64, 10), Direction.NORTH);
 		areas.recordFinished(OWNER, FarmTemplates.get(FarmOptions.SUGAR_CANE.id()), site, Map.of(), INSTANCE, "My Cane");
-		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
+		NbtCompound nbt = areas.writeNbt(new NbtCompound());
 		NbtCompound item = nbt.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0);
 
 		NbtList grants = new NbtList();
@@ -71,9 +71,9 @@ class FarmAreasLegacyRecordTest {
 
 		List<FarmAreas.Finished> farms = restored.finishedBy(OWNER);
 		assertEquals(1, farms.size());
-		assertEquals(INSTANCE, farms.getFirst().instanceId());
-		assertEquals(OWNER, farms.getFirst().ownerUuid());
-		assertEquals("My Cane", farms.getFirst().customName());
+		assertEquals(INSTANCE, farms.get(0).instanceId());
+		assertEquals(OWNER, farms.get(0).ownerUuid());
+		assertEquals("My Cane", farms.get(0).customName());
 		assertEquals(0, restored.unreadableCount());
 		assertTrue(restored.finishedBy(FORMER_OPERATOR).isEmpty());
 		assertTrue(restored.finishedBy(FORMER_VIEWER).isEmpty());
@@ -81,7 +81,7 @@ class FarmAreasLegacyRecordTest {
 
 	@Test
 	void legacyCollaboratorDataIsNotWrittenAgain() {
-		NbtCompound saved = FarmAreas.read(legacySave(), null).writeNbt(new NbtCompound(), null);
+		NbtCompound saved = FarmAreas.read(legacySave(), null).writeNbt(new NbtCompound());
 		NbtCompound item = saved.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0);
 
 		assertFalse(item.contains("Grants"));

@@ -31,7 +31,7 @@ dependencies {
 }
 
 loom {
-	// The legacy mixin annotation processor breaks the Forge 52 build (found in the 1.3.0 toolchain check).
+	// The legacy mixin annotation processor breaks the Forge build (found in the 1.3.0 toolchain check).
 	mixin {
 		useLegacyMixinAp = false
 	}

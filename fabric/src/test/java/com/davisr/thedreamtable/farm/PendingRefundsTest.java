@@ -54,7 +54,7 @@ class PendingRefundsTest {
 	void whatIsOwedSurvivesASaveAndMalformedEntriesAreSkipped() {
 		PendingRefunds refunds = new PendingRefunds();
 		refunds.add(PLAYER, "minecraft:oak_log", 12);
-		NbtCompound saved = refunds.writeNbt(new NbtCompound(), null);
+		NbtCompound saved = refunds.writeNbt(new NbtCompound());
 		NbtCompound players = saved.getCompound("Players");
 		players.put("not-a-uuid", new NbtCompound());
 		players.getCompound(PLAYER.toString()).putString("junk", "text");

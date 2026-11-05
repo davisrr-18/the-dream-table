@@ -54,7 +54,7 @@ class FarmInfoTest {
 	@Test
 	void splitsAtLineFeedsAndDropsBlankLines() {
 		Map<String, String> lang = Map.of("farm.the_dream_table.demo.info.how", "  First  \n\nSecond\n   \nThird\n");
-		assertEquals(List.of("First", "Second", "Third"), FarmInfo.sections("demo", lang::get).getFirst().bullets());
+		assertEquals(List.of("First", "Second", "Third"), FarmInfo.sections("demo", lang::get).get(0).bullets());
 	}
 
 	@Test

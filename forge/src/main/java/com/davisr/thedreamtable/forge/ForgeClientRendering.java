@@ -66,7 +66,7 @@ final class ForgeClientRendering implements ClientRendering {
 	@Override
 	public void onHud(Consumer<DrawContext> listener) {
 		// A layer added on top of the HUD draws after the vanilla ones, like the other loaders' post-HUD hooks.
-		Identifier name = Identifier.of(TheDreamTableMod.MOD_ID, "hud_" + hudLayers++);
+		Identifier name = new Identifier(TheDreamTableMod.MOD_ID, "hud_" + hudLayers++);
 		listen(modBus, AddGuiOverlayLayersEvent.class,
 				event -> event.getLayeredDraw().add(name, (context, tickCounter) -> listener.accept(context)));
 	}

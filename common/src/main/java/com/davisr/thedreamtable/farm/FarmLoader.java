@@ -47,7 +47,6 @@ import java.util.UUID;
  */
 public final class FarmLoader extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_loaded_farms";
-	private static final Type<FarmLoader> TYPE = new Type<>(FarmLoader::new, FarmLoader::read, null);
 	private static final int INTERVAL_TICKS = 100;
 	private static final ChunkTicketType<ChunkPos> TICKET = ChunkTicketType.create("the_dream_table_farm", Comparator.comparingLong(ChunkPos::toLong), INTERVAL_TICKS * 3);
 	/** Radius 2 makes the farm's chunk entity-ticking, which item drops and golems need. */
@@ -206,7 +205,7 @@ public final class FarmLoader extends PersistentState {
 	}
 
 	public static FarmLoader of(MinecraftServer server) {
-		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
+		return server.getOverworld().getPersistentStateManager().getOrCreate(nbt -> read(nbt, null), FarmLoader::new, STATE_KEY);
 	}
 
 	/** Every finished farm of the player, newest first, and whether each is picked. */
@@ -435,7 +434,7 @@ public final class FarmLoader extends PersistentState {
 	}
 
 	@Override
-	public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+	public NbtCompound writeNbt(NbtCompound nbt) {
 		NbtCompound players = new NbtCompound();
 		for (Map.Entry<UUID, Set<String>> entry : picked.entrySet()) {
 			NbtList keys = new NbtList();

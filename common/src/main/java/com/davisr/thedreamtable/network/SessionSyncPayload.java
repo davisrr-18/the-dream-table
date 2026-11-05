@@ -12,7 +12,7 @@ import net.minecraft.util.math.BlockPos;
 
 /** A player's own session at a table, sent only to that player. Other players' sessions never reach a client. */
 public record SessionSyncPayload(BlockPos table, NbtCompound session) implements CustomPayload {
-	public static final Id<SessionSyncPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "session_sync"));
+	public static final Id<SessionSyncPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "session_sync"));
 	public static final PacketCodec<RegistryByteBuf, SessionSyncPayload> CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC, SessionSyncPayload::table,
 			PacketCodecs.NBT_COMPOUND, SessionSyncPayload::session,

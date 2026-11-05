@@ -25,7 +25,6 @@ import java.util.UUID;
  */
 public final class PendingRefunds extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_pending_refunds";
-	private static final Type<PendingRefunds> TYPE = new Type<>(PendingRefunds::new, PendingRefunds::read, null);
 	private static final int CHECK_INTERVAL_TICKS = 40;
 	static final int MAX_PLAYERS = 4096;
 	static final int MAX_KINDS_PER_PLAYER = 256;
@@ -33,7 +32,7 @@ public final class PendingRefunds extends PersistentState {
 	private final Map<UUID, Map<String, Integer>> owed = new LinkedHashMap<>();
 
 	public static PendingRefunds of(MinecraftServer server) {
-		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
+		return server.getOverworld().getPersistentStateManager().getOrCreate(nbt -> read(nbt, null), PendingRefunds::new, STATE_KEY);
 	}
 
 	public static void register() {
@@ -117,7 +116,7 @@ public final class PendingRefunds extends PersistentState {
 	}
 
 	@Override
-	public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+	public NbtCompound writeNbt(NbtCompound nbt) {
 		NbtCompound players = new NbtCompound();
 		for (Map.Entry<UUID, Map<String, Integer>> entry : owed.entrySet()) {
 			NbtCompound items = new NbtCompound();

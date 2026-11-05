@@ -49,7 +49,7 @@ public final class FarmFaces {
 
 	/** Kept faces point into the texture atlas, so they are dropped whenever resources reload. */
 	public static void register() {
-		Platform.clientEvents().onResourcesReloaded(Identifier.of(TheDreamTableMod.MOD_ID, "farm_faces"), manager -> {
+		Platform.clientEvents().onResourcesReloaded(new Identifier(TheDreamTableMod.MOD_ID, "farm_faces"), manager -> {
 			CACHE.clear();
 			PENDING.clear();
 			GhostRenderer.release();

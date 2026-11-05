@@ -51,7 +51,7 @@ final class ForgeServerNetwork implements ServerNetwork {
 	 * Forge itself refuses a client and a server whose payloads differ.
 	 */
 	void build() {
-		PayloadProtocol<RegistryByteBuf, CustomPayload> play = ChannelBuilder.named(Identifier.of(TheDreamTableMod.MOD_ID, "main"))
+		PayloadProtocol<RegistryByteBuf, CustomPayload> play = ChannelBuilder.named(new Identifier(TheDreamTableMod.MOD_ID, "main"))
 				.networkProtocolVersion(Integer.parseInt(NetworkProtocol.VERSION))
 				.payloadChannel()
 				.play();

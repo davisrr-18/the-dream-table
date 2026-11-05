@@ -24,8 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ParkedProjectsTest {
 	private static final UUID PLAYER = UUID.fromString("10000000-0000-0000-0000-000000000001");
 	private static final UUID OTHER = UUID.fromString("20000000-0000-0000-0000-000000000002");
-	private static final Identifier OVERWORLD = Identifier.of("minecraft", "overworld");
-	private static final Identifier NETHER = Identifier.of("minecraft", "the_nether");
+	private static final Identifier OVERWORLD = new Identifier("minecraft", "overworld");
+	private static final Identifier NETHER = new Identifier("minecraft", "the_nether");
 	private static final BlockPos ANCHOR = new BlockPos(640, 70, -20);
 
 	@BeforeAll
@@ -129,7 +129,7 @@ class ParkedProjectsTest {
 		full.putString("SomethingALaterVersionWrites", "kept");
 		parked.park(PLAYER, full);
 		parked.park(OTHER, project("theirs"));
-		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound(), null), null);
+		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound()), null);
 		assertEquals(1, read.count(PLAYER));
 		assertEquals(1, read.count(OTHER));
 		List<NbtCompound> back = new ArrayList<>();
@@ -140,12 +140,12 @@ class ParkedProjectsTest {
 	/** A project kept with its aimed spot comes back with the same spot, saved and read back through the file. */
 	@Test
 	void aKeptSpotComesBackWithTheProject() {
-		AimedSpot spot = new AimedSpot(new BlockPos(640, 70, -20), Direction.EAST, true, Identifier.of("minecraft", "overworld"));
+		AimedSpot spot = new AimedSpot(new BlockPos(640, 70, -20), Direction.EAST, true, new Identifier("minecraft", "overworld"));
 		NbtCompound kept = project("farm");
 		kept.put("Aim", spot.toNbt());
 		ParkedProjects parked = new ParkedProjects();
 		parked.park(PLAYER, kept);
-		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound(), null), null);
+		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound()), null);
 		List<NbtCompound> back = new ArrayList<>();
 		read.restore(PLAYER, back::add);
 		assertEquals(spot, AimedSpot.fromNbt(back.get(0).getCompound("Aim")));
@@ -223,7 +223,7 @@ class ParkedProjectsTest {
 		Box area = footprint(ANCHOR, Direction.SOUTH);
 		ParkedProjects parked = new ParkedProjects();
 		parked.hold(SEAT, build(OVERWORLD, ANCHOR, Direction.SOUTH));
-		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound(), null), null);
+		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound()), null);
 		assertTrue(read.reserves(OVERWORLD, box -> box.intersects(area)));
 		assertFalse(read.reserves(OVERWORLD, box -> box.intersects(area), SEAT));
 		read.release(SEAT);
@@ -273,7 +273,7 @@ class ParkedProjectsTest {
 		parked.park(PLAYER, build(OVERWORLD, ANCHOR, Direction.SOUTH));
 		assertFalse(parked.restore(PLAYER, saved -> false));
 		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(area)));
-		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound(), null), null);
+		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound()), null);
 		assertTrue(read.reserves(OVERWORLD, box -> box.intersects(area)));
 	}
 

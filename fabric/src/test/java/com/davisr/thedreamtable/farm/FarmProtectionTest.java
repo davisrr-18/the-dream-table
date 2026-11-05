@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FarmProtectionTest {
 	private static final UUID OWNER = UUID.fromString("10000000-0000-0000-0000-000000000001");
 	private static final UUID STRANGER = UUID.fromString("30000000-0000-0000-0000-000000000003");
-	private static final FarmKey KEY = new FarmKey(Identifier.of("minecraft", "overworld"), UUID.fromString("40000000-0000-0000-0000-000000000004"));
+	private static final FarmKey KEY = new FarmKey(new Identifier("minecraft", "overworld"), UUID.fromString("40000000-0000-0000-0000-000000000004"));
 	private static final FarmRecord FARM = new FarmRecord(KEY, OWNER);
 	private static final BlockPos TABLE = new BlockPos(0, 64, 0);
 	private static final BlockPos ANCHOR = new BlockPos(30, 64, 30);
@@ -219,7 +219,7 @@ class FarmProtectionTest {
 		areas.recordFinished(OWNER, farm, site, Map.of());
 		BlockPos inside = site.target(farm, farm.steps().get(0));
 
-		List<FarmAreas.Guard> guards = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null).guardsAt(inside);
+		List<FarmAreas.Guard> guards = FarmAreas.read(areas.writeNbt(new NbtCompound()), null).guardsAt(inside);
 
 		assertEquals(1, guards.size());
 		assertEquals(OWNER, guards.get(0).ownerUuid());

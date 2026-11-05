@@ -35,7 +35,7 @@ class PageContextLayoutTest {
 			int y = view.cardY(0);
 			register(context, "flow", x, y);
 
-			ControlSpec control = context.controls().getFirst();
+			ControlSpec control = context.controls().get(0);
 			assertEquals(x, control.bounds().x());
 			assertEquals(y, control.bounds().y());
 			assertTrue(context.buttonHit(x + 1, y + 1, x, y));

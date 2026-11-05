@@ -6,7 +6,6 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.block.entity.LootableContainerBlockEntity;
 import net.minecraft.block.entity.ShulkerBoxBlockEntity;
-import net.minecraft.component.DataComponentTypes;
 import net.minecraft.inventory.ContainerLock;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -77,11 +76,12 @@ final class NearbyContainers {
 
 	/** Any lock counts, even one the player holds the key for: opening is not what this does. */
 	static boolean locked(BlockEntity entity) {
-		return !entity.createComponentMap().getOrDefault(DataComponentTypes.LOCK, ContainerLock.EMPTY).equals(ContainerLock.EMPTY);
+		// The lock field is private on 1.20.1; it is saved only when set.
+		return !entity.createNbt().getString(ContainerLock.LOCK_KEY).isEmpty();
 	}
 
 	/** A container with a loot table still holds nothing real until someone opens it. */
 	static boolean unopenedLoot(BlockEntity entity) {
-		return entity instanceof LootableContainerBlockEntity loot && loot.getLootTable() != null;
+		return entity instanceof LootableContainerBlockEntity && entity.createNbt().contains(LootableContainerBlockEntity.LOOT_TABLE_KEY);
 	}
 }

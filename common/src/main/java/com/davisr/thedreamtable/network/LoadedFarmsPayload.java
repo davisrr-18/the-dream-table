@@ -19,7 +19,7 @@ import java.util.List;
 
 /** The player's finished farms for the My Farms pages, and the server's limit. Sent only to that player. */
 public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, int limit) implements CustomPayload {
-	public static final Id<LoadedFarmsPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "loaded_farms"));
+	public static final Id<LoadedFarmsPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "loaded_farms"));
 	private static final int MAX_FARMS = 512;
 	/** Farm and layout ids embed imported file names; the limit is far above any real one and encodes the same below 256. */
 	static final int MAX_ID = 1024;
@@ -127,7 +127,7 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, int limit) implem
 
 	/** Asks for the list, picking or unpicking one farm first when {@code toggle} names it. */
 	public record Request(BlockPos table, String toggle) implements CustomPayload {
-		public static final Id<Request> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "loaded_farms_request"));
+		public static final Id<Request> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "loaded_farms_request"));
 		public static final PacketCodec<RegistryByteBuf, Request> CODEC = PacketCodec.of(
 				(request, buf) -> {
 					buf.writeBlockPos(request.table());

@@ -137,7 +137,7 @@ class ViewportTest {
 			Viewport viewport = new Viewport();
 			viewport.layout(geometry, 0, 500);
 
-			assertTrue((int) trackX.invoke(viewport) > geometry.columns().getLast().right());
+			assertTrue((int) trackX.invoke(viewport) > geometry.columns().get(geometry.columns().size() - 1).right());
 		}
 	}
 
@@ -159,7 +159,7 @@ class ViewportTest {
 			assertTrue(geometry.columns().stream().allMatch(column ->
 					column.x() >= viewport.contentLeft() && column.right() <= viewport.contentRight()));
 			int scrollbarX = (int) trackX.invoke(viewport);
-			assertTrue(scrollbarX > geometry.columns().getLast().right());
+			assertTrue(scrollbarX > geometry.columns().get(geometry.columns().size() - 1).right());
 			assertTrue(scrollbarX + 8 <= geometry.viewport().right());
 		}
 	}

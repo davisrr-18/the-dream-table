@@ -355,11 +355,11 @@ class FarmMirrorTest {
 		FarmSite site = new FarmSite(TABLE, ANCHOR, Direction.EAST, true);
 		areas.recordFinished(player, farm, site, Map.of());
 
-		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null);
+		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound()), null);
 
-		FarmAreas.Finished finished = restored.finishedBy(player).getFirst();
+		FarmAreas.Finished finished = restored.finishedBy(player).get(0);
 		assertTrue(finished.site().mirrored());
 		assertEquals(site, finished.site());
-		assertEquals(areas.finishedBy(player).getFirst().box(), finished.box());
+		assertEquals(areas.finishedBy(player).get(0).box(), finished.box());
 	}
 }

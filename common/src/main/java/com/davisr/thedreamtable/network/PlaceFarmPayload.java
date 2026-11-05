@@ -17,7 +17,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing, boolean mirrored) implements CustomPayload {
-	public static final Id<PlaceFarmPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "place_farm"));
+	public static final Id<PlaceFarmPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "place_farm"));
 	public static final PacketCodec<RegistryByteBuf, PlaceFarmPayload> CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC, PlaceFarmPayload::table,
 			BlockPos.PACKET_CODEC, PlaceFarmPayload::anchor,

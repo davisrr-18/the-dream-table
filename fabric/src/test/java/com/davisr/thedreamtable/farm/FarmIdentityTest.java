@@ -13,7 +13,7 @@ class FarmIdentityTest {
 
 	@Test
 	void keyRoundTripsAsDimensionAndImmutableInstanceUuid() {
-		FarmKey key = new FarmKey(Identifier.of("minecraft", "overworld"), INSTANCE);
+		FarmKey key = new FarmKey(new Identifier("minecraft", "overworld"), INSTANCE);
 
 		assertEquals("minecraft:overworld|12345678-1234-5678-9abc-123456789abc", key.externalForm());
 		assertEquals(key, FarmKey.parse(key.externalForm()));

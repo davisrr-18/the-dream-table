@@ -16,7 +16,7 @@ import java.util.List;
 
 /** Confirms only event references issued in the sender's current alert page. */
 public record FarmAlertAckPayload(BlockPos table, String key, String token, List<Long> eventIds) implements CustomPayload {
-	public static final Id<FarmAlertAckPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_alert_ack"));
+	public static final Id<FarmAlertAckPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "farm_alert_ack"));
 	private static final int MAX_EVENT_IDS = 50;
 	public static final PacketCodec<RegistryByteBuf, FarmAlertAckPayload> CODEC = PacketCodec.of(
 			(payload, buf) -> {

@@ -31,7 +31,7 @@ class UnreadableAreaRecordTest {
 		FarmAreas areas = new FarmAreas();
 		FarmSite site = new FarmSite(new BlockPos(0, 64, 0), new BlockPos(10, 64, 10), Direction.NORTH);
 		areas.recordFinished(OWNER, FarmTemplates.get(FarmOptions.SUGAR_CANE.id()), site, Map.of(), INSTANCE, "My Cane");
-		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
+		NbtCompound nbt = areas.writeNbt(new NbtCompound());
 		nbt.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0).remove("Player");
 		return nbt;
 	}
@@ -52,7 +52,7 @@ class UnreadableAreaRecordTest {
 	void theRecordIsSavedAsItWas() {
 		NbtCompound nbt = unreadableSave();
 		NbtCompound original = nbt.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0).copy();
-		NbtCompound back = FarmAreas.read(nbt, null).writeNbt(new NbtCompound(), null);
+		NbtCompound back = FarmAreas.read(nbt, null).writeNbt(new NbtCompound());
 		assertEquals(original, back.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0));
 		assertEquals(1, back.getList("Areas", NbtElement.COMPOUND_TYPE).size());
 	}

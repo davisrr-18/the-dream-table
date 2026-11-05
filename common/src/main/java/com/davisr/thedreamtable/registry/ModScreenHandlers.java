@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 public final class ModScreenHandlers {
 	public static final Supplier<ScreenHandlerType<DreamTableScreenHandler>> DREAM_TABLE = Platform.content().register(
 			RegistryKeys.SCREEN_HANDLER,
-			Identifier.of(TheDreamTableMod.MOD_ID, "dream_table"),
+			new Identifier(TheDreamTableMod.MOD_ID, "dream_table"),
 			() -> Platform.menus().extendedType(DreamTableScreenHandler::new, OpenData.CODEC)
 	);
 

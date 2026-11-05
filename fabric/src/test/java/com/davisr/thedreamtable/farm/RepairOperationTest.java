@@ -35,7 +35,7 @@ class RepairOperationTest {
 	@Test
 	void repairLeaseIsAtomicAndRequiresTheMatchingToken() {
 		FarmAreas areas = areas();
-		UUID farm = areas.finishedBy(OWNER).getFirst().instanceId();
+		UUID farm = areas.finishedBy(OWNER).get(0).instanceId();
 
 		assertTrue(areas.beginRepair(farm, OWNER, TABLE, OPERATION).isPresent());
 		assertTrue(areas.beginRepair(farm, OWNER, TABLE, UUID.randomUUID()).isEmpty());
@@ -49,10 +49,10 @@ class RepairOperationTest {
 	@Test
 	void leaseRoundTripPreservesOwnershipIdentityAndMetadata() {
 		FarmAreas areas = areas();
-		FarmAreas.Finished before = areas.finishedBy(OWNER).getFirst();
+		FarmAreas.Finished before = areas.finishedBy(OWNER).get(0);
 		areas.beginRepair(before.instanceId(), OWNER, TABLE, OPERATION).orElseThrow();
 
-		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null);
+		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound()), null);
 		FarmAreas.Finished after = restored.finished(before.instanceId()).orElseThrow();
 
 		assertEquals(OWNER, after.ownerUuid());
@@ -65,7 +65,7 @@ class RepairOperationTest {
 	@Test
 	void onlyProvenOrphansReturnToReady() {
 		FarmAreas areas = areas();
-		UUID farm = areas.finishedBy(OWNER).getFirst().instanceId();
+		UUID farm = areas.finishedBy(OWNER).get(0).instanceId();
 		areas.beginRepair(farm, OWNER, TABLE, OPERATION).orElseThrow();
 
 		assertEquals(0, areas.failOrphanedRepairs(lease -> true));

@@ -55,7 +55,7 @@ public record ScreenGeometry(
 		UiRect slotRegion = new UiRect(panelX, viewport.y(), slotPage ? SLOT_REGION_WIDTH : 0, viewport.height());
 		UiPoint slotOrigin = new UiPoint(panelX, viewport.y() - DreamTableLayout.HEADER);
 		return new ScreenGeometry(mode, panel, header, tabs, toolbar, viewport,
-				new UiPoint(columns.getFirst().x(), viewport.y()), columns, slotRegion, slotOrigin);
+				new UiPoint(columns.get(0).x(), viewport.y()), columns, slotRegion, slotOrigin);
 	}
 
 	private static UiRect column(int x, UiRect viewport) {

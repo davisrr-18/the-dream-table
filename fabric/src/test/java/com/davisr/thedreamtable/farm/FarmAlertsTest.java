@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FarmAlertsTest {
-	private static final FarmKey FARM = new FarmKey(Identifier.of("minecraft", "overworld"), UUID.fromString("10000000-0000-0000-0000-000000000001"));
+	private static final FarmKey FARM = new FarmKey(new Identifier("minecraft", "overworld"), UUID.fromString("10000000-0000-0000-0000-000000000001"));
 
 	@BeforeAll
 	static void bootstrap() {
@@ -79,7 +79,7 @@ class FarmAlertsTest {
 		FarmAreas areas = new FarmAreas();
 		FarmSite site = new FarmSite(new BlockPos(0, 64, 0), new BlockPos(10, 64, 10), net.minecraft.util.math.Direction.NORTH);
 		areas.recordFinished(UUID.randomUUID(), FarmTemplates.get(FarmOptions.SUGAR_CANE.id()), site, Map.of());
-		UUID instanceId = areas.finished().getFirst().instanceId();
+		UUID instanceId = areas.finished().get(0).instanceId();
 		areas.observeAlert(instanceId, FarmAlertType.REPAIR_BLOCKED, 1, 1_700_000_000_000L);
 		areas.observeAlert(instanceId, FarmAlertType.REPAIR_FAILED, 1, 1_700_000_000_001L);
 

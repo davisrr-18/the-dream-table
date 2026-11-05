@@ -17,7 +17,7 @@ import java.util.List;
 
 /** A server-authorized page of one farm's alerts, with a capability token for exact read acknowledgement. */
 public record FarmAlertsPayload(String key, String token, List<Entry> entries) implements CustomPayload {
-	public static final Id<FarmAlertsPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_alerts"));
+	public static final Id<FarmAlertsPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "farm_alerts"));
 	private static final int MAX_ENTRIES = 50;
 	private static final FarmAlertPageTokens TOKENS = new FarmAlertPageTokens();
 	/** A page asks once per selection and each request builds a page of up to 50 alerts: four a second is far above a person's use. */
@@ -87,7 +87,7 @@ public record FarmAlertsPayload(String key, String token, List<Entry> entries) i
 	}
 
 	public record Request(BlockPos table, String key, int offset) implements CustomPayload {
-		public static final Id<Request> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_alerts_request"));
+		public static final Id<Request> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "farm_alerts_request"));
 		public static final PacketCodec<RegistryByteBuf, Request> CODEC = PacketCodec.of(
 				(request, buf) -> {
 					buf.writeBlockPos(request.table());

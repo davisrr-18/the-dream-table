@@ -19,7 +19,7 @@ import net.minecraft.util.math.BlockPos;
  * {@code farmId} means nothing is tracked. After that the My Farms list keeps the client's copy current.
  */
 public record TrackedFarmPayload(String farmId, String customName, String dimension, BlockPos where) implements CustomPayload {
-	public static final Id<TrackedFarmPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "tracked_farm"));
+	public static final Id<TrackedFarmPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "tracked_farm"));
 	public static final TrackedFarmPayload NONE = new TrackedFarmPayload("", "", "", BlockPos.ORIGIN);
 	public static final PacketCodec<RegistryByteBuf, TrackedFarmPayload> CODEC = PacketCodec.of(
 			(payload, buf) -> {

@@ -7,7 +7,7 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.block.AbstractPlantPartBlock;
 import net.minecraft.block.AttachedStemBlock;
 import net.minecraft.block.BambooBlock;
-import net.minecraft.block.BambooShootBlock;
+import net.minecraft.block.BambooSaplingBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -180,7 +180,7 @@ public final class FarmProtection {
 		Block block = state.getBlock();
 		return block instanceof CropBlock || block instanceof StemBlock || block instanceof AttachedStemBlock
 				|| block instanceof PlantBlock || block instanceof SugarCaneBlock || block instanceof CactusBlock
-				|| block instanceof BambooBlock || block instanceof BambooShootBlock || block instanceof AbstractPlantPartBlock
+				|| block instanceof BambooBlock || block instanceof BambooSaplingBlock || block instanceof AbstractPlantPartBlock
 				|| block instanceof CocoaBlock || block instanceof ChorusFlowerBlock || block instanceof ChorusPlantBlock
 				|| state.isOf(Blocks.PUMPKIN) || state.isOf(Blocks.MELON)
 				|| state.isIn(BlockTags.CROPS) || state.isIn(BlockTags.SAPLINGS);

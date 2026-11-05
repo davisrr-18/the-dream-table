@@ -14,7 +14,7 @@ import java.util.function.Supplier;
 public final class ModItems {
 	public static final Supplier<Item> DREAM_TABLE = Platform.content().register(
 			RegistryKeys.ITEM,
-			Identifier.of(TheDreamTableMod.MOD_ID, "dream_table"),
+			new Identifier(TheDreamTableMod.MOD_ID, "dream_table"),
 			() -> new BlockItem(ModBlocks.DREAM_TABLE.get(), new Item.Settings())
 	);
 
@@ -27,7 +27,7 @@ public final class ModItems {
 
 	/** Vanilla's Redstone Blocks tab, named by id because its constant is private outside a loader. */
 	static final class CreativeTab {
-		static final RegistryKey<ItemGroup> KEY = RegistryKey.of(RegistryKeys.ITEM_GROUP, Identifier.ofVanilla("redstone_blocks"));
+		static final RegistryKey<ItemGroup> KEY = RegistryKey.of(RegistryKeys.ITEM_GROUP, new Identifier("redstone_blocks"));
 
 		private CreativeTab() {
 		}

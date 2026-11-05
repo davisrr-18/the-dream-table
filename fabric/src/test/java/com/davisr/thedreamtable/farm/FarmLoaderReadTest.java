@@ -24,7 +24,7 @@ class FarmLoaderReadTest {
 		NbtCompound nbt = new NbtCompound();
 		nbt.put("Players", players);
 
-		NbtCompound written = FarmLoader.read(nbt, null).writeNbt(new NbtCompound(), null);
+		NbtCompound written = FarmLoader.read(nbt, null).writeNbt(new NbtCompound());
 
 		assertEquals(DreamTableConfig.MAX_LOADED_LIMIT,
 				written.getCompound("Players").getList(player.toString(), NbtElement.STRING_TYPE).size());

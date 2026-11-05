@@ -26,7 +26,7 @@ import java.util.UUID;
  * asked to watch are remembered so the outlines return by themselves when it is turned back on.
  */
 public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
-	public static final Id<FarmAreasPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_areas"));
+	public static final Id<FarmAreasPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "farm_areas"));
 	private static final int MAX_AREAS = 256;
 	private static final int RADIUS = 160;
 	private static final int INTERVAL_TICKS = 40;
@@ -128,7 +128,7 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 
 	/** Turns the area updates on or off for the sending player, following their Options setting. */
 	public record WatchAreasPayload(boolean watch) implements CustomPayload {
-		public static final Id<WatchAreasPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "watch_areas"));
+		public static final Id<WatchAreasPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "watch_areas"));
 		public static final PacketCodec<RegistryByteBuf, WatchAreasPayload> CODEC = PacketCodec.tuple(
 				PacketCodecs.BOOL, WatchAreasPayload::watch,
 				WatchAreasPayload::new

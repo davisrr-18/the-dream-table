@@ -6,7 +6,6 @@ import com.davisr.thedreamtable.block.entity.TableBreakGuard;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
@@ -21,6 +20,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.world.World;
 import net.minecraft.state.StateManager;
@@ -35,8 +35,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Optional;
 
 public class DreamTableBlock extends BlockWithEntity {
-	public static final MapCodec<DreamTableBlock> CODEC = createCodec(DreamTableBlock::new);
-
 	private static final VoxelShape BASE_SHAPE = VoxelShapes.union(
 			Block.createCuboidShape(0.0, 0.0, 0.0, 16.0, 2.0, 16.0),
 			Block.createCuboidShape(4.0, 2.0, 4.0, 12.0, 14.0, 12.0)
@@ -75,11 +73,6 @@ public class DreamTableBlock extends BlockWithEntity {
 		setDefaultState(getDefaultState().with(Properties.HORIZONTAL_FACING, Direction.NORTH));
 	}
 
-	@Override
-	protected MapCodec<? extends BlockWithEntity> getCodec() {
-		return CODEC;
-	}
-
 	/**
 	 * A null state refuses the placement: BlockItem places nothing. On the server a table can't go inside a farm area, since
 	 * builds, take-downs and finished farms keep their blocks as they are. The refused player is told, and their inventory is
@@ -103,7 +96,7 @@ public class DreamTableBlock extends BlockWithEntity {
 	}
 
 	@Override
-	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+	public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
 		return switch (state.get(Properties.HORIZONTAL_FACING)) {
 			case SOUTH -> SOUTH_SHAPE;
 			case EAST -> EAST_SHAPE;
@@ -113,17 +106,17 @@ public class DreamTableBlock extends BlockWithEntity {
 	}
 
 	@Override
-	protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+	public VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
 		return COLLISION_SHAPE;
 	}
 
 	@Override
-	protected VoxelShape getCullingShape(BlockState state, BlockView world, BlockPos pos) {
+	public VoxelShape getCullingShape(BlockState state, BlockView world, BlockPos pos) {
 		return BASE_SHAPE;
 	}
 
 	@Override
-	protected BlockRenderType getRenderType(BlockState state) {
+	public BlockRenderType getRenderType(BlockState state) {
 		return BlockRenderType.MODEL;
 	}
 
@@ -137,11 +130,11 @@ public class DreamTableBlock extends BlockWithEntity {
 		if (world.isClient()) {
 			return null;
 		}
-		return validateTicker(type, ModBlockEntities.DREAM_TABLE.get(), DreamTableBlockEntity::tick);
+		return checkType(type, ModBlockEntities.DREAM_TABLE.get(), DreamTableBlockEntity::tick);
 	}
 
 	@Override
-	protected void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
+	public void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
 		// Only the server owns the sessions: the client's copy gets this call too when the server's block change arrives.
 		if (!world.isClient() && !state.isOf(newState.getBlock()) && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table) {
 			table.onBroken(world);
@@ -154,7 +147,7 @@ public class DreamTableBlock extends BlockWithEntity {
 	 * ({@link TableBreakGuard}, which also enforces it when the break completes), or else what it costs when a build is running.
 	 */
 	@Override
-	protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
+	public void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
 		if (world instanceof ServerWorld serverWorld && player instanceof ServerPlayerEntity serverPlayer
 				&& world.getBlockEntity(pos) instanceof DreamTableBlockEntity table) {
 			Optional<TableBreakGuard.Claim> blocker = TableBreakGuard.blockerAt(serverWorld, serverPlayer, pos);
@@ -167,7 +160,7 @@ public class DreamTableBlock extends BlockWithEntity {
 	}
 
 	@Override
-	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
 		if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table) {
 			Platform.menus().open(serverPlayer, table);
 		}

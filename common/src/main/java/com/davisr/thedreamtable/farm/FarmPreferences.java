@@ -22,7 +22,6 @@ import java.util.function.BiPredicate;
 /** Per-player farm UI preferences, stored once in the overworld. */
 public final class FarmPreferences extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_farm_preferences";
-	private static final Type<FarmPreferences> TYPE = new Type<>(FarmPreferences::new, FarmPreferences::read, null);
 	private static final int PRUNE_INTERVAL_TICKS = 1200;
 	static final int MAX_SAVED_PLAYERS = 4096;
 	static final int MAX_SAVED_FARMS_PER_PLAYER = 4096;
@@ -43,7 +42,7 @@ public final class FarmPreferences extends PersistentState {
 	private final Set<UUID> protecting = new LinkedHashSet<>();
 
 	public static FarmPreferences of(MinecraftServer server) {
-		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
+		return server.getOverworld().getPersistentStateManager().getOrCreate(nbt -> read(nbt, null), FarmPreferences::new, STATE_KEY);
 	}
 
 	public static void register() {
@@ -255,7 +254,7 @@ public final class FarmPreferences extends PersistentState {
 	}
 
 	@Override
-	public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+	public NbtCompound writeNbt(NbtCompound nbt) {
 		NbtList list = new NbtList();
 		for (UUID playerUuid : allPlayers()) {
 			NbtCompound item = new NbtCompound();

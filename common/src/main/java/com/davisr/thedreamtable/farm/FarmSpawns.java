@@ -137,8 +137,8 @@ final class FarmSpawns {
 				passenger.getVehicle() == cart && cart.getPassengerList().size() == 1)).count();
 		MinecartPairing.Action action = MinecartPairing.decide(new MinecartPairing.Snapshot(
 				passengers.size(), freePassengers, carts.size(), emptyCarts, intactPairs));
-		Entity passenger = action == MinecartPairing.Action.CREATE_CART_FOR_PASSENGER ? passengers.getFirst() : null;
-		Entity cart = action == MinecartPairing.Action.CREATE_PASSENGER_FOR_CART ? carts.getFirst() : null;
+		Entity passenger = action == MinecartPairing.Action.CREATE_CART_FOR_PASSENGER ? passengers.get(0) : null;
+		Entity cart = action == MinecartPairing.Action.CREATE_PASSENGER_FOR_CART ? carts.get(0) : null;
 		return new Pairing(action, passenger, cart);
 	}
 

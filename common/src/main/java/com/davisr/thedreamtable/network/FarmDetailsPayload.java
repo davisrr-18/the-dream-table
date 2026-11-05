@@ -30,7 +30,7 @@ import java.util.Map;
  */
 public record FarmDetailsPayload(String key, boolean loaded, int stored, int capacity, int containers, int blocks, List<String> items, List<Integer> counts,
 		int missing, int changed, List<String> needs, List<Integer> needCounts) implements CustomPayload {
-	public static final Id<FarmDetailsPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_details"));
+	public static final Id<FarmDetailsPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "farm_details"));
 	private static final int SHOWN_ITEMS = 8;
 	/**
 	 * Each accepted request scans one farm's storage and presence. A page asks once per selection, so four a second is far
@@ -152,7 +152,7 @@ public record FarmDetailsPayload(String key, boolean loaded, int stored, int cap
 
 	/** Asks for one farm's details while its My Farms page is open. */
 	public record Request(BlockPos table, String key) implements CustomPayload {
-		public static final Id<Request> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_details_request"));
+		public static final Id<Request> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "farm_details_request"));
 		public static final PacketCodec<RegistryByteBuf, Request> CODEC = PacketCodec.of(
 				(request, buf) -> {
 					buf.writeBlockPos(request.table());

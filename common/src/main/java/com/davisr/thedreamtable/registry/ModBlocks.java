@@ -5,7 +5,7 @@ import com.davisr.thedreamtable.block.DreamTableBlock;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.MapColor;
-import net.minecraft.block.enums.NoteBlockInstrument;
+import net.minecraft.block.enums.Instrument;
 import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.sound.BlockSoundGroup;
@@ -18,7 +18,7 @@ public final class ModBlocks {
 			"dream_table",
 			() -> new DreamTableBlock(AbstractBlock.Settings.create()
 					.mapColor(MapColor.OAK_TAN)
-					.instrument(NoteBlockInstrument.BASS)
+					.instrument(Instrument.BASS)
 					.strength(2.0F)
 					.sounds(BlockSoundGroup.WOOD)
 					.burnable()
@@ -36,6 +36,6 @@ public final class ModBlocks {
 	}
 
 	private static Supplier<Block> register(String path, Supplier<Block> block) {
-		return Platform.content().register(RegistryKeys.BLOCK, Identifier.of(TheDreamTableMod.MOD_ID, path), block);
+		return Platform.content().register(RegistryKeys.BLOCK, new Identifier(TheDreamTableMod.MOD_ID, path), block);
 	}
 }

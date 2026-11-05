@@ -37,7 +37,7 @@ class FinishedFarmsTest {
 	private static NbtCompound saved(FarmTemplate template) {
 		FarmAreas areas = new FarmAreas();
 		areas.recordFinished(PLAYER, template, SITE, Map.of());
-		return areas.writeNbt(new NbtCompound(), null);
+		return areas.writeNbt(new NbtCompound());
 	}
 
 	@Test
@@ -59,11 +59,11 @@ class FinishedFarmsTest {
 	void instanceIdentitySurvivesARoundTrip() {
 		FarmAreas areas = new FarmAreas();
 		areas.recordFinished(PLAYER, FarmTemplates.get(FarmOptions.SUGAR_CANE.id()), SITE, Map.of());
-		UUID before = areas.finishedBy(PLAYER).getFirst().instanceId();
+		UUID before = areas.finishedBy(PLAYER).get(0).instanceId();
 
-		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null);
+		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound()), null);
 
-		assertEquals(before, restored.finishedBy(PLAYER).getFirst().instanceId());
+		assertEquals(before, restored.finishedBy(PLAYER).get(0).instanceId());
 	}
 
 	@Test
@@ -73,12 +73,12 @@ class FinishedFarmsTest {
 		FarmAreas areas = new FarmAreas();
 
 		areas.recordFinished(PLAYER, template, SITE, Map.of(), instanceId, "River Works");
-		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null);
-		FarmAreas.Finished farm = restored.finishedBy(PLAYER).getFirst();
+		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound()), null);
+		FarmAreas.Finished farm = restored.finishedBy(PLAYER).get(0);
 
 		assertEquals(instanceId, farm.instanceId());
 		assertEquals("River Works", farm.customName());
-		FarmRecord record = FarmDirectory.record(new FarmKey(net.minecraft.util.Identifier.of("minecraft", "overworld"), instanceId), farm);
+		FarmRecord record = FarmDirectory.record(new FarmKey(net.minecraft.util.new Identifier("minecraft", "overworld"), instanceId), farm);
 		assertTrue(FarmAccess.allows(record, PLAYER, FarmAction.REPAIR));
 	}
 
@@ -90,9 +90,9 @@ class FinishedFarmsTest {
 
 		FarmAreas restored = FarmAreas.read(nbt, null);
 
-		assertNotNull(restored.finishedBy(PLAYER).getFirst().instanceId());
+		assertNotNull(restored.finishedBy(PLAYER).get(0).instanceId());
 		assertTrue(restored.isDirty());
-		NbtCompound migrated = restored.writeNbt(new NbtCompound(), null).getList("Areas", 10).getCompound(0);
+		NbtCompound migrated = restored.writeNbt(new NbtCompound()).getList("Areas", 10).getCompound(0);
 		assertTrue(migrated.containsUuid("InstanceId"));
 		assertEquals(area.getLong("Table"), migrated.getLong("Table"));
 		assertEquals(area.getLong("Spot"), migrated.getLong("Spot"));
@@ -105,8 +105,8 @@ class FinishedFarmsTest {
 		NbtCompound nbt = saved(FarmTemplates.get(FarmOptions.BAMBOO.id()));
 		nbt.getList("Areas", 10).getCompound(0).remove("InstanceId");
 
-		UUID first = FarmAreas.read(nbt, null).finishedBy(PLAYER).getFirst().instanceId();
-		UUID second = FarmAreas.read(nbt, null).finishedBy(PLAYER).getFirst().instanceId();
+		UUID first = FarmAreas.read(nbt, null).finishedBy(PLAYER).get(0).instanceId();
+		UUID second = FarmAreas.read(nbt, null).finishedBy(PLAYER).get(0).instanceId();
 
 		assertEquals(first, second);
 	}
@@ -118,7 +118,7 @@ class FinishedFarmsTest {
 		FarmSite otherSite = new FarmSite(SITE.table(), new BlockPos(30, 64, 30), Direction.NORTH);
 		areas.recordFinished(PLAYER, template, SITE, Map.of());
 		areas.recordFinished(PLAYER, template, otherSite, Map.of());
-		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
+		NbtCompound nbt = areas.writeNbt(new NbtCompound());
 		NbtCompound layout = nbt.getList("Areas", 10).getCompound(0).getCompound("Layout");
 		layout.putIntArray("State", new int[0]);
 
@@ -135,7 +135,7 @@ class FinishedFarmsTest {
 		FarmSite otherSite = new FarmSite(SITE.table(), new BlockPos(30, 64, 30), Direction.NORTH);
 		areas.recordFinished(PLAYER, template, SITE, Map.of());
 		areas.recordFinished(PLAYER, template, otherSite, Map.of());
-		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
+		NbtCompound nbt = areas.writeNbt(new NbtCompound());
 		NbtList list = nbt.getList("Areas", 10);
 		list.getCompound(1).putUuid("InstanceId", list.getCompound(0).getUuid("InstanceId"));
 
@@ -152,12 +152,12 @@ class FinishedFarmsTest {
 		FarmTemplate template = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
 		FarmAreas areas = new FarmAreas();
 		areas.recordFinished(PLAYER, template, SITE, Map.of());
-		FarmAreas.Finished first = areas.finishedBy(PLAYER).getFirst();
+		FarmAreas.Finished first = areas.finishedBy(PLAYER).get(0);
 		areas.release(first.key());
 
 		areas.recordFinished(PLAYER, template, SITE, Map.of());
 
-		assertNotEquals(first.instanceId(), areas.finishedBy(PLAYER).getFirst().instanceId());
+		assertNotEquals(first.instanceId(), areas.finishedBy(PLAYER).get(0).instanceId());
 	}
 
 	@Test
@@ -167,7 +167,7 @@ class FinishedFarmsTest {
 		FarmAreas areas = new FarmAreas();
 		assertTrue(areas.finished(UUID.randomUUID()).isEmpty());
 		areas.recordFinished(PLAYER, cane, SITE, Map.of());
-		UUID first = areas.finishedBy(PLAYER).getFirst().instanceId();
+		UUID first = areas.finishedBy(PLAYER).get(0).instanceId();
 		assertEquals(first, areas.finished(first).orElseThrow().instanceId());
 		areas.recordFinished(PLAYER, cane, otherSite, Map.of(), UUID.randomUUID(), "Second");
 		UUID second = areas.finishedBy(PLAYER).stream().map(FarmAreas.Finished::instanceId).filter(id -> !id.equals(first)).findFirst().orElseThrow();
@@ -183,7 +183,7 @@ class FinishedFarmsTest {
 		assertTrue(areas.alerts(first).isEmpty());
 		assertEquals(second, areas.finished(second).orElseThrow().instanceId());
 
-		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null);
+		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound()), null);
 		assertEquals("Second", restored.finished(second).orElseThrow().customName());
 		assertTrue(restored.finished(first).isEmpty());
 	}
@@ -193,20 +193,20 @@ class FinishedFarmsTest {
 		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
 		FarmAreas areas = new FarmAreas();
 		areas.recordFinished(PLAYER, cane, SITE, Map.of());
-		NbtCompound first = areas.writeNbt(new NbtCompound(), null);
+		NbtCompound first = areas.writeNbt(new NbtCompound());
 		first.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0).getCompound("Layout").putIntArray("State", new int[0]);
-		NbtCompound second = areas.writeNbt(new NbtCompound(), null);
-		assertEquals(cane.steps(), FarmAreas.read(second, null).finishedBy(PLAYER).getFirst().layout().steps());
+		NbtCompound second = areas.writeNbt(new NbtCompound());
+		assertEquals(cane.steps(), FarmAreas.read(second, null).finishedBy(PLAYER).get(0).layout().steps());
 	}
 
 	@Test
 	void finishedFarmKeepsItsAlertStateThroughASave() {
 		FarmAreas areas = new FarmAreas();
 		areas.recordFinished(PLAYER, FarmTemplates.get(FarmOptions.SUGAR_CANE.id()), SITE, Map.of());
-		UUID instanceId = areas.finishedBy(PLAYER).getFirst().instanceId();
+		UUID instanceId = areas.finishedBy(PLAYER).get(0).instanceId();
 		areas.observeAlert(instanceId, FarmAlertType.BLOCKS_MISSING, 4, 120L);
 
-		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null);
+		FarmAreas restored = FarmAreas.read(areas.writeNbt(new NbtCompound()), null);
 
 		assertEquals(4, restored.alerts(instanceId).orElseThrow().active(FarmAlertType.BLOCKS_MISSING).orElseThrow().quantity());
 	}
@@ -217,7 +217,7 @@ class FinishedFarmsTest {
 		UUID instanceId = UUID.randomUUID();
 		FarmAreas areas = new FarmAreas();
 		areas.recordFinished(PLAYER, template, SITE, Map.of(), instanceId, "River Works");
-		NbtCompound saved = areas.writeNbt(new NbtCompound(), null);
+		NbtCompound saved = areas.writeNbt(new NbtCompound());
 		NbtCompound item = saved.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0);
 		item.remove("Layout");
 		item.putLong("FarmSignature", Long.MIN_VALUE);
@@ -238,7 +238,7 @@ class FinishedFarmsTest {
 	void observingAChangedAlertMarksFinishedFarmStateDirty() {
 		FarmAreas areas = new FarmAreas();
 		areas.recordFinished(PLAYER, FarmTemplates.get(FarmOptions.SUGAR_CANE.id()), SITE, Map.of());
-		UUID instanceId = areas.finishedBy(PLAYER).getFirst().instanceId();
+		UUID instanceId = areas.finishedBy(PLAYER).get(0).instanceId();
 		areas.setDirty(false);
 
 		areas.observeAlert(instanceId, FarmAlertType.STORAGE_FULL, 1, 120L);
@@ -290,7 +290,7 @@ class FinishedFarmsTest {
 		FarmSite otherSite = new FarmSite(SITE.table(), new BlockPos(30, 64, 30), Direction.NORTH);
 		areas.recordFinished(PLAYER, first, SITE, Map.of());
 		areas.recordFinished(PLAYER, second, otherSite, Map.of());
-		List<FarmAreas.Finished> farms = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null).finishedBy(PLAYER);
+		List<FarmAreas.Finished> farms = FarmAreas.read(areas.writeNbt(new NbtCompound()), null).finishedBy(PLAYER);
 
 		assertEquals(2, farms.size());
 		FarmAreas.Finished firstFarm = farms.stream().filter(farm -> farm.where().equals(SITE.anchor())).findFirst().orElseThrow();
@@ -310,16 +310,16 @@ class FinishedFarmsTest {
 		paid.set(3);
 		FarmAreas areas = new FarmAreas();
 		areas.recordFinished(PLAYER, cane, SITE, Map.of(), UUID.randomUUID(), null, placed, paid);
-		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
+		NbtCompound nbt = areas.writeNbt(new NbtCompound());
 
-		FarmAreas.Finished farm = FarmAreas.read(nbt, null).finishedBy(PLAYER).getFirst();
+		FarmAreas.Finished farm = FarmAreas.read(nbt, null).finishedBy(PLAYER).get(0);
 		assertEquals(placed, farm.placed());
 		assertEquals(paid, farm.paid());
 
 		NbtCompound item = nbt.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0);
 		item.remove("PlacedSteps");
 		item.remove("PaidSteps");
-		FarmAreas.Finished legacy = FarmAreas.read(nbt, null).finishedBy(PLAYER).getFirst();
+		FarmAreas.Finished legacy = FarmAreas.read(nbt, null).finishedBy(PLAYER).get(0);
 		BitSet every = new BitSet();
 		every.set(0, cane.steps().size());
 		assertEquals(every, legacy.placed());
@@ -366,7 +366,7 @@ class FinishedFarmsTest {
 		FarmSite otherSite = new FarmSite(SITE.table(), new BlockPos(30, 64, 30), Direction.NORTH);
 		areas.recordFinished(PLAYER, template, SITE, Map.of());
 		areas.recordFinished(PLAYER, template, otherSite, Map.of());
-		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
+		NbtCompound nbt = areas.writeNbt(new NbtCompound());
 		NbtCompound broken = nbt.getList("Areas", 10).getCompound(0);
 		broken.getCompound("Layout").putIntArray("State", new int[0]);
 		NbtCompound original = broken.copy();
@@ -375,14 +375,14 @@ class FinishedFarmsTest {
 		assertEquals(1, restored.finishedBy(PLAYER).size());
 		assertEquals(1, restored.unreadableCount());
 
-		NbtList resaved = restored.writeNbt(new NbtCompound(), null).getList("Areas", NbtElement.COMPOUND_TYPE);
+		NbtList resaved = restored.writeNbt(new NbtCompound()).getList("Areas", NbtElement.COMPOUND_TYPE);
 		assertEquals(2, resaved.size());
 		assertTrue(resaved.stream().anyMatch(original::equals), "the unreadable record was written back as it was saved");
 
 		// The record survives any number of load and save cycles, still untouched.
-		FarmAreas again = FarmAreas.read(restored.writeNbt(new NbtCompound(), null), null);
+		FarmAreas again = FarmAreas.read(restored.writeNbt(new NbtCompound()), null);
 		assertEquals(1, again.unreadableCount());
-		assertTrue(again.writeNbt(new NbtCompound(), null).getList("Areas", NbtElement.COMPOUND_TYPE).stream().anyMatch(original::equals));
+		assertTrue(again.writeNbt(new NbtCompound()).getList("Areas", NbtElement.COMPOUND_TYPE).stream().anyMatch(original::equals));
 	}
 
 	@Test
@@ -396,7 +396,7 @@ class FinishedFarmsTest {
 
 		assertEquals(1, restored.finishedBy(PLAYER).size());
 		assertEquals(1, restored.unreadableCount());
-		assertTrue(restored.writeNbt(new NbtCompound(), null).getList("Areas", NbtElement.COMPOUND_TYPE).stream().anyMatch(junk::equals));
+		assertTrue(restored.writeNbt(new NbtCompound()).getList("Areas", NbtElement.COMPOUND_TYPE).stream().anyMatch(junk::equals));
 	}
 
 	@Test

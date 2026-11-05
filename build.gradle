@@ -18,7 +18,8 @@ subprojects {
 	apply plugin: 'architectury-plugin'
 
 	base {
-		archivesName = "$rootProject.archives_base_name-$project.name"
+		// The Minecraft version in the name keeps these jars apart from the 1.21.1 ones on CurseForge.
+		archivesName = "$rootProject.archives_base_name-$project.name-mc$rootProject.minecraft_version"
 	}
 
 	repositories {
@@ -29,11 +30,8 @@ subprojects {
 
 	dependencies {
 		minecraft "com.mojang:minecraft:$rootProject.minecraft_version"
-		// Yarn stays the source of truth; the patch fills in the NeoForge-only names. Forge shares these mappings with common.
-		mappings loom.layered {
-			it.mappings("net.fabricmc:yarn:$rootProject.yarn_mappings:v2")
-			it.mappings("dev.architectury:yarn-mappings-patch-neoforge:$rootProject.yarn_mappings_patch_neoforge_version")
-		}
+		// Plain Yarn: no Forge patch exists for 1.20.1, and Forge shares these mappings with common.
+		mappings "net.fabricmc:yarn:$rootProject.yarn_mappings:v2"
 	}
 
 	java {
@@ -43,8 +41,9 @@ subprojects {
 		}
 	}
 
+	// Minecraft 1.20.1 runs on Java 17; the JDK 21 toolchain compiles for it.
 	tasks.withType(JavaCompile).configureEach {
-		it.options.release = 21
+		it.options.release = 17
 	}
 
 	// Lets smoke runs feed console commands to the dev server.

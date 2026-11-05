@@ -11,7 +11,7 @@ import net.minecraft.util.math.BlockPos;
 
 /** Sent by a client whose copy of a table has no session yet, such as after the table's chunk loaded again. */
 public record RequestSessionPayload(BlockPos table) implements CustomPayload {
-	public static final Id<RequestSessionPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "request_session"));
+	public static final Id<RequestSessionPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "request_session"));
 	public static final PacketCodec<RegistryByteBuf, RequestSessionPayload> CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC, RequestSessionPayload::table,
 			RequestSessionPayload::new

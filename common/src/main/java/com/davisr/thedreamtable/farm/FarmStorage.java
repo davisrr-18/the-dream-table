@@ -74,7 +74,7 @@ public final class FarmStorage {
 			containers++;
 			for (int slot = 0; slot < inventory.size(); slot++) {
 				ItemStack stack = inventory.getStack(slot);
-				capacity += stack.isEmpty() ? inventory.getMaxCountPerStack() : Math.min(stack.getMaxCount(), inventory.getMaxCount(stack));
+				capacity += stack.isEmpty() ? inventory.getMaxCountPerStack() : Math.min(stack.getMaxCount(), inventory.getMaxCountPerStack());
 				if (!stack.isEmpty()) {
 					stored += stack.getCount();
 					items.merge(stack.getItem(), stack.getCount(), Integer::sum);
@@ -95,7 +95,7 @@ public final class FarmStorage {
 	private static boolean full(Inventory inventory) {
 		for (int slot = 0; slot < inventory.size(); slot++) {
 			ItemStack stack = inventory.getStack(slot);
-			if (stack.isEmpty() || stack.getCount() < Math.min(stack.getMaxCount(), inventory.getMaxCount(stack))) {
+			if (stack.isEmpty() || stack.getCount() < Math.min(stack.getMaxCount(), inventory.getMaxCountPerStack())) {
 				return false;
 			}
 		}

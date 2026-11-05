@@ -220,7 +220,7 @@ class BuildProgressTest {
 		UUID owner = UUID.fromString("10000000-0000-0000-0000-000000000001");
 		UUID actor = UUID.fromString("20000000-0000-0000-0000-000000000002");
 		UUID operation = UUID.fromString("30000000-0000-0000-0000-000000000003");
-		FarmKey key = new FarmKey(Identifier.of("minecraft", "overworld"), UUID.randomUUID());
+		FarmKey key = new FarmKey(new Identifier("minecraft", "overworld"), UUID.randomUUID());
 		RepairContext context = new RepairContext(key, owner, actor, operation);
 		BuildProgress progress = new BuildProgress();
 		progress.start(actor, true, 42L);

@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The aimed spot saved with a session: what it writes, it reads back, and an entry missing part of it is no spot. */
 class AimedSpotTest {
-	private static final Identifier OVERWORLD = Identifier.of("minecraft", "overworld");
+	private static final Identifier OVERWORLD = new Identifier("minecraft", "overworld");
 
 	@Test
 	void aSpotReadsBackAsItWasWritten() {

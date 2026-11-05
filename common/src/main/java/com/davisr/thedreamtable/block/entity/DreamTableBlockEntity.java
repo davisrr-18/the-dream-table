@@ -389,15 +389,17 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	 * {@link SessionSyncPayload}; the marker tells {@link #readNbt} that this is not a save to load.
 	 */
 	@Override
-	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
+	public NbtCompound toInitialChunkDataNbt() {
 		NbtCompound nbt = new NbtCompound();
 		nbt.putBoolean(CLIENT_VIEW, true);
 		return nbt;
 	}
 
 	@Override
-	protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-		super.writeNbt(nbt, registries);
+	protected void writeNbt(NbtCompound nbt) {
+		super.writeNbt(nbt);
+		// 1.20.1 item NBT needs no registry lookup; the parameter stays so the session code matches the 1.21.1 branch.
+		RegistryWrapper.WrapperLookup registries = null;
 		NbtList list = new NbtList();
 		Set<UUID> written = new HashSet<>();
 		for (TableSession session : sessions.values()) {
@@ -424,8 +426,9 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	}
 
 	@Override
-	protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-		super.readNbt(nbt, registries);
+	public void readNbt(NbtCompound nbt) {
+		super.readNbt(nbt);
+		RegistryWrapper.WrapperLookup registries = null;
 		if (nbt.getBoolean(CLIENT_VIEW)) {
 			return;
 		}

@@ -30,7 +30,6 @@ import java.util.function.Predicate;
  */
 public final class ParkedProjects extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_parked_projects";
-	private static final Type<ParkedProjects> TYPE = new Type<>(ParkedProjects::new, ParkedProjects::read, null);
 	static final int MAX_PLAYERS = 4096;
 	static final int MAX_PER_PLAYER = 16;
 	/** Key for an unreadable saved session that names no player. No player has this id, so nobody is offered its projects, and it reserves nothing. */
@@ -60,7 +59,7 @@ public final class ParkedProjects extends PersistentState {
 	private long reservationsRevision;
 
 	public static ParkedProjects of(MinecraftServer server) {
-		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
+		return server.getOverworld().getPersistentStateManager().getOrCreate(nbt -> read(nbt, null), ParkedProjects::new, STATE_KEY);
 	}
 
 	/** Whether one more project can be kept for the player within the limits, held builds included. */
@@ -199,7 +198,7 @@ public final class ParkedProjects extends PersistentState {
 	}
 
 	@Override
-	public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+	public NbtCompound writeNbt(NbtCompound nbt) {
 		NbtCompound players = new NbtCompound();
 		for (Map.Entry<UUID, List<NbtCompound>> entry : parked.entrySet()) {
 			NbtList projects = new NbtList();

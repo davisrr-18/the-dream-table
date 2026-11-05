@@ -17,7 +17,7 @@ import net.minecraft.util.math.Direction;
 public record PlacementResultPayload(BlockPos table, BlockPos anchor, Direction facing, boolean mirrored, String problem, int existing) implements CustomPayload {
 	/** For the quiet rechecks: the farm already standing there was counted when the spot was picked. */
 	public static final int UNCHANGED = -1;
-	public static final Id<PlacementResultPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "placement_result"));
+	public static final Id<PlacementResultPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "placement_result"));
 	public static final PacketCodec<RegistryByteBuf, PlacementResultPayload> CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC, PlacementResultPayload::table,
 			BlockPos.PACKET_CODEC, PlacementResultPayload::anchor,

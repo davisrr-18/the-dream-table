@@ -13,7 +13,7 @@ import net.minecraft.util.math.BlockPos;
 
 /** Favorite and tracker changes for one currently accessible farm. */
 public record FarmPreferencePayload(BlockPos table, String key, Operation operation) implements CustomPayload {
-	public static final Id<FarmPreferencePayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_preference"));
+	public static final Id<FarmPreferencePayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "farm_preference"));
 	public static final PacketCodec<RegistryByteBuf, FarmPreferencePayload> CODEC = PacketCodec.of(
 			(payload, buf) -> {
 				buf.writeBlockPos(payload.table());

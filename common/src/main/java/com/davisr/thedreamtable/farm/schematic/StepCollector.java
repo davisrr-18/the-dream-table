@@ -32,7 +32,7 @@ final class StepCollector {
 	/** Blocks with no survival way to get them, besides infested ones. */
 	private static final Set<Block> CREATIVE_ONLY = Set.of(
 			Blocks.BEDROCK, Blocks.BARRIER, Blocks.LIGHT, Blocks.COMMAND_BLOCK, Blocks.CHAIN_COMMAND_BLOCK, Blocks.REPEATING_COMMAND_BLOCK,
-			Blocks.SPAWNER, Blocks.TRIAL_SPAWNER, Blocks.VAULT, Blocks.REINFORCED_DEEPSLATE, Blocks.END_PORTAL_FRAME, Blocks.BUDDING_AMETHYST,
+			Blocks.SPAWNER, Blocks.REINFORCED_DEEPSLATE, Blocks.END_PORTAL_FRAME, Blocks.BUDDING_AMETHYST,
 			Blocks.PETRIFIED_OAK_SLAB, Blocks.CHORUS_PLANT, Blocks.FROGSPAWN, Blocks.SUSPICIOUS_SAND, Blocks.SUSPICIOUS_GRAVEL, Blocks.END_PORTAL,
 			Blocks.END_GATEWAY);
 	/** Blocks that only exist while something else is happening, so placing them alone makes no sense. */

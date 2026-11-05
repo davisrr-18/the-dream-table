@@ -33,8 +33,8 @@ import java.util.function.Consumer;
  * mod without the handshake looks the same to the server, so it is let in too.
  */
 public final class FabricHandshake {
-	static final CustomPayload.Id<Request> REQUEST_ID = new CustomPayload.Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "handshake"));
-	static final CustomPayload.Id<Reply> REPLY_ID = new CustomPayload.Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "handshake_reply"));
+	static final CustomPayload.Id<Request> REQUEST_ID = new CustomPayload.Id<>(new Identifier(TheDreamTableMod.MOD_ID, "handshake"));
+	static final CustomPayload.Id<Reply> REPLY_ID = new CustomPayload.Id<>(new Identifier(TheDreamTableMod.MOD_ID, "handshake_reply"));
 	private static final int MAX_FIELD = 64;
 	private static final ServerPlayerConfigurationTask.Key TASK_KEY = new ServerPlayerConfigurationTask.Key(TheDreamTableMod.MOD_ID + ":handshake");
 

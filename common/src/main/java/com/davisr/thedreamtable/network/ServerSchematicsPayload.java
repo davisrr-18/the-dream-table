@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * follow on request, one at a time, as {@link Farm}.
  */
 public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStructures.Rejected> rejected) implements CustomPayload {
-	public static final Id<ServerSchematicsPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "server_schematics"));
+	public static final Id<ServerSchematicsPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "server_schematics"));
 	private static final int MAX_SCHEMATICS = 1024;
 	private static final AtomicBoolean WARNED = new AtomicBoolean();
 
@@ -151,7 +151,7 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 
 	/** A client asking for one of the server's schematics it needs to draw. */
 	public record Request(String id) implements CustomPayload {
-		public static final Id<Request> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "schematic_request"));
+		public static final Id<Request> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "schematic_request"));
 		public static final PacketCodec<RegistryByteBuf, Request> CODEC = PacketCodec.tuple(
 				PacketCodecs.STRING, Request::id,
 				Request::new
@@ -165,7 +165,7 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 
 	/** One of the server's schematics, encoded by {@link TemplateCodec}, with the file version it was read at (0 for a saved design). */
 	public record Farm(String id, long version, NbtCompound data) implements CustomPayload {
-		public static final Id<Farm> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "schematic_farm"));
+		public static final Id<Farm> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "schematic_farm"));
 		public static final PacketCodec<RegistryByteBuf, Farm> CODEC = PacketCodec.tuple(
 				PacketCodecs.STRING, Farm::id,
 				PacketCodecs.VAR_LONG, Farm::version,

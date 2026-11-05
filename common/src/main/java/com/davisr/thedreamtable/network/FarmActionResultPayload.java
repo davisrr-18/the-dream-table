@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 /** Explicit result for a cooperative farm request; clients never infer success from optimistic UI state. */
 public record FarmActionResultPayload(String key, Action action, Result result) implements CustomPayload {
 	private static final int MAX_KEY_LENGTH = 256;
-	public static final Id<FarmActionResultPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_action_result"));
+	public static final Id<FarmActionResultPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "farm_action_result"));
 	public static final PacketCodec<RegistryByteBuf, FarmActionResultPayload> CODEC = PacketCodec.of(
 			(payload, buf) -> {
 				buf.writeString(payload.key(), MAX_KEY_LENGTH);

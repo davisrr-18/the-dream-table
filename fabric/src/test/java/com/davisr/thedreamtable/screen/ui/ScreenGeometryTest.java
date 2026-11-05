@@ -57,10 +57,10 @@ class ScreenGeometryTest {
 		ScreenGeometry wide = ScreenGeometry.calculate(420, 240, 0, false);
 
 		assertEquals(1, compact.columns().size());
-		assertEquals(168, compact.columns().getFirst().width());
+		assertEquals(168, compact.columns().get(0).width());
 		assertEquals(2, wide.columns().size());
-		assertEquals(168, wide.columns().getFirst().width());
-		assertEquals(168, wide.columns().getLast().width());
+		assertEquals(168, wide.columns().get(0).width());
+		assertEquals(168, wide.columns().get(wide.columns().size() - 1).width());
 	}
 
 	@Test

@@ -18,7 +18,7 @@ import net.minecraft.util.math.BlockPos;
 /** A My Farms action addressed by the farm's stable key, never by its current place in a changing list. */
 public record FarmCarePayload(BlockPos table, String key, Action action) implements CustomPayload {
 	private static final int MAX_KEY_LENGTH = 256;
-	public static final Id<FarmCarePayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "farm_care"));
+	public static final Id<FarmCarePayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "farm_care"));
 	public static final PacketCodec<RegistryByteBuf, FarmCarePayload> CODEC = PacketCodec.of(
 			(payload, buf) -> {
 				buf.writeBlockPos(payload.table());

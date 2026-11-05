@@ -6,7 +6,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.enums.BambooLeaves;
 import net.minecraft.block.enums.BedPart;
-import net.minecraft.block.enums.BlockFace;
+import net.minecraft.block.enums.WallMountLocation;
 import net.minecraft.block.enums.BlockHalf;
 import net.minecraft.block.enums.RailShape;
 import net.minecraft.item.Item;
@@ -64,6 +64,6 @@ final class Blueprint {
 	}
 
 	static BlockState floorButton() {
-		return Blocks.OAK_BUTTON.getDefaultState().with(Properties.BLOCK_FACE, BlockFace.FLOOR).with(Properties.HORIZONTAL_FACING, Direction.NORTH);
+		return Blocks.OAK_BUTTON.getDefaultState().with(Properties.WALL_MOUNT_LOCATION, WallMountLocation.FLOOR).with(Properties.HORIZONTAL_FACING, Direction.NORTH);
 	}
 }

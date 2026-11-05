@@ -15,7 +15,7 @@ import net.minecraft.util.Identifier;
  * action bar; a client that cannot receive it gets the action bar line as before.
  */
 public record TableNoticePayload(Text text, Severity severity) implements CustomPayload {
-	public static final Id<TableNoticePayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "table_notice"));
+	public static final Id<TableNoticePayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "table_notice"));
 	public static final PacketCodec<RegistryByteBuf, TableNoticePayload> CODEC = PacketCodec.of(
 			(payload, buf) -> {
 				TextCodecs.REGISTRY_PACKET_CODEC.encode(buf, payload.text());

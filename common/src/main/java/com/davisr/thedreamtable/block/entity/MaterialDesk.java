@@ -194,7 +194,7 @@ final class MaterialDesk {
 	// Saving
 
 	void write(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-		nbt.put("Materials", slots.toNbtList(registries));
+		nbt.put("Materials", slots.toNbtList());
 		ledger.write(nbt);
 	}
 
@@ -207,7 +207,7 @@ final class MaterialDesk {
 		try {
 			slots.clear();
 			if (nbt.contains("Materials", NbtElement.LIST_TYPE)) {
-				slots.readNbtList(nbt.getList("Materials", NbtElement.COMPOUND_TYPE), registries);
+				slots.readNbtList(nbt.getList("Materials", NbtElement.COMPOUND_TYPE));
 			}
 		} finally {
 			adjusting = false;

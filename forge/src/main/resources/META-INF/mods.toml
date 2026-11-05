@@ -1,5 +1,5 @@
 modLoader = "javafml"
-loaderVersion = "[52,)"
+loaderVersion = "[47,)"
 license = "MIT"
 issueTrackerURL = "https://github.com/davisrr-18/the-dream-table/issues"
 
@@ -15,13 +15,13 @@ logoFile = "assets/the_dream_table/icon.png"
 [[dependencies.the_dream_table]]
 modId = "forge"
 mandatory = true
-versionRange = "[52,)"
+versionRange = "[47,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.the_dream_table]]
 modId = "minecraft"
 mandatory = true
-versionRange = "[1.21.1,1.21.2)"
+versionRange = "[1.20.1,1.20.2)"
 ordering = "NONE"
 side = "BOTH"

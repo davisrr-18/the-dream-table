@@ -131,6 +131,6 @@ public final class MapCamera {
 	}
 
 	private static double clampPitch(double degrees) {
-		return Math.clamp(degrees, -MAX_PITCH, MAX_PITCH);
+		return MathHelper.clamp(degrees, -MAX_PITCH, MAX_PITCH);
 	}
 }

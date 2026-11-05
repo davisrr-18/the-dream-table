@@ -549,7 +549,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		if (changed) {
 			ControlSpec first = search.visible()
 					? chromeControls.stream().filter(spec -> spec.id().equals(SEARCH_CONTROL)).findFirst().orElseThrow()
-					: pageSpecs.stream().filter(ControlSpec::enabled).findFirst().orElseGet(() -> chromeControls.getFirst());
+					: pageSpecs.stream().filter(ControlSpec::enabled).findFirst().orElseGet(() -> chromeControls.get(0));
 			controls.focus(first.id());
 			focusControl(first.id());
 			revealFocused();

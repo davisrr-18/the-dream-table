@@ -34,7 +34,7 @@ final class ObstacleRules {
 			Blocks.RESPAWN_ANCHOR, Blocks.LODESTONE, Blocks.NOTE_BLOCK, Blocks.REDSTONE_LAMP);
 
 	/** Blocks from other mods that modpacks want left alone: {@code #the_dream_table:protected}. */
-	public static final TagKey<Block> PROTECTED = TagKey.of(RegistryKeys.BLOCK, Identifier.of(TheDreamTableMod.MOD_ID, "protected"));
+	public static final TagKey<Block> PROTECTED = TagKey.of(RegistryKeys.BLOCK, new Identifier(TheDreamTableMod.MOD_ID, "protected"));
 
 	private ObstacleRules() {
 	}

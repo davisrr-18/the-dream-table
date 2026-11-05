@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 public record DepositMaterialPayload(BlockPos table) implements CustomPayload {
-	public static final Id<DepositMaterialPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "deposit_material"));
+	public static final Id<DepositMaterialPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "deposit_material"));
 	public static final PacketCodec<RegistryByteBuf, DepositMaterialPayload> CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC, DepositMaterialPayload::table,
 			DepositMaterialPayload::new

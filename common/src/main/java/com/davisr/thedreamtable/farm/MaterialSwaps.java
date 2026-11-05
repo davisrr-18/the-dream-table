@@ -132,7 +132,7 @@ public final class MaterialSwaps {
 			return null;
 		}
 		String path = blockId.getPath().substring(0, at) + toStem + blockId.getPath().substring(at + fromStem.length());
-		Identifier id = Identifier.of(toId.getNamespace(), path);
+		Identifier id = new Identifier(toId.getNamespace(), path);
 		return Registries.BLOCK.containsId(id) ? Registries.BLOCK.get(id) : null;
 	}
 
