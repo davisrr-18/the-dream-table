@@ -47,9 +47,15 @@ public final class FarmCare {
 			return false;
 		}
 		ServerWorld world = farm.world();
+		// Everything that can refuse is asked before the session or the lease changes, so a refused Repair leaves the player's
+		// selection, placement and swaps alone. Choosing the farm would hand back the delivered materials.
+		String problem = session.repairProblem(world, player, template, site, farm.farm().instanceId());
+		if (problem != null) {
+			TableNoticePayload.problem(player, Text.translatable(problem));
+			return false;
+		}
 		FarmAreas areas = FarmAreas.of(world);
 		UUID operationId = UUID.randomUUID();
-		// The lease comes first: a refused Repair must leave the player's current selection and placement alone.
 		if (areas.beginRepair(farm.farm().instanceId(), player.getUuid(), session.getPos(), operationId).isEmpty()) {
 			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.repair_busy"));
 			return false;

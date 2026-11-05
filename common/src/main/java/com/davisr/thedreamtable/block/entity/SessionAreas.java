@@ -10,6 +10,7 @@ import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
+import com.davisr.thedreamtable.farm.ParkedProjects;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -74,6 +75,10 @@ final class SessionAreas {
 		}
 		if (conflict == FarmAreas.Conflict.FINISHED) {
 			return "gui.the_dream_table.farm_overlaps_finished";
+		}
+		// A build kept from a broken table holds its area for its player; restoring it lifts that, before its owner resumes.
+		if (ParkedProjects.of(world.getServer()).reserves(world.getRegistryKey().getValue(), area::intersects)) {
+			return "gui.the_dream_table.farm_overlaps";
 		}
 		if (!BuildPermission.canBuildAll(world, asker, site, template)) {
 			return "gui.the_dream_table.protected_area";

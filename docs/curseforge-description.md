@@ -31,6 +31,7 @@ Press G with a farm chosen to lift off into a free camera and place the farm fro
 - Creeper Farm (gunpowder)
 - Gold Farm (Nether only)
 - Iron Farm
+- Animal Farm
 
 Each built-in farm has a **How It Works** page: how it works, what it needs to run, what it produces, and tips. More farms will be added over time.
 

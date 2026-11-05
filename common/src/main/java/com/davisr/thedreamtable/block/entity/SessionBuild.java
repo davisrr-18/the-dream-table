@@ -260,6 +260,7 @@ public final class SessionBuild {
 		session.settleMovedBuild();
 		verified = null;
 		progress.start(session.player(), fromScratch, template.signature());
+		session.clearAim();
 		if (fromScratch) {
 			clearing = null;
 		}

@@ -57,7 +57,11 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 				return;
 			}
 			table.setPlacement(anchor, facing, payload.mirrored());
-			table.build().begin(player, true);
+			table.rememberAim(player.getWorld().getRegistryKey().getValue(), anchor, facing, payload.mirrored());
+			if (!table.build().begin(player, true)) {
+				// A refused start keeps the spot as the aim, not as a placement that would reserve the area.
+				table.clearPlacement();
+			}
 		});
 	}
 

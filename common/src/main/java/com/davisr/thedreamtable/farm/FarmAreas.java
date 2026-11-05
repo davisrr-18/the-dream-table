@@ -410,6 +410,9 @@ public final class FarmAreas extends PersistentState {
 			}
 			found = Conflict.FINISHED;
 		}
+		if (found == Conflict.NONE && unreadableCovers(other -> other.intersects(box))) {
+			return Conflict.FINISHED;
+		}
 		return found;
 	}
 
@@ -522,6 +525,20 @@ public final class FarmAreas extends PersistentState {
 				return true;
 			}
 		}
+		return ParkedProjects.of(world.getServer()).reserves(world.getRegistryKey().getValue(), test) || unreadableCovers(test);
+	}
+
+	/**
+	 * Whether a record that could not be read covers a box the test accepts. Only its saved box is known, and that is still
+	 * the area the farm holds, so it is kept as saved and checked as the areas are.
+	 */
+	boolean unreadableCovers(Predicate<Box> test) {
+		for (NbtCompound raw : unreadable) {
+			int[] box = raw.getIntArray("Box");
+			if (box.length == 6 && test.test(new Box(box[0], box[1], box[2], box[3], box[4], box[5]))) {
+				return true;
+			}
+		}
 		return false;
 	}
 
@@ -605,7 +622,7 @@ public final class FarmAreas extends PersistentState {
 				case FARM -> found++;
 				case MISSING -> {
 					missing++;
-					if (step.item() != null) {
+					if (step.item() != null && !FarmBuilder.isWater(step)) {
 						needs.merge(swaps.getOrDefault(step.item(), step.item()), 1, Integer::sum);
 					}
 				}

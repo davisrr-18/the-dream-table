@@ -129,7 +129,8 @@ final class TableButtons {
 		if (table.build().canResume()) {
 			return table.build().begin(player, false);
 		}
-		if (DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) && !table.getSelectedFarm().isEmpty()) {
+		// A new build starts only where the player placed it; the client's Build sends that spot with PlaceFarmPayload.
+		if (DreamTableBlockEntity.PHASE_IDLE.equals(table.getPhase()) && !table.getSelectedFarm().isEmpty() && table.hasAnchor()) {
 			return table.build().begin(player, true);
 		}
 		return false;

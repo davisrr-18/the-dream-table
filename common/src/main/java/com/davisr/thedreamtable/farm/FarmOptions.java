@@ -50,14 +50,15 @@ public final class FarmOptions {
 	public static final FarmOption CREEPER = new FarmOption("creeper", Items.GUNPOWDER, "farm.the_dream_table.creeper");
 	public static final FarmOption GOLD = new FarmOption("gold", Items.GOLD_INGOT, "farm.the_dream_table.gold").intendedIn(World.NETHER);
 	public static final FarmOption IRON_GOLEM = new FarmOption("iron_golem", Items.IRON_INGOT, "farm.the_dream_table.iron_golem");
+	public static final FarmOption ANIMAL = new FarmOption("animal", Items.BEEF, "farm.the_dream_table.animal");
 
 	/** The essential vanilla farms, one design each. Bigger or other versions belong in My Schematics. */
-	public static final List<FarmOption> ALL = List.of(SUGAR_CANE, BAMBOO, CACTUS, CROP, HONEY, MOB_DARK_ROOM, CREEPER, IRON_GOLEM, GOLD);
+	public static final List<FarmOption> ALL = List.of(SUGAR_CANE, BAMBOO, CACTUS, CROP, HONEY, MOB_DARK_ROOM, CREEPER, IRON_GOLEM, GOLD, ANIMAL);
 
 	/** The first menu page, by what the farms produce. A new built-in farm goes in {@link #ALL} and one category. */
 	public enum Category {
 		PLANTS(Items.SUGAR_CANE, "category.the_dream_table.plants", List.of(SUGAR_CANE, BAMBOO, CACTUS, CROP)),
-		MOBS(Items.BONE, "category.the_dream_table.mobs", List.of(MOB_DARK_ROOM, CREEPER)),
+		MOBS(Items.BONE, "category.the_dream_table.mobs", List.of(MOB_DARK_ROOM, CREEPER, ANIMAL)),
 		RESOURCES(Items.IRON_INGOT, "category.the_dream_table.resources", List.of(HONEY, IRON_GOLEM, GOLD));
 
 		private final Item icon;

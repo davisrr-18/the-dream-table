@@ -8,6 +8,7 @@ import com.davisr.thedreamtable.block.entity.TableSession;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -105,10 +106,37 @@ public final class FarmBuilder {
 		if (!permitted(world, owner, target, existing, placed)) {
 			return BuildIssue.at(BuildIssue.Kind.PROTECTED, target);
 		}
-		if (step.item() != null && !owner.isCreative() && !table.hasMaterial(step.item())) {
-			return BuildIssue.of(BuildIssue.Kind.MATERIAL, target, table.resolve(step.item()));
+		if (!supplied(table, world, owner, step)) {
+			return isWater(step) ? BuildIssue.at(BuildIssue.Kind.WATER, target)
+					: BuildIssue.of(BuildIssue.Kind.MATERIAL, target, table.resolve(step.item()));
 		}
 		return null;
+	}
+
+	/** Where a step's item comes from: nothing (no item, or Creative), a nearby infinite source (water), or the delivered counts. */
+	enum Supply {
+		FREE, SOURCE, COUNTS
+	}
+
+	/** Water is never bought, so it never spends a delivered bucket and never hands one back. */
+	static Supply supply(FarmStep step, boolean creative) {
+		if (step.item() == null || creative) {
+			return Supply.FREE;
+		}
+		return isWater(step) ? Supply.SOURCE : Supply.COUNTS;
+	}
+
+	/** True for a water step: its block is water and its item is the bucket the schematic reader recorded for it. */
+	public static boolean isWater(FarmStep step) {
+		return step.item() == Items.WATER_BUCKET;
+	}
+
+	private static boolean supplied(TableSession table, ServerWorld world, ServerPlayerEntity owner, FarmStep step) {
+		return switch (supply(step, owner.isCreative())) {
+			case FREE -> true;
+			case SOURCE -> table.hasInfiniteWater(world);
+			case COUNTS -> table.hasMaterial(step.item());
+		};
 	}
 
 	private static @Nullable BlockState placedState(TableSession table, FarmSite site, FarmStep step) {
@@ -158,8 +186,9 @@ public final class FarmBuilder {
 		// Clearing destroys without drops, so it waits until the step can go on: a build short of material clears nothing. A step
 		// whose block already stands goes on too, so every step that counts as placed sits in a cleared layer.
 		BlockState wanted = placedState(table, site, step);
-		boolean affordable = step.item() == null || owner.isCreative() || table.hasMaterial(step.item())
-				|| (wanted != null && BlockMatch.sameBlock(world.getBlockState(target), wanted));
+		// The block already standing is checked first: a skipped water step must not scan for a source.
+		boolean affordable = (wanted != null && BlockMatch.sameBlock(world.getBlockState(target), wanted))
+				|| supplied(table, world, owner, step);
 		Outcome clearing = affordable ? LayerClearer.clearFirst(table, world, owner, template, site, target) : null;
 		if (clearing != null) {
 			return clearing;
@@ -189,7 +218,7 @@ public final class FarmBuilder {
 			return Outcome.STOPPED;
 		}
 		boolean free = owner.isCreative();
-		boolean costs = step.item() != null && !free;
+		boolean costs = supply(step, free) == Supply.COUNTS;
 
 		FarmSpawns.Result spawnResult = placed == null ? spawn(world, target, step) : null;
 		boolean done = placed == null ? spawnResult == FarmSpawns.Result.PLACED : place(world, owner, target, placed, step, !free, sound);
@@ -213,6 +242,7 @@ public final class FarmBuilder {
 		if (placed != null) {
 			table.build().recordPlaced(FarmSpawns.recordsAsPaid(step.item(), paid));
 		}
+		// Only a paid step hands back its bucket; a water step is never paid, so no empty bucket is returned for it.
 		if (placed != null && step.item() != null && FarmSpawns.leavesEmptyBucket(step.item()) && paid) {
 			FarmSpawns.returnBucket(world, table);
 		}

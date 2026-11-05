@@ -74,6 +74,10 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 				return;
 			}
 			Direction facing = PlaceFarmPayload.horizontal(payload.facing(), player);
+			// Placing, turning or mirroring the hologram sends announce: that spot is what a broken table keeps.
+			if (payload.announce()) {
+				table.rememberAim(world.getRegistryKey().getValue(), payload.anchor(), facing, payload.mirrored());
+			}
 			long now = player.getServer().getTicks();
 			Question question = new Question(payload.table(), payload.anchor(), facing, payload.mirrored(), payload.announce(), table.getSelectedFarm());
 			PlacementResultPayload result = RECENT.get(player.getUuid(), question, now);

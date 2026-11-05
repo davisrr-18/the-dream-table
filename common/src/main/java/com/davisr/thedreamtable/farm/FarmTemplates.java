@@ -65,6 +65,7 @@ public final class FarmTemplates {
 		register(FarmOptions.CREEPER, "creeper_farm");
 		register(FarmOptions.GOLD, "gold_farm");
 		register(FarmOptions.IRON_GOLEM, "iron_farm", () -> MobFarms.iron(FarmOptions.IRON_GOLEM.id()));
+		register(FarmOptions.ANIMAL, "animal_farm");
 	}
 
 	private FarmTemplates() {

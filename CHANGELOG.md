@@ -1,11 +1,29 @@
-# The Dream Table 1.1.1
+# The Dream Table 1.2.0
 
-Release date: 2026-10-31
+Release date: TBD
 
-Fixes for choosing a farm and for breaking a table. Worlds, finished farms and builds in progress from 1.1.0 carry over. The client and the server must both run 1.1.1.
+A new farm, water that no longer needs buckets, and a round of fixes for kept projects, Repair and shared tables. Worlds, finished farms and builds in progress from 1.1.1 carry over. The client and the server must both run 1.2.0.
+
+## New farm
+
+- **Animal Farm.** Available under Mobs, with a **How It Works** page like the other built-in farms.
+
+## Water without buckets
+
+- Farms that use water no longer ask you for water buckets. They need an **infinite water source** within 6 blocks of the table: a water source with at least two other water sources next to it on the same level (a 2x2 pool works, or two sources with one gap between them). The requirements list shows one line telling you whether a source is nearby. Nothing is used up, so there is nothing to carry or get back. Water placed by farms never counts, and a single source is not enough.
+- If the source disappears mid-build, the build pauses on a clear message and carries on by itself when a source is back.
+- Water buckets you already delivered to a build from an earlier version are given back to you.
+
+## Kept projects
+
+- A farm you chose and placed on the ground but did not start building is now kept when the table is broken. Open a table again and the spot is back, as long as it is still in reach and free; otherwise you get a message and keep the farm and your materials.
+- A kept build, still waiting for you, now holds its area. Another player's farm (or yours) can no longer be built over its blocks and wipe them without a refund.
+- A finished farm whose saved record cannot be read still keeps its area reserved, so nothing gets built on top of it.
+- A saved table entry that cannot be read is no longer lost silently, and a corrupt one that belongs to no player is kept instead of dropped.
 
 ## Fixes
 
-- New **Stop or Resume Placing** key (P by default, changeable in Controls). While a farm was chosen, every right-click was taken for placing it, so you couldn't open a chest or use anything else near the table. Press the key once and right-click works normally again; the chosen farm, the spot, the materials you delivered and the requirements stay as they were. Press it again to keep placing. The table's hint shows the key you bound.
-- Breaking a Dream Table no longer loses your project. Whoever or whatever breaks it (you, an operator, an explosion), each player's farm, delivered materials and started build are kept for them, and come back in the next Dream Table they open. A started build comes back paused: press Continue and it goes on at the same spot, as long as the new table is in the same dimension and within 48 blocks of it. Up to 16 projects are kept per player; past that, a broken table drops its materials as before and tells you. You can now break your own table while your build is running there; other players' materials and builds still stop you, unless you're an operator.
-- The small turning model of your farm no longer stays floating in the air where a table was broken.
+- A refused **Repair** no longer changes the farm you had chosen or the spot you had aimed.
+- On older worlds, a table's old shared project now goes to the player who opens the table, not to whoever sent the first request to the server.
+- The Build button no longer starts a build when no spot has been chosen.
+- Breaking blocks in a large protected farm no longer slows the server down.

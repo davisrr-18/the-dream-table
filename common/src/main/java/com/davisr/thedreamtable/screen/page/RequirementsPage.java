@@ -1,5 +1,7 @@
 package com.davisr.thedreamtable.screen.page;
 
+import com.davisr.thedreamtable.block.entity.TableSession;
+import com.davisr.thedreamtable.client.clipboard.WaterRow;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.MaterialSpec;
 import com.davisr.thedreamtable.screen.DreamTableLayout;
@@ -52,6 +54,15 @@ public final class RequirementsPage implements TablePage {
 			context.drawText(text, count, slotX + 8 - text.getWidth(count) / 2, slotY + 16, complete ? ACCENT : HINT, false);
 		}
 		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
+		if (template != null && WaterRow.needed(template)) {
+			TableSession table = WaterRow.sessionAt(handler.getTablePos());
+			if (table != null) {
+				boolean nearby = WaterRow.nearby(table, template);
+				// Below the player inventory, where requirementsHeight leaves room; water is no slot, so it has no grid position.
+				context.drawText(text, Text.translatable(WaterRow.key(nearby)), left + 16, top + DreamTableLayout.inventoryY(ui.materialCount()) + 78,
+						nearby ? ACCENT : HINT, false);
+			}
+		}
 
 		context.drawText(text, Text.translatable("gui.the_dream_table.inventory"), left + 16, top + DreamTableLayout.inventoryY(ui.materialCount()) - 12, HINT, false);
 		for (int index = FarmTemplate.MAX_SLOTS; index < handler.slots.size(); index++) {

@@ -31,6 +31,8 @@ public record BuildIssue(Kind kind, BlockPos where, String subject, int attempts
 		PROTECTED(false),
 		/** The next block wasn't delivered. */
 		MATERIAL(false),
+		/** A water step needs a still water source with two water neighbours within reach of the table. Water is never bought. */
+		WATER(false),
 		/** The entity cell contains an occupied or ambiguous minecart/passenger combination. */
 		ENTITY_BLOCKED(false),
 		/** The farm file was deleted or changed since the build started, so its saved progress no longer fits it. */
@@ -81,6 +83,7 @@ public record BuildIssue(Kind kind, BlockPos where, String subject, int attempts
 			case FARM_CHANGED -> Text.translatable(kind.key());
 			case PROTECTED, ENTITY_BLOCKED, TABLE_IN_WAY -> Text.translatable(kind.key(), where.getX(), where.getY(), where.getZ());
 			case MATERIAL -> Text.translatable(kind.key(), subjectName());
+			case WATER -> Text.translatable(kind.key());
 			case UNLOADED -> Text.translatable(kind.key(), where.getX(), where.getZ());
 			case ERROR -> Text.translatable(kind.key(), subject);
 		};

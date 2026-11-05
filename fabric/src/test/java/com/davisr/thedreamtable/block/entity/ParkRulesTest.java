@@ -31,10 +31,22 @@ class ParkRulesTest {
 		assertEquals(BUILD, TableSession.parkKind(false, false, false, false, true, true));
 	}
 
+	/**
+	 * A chosen farm not started is a project, with or without a placement. The spot aimed at but not built is no placement: it
+	 * is the session's {@link AimedSpot}, which the project keeps beside the farm, so this rule does not depend on it.
+	 */
 	@Test
 	void aChosenOrPlacedFarmNotStartedKeepsTheFarmAndMaterials() {
 		assertEquals(PROJECT, TableSession.parkKind(false, false, false, false, false, false));
 		assertEquals(PROJECT, TableSession.parkKind(false, false, true, false, false, true));
+	}
+
+	@Test
+	void aSpotIsKeptOnlyInItsOwnWorldAndWithinReach() {
+		assertTrue(AimedSpot.usableHere(true, true));
+		assertFalse(AimedSpot.usableHere(true, false));
+		assertFalse(AimedSpot.usableHere(false, true));
+		assertFalse(AimedSpot.usableHere(false, false));
 	}
 
 	@Test

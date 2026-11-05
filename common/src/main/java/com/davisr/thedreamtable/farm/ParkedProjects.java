@@ -1,11 +1,15 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.block.entity.TableSession;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Box;
 import net.minecraft.world.PersistentState;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -19,6 +23,8 @@ import java.util.function.Predicate;
  * Projects kept for their players when a Dream Table is broken: each player's saved session as the table wrote it, oldest
  * first, kept in the overworld until the player opens a table that holds no project of theirs. Entries are kept as saved
  * and only read when they are restored, so one this version cannot read stays on record for a later version.
+ * A kept build also reserves its farm's area in the world it stands in ({@link #reserves}) until it is restored, so no other
+ * farm can clear its blocks while it waits. The area is derived from the saved spot; nothing extra is written.
  */
 public final class ParkedProjects extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_parked_projects";
@@ -26,7 +32,13 @@ public final class ParkedProjects extends PersistentState {
 	static final int MAX_PLAYERS = 4096;
 	static final int MAX_PER_PLAYER = 16;
 
+	/** A kept build's area: the world it stands in and the box its farm occupies there. */
+	public record Reservation(Identifier world, Box box) {
+	}
+
 	private final Map<UUID, List<NbtCompound>> parked = new LinkedHashMap<>();
+	/** The reservations of {@link #parked}, derived on first use and dropped after any change to what is kept. */
+	private @Nullable List<Reservation> reservations;
 
 	public static ParkedProjects of(MinecraftServer server) {
 		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
@@ -45,6 +57,7 @@ public final class ParkedProjects extends PersistentState {
 		}
 		List<NbtCompound> projects = parked.computeIfAbsent(player, ignored -> new ArrayList<>());
 		projects.add(project.copy());
+		reservations = null;
 		markDirty();
 		return true;
 	}
@@ -70,11 +83,42 @@ public final class ParkedProjects extends PersistentState {
 				if (projects.isEmpty()) {
 					parked.remove(player);
 				}
+				reservations = null;
 				markDirty();
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/** Whether a kept build in {@code world} reserves a box the test accepts. */
+	public boolean reserves(Identifier world, Predicate<Box> test) {
+		for (Reservation reservation : reservations()) {
+			if (reservation.world().equals(world) && test.test(reservation.box())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * The areas of every kept build, cached until the kept projects change.
+	 * shortcut: a build whose farm is not loaded at the first check reserves nothing until the next park or restore, upgrade if farms can load after server start.
+	 */
+	private List<Reservation> reservations() {
+		if (reservations == null) {
+			List<Reservation> found = new ArrayList<>();
+			for (List<NbtCompound> projects : parked.values()) {
+				for (NbtCompound project : projects) {
+					Reservation reservation = TableSession.keptReservation(project);
+					if (reservation != null) {
+						found.add(reservation);
+					}
+				}
+			}
+			reservations = List.copyOf(found);
+		}
+		return reservations;
 	}
 
 	@Override

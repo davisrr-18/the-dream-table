@@ -36,7 +36,8 @@ public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> m
 		}
 		for (FarmStep step : steps) {
 			boolean growth = grows(step) && plants.contains(BlockPos.asLong(step.x(), step.y() - 1, step.z()));
-			if (step.item() != null && !growth) {
+			// Water is not a material: a nearby infinite source supplies it (see FarmBuilder.supply), so the item stays on the step only.
+			if (step.item() != null && !growth && !FarmBuilder.isWater(step)) {
 				totals.merge(step.item(), 1, Integer::sum);
 			}
 		}

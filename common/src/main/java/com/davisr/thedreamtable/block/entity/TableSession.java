@@ -4,12 +4,14 @@ import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.farm.FarmAreas;
+import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmDismantler;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.farm.ParkedProjects;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventory;
@@ -66,6 +68,8 @@ public final class TableSession {
 	 * for a build this table started. Saved, so the build can't be resumed or taken apart in the wrong world.
 	 */
 	private @Nullable Identifier movedBuildDimension;
+	/** The spot aimed at and not built yet. Kept with the project when the table breaks; see {@link AimedSpot}. */
+	private @Nullable AimedSpot aim;
 	private boolean clientDirty = true;
 
 	TableSession(DreamTableBlockEntity table, UUID player) {
@@ -127,7 +131,20 @@ public final class TableSession {
 			}
 			return;
 		}
+		resumeForWater(world);
 		build.tick(world);
+	}
+
+	/** A build stopped for want of water goes on by itself once a source is nearby. Checked once a second. */
+	private void resumeForWater(ServerWorld world) {
+		BuildIssue issue = progress.issue();
+		if (issue == null || issue.kind() != BuildIssue.Kind.WATER || world.getTime() % BuildPace.TICKS_PER_SECOND != 0) {
+			return;
+		}
+		ServerPlayerEntity owner = onlineOwner(world);
+		if (owner != null && (progress.is(PHASE_BLOCKED) || progress.is(PHASE_NEED)) && FarmBuilder.check(this, world) == null) {
+			build.begin(owner, false);
+		}
 	}
 
 	/** A built-in farm that left the mod in an update. Its project is dropped and the delivered items handed back. */
@@ -161,6 +178,7 @@ public final class TableSession {
 		swapMaterial = -1;
 		placement.clear();
 		movedBuildDimension = null;
+		aim = null;
 		sync();
 	}
 
@@ -271,9 +289,65 @@ public final class TableSession {
 		sync();
 	}
 
-	void clearPlacement() {
+	public void clearPlacement() {
 		placement.clear();
 		sync();
+	}
+
+	/** The spot the hologram was last aimed at and not built yet, or null. Dropped when a build starts, or the farm changes. */
+	public @Nullable AimedSpot aim() {
+		return aim;
+	}
+
+	/** Remembers where the hologram was aimed, so a broken table keeps it. Not a placement: nothing is reserved or started. */
+	public void rememberAim(Identifier dimension, BlockPos anchor, Direction facing, boolean mirrored) {
+		AimedSpot spot = new AimedSpot(anchor, facing, mirrored, dimension);
+		if (!spot.equals(aim)) {
+			aim = spot;
+			sync();
+		}
+	}
+
+	void clearAim() {
+		if (aim != null) {
+			aim = null;
+			sync();
+		}
+	}
+
+	/**
+	 * Keeps the aimed spot a project came back with only while it is still a spot from this table. Otherwise it is dropped and
+	 * the farm and its materials stay. Returns true when it was dropped.
+	 */
+	boolean checkRestoredAim(ServerWorld world, ServerPlayerEntity player) {
+		if (aim == null) {
+			return false;
+		}
+		boolean usable = AimedSpot.usableHere(aim.dimension().equals(world.getRegistryKey().getValue()), FarmGeometry.withinReach(getPos(), aim.anchor()))
+				&& problemAt(world, player, new FarmSite(getPos(), aim.anchor(), aim.facing(), aim.mirrored())) == null;
+		if (!usable) {
+			aim = null;
+			sync();
+		}
+		return !usable;
+	}
+
+	/**
+	 * Why a repair of this farm can't start at its site, as a lang key, or null. It is asked before the session takes the farm
+	 * on, so a refused repair changes nothing. The farm's dimension rule reads the selected farm, so the question is asked with
+	 * the repaired farm selected, and the selection is put back at once.
+	 */
+	String repairProblem(ServerWorld world, ServerPlayerEntity player, FarmTemplate template, FarmSite site, UUID instanceId) {
+		if (!progress.returnNotice().isEmpty()) {
+			return "gui.the_dream_table.repair_busy";
+		}
+		String chosen = selectedFarm;
+		selectedFarm = template.id();
+		try {
+			return areas.problemAt(world, player, site, template, instanceId);
+		} finally {
+			selectedFarm = chosen;
+		}
 	}
 
 	/** Why the farm can't start at the site, as a lang key, or null. See {@link SessionAreas#problemAt}. */
@@ -474,6 +548,11 @@ public final class TableSession {
 		return desk.has(item);
 	}
 
+	/** Whether infinite water is within reach of the table, outside every Dream Table farm. See {@link NearbyWater}. */
+	public boolean hasInfiniteWater(ServerWorld world) {
+		return NearbyWater.sourceNear(world, getPos());
+	}
+
 	/** Uses one delivered item. Returns true when it was one the player paid for, so the step can be refunded later. */
 	public boolean spendMaterial(Item item) {
 		boolean paid = desk.spend(item);
@@ -566,6 +645,7 @@ public final class TableSession {
 		swapMaterial = -1;
 		placement.clear();
 		movedBuildDimension = null;
+		aim = null;
 		sync();
 	}
 
@@ -641,6 +721,25 @@ public final class TableSession {
 		return !repair && buildStarted && placed ? ParkKind.BUILD : ParkKind.PROJECT;
 	}
 
+	/**
+	 * The area a kept project reserves, from its saved spot and farm: only a build keeps one, and it is the box its farm
+	 * occupies at the anchor, in the world it stands in. Null for a project without a spot, or whose farm this server does not know.
+	 */
+	public static @Nullable ParkedProjects.Reservation keptReservation(NbtCompound project) {
+		Identifier world = project.contains("MovedBuildDimension", NbtElement.STRING_TYPE)
+				? Identifier.tryParse(project.getString("MovedBuildDimension")) : null;
+		FarmTemplate template = world == null || !project.contains("AnchorX", NbtElement.INT_TYPE)
+				? null : FarmTemplates.get(project.getString("SelectedFarm"));
+		if (template == null) {
+			return null;
+		}
+		FarmPlacement placement = new FarmPlacement();
+		placement.read(project);
+		// The anchor is what places the farm, so the table position, which a kept project does not save, is never read.
+		FarmSite site = new FarmSite(placement.anchor(), placement.anchor(), placement.facing(), placement.mirrored());
+		return new ParkedProjects.Reservation(world, site.footprint(template));
+	}
+
 	/** Whether this is a started build that came back from a broken table and has not resumed here yet. */
 	boolean movedBuild() {
 		return movedBuildDimension != null;
@@ -697,6 +796,9 @@ public final class TableSession {
 		if (movedBuildDimension != null) {
 			nbt.putString("MovedBuildDimension", movedBuildDimension.toString());
 		}
+		if (aim != null) {
+			nbt.put("Aim", aim.toNbt());
+		}
 	}
 
 	/** The trimmed copy sent to the owner's client: no slot inventory, no step records, no page, which the menu syncs on its own. */
@@ -708,6 +810,9 @@ public final class TableSession {
 		desk.writeForClient(nbt);
 		progress.writeForClient(nbt);
 		placement.write(nbt);
+		if (aim != null) {
+			nbt.put("Aim", aim.toNbt());
+		}
 		return nbt;
 	}
 
@@ -724,6 +829,7 @@ public final class TableSession {
 		placement.read(nbt);
 		desk.read(nbt, registries);
 		movedBuildDimension = nbt.contains("MovedBuildDimension", NbtElement.STRING_TYPE) ? Identifier.tryParse(nbt.getString("MovedBuildDimension")) : null;
+		aim = nbt.contains("Aim", NbtElement.COMPOUND_TYPE) ? AimedSpot.fromNbt(nbt.getCompound("Aim")) : null;
 	}
 
 	/** The player who started the build, for sessions saved before players had their own. */

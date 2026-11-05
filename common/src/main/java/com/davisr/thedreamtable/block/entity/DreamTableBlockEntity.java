@@ -57,6 +57,8 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	public static final String PHASE_DONE = "done";
 
 	private static final UUID SHARED = new UUID(0L, 0L);
+	/** Key in {@link ParkedProjects} for an unreadable saved session that names no player. No player has this id, so nobody is offered it. */
+	private static final UUID NO_PLAYER = new UUID(0L, 0L);
 	private static final String CLIENT_VIEW = "ClientView";
 	private static final double SEND_DISTANCE = 512.0;
 
@@ -165,17 +167,22 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	 * sent by {@link #sendSessions}, and gets an empty one until it arrives.
 	 */
 	public TableSession session(UUID player) {
-		TableSession session = sessions.get(player);
-		if (session == null) {
-			session = sessions.remove(SHARED);
-			if (session == null) {
-				session = new TableSession(this, player);
-			} else {
-				session.adopt(player);
+		return sessions.computeIfAbsent(player, id -> new TableSession(this, id));
+	}
+
+	/**
+	 * The session a player gets as they open the table. The legacy shared session of a world saved before players had their own
+	 * goes to the first player who opens it; only this path adopts it, so a payload from anyone else never takes it.
+	 */
+	private TableSession openedSession(UUID player) {
+		if (!sessions.containsKey(player)) {
+			TableSession shared = sessions.remove(SHARED);
+			if (shared != null) {
+				shared.adopt(player);
+				sessions.put(player, shared);
 			}
-			sessions.put(player, session);
 		}
-		return session;
+		return session(player);
 	}
 
 	public TableSession session(PlayerEntity player) {
@@ -257,8 +264,8 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		// Saved sessions this version cannot read are kept as they were, for a version that can; take-apart jobs are lost, so the log keeps a copy.
 		for (NbtCompound raw : unreadableSessions) {
 			UUID player = namedPlayer(raw);
-			if (player == null || !parked.park(player, raw)) {
-				TheDreamTableMod.LOGGER.warn("Dream Table at {} broken with an unreadable saved session; its data was: {}", pos, raw);
+			if (!parked.park(player != null ? player : NO_PLAYER, raw)) {
+				TheDreamTableMod.LOGGER.warn("Dream Table at {} broken with an unreadable saved session that could not be kept; its data was: {}", pos, raw);
 			}
 		}
 		for (NbtCompound raw : unreadableJobs) {
@@ -299,7 +306,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	 * saved session of theirs restores nothing, since the restored one would replace it on the next save.
 	 */
 	private TableSession openSession(ServerPlayerEntity player) {
-		TableSession session = session(player);
+		TableSession session = openedSession(player.getUuid());
 		UUID id = player.getUuid();
 		if (!session.isEmpty() || !(world instanceof ServerWorld serverWorld)
 				|| unreadableSessions.stream().anyMatch(raw -> id.equals(namedPlayer(raw)))) {
@@ -324,6 +331,9 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		TableNoticePayload.info(player, session.movedBuild()
 				? Text.translatable("gui.the_dream_table.project_back_build", session.getBuildIndex(), session.totalSteps())
 				: Text.translatable("gui.the_dream_table.project_back"));
+		if (session.checkRestoredAim(serverWorld, player)) {
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.aim_dropped"));
+		}
 		return session;
 	}
 
@@ -399,11 +409,12 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		unreadableJobs.clear();
 		NbtList list = nbt.getList("Sessions", NbtElement.COMPOUND_TYPE);
 		unreadableSessions.addAll(GuardedRead.forEach(list, "session at " + pos, entry -> {
-			if (entry.containsUuid("Player")) {
-				TableSession session = new TableSession(this, entry.getUuid("Player"));
-				session.read(entry, registries);
-				sessions.put(session.player(), session);
+			if (!entry.containsUuid("Player")) {
+				throw new IllegalArgumentException("saved session names no player");
 			}
+			TableSession session = new TableSession(this, entry.getUuid("Player"));
+			session.read(entry, registries);
+			sessions.put(session.player(), session);
 		}));
 		GuardedRead.dropSuperseded(unreadableSessions, sessions.keySet());
 		if (!nbt.contains("Sessions", NbtElement.LIST_TYPE)) {

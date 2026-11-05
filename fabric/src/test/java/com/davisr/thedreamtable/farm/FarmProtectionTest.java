@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.GameSetup;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.FluidBlock;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
@@ -227,6 +228,60 @@ class FarmProtectionTest {
 				Blocks.STONE.getDefaultState()));
 		assertTrue(areas.guardsAt(new BlockPos(500, 70, 500)).isEmpty());
 		assertTrue(new FarmAreas().guardsAt(inside).isEmpty());
+	}
+
+	/** The search {@link FarmProtection#structuralAt} did before its index: the first step at the position decides. */
+	private static boolean searched(FarmTemplate template, FarmSite site, Map<Item, Item> swaps, BlockPos pos, BlockState current) {
+		if (current.isAir() || current.getBlock() instanceof FluidBlock || FarmProtection.harvestable(current)) {
+			return false;
+		}
+		for (FarmStep step : template.steps()) {
+			if (!step.isEntity() && step.state() != null && site.target(template, step).equals(pos)) {
+				return FarmProtection.structural(step.state())
+						&& BlockMatch.stillFarm(current, site.orient(MaterialSwaps.apply(step.state(), swaps)));
+			}
+		}
+		return false;
+	}
+
+	@Test
+	void theIndexedLookupAnswersLikeTheSearchForEverySiteSwapAndBlock() {
+		FarmTemplate farm = farm();
+		FarmTemplate overlapping = new FarmTemplate("overlapping", List.of(
+				FarmStep.block(0, 0, 0, Blocks.STONE.getDefaultState(), Items.STONE),
+				FarmStep.block(0, 0, 0, Blocks.OAK_PLANKS.getDefaultState(), Items.OAK_PLANKS),
+				FarmStep.block(1, 0, 0, Blocks.WHEAT.getDefaultState(), Items.WHEAT_SEEDS)), List.of(), TABLE);
+		List<BlockState> blocks = List.of(Blocks.AIR.getDefaultState(), Blocks.STONE.getDefaultState(), Blocks.FARMLAND.getDefaultState(),
+				Blocks.DIRT.getDefaultState(), Blocks.WHEAT.getDefaultState(), Blocks.OAK_PLANKS.getDefaultState(),
+				Blocks.SPRUCE_PLANKS.getDefaultState(), Blocks.WATER.getDefaultState(), Blocks.COBBLESTONE.getDefaultState());
+		Map<Item, Item> swaps = Map.of(Items.OAK_PLANKS, Items.SPRUCE_PLANKS);
+		// The same template object is asked for several sites, so the index is also checked where it does not apply.
+		for (FarmTemplate template : List.of(farm, overlapping)) {
+			for (Direction facing : Direction.Type.HORIZONTAL) {
+				for (boolean mirrored : new boolean[]{false, true}) {
+					for (BlockPos anchor : new BlockPos[]{ANCHOR, null}) {
+						FarmSite site = new FarmSite(TABLE, anchor, facing, mirrored);
+						Set<BlockPos> positions = new HashSet<>(Set.of(new BlockPos(500, 70, 500)));
+						for (FarmStep step : template.steps()) {
+							BlockPos target = site.target(template, step);
+							positions.add(target);
+							for (Direction side : Direction.values()) {
+								positions.add(target.offset(side));
+							}
+						}
+						for (BlockPos pos : positions) {
+							for (BlockState block : blocks) {
+								for (Map<Item, Item> map : List.of(NO_SWAPS, swaps)) {
+									String label = template.id() + " " + facing + " mirrored=" + mirrored + " anchor=" + (anchor != null) + " at " + pos + " " + block;
+									assertEquals(searched(template, site, map, pos, block),
+											FarmProtection.structuralAt(template, site, map, pos, block), label);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	@Test

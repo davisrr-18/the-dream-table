@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.GameSetup;
 import com.davisr.thedreamtable.farm.schematic.SchematicReader;
+import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -18,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Reads every bundled farm schematic and checks what the build relies on. */
 class BuiltInFarmsTest {
-	private static final String[] FILES = {"sugar_cane_farm", "bamboo_farm", "cactus_farm", "crop_farm", "honey_farm", "mob_farm", "creeper_farm", "iron_farm", "gold_farm"};
+	private static final String[] FILES = {"sugar_cane_farm", "bamboo_farm", "cactus_farm", "crop_farm", "honey_farm", "mob_farm", "creeper_farm", "iron_farm", "gold_farm", "animal_farm"};
 
 	@BeforeAll
 	static void setUp() {
@@ -48,7 +50,8 @@ class BuiltInFarmsTest {
 		for (String file : FILES) {
 			FarmTemplate farm = read(file);
 			long withItem = java.util.stream.IntStream.range(0, farm.steps().size())
-					.filter(index -> farm.steps().get(index).item() != null && !FarmGrowth.isGrowth(farm, index))
+					.filter(index -> farm.steps().get(index).item() != null && !FarmGrowth.isGrowth(farm, index)
+							&& !FarmBuilder.isWater(farm.steps().get(index)))
 					.count();
 			int listed = farm.materials().stream().mapToInt(MaterialSpec::count).sum();
 			assertEquals(withItem, listed, file);
@@ -116,6 +119,15 @@ class BuiltInFarmsTest {
 		assertTrue(FarmOptions.Category.RESOURCES.farms().contains(honey));
 		assertNotNull(FarmTemplates.get("cactus"));
 		assertNotNull(FarmTemplates.get("honey"));
+	}
+
+	@Test
+	void animalFarmIsItsBuildWithoutAnimals() throws IOException {
+		FarmTemplate farm = read("animal_farm");
+		assertEquals(228, farm.steps().size());
+		assertTrue(farm.steps().stream().noneMatch(FarmStep::isEntity), "the table places no animals");
+		List<FarmStep> dispensers = farm.steps().stream().filter(step -> step.state() != null && step.state().isOf(Blocks.DISPENSER)).toList();
+		assertEquals(5, dispensers.size());
 	}
 
 	@Test

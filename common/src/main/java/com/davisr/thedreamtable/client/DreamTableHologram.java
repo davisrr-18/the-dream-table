@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.client;
 
 import com.davisr.thedreamtable.block.DreamTableBlock;
+import com.davisr.thedreamtable.block.entity.AimedSpot;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.client.hologram.GhostRenderer;
@@ -113,8 +114,29 @@ public final class DreamTableHologram {
 					send(false);
 				}
 			}
+			adoptKeptSpot();
 			askAboutHover();
 		});
+	}
+
+	/**
+	 * A spot the server kept for this player (its project came back into this table, or the table was reopened) is shown again
+	 * as if just placed, so Build works from it. Only a spot kept for the farm chosen here is taken.
+	 */
+	private static void adoptKeptSpot() {
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (hasPlacement() || tablePos == null || client.world == null || !chunkLoaded(client.world, tablePos)) {
+			return;
+		}
+		TableSession table = localSession(client.world.getBlockEntity(tablePos));
+		AimedSpot spot = table == null ? null : table.aim();
+		if (spot == null || !farmId.equals(table.getSelectedFarm())) {
+			return;
+		}
+		anchor(spot.anchor());
+		previewFacing = spot.facing();
+		previewMirrored = spot.mirrored();
+		check();
 	}
 
 	/** Whether the map mode may open: a table is followed, a farm is chosen and no build is running. */

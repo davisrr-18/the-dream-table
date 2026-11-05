@@ -1,7 +1,14 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.GameSetup;
+import com.davisr.thedreamtable.block.entity.AimedSpot;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -10,12 +17,37 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Projects kept from broken tables come back to their own player, oldest first, bounded, and saved as they were. */
 class ParkedProjectsTest {
 	private static final UUID PLAYER = UUID.fromString("10000000-0000-0000-0000-000000000001");
 	private static final UUID OTHER = UUID.fromString("20000000-0000-0000-0000-000000000002");
+	private static final Identifier OVERWORLD = Identifier.of("minecraft", "overworld");
+	private static final Identifier NETHER = Identifier.of("minecraft", "the_nether");
+	private static final BlockPos ANCHOR = new BlockPos(640, 70, -20);
+
+	@BeforeAll
+	static void setUp() {
+		GameSetup.bootstrap();
+	}
+
+	/** A started build as a broken table keeps it: its farm, the world it stands in, and its spot under the keys {@code TableSession.write} saves. */
+	private static NbtCompound build(Identifier world, BlockPos anchor, Direction facing) {
+		NbtCompound nbt = project(FarmOptions.SUGAR_CANE.id());
+		nbt.putString("MovedBuildDimension", world.toString());
+		nbt.putString("FarmFacing", facing.asString());
+		nbt.putInt("AnchorX", anchor.getX());
+		nbt.putInt("AnchorY", anchor.getY());
+		nbt.putInt("AnchorZ", anchor.getZ());
+		return nbt;
+	}
+
+	/** The box the build's farm occupies at its spot, as the table claims it. The table position is not saved with a kept build, so any is used. */
+	private static Box footprint(BlockPos anchor, Direction facing) {
+		return new FarmSite(new BlockPos(0, 0, 0), anchor, facing).footprint(FarmTemplates.get(FarmOptions.SUGAR_CANE.id()));
+	}
 
 	private static NbtCompound project(String farm) {
 		NbtCompound nbt = new NbtCompound();
@@ -105,6 +137,21 @@ class ParkedProjectsTest {
 		assertEquals(full, back.get(0));
 	}
 
+	/** A project kept with its aimed spot comes back with the same spot, saved and read back through the file. */
+	@Test
+	void aKeptSpotComesBackWithTheProject() {
+		AimedSpot spot = new AimedSpot(new BlockPos(640, 70, -20), Direction.EAST, true, Identifier.of("minecraft", "overworld"));
+		NbtCompound kept = project("farm");
+		kept.put("Aim", spot.toNbt());
+		ParkedProjects parked = new ParkedProjects();
+		parked.park(PLAYER, kept);
+		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound(), null), null);
+		List<NbtCompound> back = new ArrayList<>();
+		read.restore(PLAYER, back::add);
+		assertEquals(spot, AimedSpot.fromNbt(back.get(0).getCompound("Aim")));
+		assertEquals("farm", back.get(0).getString("SelectedFarm"));
+	}
+
 	@Test
 	void aCorruptFileStaysBounded() {
 		NbtCompound players = new NbtCompound();
@@ -121,5 +168,61 @@ class ParkedProjectsTest {
 		assertEquals(ParkedProjects.MAX_PER_PLAYER, read.count(PLAYER));
 		assertEquals(0, read.count(OTHER));
 		assertTrue(read.canPark(OTHER));
+	}
+
+	/** A kept build keeps its farm's area in the world it stands in, so nothing else may build or clear there while it waits. */
+	@Test
+	void aKeptBuildReservesItsAreaInItsWorldOnly() {
+		Box area = footprint(ANCHOR, Direction.SOUTH);
+		ParkedProjects parked = new ParkedProjects();
+		parked.park(PLAYER, build(OVERWORLD, ANCHOR, Direction.SOUTH));
+		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(area)));
+		assertFalse(parked.reserves(NETHER, box -> box.intersects(area)));
+		assertFalse(parked.reserves(OVERWORLD, box -> box.intersects(footprint(ANCHOR.add(100, 0, 0), Direction.SOUTH))));
+	}
+
+	/** Restoring the build takes it out of the kept projects, so the reservation is gone once its owner has it back in a session. */
+	@Test
+	void restoringTheBuildLiftsItsReservation() {
+		Box area = footprint(ANCHOR, Direction.SOUTH);
+		ParkedProjects parked = new ParkedProjects();
+		parked.park(PLAYER, build(OVERWORLD, ANCHOR, Direction.SOUTH));
+		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(area)));
+		assertTrue(parked.restore(PLAYER, saved -> true));
+		assertFalse(parked.reserves(OVERWORLD, box -> box.intersects(area)));
+	}
+
+	/** A build the owner could not take yet stays on record with its reservation, and the reservation follows the file. */
+	@Test
+	void aRefusedBuildKeepsItsReservationThroughASave() {
+		Box area = footprint(ANCHOR, Direction.SOUTH);
+		ParkedProjects parked = new ParkedProjects();
+		parked.park(PLAYER, build(OVERWORLD, ANCHOR, Direction.SOUTH));
+		assertFalse(parked.restore(PLAYER, saved -> false));
+		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(area)));
+		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound(), null), null);
+		assertTrue(read.reserves(OVERWORLD, box -> box.intersects(area)));
+	}
+
+	/** Projects without a spot (a farm, its materials) reserve nothing, and a parked build is seen as soon as it is parked. */
+	@Test
+	void onlyBuildsWithASpotReserveAndNewOnesAreSeenAtOnce() {
+		ParkedProjects parked = new ParkedProjects();
+		parked.park(PLAYER, project(FarmOptions.SUGAR_CANE.id()));
+		assertFalse(parked.reserves(OVERWORLD, box -> true));
+		parked.park(OTHER, build(OVERWORLD, ANCHOR, Direction.SOUTH));
+		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(footprint(ANCHOR, Direction.SOUTH))));
+	}
+
+	/** The area follows the build's facing, not a fixed one: the east-facing build reserves what its east footprint covers, and nothing more. */
+	@Test
+	void theReservationFollowsTheFacing() {
+		Box east = footprint(ANCHOR, Direction.EAST);
+		Box south = footprint(ANCHOR, Direction.SOUTH);
+		assertNotEquals(east, south);
+		ParkedProjects parked = new ParkedProjects();
+		parked.park(PLAYER, build(OVERWORLD, ANCHOR, Direction.EAST));
+		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(east)));
+		assertEquals(east.intersects(south), parked.reserves(OVERWORLD, box -> box.intersects(south)));
 	}
 }

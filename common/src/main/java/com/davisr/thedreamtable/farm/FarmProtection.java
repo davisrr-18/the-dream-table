@@ -28,7 +28,9 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.UserCache;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,6 +49,8 @@ public final class FarmProtection {
 	static final int OPERATOR_LEVEL = 2;
 	/** Nesting depth of the mod's own permission probes (server thread only), during which a denial tells nobody. */
 	private static int probes;
+	/** The design's blocks per site, built on the first break that asks inside a farm. Shared by identity, like {@link FarmGrowth}'s. */
+	private static final IdentityCache<FarmTemplate, SiteIndex> INDEXES = new IdentityCache<>();
 
 	private FarmProtection() {
 	}
@@ -125,13 +129,42 @@ public final class FarmProtection {
 		if (current.isAir() || current.getBlock() instanceof FluidBlock || harvestable(current)) {
 			return false;
 		}
+		BlockState designed = designedAt(template, site, pos);
+		return designed != null && structural(designed) && BlockMatch.stillFarm(current, site.orient(MaterialSwaps.apply(designed, swaps)));
+	}
+
+	/** The design's block at a position of the site (the first step there, as a search finds it), or null when there is none. */
+	private static @Nullable BlockState designedAt(FarmTemplate template, FarmSite site, BlockPos pos) {
+		SiteIndex index = INDEXES.get(template, indexed -> SiteIndex.of(indexed, site));
+		if (!index.site().equals(site)) {
+			return searchDesign(template, site, pos);
+		}
+		return index.states().get(pos);
+	}
+
+	private static @Nullable BlockState searchDesign(FarmTemplate template, FarmSite site, BlockPos pos) {
 		for (FarmStep step : template.steps()) {
 			if (!step.isEntity() && step.state() != null && site.target(template, step).equals(pos)) {
-				return structural(step.state())
-						&& BlockMatch.stillFarm(current, site.orient(MaterialSwaps.apply(step.state(), swaps)));
+				return step.state();
 			}
 		}
-		return false;
+		return null;
+	}
+
+	/**
+	 * A design's blocks at one site, by position. Keyed by the design's identity: a template is a record whose own hash covers every
+	 * step, and it is immutable, so an index never goes stale. Holds no reference back to the template.
+	 */
+	private record SiteIndex(FarmSite site, Map<BlockPos, BlockState> states) {
+		static SiteIndex of(FarmTemplate template, FarmSite site) {
+			Map<BlockPos, BlockState> states = new HashMap<>();
+			for (FarmStep step : template.steps()) {
+				if (!step.isEntity() && step.state() != null) {
+					states.putIfAbsent(site.target(template, step), step.state());
+				}
+			}
+			return new SiteIndex(site, states);
+		}
 	}
 
 	/** Whether a block of the design is structure: not air, not a fluid, and not something that grows or is harvested. */
