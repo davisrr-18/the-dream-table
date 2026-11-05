@@ -6,22 +6,17 @@ import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
-import com.davisr.thedreamtable.client.clipboard.ClipboardLines.Line;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.PotionContentsComponent;
 import net.minecraft.fluid.FluidState;
-import net.minecraft.item.ItemStack;
+import net.minecraft.item.Item;
 import net.minecraft.item.Items;
-import net.minecraft.potion.Potions;
-import net.minecraft.text.Text;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The water line of a farm with water steps: whether infinite water is near the table, read from the client world with the
+ * Whether infinite water is near the table for a farm with water steps, read from the client world with the
  * server's rule ({@link NearbyWater}). The server decides for real; this only shows what it will find. Farm areas the client
  * doesn't know (other farms, finished ones) are not excluded, so the line can say "nearby" where the server would refuse.
  */
@@ -44,12 +39,13 @@ public final class WaterRow {
 		return false;
 	}
 
-	/** The clipboard row: a water bottle, so it never looks like a bucket, with one item when a source is near. */
-	public static Line line(boolean nearby) {
-		ItemStack stack = new ItemStack(Items.POTION);
-		stack.set(DataComponentTypes.POTION_CONTENTS, new PotionContentsComponent(Potions.WATER));
-		stack.set(DataComponentTypes.CUSTOM_NAME, Text.translatable(key(nearby)));
-		return new Line(stack, nearby ? 1 : 0, 1);
+	/** True when this material is water and a source is near the table, so it counts as delivered. */
+	public static boolean covers(BlockPos tablePos, FarmTemplate template, Item item) {
+		if (item != Items.WATER_BUCKET) {
+			return false;
+		}
+		TableSession table = sessionAt(tablePos);
+		return table != null && nearby(table, template);
 	}
 
 	public static String key(boolean nearby) {

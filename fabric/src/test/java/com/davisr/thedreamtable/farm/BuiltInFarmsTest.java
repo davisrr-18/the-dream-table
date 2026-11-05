@@ -50,8 +50,7 @@ class BuiltInFarmsTest {
 		for (String file : FILES) {
 			FarmTemplate farm = read(file);
 			long withItem = java.util.stream.IntStream.range(0, farm.steps().size())
-					.filter(index -> farm.steps().get(index).item() != null && !FarmGrowth.isGrowth(farm, index)
-							&& !FarmBuilder.isWater(farm.steps().get(index)))
+					.filter(index -> farm.steps().get(index).item() != null && !FarmGrowth.isGrowth(farm, index))
 					.count();
 			int listed = farm.materials().stream().mapToInt(MaterialSpec::count).sum();
 			assertEquals(withItem, listed, file);

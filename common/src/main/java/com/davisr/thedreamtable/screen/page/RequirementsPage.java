@@ -37,7 +37,7 @@ public final class RequirementsPage implements TablePage {
 			Slot slot = handler.getSlot(index);
 			int slotX = left + slot.x;
 			int slotY = top + slot.y;
-			int have = handler.supplied(index);
+			int have = WaterRow.covers(handler.getTablePos(), template, spec.item()) ? spec.count() : handler.supplied(index);
 			boolean complete = have >= spec.count();
 			ui.painter().slotFrame(context, slotX, slotY);
 			Item shown = handler.materialItem(index);

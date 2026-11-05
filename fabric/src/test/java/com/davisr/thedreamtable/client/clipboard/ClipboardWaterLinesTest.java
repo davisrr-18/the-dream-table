@@ -35,44 +35,24 @@ class ClipboardWaterLinesTest {
 	private static final UnaryOperator<Item> SAME = UnaryOperator.identity();
 
 	@Test
-	void theOrderHasNoBucketLine() {
-		List<ClipboardLines.Line> order = ClipboardLines.order(withWater, item -> 0, SAME, null);
-		assertTrue(order.stream().noneMatch(line -> line.stack().isOf(Items.WATER_BUCKET)));
-		assertTrue(order.stream().noneMatch(line -> line.stack().isOf(Items.BUCKET)));
+	void theWaterStepIsAnOrderLineOfItsOwnBetweenTheStone() {
+		List<ClipboardLines.Line> order = ClipboardLines.order(withWater, item -> 0, SAME);
+		assertEquals(3, order.size());
+		assertTrue(order.get(1).stack().isOf(Items.WATER_BUCKET));
+		assertEquals("0/1", order.get(1).count());
 	}
 
 	@Test
-	void theWaterStepDoesNotSplitTheStoneRun() {
-		List<ClipboardLines.Line> order = ClipboardLines.order(withWater, item -> 0, SAME, null);
-		assertEquals(1, order.size());
-		assertEquals(2, order.getFirst().need());
-	}
-
-	@Test
-	void theWaterLineComesFirstWhenTheFarmHasWater() {
-		ClipboardLines.Line water = WaterRow.line(false);
-		List<ClipboardLines.Line> order = ClipboardLines.order(withWater, item -> 0, SAME, water);
-		assertEquals(2, order.size());
-		assertEquals(water, order.getFirst());
-		assertEquals("0/1", order.getFirst().count());
-		assertFalse(order.getFirst().done());
-	}
-
-	@Test
-	void aNearbySourceCompletesTheWaterLine() {
-		ClipboardLines.Line water = WaterRow.line(true);
-		assertEquals("1/1", water.count());
-		assertTrue(water.done());
-		assertTrue(water.stack().isOf(Items.POTION));
-		assertFalse(water.stack().isOf(Items.WATER_BUCKET));
-	}
-
-	@Test
-	void theMaterialTotalsHaveNoWaterLine() {
+	void theMaterialTotalsListTheWaterBuckets() {
 		List<ClipboardLines.Line> totals = ClipboardLines.totals(withWater, item -> 0, SAME);
-		assertEquals(1, totals.size());
-		assertEquals(2, totals.getFirst().need());
-		assertTrue(totals.stream().noneMatch(line -> line.stack().isOf(Items.WATER_BUCKET)));
+		assertEquals(2, totals.size());
+		assertTrue(totals.stream().anyMatch(line -> line.stack().isOf(Items.WATER_BUCKET) && line.need() == 1));
+	}
+
+	@Test
+	void waterBucketsDeliveredStrikeTheWaterLine() {
+		List<ClipboardLines.Line> order = ClipboardLines.order(withWater, item -> item == Items.WATER_BUCKET ? 1 : 0, SAME);
+		assertTrue(order.get(1).done());
 	}
 
 	@Test

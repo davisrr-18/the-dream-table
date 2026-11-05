@@ -39,22 +39,11 @@ class WaterStepTest {
 	}
 
 	@Test
-	void waterIsNoMaterialOfTheFarm() {
-		FarmTemplate farm = farm(STONE, WATER);
-		assertEquals(1, farm.materials().size());
-		assertEquals(Items.STONE, farm.materials().getFirst().item());
-	}
-
-	@Test
-	void listedBlockCountLeavesWaterOutButProgressKeepsEveryStep() {
-		FarmTemplate farm = farm(STONE, FREE, WATER);
-		assertEquals(2, farm.shownBlocks());
-		assertEquals(3, farm.steps().size());
-	}
-
-	@Test
-	void aWaterOnlyFarmHasNoMaterialsAtAll() {
-		assertTrue(farm(WATER).materials().isEmpty());
+	void waterBucketsAreAMaterialOfTheFarm() {
+		FarmTemplate farm = farm(STONE, WATER, FarmStep.block(3, 0, 0, Blocks.WATER.getDefaultState(), Items.WATER_BUCKET));
+		assertEquals(2, farm.materials().size());
+		assertEquals(Items.WATER_BUCKET, farm.materials().get(1).item());
+		assertEquals(2, farm.materials().get(1).count());
 	}
 
 	@Test
@@ -67,19 +56,24 @@ class WaterStepTest {
 	}
 
 	@Test
-	void aWaterStepSpendsNothingAndAsksForASourceInSurvival() {
-		assertEquals(FarmBuilder.Supply.SOURCE, FarmBuilder.supply(WATER, false));
+	void aWaterStepWithASourceNearSpendsNothing() {
+		assertEquals(FarmBuilder.Supply.FREE, FarmBuilder.supply(WATER, false, true));
 	}
 
 	@Test
-	void creativeNeedsNoSourceForWater() {
-		assertEquals(FarmBuilder.Supply.FREE, FarmBuilder.supply(WATER, true));
+	void aWaterStepWithoutASourceUsesDeliveredBuckets() {
+		assertEquals(FarmBuilder.Supply.COUNTS, FarmBuilder.supply(WATER, false, false));
 	}
 
 	@Test
-	void otherItemsStillComeFromTheDeliveredCounts() {
-		assertEquals(FarmBuilder.Supply.COUNTS, FarmBuilder.supply(STONE, false));
-		assertEquals(FarmBuilder.Supply.FREE, FarmBuilder.supply(FREE, false));
+	void creativeNeedsNoWaterAtAll() {
+		assertEquals(FarmBuilder.Supply.FREE, FarmBuilder.supply(WATER, true, false));
+	}
+
+	@Test
+	void aSourceNearDoesNotMakeOtherItemsFree() {
+		assertEquals(FarmBuilder.Supply.COUNTS, FarmBuilder.supply(STONE, false, true));
+		assertEquals(FarmBuilder.Supply.FREE, FarmBuilder.supply(FREE, false, false));
 	}
 
 	@Test

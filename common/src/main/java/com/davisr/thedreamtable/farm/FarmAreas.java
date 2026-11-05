@@ -624,7 +624,7 @@ public final class FarmAreas extends PersistentState {
 				case FARM -> found++;
 				case MISSING -> {
 					missing++;
-					if (step.item() != null && !FarmBuilder.isWater(step)) {
+					if (step.item() != null) {
 						needs.merge(swaps.getOrDefault(step.item(), step.item()), 1, Integer::sum);
 					}
 				}

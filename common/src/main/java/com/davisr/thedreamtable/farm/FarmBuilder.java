@@ -113,17 +113,17 @@ public final class FarmBuilder {
 		return null;
 	}
 
-	/** Where a step's item comes from: nothing (no item, or Creative), a nearby infinite source (water), or the delivered counts. */
+	/** Where a step's item comes from: nothing (no item, Creative, or water with an infinite source near) or the delivered counts. */
 	enum Supply {
-		FREE, SOURCE, COUNTS
+		FREE, COUNTS
 	}
 
-	/** Water is never bought, so it never spends a delivered bucket and never hands one back. */
-	static Supply supply(FarmStep step, boolean creative) {
-		if (step.item() == null || creative) {
+	/** A water step with an infinite source near is free: it spends no delivered bucket and hands none back. Otherwise it uses delivered buckets like any item. */
+	static Supply supply(FarmStep step, boolean creative, boolean infiniteWater) {
+		if (step.item() == null || creative || (infiniteWater && isWater(step))) {
 			return Supply.FREE;
 		}
-		return isWater(step) ? Supply.SOURCE : Supply.COUNTS;
+		return Supply.COUNTS;
 	}
 
 	/** True for a water step: its block is water and its item is the bucket the schematic reader recorded for it. */
@@ -132,9 +132,8 @@ public final class FarmBuilder {
 	}
 
 	private static boolean supplied(TableSession table, ServerWorld world, ServerPlayerEntity owner, FarmStep step) {
-		return switch (supply(step, owner.isCreative())) {
+		return switch (supply(step, owner.isCreative(), isWater(step) && table.hasInfiniteWater(world))) {
 			case FREE -> true;
-			case SOURCE -> table.hasInfiniteWater(world);
 			case COUNTS -> table.hasMaterial(step.item());
 		};
 	}
@@ -218,7 +217,7 @@ public final class FarmBuilder {
 			return Outcome.STOPPED;
 		}
 		boolean free = owner.isCreative();
-		boolean costs = supply(step, free) == Supply.COUNTS;
+		boolean costs = supply(step, free, isWater(step) && table.hasInfiniteWater(world)) == Supply.COUNTS;
 
 		FarmSpawns.Result spawnResult = placed == null ? spawn(world, target, step) : null;
 		boolean done = placed == null ? spawnResult == FarmSpawns.Result.PLACED : place(world, owner, target, placed, step, !free, sound);
@@ -242,7 +241,7 @@ public final class FarmBuilder {
 		if (placed != null) {
 			table.build().recordPlaced(FarmSpawns.recordsAsPaid(step.item(), paid));
 		}
-		// Only a paid step hands back its bucket; a water step is never paid, so no empty bucket is returned for it.
+		// Only a paid step hands back its bucket; a water step covered by a source is not paid, so no empty bucket is returned for it.
 		if (placed != null && step.item() != null && FarmSpawns.leavesEmptyBucket(step.item()) && paid) {
 			FarmSpawns.returnBucket(world, table);
 		}

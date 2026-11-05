@@ -36,8 +36,8 @@ public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> m
 		}
 		for (FarmStep step : steps) {
 			boolean growth = grows(step) && plants.contains(BlockPos.asLong(step.x(), step.y() - 1, step.z()));
-			// Water is not a material: a nearby infinite source supplies it (see FarmBuilder.supply), so the item stays on the step only.
-			if (step.item() != null && !growth && !FarmBuilder.isWater(step)) {
+			// Water stays a material (water buckets): a nearby infinite source covers it instead of the delivered buckets, see FarmBuilder.supply.
+			if (step.item() != null && !growth) {
 				totals.merge(step.item(), 1, Integer::sum);
 			}
 		}
@@ -63,11 +63,6 @@ public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> m
 			throw new IllegalStateException(id + " places two blocks at " + String.join("; ", overlaps));
 		}
 		return new FarmTemplate(id, List.copyOf(steps), List.copyOf(materials), centerOf(steps));
-	}
-
-	/** The block count the farm lists show: water is supplied by a nearby source, so it is not counted. Progress still counts every step. */
-	public int shownBlocks() {
-		return (int) steps.stream().filter(step -> !FarmBuilder.isWater(step)).count();
 	}
 
 	/**

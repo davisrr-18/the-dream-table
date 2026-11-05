@@ -1,7 +1,9 @@
 package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.client.DreamTableHologram;
+import com.davisr.thedreamtable.client.clipboard.WaterRow;
 import com.davisr.thedreamtable.farm.FarmTemplate;
+import com.davisr.thedreamtable.farm.MaterialSpec;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 
@@ -53,7 +55,8 @@ public final class ProjectState {
 			return false;
 		}
 		for (int index = 0; index < template.materials().size(); index++) {
-			if (handler.deposited(index) < template.materials().get(index).count()) {
+			MaterialSpec spec = template.materials().get(index);
+			if (handler.deposited(index) < spec.count() && !WaterRow.covers(handler.getTablePos(), template, spec.item())) {
 				return false;
 			}
 		}

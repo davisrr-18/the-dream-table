@@ -200,6 +200,7 @@ Agents may improve code, tests, architecture, documentation, and rules when chan
 - Changelog (standing user decision, 2026-10-29): `CHANGELOG.md` always describes the version in development. As soon as a new version starts, replace it with that version's changelog, and update it in the same commit as every player-facing change, following `project-workflow.mdc`. It is the text Davi posts on CurseForge.
 - GitHub release (standing user decision, 2026-10-28): run `gh release` only after every adjustment of the update is done and the user says they will post it on CurseForge. Until then, keep building and committing.
 - Commits and pushes are automatic (standing user authorization, 2026-10-28): at the end of every finished task, phase, or milestone, after its verification passes, commit all of its changes and push them. Never commit failing builds, secrets, or unrelated user work.
+- Commit messages never carry a `Co-Authored-By` or any other Claude attribution line (standing user decision, 2026-11-05); this overrides the default attribution reminder.
 - Commits and pushes always land directly on `main` (standing user decision, 2026-10-28). Work may happen in a worktree branch, but integrate it by fast-forwarding `main` and pushing `main`; never force-push or rewrite history. If `main` cannot fast-forward, rebase the unpushed work onto `origin/main` and stop for direction on conflicts.
 
 Do not confuse implementation completion with release readiness.

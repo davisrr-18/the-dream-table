@@ -1,14 +1,13 @@
 package com.davisr.thedreamtable.client.clipboard;
 
 import com.davisr.thedreamtable.block.entity.TableSession;
-import com.davisr.thedreamtable.farm.FarmBuilder;
 import com.davisr.thedreamtable.farm.FarmGrowth;
 import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.MaterialSpec;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import org.jetbrains.annotations.Nullable;
+import net.minecraft.item.Items;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,7 +35,7 @@ public final class ClipboardLines {
 	}
 
 	public static List<Line> totals(TableSession table, FarmTemplate template) {
-		return totals(template, table::stored, table::resolve);
+		return totals(template, stored(table, template), table::resolve);
 	}
 
 	static List<Line> totals(FarmTemplate template, ToIntFunction<Item> stored, UnaryOperator<Item> resolve) {
@@ -50,26 +49,27 @@ public final class ClipboardLines {
 
 	/** Delivered items fill the order from the top, so earlier steps are struck through first. */
 	public static List<Line> order(TableSession table, FarmTemplate template) {
-		Line water = WaterRow.needed(template) ? WaterRow.line(WaterRow.nearby(table, template)) : null;
-		return order(template, table::stored, table::resolve, water);
+		return order(template, stored(table, template), table::resolve);
 	}
 
-	static List<Line> order(FarmTemplate template, ToIntFunction<Item> stored, UnaryOperator<Item> resolve, @Nullable Line water) {
+	/** Delivered counts, except that an infinite water source near the table counts as all the water buckets delivered. */
+	private static ToIntFunction<Item> stored(TableSession table, FarmTemplate template) {
+		boolean covered = WaterRow.needed(template) && WaterRow.nearby(table, template);
+		return item -> covered && item == Items.WATER_BUCKET ? Integer.MAX_VALUE : table.stored(item);
+	}
+
+	static List<Line> order(FarmTemplate template, ToIntFunction<Item> stored, UnaryOperator<Item> resolve) {
 		Map<Item, Integer> remaining = new HashMap<>();
 		for (MaterialSpec spec : template.materials()) {
 			remaining.putIfAbsent(spec.item(), stored.applyAsInt(spec.item()));
 		}
 		List<Line> lines = new ArrayList<>();
-		if (water != null) {
-			lines.add(water);
-		}
 		Item current = null;
 		int need = 0;
 		for (int index = 0; index < template.steps().size(); index++) {
 			FarmStep step = template.steps().get(index);
 			Item item = step.item();
-			// A water step is skipped without ending the run, so the blocks around it still merge into one line.
-			if (item == null || FarmBuilder.isWater(step) || FarmGrowth.isGrowth(template, index)) {
+			if (item == null || FarmGrowth.isGrowth(template, index)) {
 				continue;
 			}
 			if (item == current) {
