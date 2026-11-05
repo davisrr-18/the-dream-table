@@ -46,6 +46,13 @@ class WaterStepTest {
 	}
 
 	@Test
+	void listedBlockCountLeavesWaterOutButProgressKeepsEveryStep() {
+		FarmTemplate farm = farm(STONE, FREE, WATER);
+		assertEquals(2, farm.shownBlocks());
+		assertEquals(3, farm.steps().size());
+	}
+
+	@Test
 	void aWaterOnlyFarmHasNoMaterialsAtAll() {
 		assertTrue(farm(WATER).materials().isEmpty());
 	}

@@ -6,11 +6,12 @@ A new farm, water that no longer needs buckets, and a round of fixes for kept pr
 
 ## New farm
 
-- **Animal Farm.** Available under Mobs, with a **How It Works** page like the other built-in farms.
+- **Animal Farm.** Available under Mobs, with a **How It Works** page like the other built-in farms. Put the buckets in its dispensers once: pressing the button again takes the water or lava back, so they never need replacing.
 
 ## Water without buckets
 
 - Farms that use water no longer ask you for water buckets. They need an **infinite water source** within 6 blocks of the table: a water source with at least two other water sources touching it on its sides (a 2x2 pool works, or three sources in a row). Two sources with a gap between them, or a single source, are not enough. The requirements list shows one line telling you whether a source is nearby. Nothing is used up, so there is nothing to carry or get back. Water placed by farms does not count.
+- The block count shown for each farm no longer includes its water blocks.
 - If the source disappears while the build is running, the build stops at the next water block with a clear message and carries on by itself when a source is back.
 - A build you had already started in 1.1.1 on a farm with water keeps its progress, but the materials delivered after the first water block are handed back to you and need to be delivered again.
 

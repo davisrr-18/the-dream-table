@@ -229,10 +229,10 @@ public final class FarmTemplates {
 		return id.startsWith(ImportedStructures.ID_PREFIX);
 	}
 
-	/** The farm's block count, also known for a server's schematic that hasn't arrived yet; -1 when unknown. */
+	/** The farm's block count without its water (see {@link FarmTemplate#shownBlocks()}), also known for a server's schematic that hasn't arrived yet; -1 when unknown. */
 	public static int stepCount(String id) {
 		FarmTemplate template = TEMPLATES.containsKey(id) || remoteOptions == null ? get(id) : REMOTE.get(id);
-		return template != null ? template.steps().size() : REMOTE_STEPS.getOrDefault(id, -1);
+		return template != null ? template.shownBlocks() : REMOTE_STEPS.getOrDefault(id, -1);
 	}
 
 	/** The version of an imported farm's file on this computer, sent to clients so they notice an edited file. */

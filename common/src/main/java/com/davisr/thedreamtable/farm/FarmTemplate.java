@@ -65,6 +65,11 @@ public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> m
 		return new FarmTemplate(id, List.copyOf(steps), List.copyOf(materials), centerOf(steps));
 	}
 
+	/** The block count the farm lists show: water is supplied by a nearby source, so it is not counted. Progress still counts every step. */
+	public int shownBlocks() {
+		return (int) steps.stream().filter(step -> !FarmBuilder.isWater(step)).count();
+	}
+
 	/**
 	 * A fingerprint of every step: position, block state, item and entity. A build remembers it, so a farm
 	 * whose file changed since the build started is noticed before its saved progress is used on the wrong steps.
