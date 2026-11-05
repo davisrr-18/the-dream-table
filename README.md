@@ -1,6 +1,6 @@
 # The Dream Table
 
-Version `1.2.0` for Minecraft **1.21.1**, on Fabric (with Fabric API) and NeoForge.
+Version `1.2.0` for Minecraft **1.21.1**, on Fabric (with Fabric API), NeoForge and Forge.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets how fast it builds.
 
@@ -41,7 +41,7 @@ If a farm you finished with an early beta has no protection, place the same farm
 
 The table builds with the permissions of the player who started the build. It won't start a farm that touches spawn protection, land outside the world border, or a claim that player can't build in, and it won't build in Adventure mode. If a spot becomes protected during the build, the build stops there until you press Try Again.
 
-When a build stops, the menu says what happened and where (the block, its coordinates and the cause: protected land, a block the table won't clear, another farm, a missing item, or a block the game refused) and what you can do. A chunk that takes long to load is shown too, while the build waits for it. Pressing Try Again or Continue first checks whether the problem is gone: if it isn't, the build stays stopped and tells you, instead of starting and stopping again. Discard skips blocks the discarding player isn't allowed to break. Claim mods that use Fabric API's block break event, or NeoForge's block break and place events, are respected. Modpacks can protect blocks from other mods by adding them to the block tag `the_dream_table:protected`.
+When a build stops, the menu says what happened and where (the block, its coordinates and the cause: protected land, a block the table won't clear, another farm, a missing item, or a block the game refused) and what you can do. A chunk that takes long to load is shown too, while the build waits for it. Pressing Try Again or Continue first checks whether the problem is gone: if it isn't, the build stays stopped and tells you, instead of starting and stopping again. Discard skips blocks the discarding player isn't allowed to break. Claim mods that use Fabric API's block break event, or NeoForge's or Forge's block break and place events, are respected. Modpacks can protect blocks from other mods by adding them to the block tag `the_dream_table:protected`.
 
 Each player's table data is sent only to that player.
 
@@ -92,6 +92,7 @@ A finished farm keeps everything its blocks held in the schematic, like a hopper
 - Java 21
 - Fabric: Fabric Loader 0.16 or newer and Fabric API
 - NeoForge: NeoForge 21.1 (the 21.1 series, for Minecraft 1.21.1)
+- Forge: Forge 52 (for Minecraft 1.21.1)
 
 Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides, and the client and the server must run the same version (1.2.0).
 
@@ -99,9 +100,8 @@ Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.2.0. Fa
 
 ## Known limitations
 
-- Fabric and NeoForge only; there is no Forge build.
 - A farm built in Creative gives back no blocks on Take Down, even in Survival. Chest contents still come back.
-- Claim mods are respected through Fabric API's block break event on Fabric and through block break and place events on NeoForge. Claim mods that use other hooks are not seen.
+- Claim mods are respected through Fabric API's block break event on Fabric and through block break and place events on NeoForge and Forge. Claim mods that use other hooks are not seen.
 - Keep Loaded can't hold a farm that spans more than 64 chunks.
 - Text is available in English and Brazilian Portuguese only.
 - Protect My Farms only stops players breaking blocks by hand.
@@ -118,5 +118,6 @@ The build places one jar per loader in its own folder:
 
 - Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-1.2.0.jar`
 - NeoForge: `build/release/neoforge/the_dream_table-neoforge-1.2.0.jar`
+- Forge: `build/release/forge/the_dream_table-forge-1.2.0.jar`
 
-The `sources` and `dev-shadow` jars under `fabric/build/libs/` and `neoforge/build/libs/` are for development only.
+The `sources` and `dev-shadow` jars under each loader's `build/libs/` are for development only.

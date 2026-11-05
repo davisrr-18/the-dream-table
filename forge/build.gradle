@@ -1,0 +1,72 @@
+plugins {
+	id 'com.gradleup.shadow'
+}
+
+architectury {
+	platformSetupLoomIde()
+	forge()
+}
+
+configurations {
+	common {
+		canBeResolved = true
+		canBeConsumed = false
+	}
+	compileClasspath.extendsFrom common
+	runtimeClasspath.extendsFrom common
+	developmentForge.extendsFrom common
+
+	// Common classes are bundled into the loader jar after remapping.
+	shadowBundle {
+		canBeResolved = true
+		canBeConsumed = false
+	}
+}
+
+dependencies {
+	forge "net.minecraftforge:forge:$rootProject.forge_version"
+
+	common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
+	shadowBundle project(path: ':common', configuration: 'transformProductionForge')
+}
+
+loom {
+	// The legacy mixin annotation processor breaks the Forge 52 build (found in the 1.3.0 toolchain check).
+	mixin {
+		useLegacyMixinAp = false
+	}
+	runs {
+		client {
+			// A fixed name keeps the same offline UUID between launches, so farms and table sessions stay with the player.
+			programArgs "--username", "Davi"
+		}
+	}
+}
+
+processResources {
+	inputs.property 'version', project.version
+
+	filesMatching('META-INF/mods.toml') {
+		expand 'version': project.version
+	}
+}
+
+shadowJar {
+	configurations = [project.configurations.shadowBundle]
+	archiveClassifier = 'dev-shadow'
+	from(rootProject.file('LICENSE')) {
+		rename { "${it}_${rootProject.archives_base_name}" }
+	}
+}
+
+remapJar {
+	input.set shadowJar.archiveFile
+}
+
+evaluationDependsOn(':common')
+
+// Ship the shared sources next to the loader sources so IDE and debugging work from the published jar.
+sourcesJar {
+	from project(':common').sourceSets.main.allSource
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}

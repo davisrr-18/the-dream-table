@@ -24,11 +24,12 @@ subprojects {
 	repositories {
 		mavenCentral()
 		maven { url = 'https://maven.neoforged.net/releases/' }
+		maven { url = 'https://maven.minecraftforge.net/' }
 	}
 
 	dependencies {
 		minecraft "com.mojang:minecraft:$rootProject.minecraft_version"
-		// Yarn stays the source of truth; the patch fills in the NeoForge-only names.
+		// Yarn stays the source of truth; the patch fills in the NeoForge-only names. Forge shares these mappings with common.
 		mappings loom.layered {
 			it.mappings("net.fabricmc:yarn:$rootProject.yarn_mappings:v2")
 			it.mappings("dev.architectury:yarn-mappings-patch-neoforge:$rootProject.yarn_mappings_patch_neoforge_version")

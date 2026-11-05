@@ -18,7 +18,7 @@ tasks.register('verifyNoLoaderImports') {
 	inputs.files(sources)
 	doLast {
 		def loaderApis = /\bnet\.(fabricmc|neoforged|minecraftforge)\./
-		def adapters = /\bcom\.davisr\.thedreamtable\.(fabric|neoforge)\./
+		def adapters = /\bcom\.davisr\.thedreamtable\.(fabric|neoforge|forge)\./
 		def clientClasses = /\bnet\.minecraft\.client\./
 		def offenders = []
 		def sourceRoot = file('src/main/java').toPath()
