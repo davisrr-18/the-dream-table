@@ -1,6 +1,6 @@
 # The Dream Table 1.2.0
 
-Release date: TBD
+Release date: 2026-11-05
 
 A new farm, infinite water that covers a farm's water buckets, and a round of fixes for kept projects, Repair and shared tables. Worlds, finished farms and builds in progress from 1.1.1 carry over. The client and the server must both run 1.2.0.
 
