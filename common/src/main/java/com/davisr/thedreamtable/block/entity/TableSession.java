@@ -719,6 +719,7 @@ public final class TableSession {
 			String returnNotice = progress.returnNotice();
 			progress.reset(true);
 			progress.setReturnNotice(returnNotice);
+			desk.forgetUsed();
 			placement.clear();
 			movedBuildDimension = null;
 		}

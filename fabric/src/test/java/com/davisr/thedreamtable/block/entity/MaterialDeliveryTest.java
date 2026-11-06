@@ -34,6 +34,36 @@ class MaterialDeliveryTest {
 		assertEquals(TableNoticePayload.Severity.PROBLEM, MaterialDelivery.severity(MaterialDelivery.Tally.NONE));
 	}
 
+	/** A finished farm with every delivered item used holds nothing, so breaking the table keeps and claims nothing. */
+	@Test
+	void aDeskWithEveryItemUsedHoldsNoItems() {
+		MaterialDesk desk = new MaterialDesk(() -> farm, () -> { });
+		assertFalse(desk.holdsItems());
+		desk.accept(new ItemStack(Items.STONE, 2), false);
+		assertTrue(desk.holdsItems());
+		desk.spend(Items.STONE);
+		assertTrue(desk.holdsItems());
+		desk.spend(Items.STONE);
+		assertFalse(desk.holdsItems());
+		assertTrue(desk.anyDelivered());
+		assertEquals(TableSession.ParkKind.NOTHING,
+				TableSession.parkKind(false, true, desk.holdsItems(), false, false, true));
+	}
+
+	@Test
+	void aDeskKeptAsAProjectAcceptsTheFullDeliveryAgain() {
+		MaterialDesk desk = new MaterialDesk(() -> farm, () -> { });
+		desk.accept(new ItemStack(Items.STONE, 10), false);
+		desk.accept(new ItemStack(Items.GLASS, 3), false);
+		for (int i = 0; i < 9; i++) {
+			desk.spend(Items.STONE);
+		}
+		desk.forgetUsed();
+		assertEquals(1, desk.stored(Items.STONE));
+		assertEquals(9, desk.accept(new ItemStack(Items.STONE, 64), false));
+		assertEquals(0, desk.supplied(10));
+	}
+
 	@BeforeAll
 	static void setUp() {
 		GameSetup.bootstrap();
