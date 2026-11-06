@@ -8,7 +8,10 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 /** Forge's entrypoint: installs the platform, then runs the loader-neutral setup, and the client's on a client. */
 @Mod(TheDreamTableMod.MOD_ID)
 public final class TheDreamTableForge {
-	public TheDreamTableForge(FMLJavaModLoadingContext context) {
+	// No-arg constructor: NeoForge 47.1 (forked before Forge 47.2) cannot inject the loading context.
+	@SuppressWarnings("removal")
+	public TheDreamTableForge() {
+		FMLJavaModLoadingContext context = FMLJavaModLoadingContext.get();
 		ForgeServerNetwork network = ForgePlatform.install(context.getModEventBus());
 		TheDreamTableMod.init();
 		// Every payload is registered by now; Forge needs the whole channel at once.
