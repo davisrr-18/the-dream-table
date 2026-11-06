@@ -1,6 +1,6 @@
 # The Dream Table
 
-Version `1.2.0` for Minecraft **1.21.1**, on Fabric (with Fabric API), NeoForge and Forge.
+Version `1.2.0` for Minecraft **1.20.1**, on Fabric (with Fabric API), Forge and NeoForge (the Forge jar). For Minecraft 1.21.1, see the `main` branch.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets how fast it builds.
 
@@ -88,11 +88,11 @@ A finished farm keeps everything its blocks held in the schematic, like a hopper
 
 ## Requirements
 
-- Minecraft 1.21.1
-- Java 21
-- Fabric: Fabric Loader 0.16 or newer and Fabric API
-- NeoForge: NeoForge 21.1 (the 21.1 series, for Minecraft 1.21.1)
-- Forge: Forge 52 (for Minecraft 1.21.1)
+- Minecraft 1.20.1
+- Java 17
+- Fabric: Fabric Loader 0.16 or newer and Fabric API 0.92 or newer
+- Forge: Forge 47 (for Minecraft 1.20.1)
+- NeoForge: NeoForge 47.1 (for Minecraft 1.20.1), with the Forge jar
 
 Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides, and the client and the server must run the same version (1.2.0).
 
@@ -108,7 +108,7 @@ Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.2.0. Fa
 
 ## Build
 
-From the project root, with Java 21:
+From the project root, with Java 21 (the jars target Java 17):
 
 ```
 ./gradlew build
@@ -116,8 +116,7 @@ From the project root, with Java 21:
 
 The build places one jar per loader in its own folder:
 
-- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-1.2.0.jar`
-- NeoForge: `build/release/neoforge/the_dream_table-neoforge-1.2.0.jar`
-- Forge: `build/release/forge/the_dream_table-forge-1.2.0.jar`
+- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-mc1.20.1-1.2.0.jar`
+- Forge and NeoForge: `build/release/forge/the_dream_table-forge-mc1.20.1-1.2.0.jar`
 
 The `sources` and `dev-shadow` jars under each loader's `build/libs/` are for development only.
