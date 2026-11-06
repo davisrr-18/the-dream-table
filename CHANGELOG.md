@@ -7,7 +7,7 @@ The Dream Table now runs on Forge, and on Minecraft 1.20.1. This version only ad
 ## New loaders and versions
 
 - **Forge** support on Minecraft 1.21.1, next to Fabric and NeoForge.
-- **Minecraft 1.20.1** support, on Fabric, Forge and NeoForge.
+- **Minecraft 1.20.1** support, on Fabric and Forge.
 
 ## Good to know
 
