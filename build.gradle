@@ -18,7 +18,7 @@ subprojects {
 	apply plugin: 'architectury-plugin'
 
 	base {
-		// The Minecraft version in the name keeps these jars apart from the 1.21.1 ones on CurseForge.
+		// The Minecraft version in the name keeps each version's jars apart in build/release/ and on CurseForge.
 		archivesName = "$rootProject.archives_base_name-$project.name-mc$rootProject.minecraft_version"
 	}
 
