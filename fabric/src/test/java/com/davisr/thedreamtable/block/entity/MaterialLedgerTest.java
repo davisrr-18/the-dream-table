@@ -59,6 +59,53 @@ class MaterialLedgerTest {
 	}
 
 	@Test
+	void aFarmWithAllItemsUsedHoldsNothingLeft() {
+		MaterialLedger ledger = new MaterialLedger();
+		ledger.accept(farm, new ItemStack(Items.STONE, 2), false);
+		assertTrue(ledger.anyLeft());
+		ledger.consume(farm, Items.STONE);
+		assertTrue(ledger.anyLeft());
+		ledger.consume(farm, Items.STONE);
+		assertFalse(ledger.anyLeft());
+		assertTrue(ledger.anyDelivered(), "used items still count as progress while the build is kept");
+	}
+
+	@Test
+	void aKeptProjectForgetsUsedItemsAndKeepsTheUnusedOnes() {
+		MaterialLedger ledger = new MaterialLedger();
+		ledger.accept(farm, new ItemStack(Items.STONE, 10), false);
+		ledger.accept(farm, new ItemStack(Items.GLASS, 3), false);
+		for (int i = 0; i < 4; i++) {
+			ledger.consume(farm, Items.STONE);
+		}
+		for (int i = 0; i < 3; i++) {
+			ledger.consume(farm, Items.GLASS);
+		}
+		ledger.forgetUsed();
+		NbtCompound nbt = new NbtCompound();
+		ledger.write(nbt);
+		MaterialLedger loaded = new MaterialLedger();
+		loaded.read(nbt);
+		assertEquals(6, loaded.stored(farm, Items.STONE));
+		assertEquals(4, loaded.remaining(farm, Items.STONE), "the restarted build still needs what was used");
+		assertEquals(3, loaded.remaining(farm, Items.GLASS));
+		assertEquals(0, loaded.supplied(1));
+		assertEquals(3, loaded.accept(farm, new ItemStack(Items.GLASS, 5), false));
+	}
+
+	@Test
+	void aFinishedFarmWithNothingLeftIsUntouchedOnceUsedItemsAreForgotten() {
+		MaterialLedger ledger = new MaterialLedger();
+		ledger.accept(farm, new ItemStack(Items.STONE, 10), false);
+		for (int i = 0; i < 10; i++) {
+			ledger.consume(farm, Items.STONE);
+		}
+		ledger.forgetUsed();
+		assertFalse(ledger.anyDelivered());
+		assertEquals(10, ledger.accept(farm, new ItemStack(Items.STONE, 64), false));
+	}
+
+	@Test
 	void discardReturnsOnlyUnusedItems() {
 		MaterialLedger ledger = new MaterialLedger();
 		ledger.accept(farm, new ItemStack(Items.STONE, 10), false);

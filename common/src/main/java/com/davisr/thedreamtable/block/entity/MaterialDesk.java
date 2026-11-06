@@ -173,9 +173,13 @@ final class MaterialDesk {
 		}
 	}
 
-	/** True when anything was delivered or still sits in a slot, so there is something to hand back. */
+	/** True when delivered items are still unused or sit in a slot, so there is something to hand back. */
 	boolean holdsItems() {
-		return ledger.anyDelivered() || !slots.isEmpty();
+		return ledger.anyLeft() || !slots.isEmpty();
+	}
+
+	void forgetUsed() {
+		ledger.forgetUsed();
 	}
 
 	private void absorbSlots() {

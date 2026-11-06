@@ -70,6 +70,29 @@ public final class MaterialLedger {
 		return false;
 	}
 
+	/** True while delivered items are still unused, so there is something to hand back. Used ones don't count. */
+	public boolean anyLeft() {
+		for (int count : deposited) {
+			if (count > 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Forgets the used items and keeps the unused ones. For a project kept without its build progress: the used items
+	 * were placed as blocks that progress no longer holds, and counting them would make the farm look supplied for good.
+	 */
+	public void forgetUsed() {
+		for (int index = 0; index < deposited.length; index++) {
+			consumed[index] = 0;
+			if (deposited[index] == 0) {
+				delivered[index] = null;
+			}
+		}
+	}
+
 	public int deposited(int index) {
 		return valid(index) ? deposited[index] : 0;
 	}
