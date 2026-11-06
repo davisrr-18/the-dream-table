@@ -96,7 +96,9 @@ public final class SchematicReader {
 				return Result.rejected(ImportNote.Kind.TOO_LARGE, 0);
 			}
 			NbtCompound root;
-			try (DataInputStream input = new DataInputStream(new BufferedInputStream(new GZIPInputStream(Files.newInputStream(path))))) {
+			// The file stream is its own resource so it closes when GZIPInputStream refuses a raw file.
+			try (InputStream file = Files.newInputStream(path);
+					DataInputStream input = new DataInputStream(new BufferedInputStream(new GZIPInputStream(file)))) {
 				root = NbtIo.read(input, new SizeLimit());
 			} catch (ZipException uncompressed) {
 				try (DataInputStream input = new DataInputStream(new BufferedInputStream(Files.newInputStream(path)))) {

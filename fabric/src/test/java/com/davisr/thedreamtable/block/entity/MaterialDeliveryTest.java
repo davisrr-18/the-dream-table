@@ -128,6 +128,9 @@ class MaterialDeliveryTest {
 		box.getOrCreateSubNbt("BlockEntityTag").put("Items", new SimpleInventory(new ItemStack(Items.DIAMOND, 3)).toNbtList());
 		assertFalse(MaterialLedger.plain(box));
 		assertTrue(MaterialLedger.plain(new ItemStack(Items.SHULKER_BOX)));
+		ItemStack emptyNbt = new ItemStack(Items.SHULKER_BOX);
+		emptyNbt.getOrCreateNbt();
+		assertTrue(MaterialLedger.plain(emptyNbt), "an empty compound carries no data to lose");
 		List<FarmStep> steps = List.of(FarmStep.block(0, 0, 0, Blocks.SHULKER_BOX.getDefaultState(), Items.SHULKER_BOX));
 		FarmTemplate boxes = FarmTemplate.of("boxes", steps);
 		MaterialLedger ledger = new MaterialLedger();

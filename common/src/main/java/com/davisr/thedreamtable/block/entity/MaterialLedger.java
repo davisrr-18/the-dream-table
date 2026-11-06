@@ -131,12 +131,12 @@ public final class MaterialLedger {
 	}
 
 	/**
-	 * True for a stack with no NBT. A refund hands back a default stack of the
+	 * True for a stack with no NBT, or an empty compound (what 1.21's "no component changes" also allowed). A refund hands back a default stack of the
 	 * delivered item, so anything renamed, enchanted, damaged or holding contents (a shulker box) is never delivered:
 	 * it would lose that data.
 	 */
 	public static boolean plain(ItemStack stack) {
-		return !stack.hasNbt();
+		return !stack.hasNbt() || stack.getNbt().isEmpty();
 	}
 
 	/** How many more of this item the farm still takes, whatever its components. */
