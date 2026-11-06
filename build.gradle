@@ -58,6 +58,11 @@ subprojects {
 		def releaseJar = tasks.register('releaseJar', Sync) {
 			from tasks.named('remapJar')
 			into rootProject.layout.buildDirectory.dir("release/$project.name")
+			// Keeps the other Minecraft versions' jars handed over in the same folder; replaces only this version's.
+			preserve {
+				include '*.jar'
+				exclude "*-mc${rootProject.minecraft_version}-*"
+			}
 		}
 		tasks.named('assemble') { dependsOn releaseJar }
 	}
