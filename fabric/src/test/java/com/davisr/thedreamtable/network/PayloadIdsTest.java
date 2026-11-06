@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.GameSetup;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 

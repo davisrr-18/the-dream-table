@@ -78,7 +78,7 @@ class FinishedFarmsTest {
 
 		assertEquals(instanceId, farm.instanceId());
 		assertEquals("River Works", farm.customName());
-		FarmRecord record = FarmDirectory.record(new FarmKey(net.minecraft.util.new Identifier("minecraft", "overworld"), instanceId), farm);
+		FarmRecord record = FarmDirectory.record(new FarmKey(new net.minecraft.util.Identifier("minecraft", "overworld"), instanceId), farm);
 		assertTrue(FarmAccess.allows(record, PLAYER, FarmAction.REPAIR));
 	}
 

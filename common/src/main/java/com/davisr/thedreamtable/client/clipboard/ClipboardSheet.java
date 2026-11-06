@@ -5,7 +5,11 @@ import com.davisr.thedreamtable.client.clipboard.ClipboardLayout.Zone;
 import com.davisr.thedreamtable.client.clipboard.ClipboardLines.Line;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.DiffuseLighting;
+import net.minecraft.util.math.RotationAxis;
+import org.joml.Matrix4f;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
@@ -44,12 +48,20 @@ public final class ClipboardSheet {
 		List<float[]> strikes = new ArrayList<>();
 		drawIcons(matrices, text, state.totals(), strikes);
 		drawIcons(matrices, text, state.order(), strikes);
-		DiffuseLighting.enableForLevel();
+		restoreWorldLighting();
 
 		drawLabels(matrices, text, rows, state);
 		drawNames(matrices, text, state.totals());
 		drawNames(matrices, text, state.order());
 		drawStrikes(matrices, strikes);
+	}
+
+	/** 1.20.1 takes the camera rotation that the world render passed to enableForLevel, rebuilt as vanilla builds it. */
+	private static void restoreWorldLighting() {
+		Camera camera = MinecraftClient.getInstance().gameRenderer.getCamera();
+		DiffuseLighting.enableForLevel(new Matrix4f()
+				.rotate(RotationAxis.POSITIVE_X.rotationDegrees(camera.getPitch()))
+				.rotate(RotationAxis.POSITIVE_Y.rotationDegrees(camera.getYaw() + 180.0F)));
 	}
 
 	private static void drawChrome(MatrixStack matrices, TextRenderer text, Rows rows, State state, Zone hover) {

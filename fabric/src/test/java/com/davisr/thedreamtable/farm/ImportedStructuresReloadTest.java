@@ -78,7 +78,7 @@ class ImportedStructuresReloadTest {
 
 	private static void write(Path folder, String name) throws IOException {
 		Files.createDirectories(folder);
-		NbtIo.writeCompressed(stone(), folder.resolve(name));
+		NbtIo.writeCompressed(stone(), folder.resolve(name).toFile());
 	}
 
 	private static List<String> ids(ImportedStructures.Imports imports) {
@@ -121,7 +121,7 @@ class ImportedStructuresReloadTest {
 	@Test
 	void unusableFilesAreListedAsRejectedAndTakeNoId() throws IOException {
 		write(schematics, "good.nbt");
-		NbtIo.writeCompressed(new NbtCompound(), schematics.resolve("empty.nbt"));
+		NbtIo.writeCompressed(new NbtCompound(), schematics.resolve("empty.nbt").toFile());
 		Files.writeString(schematics.resolve("garbage.nbt"), "not nbt at all");
 
 		ImportedStructures.Imports imports = ImportedStructures.reload(null);

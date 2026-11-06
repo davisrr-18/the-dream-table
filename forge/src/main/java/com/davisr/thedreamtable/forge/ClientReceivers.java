@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable.forge;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 
 import java.util.Map;
 import java.util.Set;

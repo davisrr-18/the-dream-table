@@ -33,7 +33,11 @@ final class ForgeClientEvents implements ClientEvents {
 
 	@Override
 	public void onTickEnd(Consumer<MinecraftClient> listener) {
-		listen(BUS, TickEvent.ClientTickEvent.Post.class, event -> listener.accept(MinecraftClient.getInstance()));
+		listen(BUS, TickEvent.ClientTickEvent.class, event -> {
+			if (event.phase == TickEvent.Phase.END) {
+				listener.accept(MinecraftClient.getInstance());
+			}
+		});
 	}
 
 	@Override

@@ -3,16 +3,17 @@ package com.davisr.thedreamtable.network;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.platform.Platform;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.RegistryByteBuf;
+import com.davisr.thedreamtable.network.codec.PacketCodec;
+import com.davisr.thedreamtable.network.codec.PacketCodecs;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 public record DepositMaterialPayload(BlockPos table) implements CustomPayload {
 	public static final Id<DepositMaterialPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "deposit_material"));
 	public static final PacketCodec<RegistryByteBuf, DepositMaterialPayload> CODEC = PacketCodec.tuple(
-			BlockPos.PACKET_CODEC, DepositMaterialPayload::table,
+			PacketCodecs.BLOCK_POS, DepositMaterialPayload::table,
 			DepositMaterialPayload::new
 	);
 

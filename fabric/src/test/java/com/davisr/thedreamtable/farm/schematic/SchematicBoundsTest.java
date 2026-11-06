@@ -210,7 +210,7 @@ class SchematicBoundsTest {
 		regions.put("Huge", region(new int[]{0, 0, 0}, new int[]{100000, 100000, 100000}));
 		root.put("Regions", regions);
 		Path file = folder.resolve("huge.litematic");
-		NbtIo.writeCompressed(root, file);
+		NbtIo.writeCompressed(root, file.toFile());
 		assertTooWide(assertTimeoutPreemptively(QUICK, () -> SchematicReader.read("nbt:huge", file)));
 	}
 }

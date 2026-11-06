@@ -23,7 +23,10 @@ public final class UiControl extends PressableWidget {
 	public void update(ControlSpec spec, Runnable action) {
 		this.spec = spec;
 		this.action = action;
-		setDimensionsAndPosition(spec.bounds().width(), spec.bounds().height(), spec.bounds().x(), spec.bounds().y());
+		setWidth(spec.bounds().width());
+		height = spec.bounds().height();
+		setX(spec.bounds().x());
+		setY(spec.bounds().y());
 		setMessage(spec.narration());
 		active = spec.enabled();
 		visible = true;
@@ -46,7 +49,7 @@ public final class UiControl extends PressableWidget {
 	}
 
 	@Override
-	protected void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+	public void renderButton(DrawContext context, int mouseX, int mouseY, float delta) {
 		// Painter owns the pixel-art visuals; this widget owns interaction and accessibility only.
 	}
 

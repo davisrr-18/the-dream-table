@@ -109,7 +109,7 @@ public final class MapScreen extends Screen {
 	}
 
 	@Override
-	public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+	public void renderBackground(DrawContext context) {
 		// Left empty on purpose: the world stays undimmed and unblurred.
 	}
 
@@ -123,7 +123,7 @@ public final class MapScreen extends Screen {
 		if (!client.isWindowFocused()) {
 			held.clear();
 		}
-		MapMode.frame(client, movement(), client.getRenderTickCounter().getLastFrameDuration());
+		MapMode.frame(client, movement(), client.getLastFrameDuration());
 		drawControls(context);
 	}
 
@@ -268,7 +268,7 @@ public final class MapScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+	public boolean mouseScrolled(double mouseX, double mouseY, double verticalAmount) {
 		MapMode.scroll(verticalAmount);
 		return true;
 	}

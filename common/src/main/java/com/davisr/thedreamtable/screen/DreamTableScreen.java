@@ -43,7 +43,6 @@ import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.screen.slot.Slot;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
@@ -88,6 +87,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 
 	public DreamTableScreen(DreamTableScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title);
+		handler.showOnly(slot -> view.fullyVisible(new UiRect(this.x + slot.x, this.y + slot.y, 16, 16)));
 		this.backgroundWidth = PANEL_WIDTH;
 		this.backgroundHeight = HEADER + Viewport.DESIGN_VIEW;
 		this.playerInventoryTitleY = 10_000;
@@ -133,6 +133,8 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
 		layout();
 		updateHologram();
+		// 1.20.1's Screen.render does not dim the world itself, as 1.20.2+ does.
+		renderBackground(context);
 		super.render(context, mouseX, mouseY, delta);
 		view.release(context);
 		drawMouseoverTooltip(context, mouseX, mouseY);
@@ -192,14 +194,6 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	}
 
 	@Override
-	protected void drawSlot(DrawContext context, Slot slot) {
-		UiRect bounds = new UiRect(this.x + slot.x, this.y + slot.y, 16, 16);
-		if (view.fullyVisible(bounds)) {
-			super.drawSlot(context, slot);
-		}
-	}
-
-	@Override
 	protected boolean isPointWithinBounds(int x, int y, int width, int height, double pointX, double pointY) {
 		return view.fullyVisible(new UiRect(this.x + x, this.y + y, width, height))
 				&& super.isPointWithinBounds(x, y, width, height, pointX, pointY);
@@ -254,13 +248,13 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	}
 
 	@Override
-	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+	public boolean mouseScrolled(double mouseX, double mouseY, double verticalAmount) {
 		layout();
 		if (view.scrollBy(verticalAmount)) {
 			layout();
 			return true;
 		}
-		return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+		return super.mouseScrolled(mouseX, mouseY, verticalAmount);
 	}
 
 	@Override

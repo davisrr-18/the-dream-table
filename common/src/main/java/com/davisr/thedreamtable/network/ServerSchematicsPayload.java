@@ -11,10 +11,10 @@ import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.RegistryByteBuf;
+import com.davisr.thedreamtable.network.codec.PacketCodec;
+import com.davisr.thedreamtable.network.codec.PacketCodecs;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
@@ -110,7 +110,7 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 		}
 		List<ImportedStructures.Rejected> rejected = FarmTemplates.rejected();
 		Platform.network().send(player, encodable(entries, List.copyOf(rejected.subList(0, Math.min(MAX_SCHEMATICS, rejected.size()))),
-				player.getRegistryManager()));
+				player.getWorld().getRegistryManager()));
 	}
 
 	/**

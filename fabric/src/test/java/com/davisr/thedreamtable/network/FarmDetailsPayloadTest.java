@@ -3,8 +3,8 @@ package com.davisr.thedreamtable.network;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
+import com.davisr.thedreamtable.network.codec.RegistryByteBuf;
+import com.davisr.thedreamtable.network.codec.PacketCodec;
 import net.minecraft.registry.DynamicRegistryManager;
 import org.junit.jupiter.api.Test;
 

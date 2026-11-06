@@ -2,12 +2,12 @@ package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.platform.Platform;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.RegistryByteBuf;
+import com.davisr.thedreamtable.network.codec.PacketCodec;
+import com.davisr.thedreamtable.network.codec.PacketCodecs;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
-import net.minecraft.text.TextCodecs;
 import net.minecraft.util.Identifier;
 
 /**
@@ -18,10 +18,10 @@ public record TableNoticePayload(Text text, Severity severity) implements Custom
 	public static final Id<TableNoticePayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "table_notice"));
 	public static final PacketCodec<RegistryByteBuf, TableNoticePayload> CODEC = PacketCodec.of(
 			(payload, buf) -> {
-				TextCodecs.REGISTRY_PACKET_CODEC.encode(buf, payload.text());
+				PacketCodecs.TEXT.encode(buf, payload.text());
 				buf.writeEnumConstant(payload.severity());
 			},
-			buf -> new TableNoticePayload(TextCodecs.REGISTRY_PACKET_CODEC.decode(buf), buf.readEnumConstant(Severity.class)));
+			buf -> new TableNoticePayload(PacketCodecs.TEXT.decode(buf), buf.readEnumConstant(Severity.class)));
 
 	/** INFO is plain information or success; PROBLEM is a refusal, warning or alert and is drawn in red. */
 	public enum Severity {

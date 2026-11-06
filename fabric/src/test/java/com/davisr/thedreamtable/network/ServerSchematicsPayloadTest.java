@@ -4,7 +4,7 @@ import com.davisr.thedreamtable.GameSetup;
 import com.davisr.thedreamtable.farm.ImportNote;
 import com.davisr.thedreamtable.farm.ImportedStructures;
 import io.netty.buffer.Unpooled;
-import net.minecraft.network.RegistryByteBuf;
+import com.davisr.thedreamtable.network.codec.RegistryByteBuf;
 import net.minecraft.registry.DynamicRegistryManager;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

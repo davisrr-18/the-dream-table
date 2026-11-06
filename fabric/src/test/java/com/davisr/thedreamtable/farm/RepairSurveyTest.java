@@ -32,7 +32,7 @@ class RepairSurveyTest {
 	@Test
 	void emptyOrReplaceableSpotsAreMissing() {
 		assertEquals(FarmAreas.Spot.MISSING, FarmAreas.spot(Blocks.AIR.getDefaultState(), HOPPER));
-		assertEquals(FarmAreas.Spot.MISSING, FarmAreas.spot(Blocks.SHORT_GRASS.getDefaultState(), HOPPER));
+		assertEquals(FarmAreas.Spot.MISSING, FarmAreas.spot(Blocks.GRASS.getDefaultState(), HOPPER));
 		assertEquals(FarmAreas.Spot.MISSING, FarmAreas.spot(Fluids.FLOWING_WATER.getFlowing(3, false).getBlockState(), HOPPER));
 	}
 

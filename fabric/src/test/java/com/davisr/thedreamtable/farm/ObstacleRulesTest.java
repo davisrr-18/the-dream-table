@@ -100,7 +100,7 @@ class ObstacleRulesTest {
 
 	@Test
 	void aLayerClearTakesFluidsAndPlantsButNotAirOrAStepCell() {
-		for (Block block : new Block[]{Blocks.WATER, Blocks.LAVA, Blocks.SHORT_GRASS, Blocks.TALL_GRASS, Blocks.FERN, Blocks.DANDELION,
+		for (Block block : new Block[]{Blocks.WATER, Blocks.LAVA, Blocks.GRASS, Blocks.TALL_GRASS, Blocks.FERN, Blocks.DANDELION,
 				Blocks.SNOW, Blocks.FIRE, Blocks.STONE, Blocks.OAK_DOOR}) {
 			assertTrue(clearableInLayer(block, false), block.toString());
 		}

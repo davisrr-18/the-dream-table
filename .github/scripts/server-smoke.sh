@@ -3,7 +3,7 @@
 # command `stop`, and fails if the server never finishes starting, never saves on shutdown, or the log holds an
 # exception from The Dream Table.
 #
-#   server-smoke.sh <fabric|neoforge|forge>
+#   server-smoke.sh <fabric|forge>
 #
 # Environment (all optional):
 #   SMOKE_COMMAND   command that starts the server (default: ./gradlew :<loader>:runServer --no-daemon --console=plain)
@@ -16,7 +16,7 @@
 # and are not mod errors.
 set -u
 
-loader="${1:?usage: server-smoke.sh <fabric|neoforge|forge>}"
+loader="${1:?usage: server-smoke.sh <fabric|forge>}"
 start_timeout="${START_TIMEOUT:-1200}"
 stop_timeout="${STOP_TIMEOUT:-180}"
 log_dir="${LOG_DIR:-${RUNNER_TEMP:-/tmp}}"

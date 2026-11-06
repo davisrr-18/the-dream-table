@@ -8,10 +8,8 @@ import net.minecraft.block.entity.EnderChestBlockEntity;
 import net.minecraft.block.entity.HopperBlockEntity;
 import net.minecraft.block.entity.ShulkerBoxBlockEntity;
 import net.minecraft.block.entity.TrappedChestBlockEntity;
-import net.minecraft.component.ComponentChanges;
-import net.minecraft.component.ComponentMap;
-import net.minecraft.component.DataComponentTypes;
 import net.minecraft.inventory.ContainerLock;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.loot.LootTables;
@@ -56,7 +54,9 @@ class NearbyContainersTest {
 		ChestBlockEntity open = new ChestBlockEntity(TABLE, Blocks.CHEST.getDefaultState());
 		assertFalse(NearbyContainers.locked(open));
 		ChestBlockEntity locked = new ChestBlockEntity(TABLE, Blocks.CHEST.getDefaultState());
-		locked.readComponents(ComponentMap.builder().add(DataComponentTypes.LOCK, new ContainerLock("key")).build(), ComponentChanges.EMPTY);
+		NbtCompound lock = new NbtCompound();
+		new ContainerLock("key").writeNbt(lock);
+		locked.readNbt(lock);
 		assertTrue(NearbyContainers.locked(locked));
 	}
 
@@ -64,10 +64,10 @@ class NearbyContainersTest {
 	void unopenedLootContainersAreSkipped() {
 		ChestBlockEntity chest = new ChestBlockEntity(TABLE, Blocks.CHEST.getDefaultState());
 		assertFalse(NearbyContainers.unopenedLoot(chest));
-		chest.setLootTable(LootTables.SIMPLE_DUNGEON_CHEST);
+		chest.setLootTable(LootTables.SIMPLE_DUNGEON_CHEST, 0L);
 		assertTrue(NearbyContainers.unopenedLoot(chest));
 		BarrelBlockEntity barrel = new BarrelBlockEntity(TABLE, Blocks.BARREL.getDefaultState());
-		barrel.setLootTable(LootTables.SIMPLE_DUNGEON_CHEST);
+		barrel.setLootTable(LootTables.SIMPLE_DUNGEON_CHEST, 0L);
 		assertTrue(NearbyContainers.unopenedLoot(barrel));
 	}
 

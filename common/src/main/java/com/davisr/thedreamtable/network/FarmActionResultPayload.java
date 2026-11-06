@@ -2,9 +2,9 @@ package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.platform.Platform;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.RegistryByteBuf;
+import com.davisr.thedreamtable.network.codec.PacketCodec;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 import net.minecraft.util.Identifier;
 
 /** Explicit result for a cooperative farm request; clients never infer success from optimistic UI state. */

@@ -35,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        loader: [fabric, neoforge, forge]
+        loader: [fabric, forge]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

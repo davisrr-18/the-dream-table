@@ -43,7 +43,11 @@ final class ForgeServerEvents implements ServerEvents {
 
 	@Override
 	public void onTickEnd(Consumer<MinecraftServer> listener) {
-		listen(BUS, TickEvent.ServerTickEvent.Post.class, event -> listener.accept(event.getServer()));
+		listen(BUS, TickEvent.ServerTickEvent.class, event -> {
+			if (event.phase == TickEvent.Phase.END) {
+				listener.accept(event.getServer());
+			}
+		});
 	}
 
 	@Override

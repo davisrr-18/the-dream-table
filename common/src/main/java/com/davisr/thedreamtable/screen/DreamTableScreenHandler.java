@@ -28,6 +28,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int PAGE_SELECT = 0;
@@ -87,6 +88,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private final UUID playerId;
 	private String selectedFarm;
 	private int page;
+	/** Set by the client's screen: 1.20.1's HandledScreen.drawSlot is private, so slots the scroll view cuts off are disabled instead. */
+	private Predicate<Slot> shown = slot -> true;
 	private int buildIndex;
 	private int phase;
 	private int total;
@@ -152,6 +155,14 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public String getSelectedFarm() {
 		TableSession table = client ? null : table();
 		return table == null ? selectedFarm : table.getSelectedFarm();
+	}
+
+	public void showOnly(Predicate<Slot> shown) {
+		this.shown = shown;
+	}
+
+	boolean shown(Slot slot) {
+		return shown.test(slot);
 	}
 
 	public int getPage() {
@@ -467,7 +478,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 		@Override
 		public boolean isEnabled() {
-			return getPage() == PAGE_REQUIREMENTS;
+			return getPage() == PAGE_REQUIREMENTS && shown(this);
 		}
 	}
 }

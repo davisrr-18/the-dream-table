@@ -3,7 +3,7 @@ package com.davisr.thedreamtable.forge;
 import com.davisr.thedreamtable.platform.ClientNetwork;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 
 import java.util.function.Consumer;
 
@@ -30,7 +30,10 @@ final class ForgeClientNetwork implements ClientNetwork {
 	public void send(CustomPayload payload) {
 		ClientPlayNetworkHandler handler = MinecraftClient.getInstance().getNetworkHandler();
 		if (handler != null) {
-			network.channel().send(payload, handler.getConnection());
+			ForgeServerNetwork.Envelope envelope = ForgeServerNetwork.Envelope.of(payload);
+			if (envelope != null) {
+				network.channel().sendToServer(envelope);
+			}
 		}
 	}
 }

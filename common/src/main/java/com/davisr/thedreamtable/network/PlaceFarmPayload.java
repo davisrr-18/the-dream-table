@@ -6,10 +6,10 @@ import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.platform.Platform;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.RegistryByteBuf;
+import com.davisr.thedreamtable.network.codec.PacketCodec;
+import com.davisr.thedreamtable.network.codec.PacketCodecs;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -19,9 +19,9 @@ import net.minecraft.util.math.Direction;
 public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing, boolean mirrored) implements CustomPayload {
 	public static final Id<PlaceFarmPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "place_farm"));
 	public static final PacketCodec<RegistryByteBuf, PlaceFarmPayload> CODEC = PacketCodec.tuple(
-			BlockPos.PACKET_CODEC, PlaceFarmPayload::table,
-			BlockPos.PACKET_CODEC, PlaceFarmPayload::anchor,
-			Direction.PACKET_CODEC, PlaceFarmPayload::facing,
+			PacketCodecs.BLOCK_POS, PlaceFarmPayload::table,
+			PacketCodecs.BLOCK_POS, PlaceFarmPayload::anchor,
+			PacketCodecs.DIRECTION, PlaceFarmPayload::facing,
 			PacketCodecs.BOOL, PlaceFarmPayload::mirrored,
 			PlaceFarmPayload::new
 	);

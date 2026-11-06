@@ -61,7 +61,7 @@ class FarmLoaderSelectionTest {
 		UUID player = UUID.randomUUID();
 
 		assertEquals(FarmLoader.ToggleResult.NOT_FOUND, loader.toggleKnown(player, "forged", false));
-		assertFalse(loader.writeNbt(new net.minecraft.nbt.NbtCompound(), null)
+		assertFalse(loader.writeNbt(new net.minecraft.nbt.NbtCompound())
 				.getCompound("Players").contains(player.toString()));
 	}
 

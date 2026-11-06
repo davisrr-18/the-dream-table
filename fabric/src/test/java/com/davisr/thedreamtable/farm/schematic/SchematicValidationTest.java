@@ -61,7 +61,7 @@ class SchematicValidationTest {
 
 	private SchematicReader.Result read(NbtCompound root) throws IOException {
 		Path file = folder.resolve("farm.nbt");
-		NbtIo.writeCompressed(root, file);
+		NbtIo.writeCompressed(root, file.toFile());
 		return SchematicReader.read("nbt:farm", file);
 	}
 

@@ -93,9 +93,9 @@ class FarmMirrorTest {
 		for (Direction facing : Direction.Type.HORIZONTAL) {
 			Box plain = new FarmSite(TABLE, ANCHOR, facing, false).footprint(farm);
 			Box mirrored = new FarmSite(TABLE, ANCHOR, facing, true).footprint(farm);
-			assertEquals(plain.getLengthX(), mirrored.getLengthX(), 1.0E-6, facing.asString());
-			assertEquals(plain.getLengthY(), mirrored.getLengthY(), 1.0E-6, facing.asString());
-			assertEquals(plain.getLengthZ(), mirrored.getLengthZ(), 1.0E-6, facing.asString());
+			assertEquals(plain.getXLength(), mirrored.getXLength(), 1.0E-6, facing.asString());
+			assertEquals(plain.getYLength(), mirrored.getYLength(), 1.0E-6, facing.asString());
+			assertEquals(plain.getZLength(), mirrored.getZLength(), 1.0E-6, facing.asString());
 			assertEquals(plain.minY, mirrored.minY, 1.0E-6, facing.asString());
 			assertTrue(mirrored.contains(ANCHOR.getX() + 0.5, ANCHOR.getY() + 0.5, ANCHOR.getZ() + 0.5), facing.asString());
 		}

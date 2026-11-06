@@ -145,8 +145,8 @@ class BuiltInFarmsTest {
 		for (Direction facing : Direction.Type.HORIZONTAL) {
 			FarmSite site = new FarmSite(table, anchor, facing);
 			Box box = site.footprint(farm);
-			assertEquals(north.getLengthY(), box.getLengthY(), 1.0E-6, facing.asString());
-			assertEquals(north.getLengthX() * north.getLengthZ(), box.getLengthX() * box.getLengthZ(), 1.0E-6, facing.asString());
+			assertEquals(north.getYLength(), box.getYLength(), 1.0E-6, facing.asString());
+			assertEquals(north.getXLength() * north.getZLength(), box.getXLength() * box.getZLength(), 1.0E-6, facing.asString());
 			assertEquals(anchor.getY(), (int) box.minY, facing.asString());
 			assertTrue(box.contains(anchor.getX() + 0.5, anchor.getY() + 0.5, anchor.getZ() + 0.5), facing.asString());
 		}

@@ -84,7 +84,7 @@ public final class FarmMiniature implements BlockEntityRenderer<DreamTableBlockE
 			float red = tint == -1 ? 1.0F : ((tint >> 16) & 255) / 255.0F;
 			float green = tint == -1 ? 1.0F : ((tint >> 8) & 255) / 255.0F;
 			float blue = tint == -1 ? 1.0F : (tint & 255) / 255.0F;
-			buffer.quad(entry, part.quads().get(index), red, green, blue, 1.0F, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV);
+			buffer.quad(entry, part.quads().get(index), red, green, blue, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV);
 		}
 	}
 

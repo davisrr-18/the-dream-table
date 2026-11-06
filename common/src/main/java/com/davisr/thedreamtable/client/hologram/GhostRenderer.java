@@ -11,7 +11,7 @@ import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.gl.VertexBuffer;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
-import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.BufferBuilder.BuiltBuffer;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
@@ -109,25 +109,25 @@ public final class GhostRenderer {
 		Matrix4f matrix = matrices.peek().getPositionMatrix();
 		// One buffer at a time: the passes share the tessellator's memory, so each is drawn before the next is begun.
 		if (footprint != null) {
-			BufferBuilder frame = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			BufferBuilder frame = begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 			emit(frame, matrix, PlacementOutline.ribbons(footprint.expand(OUTLINE_GROW), camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH), rgb);
 			drawPass(frame, false);
 			if (floor) {
-				BufferBuilder ground = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+				BufferBuilder ground = begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 				fill(matrices, ground, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
 				drawPass(ground, true);
 			}
 		}
 		if (anchor != null) {
 			// The block's corners are bracketed right on its edges, and a beam fading upward finds the spot from far away.
-			BufferBuilder brackets = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			BufferBuilder brackets = begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 			emit(brackets, matrix, PlacementOutline.brackets(anchor, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BRACKET_WIDTH_FACTOR, BRACKET_MAX_HALF), rgb);
 			drawPass(brackets, false);
-			BufferBuilder beam = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			BufferBuilder beam = begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 			float[] alpha = {1.0F, 1.0F, 0.0F, 0.0F};
 			for (Vec3d[] ribbon : PlacementOutline.beam(anchor, BEAM_HEIGHT, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BEAM_WIDTH_FACTOR, BEAM_MAX_HALF)) {
 				for (int corner = 0; corner < ribbon.length; corner++) {
-					beam.vertex(matrix, (float) ribbon[corner].x, (float) ribbon[corner].y, (float) ribbon[corner].z).color(rgb[0], rgb[1], rgb[2], alpha[corner]);
+					beam.vertex(matrix, (float) ribbon[corner].x, (float) ribbon[corner].y, (float) ribbon[corner].z).color(rgb[0], rgb[1], rgb[2], alpha[corner]).next();
 				}
 			}
 			drawPass(beam, true);
@@ -146,7 +146,7 @@ public final class GhostRenderer {
 		RenderSystem.disableCull();
 		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 		Matrix4f matrix = matrices.peek().getPositionMatrix();
-		BufferBuilder corners = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+		BufferBuilder corners = begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 		for (BlockPos pos : edge) {
 			if (PlacementOutline.outsideView(Vec3d.ofCenter(pos).subtract(camera), forward)) {
 				continue;
@@ -158,6 +158,13 @@ public final class GhostRenderer {
 		RenderSystem.enableCull();
 		RenderSystem.disableBlend();
 		RenderSystem.enableDepthTest();
+	}
+
+	/** 1.20.1 has one shared tessellator buffer, begun here; each pass is drawn before the next one begins. */
+	private static BufferBuilder begin(VertexFormat.DrawMode mode, VertexFormat format) {
+		BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+		buffer.begin(mode, format);
+		return buffer;
 	}
 
 	/** Draws one finished buffer, solid (no blending, writes depth) or translucent (blended, no depth write). */
@@ -180,7 +187,7 @@ public final class GhostRenderer {
 	private static void emit(BufferBuilder buffer, Matrix4f matrix, List<Vec3d[]> ribbons, float[] rgb) {
 		for (Vec3d[] ribbon : ribbons) {
 			for (Vec3d corner : ribbon) {
-				buffer.vertex(matrix, (float) corner.x, (float) corner.y, (float) corner.z).color(rgb[0], rgb[1], rgb[2], 1.0F);
+				buffer.vertex(matrix, (float) corner.x, (float) corner.y, (float) corner.z).color(rgb[0], rgb[1], rgb[2], 1.0F).next();
 			}
 		}
 	}
@@ -279,7 +286,7 @@ public final class GhostRenderer {
 	 * whether that block is built, so it is recorded as a seam and drawn each frame instead.
 	 */
 	private static Mesh bake(List<FarmFaces.Part> parts, GhostPlan plan, List<FarmStep> steps, int chunk, int window) {
-		BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
+		BufferBuilder buffer = begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
 		List<Integer> seams = new ArrayList<>();
 		for (int index = plan.chunkStart(chunk); index < plan.chunkEnd(chunk); index++) {
 			if (plan.layer(index) > window) {
@@ -330,17 +337,14 @@ public final class GhostRenderer {
 			return;
 		}
 		Matrix4f view = new Matrix4f(RenderSystem.getModelViewMatrix()).mul(world);
-		shader.initializeUniforms(VertexFormat.DrawMode.QUADS, view, RenderSystem.getProjectionMatrix(), MinecraftClient.getInstance().getWindow());
-		if (shader.colorModulator != null) {
-			shader.colorModulator.set(tint.red(), tint.green(), tint.blue(), tint.alpha() / 255.0F);
-		}
-		shader.bind();
+		// 1.20.1's VertexBuffer.draw sets the uniforms itself and takes the color modulator from the shader color.
+		RenderSystem.setShaderColor(tint.red(), tint.green(), tint.blue(), tint.alpha() / 255.0F);
 		for (VertexBuffer vertices : BAKED) {
 			vertices.bind();
-			vertices.draw();
+			vertices.draw(view, RenderSystem.getProjectionMatrix(), shader);
 		}
 		VertexBuffer.unbind();
-		shader.unbind();
+		RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
 	}
 
 	/**
@@ -349,7 +353,7 @@ public final class GhostRenderer {
 	 */
 	private static void drawLive(MatrixStack matrices, List<FarmFaces.Part> parts, List<FarmStep> steps, GhostPlan plan, int chunk,
 			int shownPlaced, int window, boolean blocked, boolean refused, float wave) {
-		BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
+		BufferBuilder buffer = begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
 		Matrix4f base = matrices.peek().getPositionMatrix();
 		for (int index = plan.chunkStart(chunk); index < plan.chunkEnd(chunk); index++) {
 			FarmFaces.Part part = parts.get(index);
@@ -454,7 +458,7 @@ public final class GhostRenderer {
 			float z = Float.intBitsToFloat(data[offset + 2]);
 			float u = Float.intBitsToFloat(data[offset + 4]);
 			float v = Float.intBitsToFloat(data[offset + 5]);
-			buffer.vertex(matrix, x, y, z).texture(u, v).color(red, green, blue, tint.alpha());
+			buffer.vertex(matrix, x, y, z).texture(u, v).color(red, green, blue, tint.alpha()).next();
 		}
 	}
 
@@ -478,9 +482,9 @@ public final class GhostRenderer {
 		float v0 = uv[1];
 		float u1 = uv[2];
 		float v1 = uv[3];
-		buffer.vertex(matrix, corners[0], corners[1], corners[2]).texture(u0, v1).color(color[0], color[1], color[2], color[3]);
-		buffer.vertex(matrix, corners[3], corners[4], corners[5]).texture(u0, v0).color(color[0], color[1], color[2], color[3]);
-		buffer.vertex(matrix, corners[6], corners[7], corners[8]).texture(u1, v0).color(color[0], color[1], color[2], color[3]);
-		buffer.vertex(matrix, corners[9], corners[10], corners[11]).texture(u1, v1).color(color[0], color[1], color[2], color[3]);
+		buffer.vertex(matrix, corners[0], corners[1], corners[2]).texture(u0, v1).color(color[0], color[1], color[2], color[3]).next();
+		buffer.vertex(matrix, corners[3], corners[4], corners[5]).texture(u0, v0).color(color[0], color[1], color[2], color[3]).next();
+		buffer.vertex(matrix, corners[6], corners[7], corners[8]).texture(u1, v0).color(color[0], color[1], color[2], color[3]).next();
+		buffer.vertex(matrix, corners[9], corners[10], corners[11]).texture(u1, v1).color(color[0], color[1], color[2], color[3]).next();
 	}
 }

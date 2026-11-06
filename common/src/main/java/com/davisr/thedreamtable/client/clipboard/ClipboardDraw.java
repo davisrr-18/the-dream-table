@@ -5,7 +5,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
-import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.BufferBuilder.BuiltBuffer;
 import net.minecraft.client.render.DiffuseLighting;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -31,20 +31,27 @@ public final class ClipboardDraw {
 	private ClipboardDraw() {
 	}
 
+	/** 1.20.1 has one shared tessellator buffer, begun here; each pass is drawn before the next one begins. */
+	static BufferBuilder begin(VertexFormat.DrawMode mode, VertexFormat format) {
+		BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+		buffer.begin(mode, format);
+		return buffer;
+	}
+
 	public static BufferBuilder quads() {
-		return Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+		return begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 	}
 
 	public static BufferBuilder triangles() {
-		return Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+		return begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 	}
 
 	public static void flat(BufferBuilder buffer, MatrixStack matrices, float x0, float y0, float x1, float y1, float z, float r, float g, float b) {
 		Matrix4f matrix = matrices.peek().getPositionMatrix();
-		buffer.vertex(matrix, x0, y0, z).color(r, g, b, 1.0F);
-		buffer.vertex(matrix, x0, y1, z).color(r, g, b, 1.0F);
-		buffer.vertex(matrix, x1, y1, z).color(r, g, b, 1.0F);
-		buffer.vertex(matrix, x1, y0, z).color(r, g, b, 1.0F);
+		buffer.vertex(matrix, x0, y0, z).color(r, g, b, 1.0F).next();
+		buffer.vertex(matrix, x0, y1, z).color(r, g, b, 1.0F).next();
+		buffer.vertex(matrix, x1, y1, z).color(r, g, b, 1.0F).next();
+		buffer.vertex(matrix, x1, y0, z).color(r, g, b, 1.0F).next();
 	}
 
 	public static void flush(BufferBuilder buffer) {
@@ -100,9 +107,9 @@ public final class ClipboardDraw {
 		float green = enabled ? 0.16F : 0.44F;
 		float blue = enabled ? 0.07F : 0.32F;
 		float z = 0.032F;
-		buffer.vertex(matrix, centerX + direction * 0.075F, centerY, z).color(red, green, blue, 1.0F);
-		buffer.vertex(matrix, centerX - direction * 0.045F, centerY + 0.055F, z).color(red, green, blue, 1.0F);
-		buffer.vertex(matrix, centerX - direction * 0.045F, centerY - 0.055F, z).color(red, green, blue, 1.0F);
+		buffer.vertex(matrix, centerX + direction * 0.075F, centerY, z).color(red, green, blue, 1.0F).next();
+		buffer.vertex(matrix, centerX - direction * 0.045F, centerY + 0.055F, z).color(red, green, blue, 1.0F).next();
+		buffer.vertex(matrix, centerX - direction * 0.045F, centerY - 0.055F, z).color(red, green, blue, 1.0F).next();
 	}
 
 	public static void label(MatrixStack matrices, TextRenderer text, float x, float y, Text content, float scale) {

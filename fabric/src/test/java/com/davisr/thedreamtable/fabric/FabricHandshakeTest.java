@@ -5,8 +5,8 @@ import com.davisr.thedreamtable.network.NetworkProtocol;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.PacketCodec;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 import net.minecraft.text.TextContent;
 import net.minecraft.text.TranslatableTextContent;
 import org.junit.jupiter.api.BeforeAll;
@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Fabric's configuration-phase handshake: its wire format, ids and the disconnect message. */
+/** Fabric's login-phase handshake: its wire format, ids and the disconnect message. */
 class FabricHandshakeTest {
 	@BeforeAll
 	static void bootstrap() {
@@ -49,7 +49,6 @@ class FabricHandshakeTest {
 	@Test
 	void theChannelIdsAreFrozen() {
 		assertEquals("the_dream_table:handshake", FabricHandshake.REQUEST_ID.id().toString());
-		assertEquals("the_dream_table:handshake_reply", FabricHandshake.REPLY_ID.id().toString());
 	}
 
 	@Test

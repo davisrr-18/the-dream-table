@@ -2,41 +2,30 @@ package com.davisr.thedreamtable.fabric;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.network.NetworkProtocol;
-import net.fabricmc.fabric.api.networking.v1.FabricServerConfigurationNetworkHandler;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerConfigurationConnectionEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerConfigurationNetworking;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
+import com.davisr.thedreamtable.network.codec.PacketCodec;
+import com.davisr.thedreamtable.network.codec.PacketCodecs;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import net.fabricmc.fabric.api.networking.v1.ServerLoginConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerLoginNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.server.network.ServerConfigurationNetworkHandler;
-import net.minecraft.server.network.ServerPlayerConfigurationTask;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-import java.util.Collections;
-import java.util.Set;
-import java.util.WeakHashMap;
-import java.util.function.Consumer;
-
 /**
- * Fabric's version handshake, run in the configuration phase before the player joins. NeoForge refuses a client whose
- * payload protocol differs by itself; Fabric has no such check, so a client and a server with different codecs would
- * connect and then fail on opaque decode errors. The server asks a client that has this mod for its protocol and
- * disconnects it with a translatable message when it differs.
+ * Fabric's version handshake, run as a login query before the player joins (1.20.1 has no configuration phase). Forge
+ * refuses a client whose channel version differs by itself; Fabric has no such check, so a client and a server with
+ * different codecs would connect and then fail on opaque decode errors. The server asks every client for its protocol
+ * and disconnects it with a translatable message when it differs.
  *
- * <p>A client without the mod cannot receive the request, so it is not asked and still joins (the play-phase
- * {@code canSend} guards keep the mod's payloads away from it, as before). A client that has an older version of the
- * mod without the handshake looks the same to the server, so it is let in too.
+ * <p>A client without the mod answers that it does not understand the query, so it still joins (the play-phase
+ * {@code canSend} guards keep the mod's payloads away from it, as before).
  */
 public final class FabricHandshake {
+	/** The query's channel; the client's answer comes back on it. */
 	static final CustomPayload.Id<Request> REQUEST_ID = new CustomPayload.Id<>(new Identifier(TheDreamTableMod.MOD_ID, "handshake"));
-	static final CustomPayload.Id<Reply> REPLY_ID = new CustomPayload.Id<>(new Identifier(TheDreamTableMod.MOD_ID, "handshake_reply"));
 	private static final int MAX_FIELD = 64;
-	private static final ServerPlayerConfigurationTask.Key TASK_KEY = new ServerPlayerConfigurationTask.Key(TheDreamTableMod.MOD_ID + ":handshake");
 
 	/** Server to client: the server's protocol and mod version. */
 	record Request(String protocol, String version) implements CustomPayload {
@@ -60,41 +49,23 @@ public final class FabricHandshake {
 
 		@Override
 		public Id<? extends CustomPayload> getId() {
-			return REPLY_ID;
+			return REQUEST_ID;
 		}
 	}
-
-	private record Task() implements ServerPlayerConfigurationTask {
-		@Override
-		public void sendPacket(Consumer<Packet<?>> sender) {
-			sender.accept(ServerConfigurationNetworking.createS2CPacket(new Request(NetworkProtocol.VERSION, modVersion())));
-		}
-
-		@Override
-		public Key getKey() {
-			return TASK_KEY;
-		}
-	}
-
-	/** Connections whose handshake task is waiting for the client's reply; a reply from any other connection is ignored. */
-	private static final Set<ServerConfigurationNetworkHandler> AWAITING = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
 
 	private FabricHandshake() {
 	}
 
-	/** Registers the handshake payloads on both sides, and the server's check. Runs from the common entrypoint. */
+	/** Registers the server's query and check. Runs from the common entrypoint. */
 	static void register() {
-		PayloadTypeRegistry.configurationS2C().register(REQUEST_ID, Request.CODEC);
-		PayloadTypeRegistry.configurationC2S().register(REPLY_ID, Reply.CODEC);
-		ServerConfigurationConnectionEvents.BEFORE_CONFIGURE.register(FabricHandshake::ask);
-		ServerConfigurationNetworking.registerGlobalReceiver(REPLY_ID, (reply, context) -> {
-			ServerConfigurationNetworkHandler handler = context.networkHandler();
-			if (!AWAITING.remove(handler)) {
+		ServerLoginConnectionEvents.QUERY_START.register((handler, server, sender, synchronizer) ->
+				sender.sendPacket(REQUEST_ID.id(), encode(Request.CODEC, new Request(NetworkProtocol.VERSION, modVersion()))));
+		ServerLoginNetworking.registerGlobalReceiver(REQUEST_ID.id(), (server, handler, understood, buf, synchronizer, sender) -> {
+			if (!understood) {
 				return;
 			}
-			if (NetworkProtocol.compatible(reply.protocol())) {
-				((FabricServerConfigurationNetworkHandler) handler).completeTask(TASK_KEY);
-			} else {
+			Reply reply = Reply.CODEC.decode(buf);
+			if (!NetworkProtocol.compatible(reply.protocol())) {
 				TheDreamTableMod.LOGGER.warn("Refusing a client with The Dream Table {} (protocol {}); this server runs {} (protocol {})",
 						reply.version(), reply.protocol(), modVersion(), NetworkProtocol.VERSION);
 				handler.disconnect(mismatch(modVersion(), reply.version()));
@@ -102,12 +73,10 @@ public final class FabricHandshake {
 		});
 	}
 
-	/** Adds the handshake to a connection whose client has this mod (it registered the request's channel). */
-	private static void ask(ServerConfigurationNetworkHandler handler, net.minecraft.server.MinecraftServer server) {
-		if (ServerConfigurationNetworking.canSend(handler, REQUEST_ID)) {
-			AWAITING.add(handler);
-			((FabricServerConfigurationNetworkHandler) handler).addTask(new Task());
-		}
+	static <T> PacketByteBuf encode(PacketCodec<PacketByteBuf, T> codec, T value) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		codec.encode(buf, value);
+		return buf;
 	}
 
 	/** The disconnect message for a client whose protocol differs from the server's. */

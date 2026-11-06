@@ -2,10 +2,10 @@ package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.platform.Platform;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.RegistryByteBuf;
+import com.davisr.thedreamtable.network.codec.PacketCodec;
+import com.davisr.thedreamtable.network.codec.PacketCodecs;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -19,9 +19,9 @@ public record PlacementResultPayload(BlockPos table, BlockPos anchor, Direction 
 	public static final int UNCHANGED = -1;
 	public static final Id<PlacementResultPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "placement_result"));
 	public static final PacketCodec<RegistryByteBuf, PlacementResultPayload> CODEC = PacketCodec.tuple(
-			BlockPos.PACKET_CODEC, PlacementResultPayload::table,
-			BlockPos.PACKET_CODEC, PlacementResultPayload::anchor,
-			Direction.PACKET_CODEC, PlacementResultPayload::facing,
+			PacketCodecs.BLOCK_POS, PlacementResultPayload::table,
+			PacketCodecs.BLOCK_POS, PlacementResultPayload::anchor,
+			PacketCodecs.DIRECTION, PlacementResultPayload::facing,
 			PacketCodecs.BOOL, PlacementResultPayload::mirrored,
 			PacketCodecs.STRING, PlacementResultPayload::problem,
 			PacketCodecs.VAR_INT, PlacementResultPayload::existing,

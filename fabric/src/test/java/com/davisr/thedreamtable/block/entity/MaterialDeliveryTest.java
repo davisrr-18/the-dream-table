@@ -5,8 +5,6 @@ import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.network.TableNoticePayload;
 import net.minecraft.block.Blocks;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ContainerComponent;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
@@ -62,7 +60,7 @@ class MaterialDeliveryTest {
 	}
 
 	private static ItemStack named(ItemStack stack) {
-		stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal("Precious"));
+		stack.setCustomName(Text.literal("Precious"));
 		return stack;
 	}
 
@@ -127,7 +125,7 @@ class MaterialDeliveryTest {
 	@Test
 	void aShulkerBoxWithContentsIsNeverDelivered() {
 		ItemStack box = new ItemStack(Items.SHULKER_BOX);
-		box.set(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(List.of(new ItemStack(Items.DIAMOND, 3))));
+		box.getOrCreateSubNbt("BlockEntityTag").put("Items", new SimpleInventory(new ItemStack(Items.DIAMOND, 3)).toNbtList());
 		assertFalse(MaterialLedger.plain(box));
 		assertTrue(MaterialLedger.plain(new ItemStack(Items.SHULKER_BOX)));
 		List<FarmStep> steps = List.of(FarmStep.block(0, 0, 0, Blocks.SHULKER_BOX.getDefaultState(), Items.SHULKER_BOX));

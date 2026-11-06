@@ -36,6 +36,6 @@ public class MaterialSlot extends Slot {
 
 	@Override
 	public boolean isEnabled() {
-		return handler.getPage() == DreamTableScreenHandler.PAGE_REQUIREMENTS && handler.material(materialIndex) != null;
+		return handler.getPage() == DreamTableScreenHandler.PAGE_REQUIREMENTS && handler.material(materialIndex) != null && handler.shown(this);
 	}
 }

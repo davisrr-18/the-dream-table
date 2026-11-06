@@ -3,10 +3,10 @@ package com.davisr.thedreamtable.network;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.RegistryByteBuf;
+import com.davisr.thedreamtable.network.codec.PacketCodec;
+import com.davisr.thedreamtable.network.codec.PacketCodecs;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
@@ -14,7 +14,7 @@ import net.minecraft.util.math.BlockPos;
 public record SessionSyncPayload(BlockPos table, NbtCompound session) implements CustomPayload {
 	public static final Id<SessionSyncPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "session_sync"));
 	public static final PacketCodec<RegistryByteBuf, SessionSyncPayload> CODEC = PacketCodec.tuple(
-			BlockPos.PACKET_CODEC, SessionSyncPayload::table,
+			PacketCodecs.BLOCK_POS, SessionSyncPayload::table,
 			PacketCodecs.NBT_COMPOUND, SessionSyncPayload::session,
 			SessionSyncPayload::new
 	);

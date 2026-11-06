@@ -5,7 +5,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.EntityType;
-import net.minecraft.entity.data.DataTracker;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -27,11 +26,16 @@ final class MapCameraEntity extends Entity {
 
 	@Override
 	public EntityDimensions getDimensions(EntityPose pose) {
-		return EntityDimensions.fixed(0.0F, 0.0F).withEyeHeight(eyeHeight);
+		return EntityDimensions.fixed(0.0F, 0.0F);
 	}
 
 	@Override
-	protected void initDataTracker(DataTracker.Builder builder) {
+	protected float getEyeHeight(EntityPose pose, EntityDimensions dimensions) {
+		return eyeHeight;
+	}
+
+	@Override
+	protected void initDataTracker() {
 	}
 
 	@Override

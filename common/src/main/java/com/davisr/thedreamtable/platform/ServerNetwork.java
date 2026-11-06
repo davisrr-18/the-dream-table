@@ -1,8 +1,8 @@
 package com.davisr.thedreamtable.platform;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.RegistryByteBuf;
+import com.davisr.thedreamtable.network.codec.PacketCodec;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 /** Play-phase payload registration and sending on the logical server. */

@@ -1,6 +1,6 @@
 package com.davisr.thedreamtable.platform;
 
-import net.minecraft.network.packet.CustomPayload;
+import com.davisr.thedreamtable.network.codec.CustomPayload;
 
 import java.util.function.Consumer;
 
