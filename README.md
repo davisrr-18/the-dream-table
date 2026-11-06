@@ -116,8 +116,8 @@ From the project root, with Java 21:
 
 The build places one jar per loader in its own folder:
 
-- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-1.2.0.jar`
-- NeoForge: `build/release/neoforge/the_dream_table-neoforge-1.2.0.jar`
-- Forge: `build/release/forge/the_dream_table-forge-1.2.0.jar`
+- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-mc1.21.1-1.2.0.jar`
+- NeoForge: `build/release/neoforge/the_dream_table-neoforge-mc1.21.1-1.2.0.jar`
+- Forge: `build/release/forge/the_dream_table-forge-mc1.21.1-1.2.0.jar`
 
 The `sources` and `dev-shadow` jars under each loader's `build/libs/` are for development only.
