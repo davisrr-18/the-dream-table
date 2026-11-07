@@ -1,6 +1,6 @@
 # The Dream Table
 
-Version `1.2.0` for Minecraft **1.21.1**, on Fabric (with Fabric API), NeoForge and Forge.
+Version `1.3.0` for Minecraft **1.21.1** (Fabric with Fabric API, NeoForge and Forge) and **1.20.1** (Fabric with Fabric API, and Forge).
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets how fast it builds.
 
@@ -25,7 +25,7 @@ Lapis lazuli on the top row and in the center, paper on the sides, and oak plank
 
 **Materials**, on the farm screen, swaps a block for another of the same shape: full block for full block, stairs for stairs, slab for slab, glass for glass, bed for bed, and so on. Type in the search box at the top of the list to find a block by name. Pick the swap before delivering that material or starting the build. The hologram, the clipboard, and the build all use the new block. Options, on the farm list, opens Build Speed: Slow, Normal (the default) or Fast, which are 25%, 50% and 100% of the server's fastest rate (64, 128 and 256 blocks per second by default). Each option shows its share and how long the chosen farm would take. Custom has a slider: drag it to any share from 1% to 100%. Blocks are spread evenly over each second. While building or paused, the farm screen shows the time left, like "~4 min". Blocks already in place are skipped instantly and don't count against the pace. When the build waits for a missing block, delivering it on the clipboard continues the build on its own.
 
-The Dream Table holds the essential vanilla farms, one design each: sugar cane, bamboo, cactus, crops, honey, mob farm, creeper farm, iron farm, a Nether gold farm, and an animal farm, with more to come. For a bigger, smaller or different version of a farm, put its schematic in My Schematics. Blocks in the way are broken and dropped as items as the build reaches them (in Creative they are just removed). Blocks that hold data, like chests, furnaces, hoppers, signs, beds, and spawners, are never removed. Neither are unbreakable blocks, redstone parts, pistons, rails, TNT, infested blocks, or blocks you can't get back, like budding amethyst and eggs. The build stops there and the block shows up red on the hologram. Clearing never updates the blocks around it, so nothing outside the farm falls, pops off, or fires.
+The Dream Table holds the essential vanilla farms, one design each: sugar cane, bamboo, cactus, crops, honey, mob farm, creeper farm, iron farm, a Nether gold farm, and an animal farm, with more to come. For a bigger, smaller or different version of a farm, put its schematic in My Schematics. Blocks in the way are removed, without drops, as the build reaches them. Blocks that hold data, like chests, furnaces, hoppers, signs, beds, and spawners, are never removed. Neither are unbreakable blocks, redstone parts, pistons, rails, TNT, infested blocks, or blocks you can't get back, like budding amethyst and eggs. The build stops there and the block shows up red on the hologram. Clearing never updates the blocks around it, so nothing outside the farm falls, pops off, or fires.
 
 Every player has their own session at a table: their own menu page, farm, materials, swaps, clipboard, hologram and build. Players can use the same table at once without affecting each other, and two players' farms at one table can't overlap. When a table is broken, by anyone or anything, each player's project is kept for them and comes back in the next Dream Table they open: the farm, the materials they delivered, and a started build, paused on its spot. The build continues when the new table is in the same dimension and within 48 blocks of it. The adaptive menu has persistent Build, Farms, Schematics, and Settings tabs; it keeps the same safe inventory-slot region on compact and wide screens.
 
@@ -88,15 +88,14 @@ A finished farm keeps everything its blocks held in the schematic, like a hopper
 
 ## Requirements
 
-- Minecraft 1.21.1
-- Java 21
+- Minecraft 1.21.1 (Java 21) or 1.20.1 (Java 17)
 - Fabric: Fabric Loader 0.16 or newer and Fabric API
-- NeoForge: NeoForge 21.1 (the 21.1 series, for Minecraft 1.21.1)
-- Forge: Forge 52 (for Minecraft 1.21.1)
+- NeoForge: NeoForge 21.1 (the 21.1 series, for Minecraft 1.21.1 only)
+- Forge: Forge 52 for Minecraft 1.21.1, or Forge 47 for Minecraft 1.20.1
 
-Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides, and the client and the server must run the same version (1.2.0).
+Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides, and the client and the server must run the same version (1.3.0).
 
-Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.2.0. Farms that were shared in 1.0.0 keep their owners, and their collaborators are dropped. 1.0.0 was the first stable release and followed 2.2.0-beta; the lower number is intentional.
+Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.3.0 on Minecraft 1.21.1. Farms that were shared in 1.0.0 keep their owners, and their collaborators are dropped. 1.0.0 was the first stable release and followed 2.2.0-beta; the lower number is intentional.
 
 ## Known limitations
 
@@ -116,8 +115,8 @@ From the project root, with Java 21:
 
 The build places one jar per loader in its own folder:
 
-- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-mc1.21.1-1.2.0.jar`
-- NeoForge: `build/release/neoforge/the_dream_table-neoforge-mc1.21.1-1.2.0.jar`
-- Forge: `build/release/forge/the_dream_table-forge-mc1.21.1-1.2.0.jar`
+- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-mc1.21.1-1.3.0.jar`
+- NeoForge: `build/release/neoforge/the_dream_table-neoforge-mc1.21.1-1.3.0.jar`
+- Forge: `build/release/forge/the_dream_table-forge-mc1.21.1-1.3.0.jar`
 
 The `sources` and `dev-shadow` jars under each loader's `build/libs/` are for development only.
