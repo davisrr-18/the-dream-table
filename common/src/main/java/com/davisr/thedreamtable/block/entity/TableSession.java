@@ -73,7 +73,7 @@ public final class TableSession {
 	TableSession(DreamTableBlockEntity table, UUID player) {
 		this.table = table;
 		this.player = player;
-		this.desk = new MaterialDesk(this::template, table::markDirty);
+		this.desk = new MaterialDesk(this::template, this::sync);
 	}
 
 	public UUID player() {
