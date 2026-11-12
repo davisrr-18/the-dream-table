@@ -171,6 +171,11 @@ public final class Viewport {
 		return contentTop() + PAD - scroll + index * (CARD_HEIGHT + CARD_GAP);
 	}
 
+	/** Cards per row: one on compact screens, two on wide ones. */
+	public int columnCount() {
+		return geometry == null ? 1 : geometry.columns().size();
+	}
+
 	public int gridCardX(int index) {
 		if (geometry == null) {
 			return cardX();

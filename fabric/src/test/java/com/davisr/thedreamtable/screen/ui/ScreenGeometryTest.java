@@ -70,7 +70,7 @@ class ScreenGeometryTest {
 
 		assertEquals(196, compact.slotRegion().width());
 		assertEquals(compact.panel().x(), compact.slotRegion().x());
-		assertEquals(196, wide.slotRegion().width());
+		assertEquals(wide.panel().width(), wide.slotRegion().width());
 		assertEquals(wide.panel().x(), wide.slotRegion().x());
 		assertEquals(compact.slotRegion().x(), compact.slotOrigin().x());
 		assertEquals(wide.slotRegion().x(), wide.slotOrigin().x());

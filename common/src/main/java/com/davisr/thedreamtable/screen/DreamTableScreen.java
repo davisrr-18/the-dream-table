@@ -400,6 +400,9 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		this.backgroundHeight = geometry.panel().height();
 		this.x = view.slotOriginX();
 		this.y = view.slotOriginY();
+		if (current == DreamTableScreenHandler.PAGE_REQUIREMENTS) {
+			handler.alignSlots(view.columnCount());
+		}
 		layoutTabs();
 	}
 

@@ -6,7 +6,7 @@ Delivering materials now happens in the table menu, and the clipboard next to th
 
 ## Changes
 
-- **Requirements** on the farm screen now opens a page of the table menu. Each material has a slot: put the item in it, or shift-click it from your inventory, and the slot shows how much is delivered.
+- **Requirements** on the farm screen now opens a page of the table menu. Each material is a card with its own slot: put the item in it, or shift-click it from your inventory, and the card shows how much is delivered. The cards use the whole panel, in two columns on wide screens.
 - **Deliver All** and **Deliver From Nearby** moved from the Materials page to the Requirements page. Materials now only swaps blocks.
 - The clipboard in the world is removed. It took space next to the table and could glitch between blocks, so you could not see or deliver materials. The menu has none of that.
 - A build that waits for a material continues on its own when you put the item in a Requirements slot, like it already did with Deliver All.

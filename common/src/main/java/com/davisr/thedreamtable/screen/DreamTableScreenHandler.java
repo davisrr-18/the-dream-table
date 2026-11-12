@@ -88,8 +88,10 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private static final int PLAYER_SLOTS = 36;
 	private final UUID playerId;
 	private final PlayerInventory playerInventory;
-	/** The material count the inventory slots were placed for; the grid above them is as tall as the farm has materials. */
-	private int inventoryFor;
+	private Inventory materialInventory;
+	/** What the slots were placed for: cards per row, and the material count that sets how far down the inventory is. */
+	private int slotColumns = 1;
+	private int slotsFor;
 	private String selectedFarm;
 	private int page;
 	private int buildIndex;
@@ -138,34 +140,48 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	}
 
 	private void addSlots(PlayerInventory inventory, Inventory materials) {
-		for (int index = 0; index < FarmTemplate.MAX_SLOTS; index++) {
-			addSlot(new MaterialSlot(materials, index, DreamTableLayout.materialX(index), DreamTableLayout.materialY(index), this));
-		}
+		materialInventory = materials;
 		FarmTemplate template = FarmTemplates.get(selectedFarm);
-		inventoryFor = template == null ? 0 : template.materials().size();
-		for (int index = 0; index < PLAYER_SLOTS; index++) {
-			addSlot(playerSlot(index, DreamTableLayout.inventoryY(inventoryFor)));
+		slotsFor = template == null ? 0 : template.materials().size();
+		for (int index = 0; index < FarmTemplate.MAX_SLOTS; index++) {
+			addSlot(materialSlot(index));
 		}
+		for (int index = 0; index < PLAYER_SLOTS; index++) {
+			addSlot(playerSlot(index));
+		}
+	}
+
+	private MaterialSlot materialSlot(int index) {
+		return new MaterialSlot(materialInventory, index, RequirementsLayout.slotX(index, slotColumns), RequirementsLayout.slotY(index, slotColumns), this);
 	}
 
 	/** Three inventory rows, then the hotbar. */
-	private PlayerSlot playerSlot(int index, int originY) {
+	private PlayerSlot playerSlot(int index) {
 		boolean hotbar = index >= 27;
-		int y = originY + (hotbar ? 3 * 18 + 4 : index / 9 * 18);
-		return new PlayerSlot(playerInventory, hotbar ? index - 27 : index + 9, DreamTableLayout.inventoryX() + index % 9 * 18, y);
+		int y = RequirementsLayout.inventoryY(slotsFor, slotColumns) + (hotbar ? 3 * 18 + 4 : index / 9 * 18);
+		return new PlayerSlot(playerInventory, hotbar ? index - 27 : index + 9, RequirementsLayout.inventoryX(slotColumns) + index % 9 * 18, y);
 	}
 
 	/**
-	 * Slot coordinates are final and the farm can change while the menu stays open, so the client moves the inventory under
-	 * the grid by replacing its slots (same ids and inventory, new y). The server never reads the coordinates.
+	 * The Requirements page lays its cards out by screen width and by how many materials the farm has, and both can change
+	 * while the menu stays open. Slot coordinates are final, so the client replaces the slots (same ids and inventories,
+	 * new coordinates) whenever either changes. The server never reads the coordinates.
 	 */
-	public void alignInventory(int materials) {
-		if (!client || materials == inventoryFor) {
+	public void alignSlots(int columns) {
+		FarmTemplate template = FarmTemplates.get(getSelectedFarm());
+		int materials = template == null ? 0 : template.materials().size();
+		if (!client || columns == slotColumns && materials == slotsFor) {
 			return;
 		}
-		inventoryFor = materials;
+		slotColumns = columns;
+		slotsFor = materials;
+		for (int index = 0; index < FarmTemplate.MAX_SLOTS; index++) {
+			Slot slot = materialSlot(index);
+			slot.id = index;
+			slots.set(index, slot);
+		}
 		for (int index = 0; index < PLAYER_SLOTS; index++) {
-			Slot slot = playerSlot(index, DreamTableLayout.inventoryY(materials));
+			Slot slot = playerSlot(index);
 			slot.id = FarmTemplate.MAX_SLOTS + index;
 			slots.set(slot.id, slot);
 		}

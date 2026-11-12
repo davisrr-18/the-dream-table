@@ -24,7 +24,6 @@ public record ScreenGeometry(
 	public static final int CONTENT_INSET = 14;
 	public static final int COLUMN_WIDTH = 168;
 	public static final int COLUMN_GAP = 20;
-	public static final int SLOT_REGION_WIDTH = 196;
 
 	public ScreenGeometry {
 		columns = List.copyOf(columns);
@@ -52,7 +51,7 @@ public record ScreenGeometry(
 						column(panelX + CONTENT_INSET, viewport),
 						column(panelX + CONTENT_INSET + COLUMN_WIDTH + COLUMN_GAP, viewport)
 				);
-		UiRect slotRegion = new UiRect(panelX, viewport.y(), slotPage ? SLOT_REGION_WIDTH : 0, viewport.height());
+		UiRect slotRegion = new UiRect(panelX, viewport.y(), slotPage ? panelWidth : 0, viewport.height());
 		UiPoint slotOrigin = new UiPoint(panelX, viewport.y() - DreamTableLayout.HEADER);
 		return new ScreenGeometry(mode, panel, header, tabs, toolbar, viewport,
 				new UiPoint(columns.getFirst().x(), viewport.y()), columns, slotRegion, slotOrigin);
