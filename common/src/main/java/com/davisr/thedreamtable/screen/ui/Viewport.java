@@ -214,8 +214,11 @@ public final class Viewport {
 		return geometry == null ? originY + HEADER + searchSpace : geometry.viewport().y();
 	}
 
+	/** Content stops above the panel's inner border so nothing paints over the bottom edge. */
+	public static final int BOTTOM_INSET = 6;
+
 	public int contentBottom() {
-		return geometry == null ? originY + visibleHeight() - 2 : geometry.viewport().bottom();
+		return geometry == null ? originY + visibleHeight() - 2 : geometry.viewport().bottom() - BOTTOM_INSET;
 	}
 
 	public int scroll() {

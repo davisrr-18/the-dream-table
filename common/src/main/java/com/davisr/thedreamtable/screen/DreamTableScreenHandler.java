@@ -158,8 +158,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	/** Three inventory rows, then the hotbar. */
 	private PlayerSlot playerSlot(int index) {
 		boolean hotbar = index >= 27;
-		int y = RequirementsLayout.inventoryY(slotsFor, slotColumns) + (hotbar ? 3 * 18 + 4 : index / 9 * 18);
-		return new PlayerSlot(playerInventory, hotbar ? index - 27 : index + 9, RequirementsLayout.inventoryX(slotColumns) + index % 9 * 18, y);
+		return new PlayerSlot(playerInventory, hotbar ? index - 27 : index + 9, RequirementsLayout.playerSlotX(index, slotColumns),
+				RequirementsLayout.playerSlotY(index, slotsFor, slotColumns));
 	}
 
 	/**
