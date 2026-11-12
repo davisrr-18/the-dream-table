@@ -18,7 +18,7 @@ class DreamTableLayoutTest {
 				assertTrue(RequirementsLayout.waterY(materials, columns) >= RequirementsLayout.cardsEnd(materials, columns), "water line under the cards" + at);
 				assertTrue(RequirementsLayout.inventoryLabelY(materials, columns) >= RequirementsLayout.waterY(materials, columns) + 9, "label under the water line" + at);
 				assertTrue(RequirementsLayout.inventoryY(materials, columns) >= RequirementsLayout.inventoryLabelY(materials, columns) + 9, "inventory under its label" + at);
-				int inventoryEnd = RequirementsLayout.inventoryY(materials, columns) + RequirementsLayout.INVENTORY_HEIGHT;
+				int inventoryEnd = RequirementsLayout.inventoryY(materials, columns) + RequirementsLayout.inventoryHeight(columns);
 				assertTrue(RequirementsLayout.deliverAllY(materials, columns) >= inventoryEnd, "Deliver All under the inventory" + at);
 				assertTrue(RequirementsLayout.deliverNearbyY(materials, columns) >= RequirementsLayout.deliverAllY(materials, columns) + BUTTON_HEIGHT, "buttons do not overlap" + at);
 				assertTrue(RequirementsLayout.backY(materials, columns) >= RequirementsLayout.deliverNearbyY(materials, columns) + BUTTON_HEIGHT, "Back under the buttons" + at);
@@ -34,5 +34,16 @@ class DreamTableLayoutTest {
 		assertTrue(RequirementsLayout.cardX(1, 2) > RequirementsLayout.cardX(0, 2));
 		assertEquals(RequirementsLayout.cardY(0, 2), RequirementsLayout.cardY(1, 2));
 		assertEquals(17, RequirementsLayout.inventoryX(1));
+	}
+
+	@Test
+	void wideInventoryUsesTheFlowWidthWithTheHotbarEndingTheSecondRow() {
+		int left = RequirementsLayout.columnX(0);
+		int right = left + RequirementsLayout.flowWidth(2);
+		assertTrue(RequirementsLayout.inventoryX(2) >= left);
+		assertTrue(RequirementsLayout.inventoryX(2) + RequirementsLayout.inventoryWidth(2) <= right);
+		assertEquals(RequirementsLayout.inventoryY(5, 2), RequirementsLayout.playerSlotY(0, 5, 2));
+		assertEquals(RequirementsLayout.inventoryY(5, 2) + 18, RequirementsLayout.playerSlotY(27, 5, 2));
+		assertEquals(RequirementsLayout.playerSlotX(18, 2) + 9 * 18, RequirementsLayout.playerSlotX(27, 2));
 	}
 }

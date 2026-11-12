@@ -10,9 +10,9 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
  * and the viewport top minus {@link DreamTableLayout#HEADER}), so the handler's slots and the page agree on them.
  */
 public final class RequirementsLayout {
-	public static final int INVENTORY_WIDTH = 9 * 18;
-	/** The inventory is three rows, a 4 px gap, then the hotbar. */
+	/** Compact: three rows, a 4 px gap, then the hotbar. Wide: 18 columns by 2 rows (the second row ends with the hotbar). */
 	public static final int INVENTORY_HEIGHT = 3 * 18 + 4 + 18;
+	private static final int WIDE_INVENTORY_COLUMNS = 18;
 	private static final int CARD_STEP = CARD_HEIGHT + CARD_GAP;
 
 	private RequirementsLayout() {
@@ -60,8 +60,33 @@ public final class RequirementsLayout {
 		return cardsEnd(materials, columns) + 20;
 	}
 
+	private static int inventoryColumns(int columns) {
+		return columns > 1 ? WIDE_INVENTORY_COLUMNS : 9;
+	}
+
+	public static int inventoryWidth(int columns) {
+		return inventoryColumns(columns) * 18;
+	}
+
+	public static int inventoryHeight(int columns) {
+		return columns > 1 ? 2 * 18 : INVENTORY_HEIGHT;
+	}
+
 	public static int inventoryX(int columns) {
-		return ScreenGeometry.CONTENT_INSET + (flowWidth(columns) - INVENTORY_WIDTH) / 2;
+		return ScreenGeometry.CONTENT_INSET + (flowWidth(columns) - inventoryWidth(columns)) / 2;
+	}
+
+	/** Slot position of player slot {@code index} (0 to 26 the three inventory rows, 27 to 35 the hotbar), in handler order. */
+	public static int playerSlotX(int index, int columns) {
+		return inventoryX(columns) + index % inventoryColumns(columns) * 18;
+	}
+
+	public static int playerSlotY(int index, int materials, int columns) {
+		int base = inventoryY(materials, columns);
+		if (columns > 1) {
+			return base + index / WIDE_INVENTORY_COLUMNS * 18;
+		}
+		return base + (index >= 27 ? 3 * 18 + 4 : index / 9 * 18);
 	}
 
 	public static int inventoryY(int materials, int columns) {
@@ -69,7 +94,7 @@ public final class RequirementsLayout {
 	}
 
 	public static int deliverAllY(int materials, int columns) {
-		return inventoryY(materials, columns) + INVENTORY_HEIGHT + 12;
+		return inventoryY(materials, columns) + inventoryHeight(columns) + 12;
 	}
 
 	public static int deliverNearbyY(int materials, int columns) {

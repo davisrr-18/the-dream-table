@@ -35,7 +35,7 @@ class ViewportTest {
 
 		assertTrue(viewport.reveal(target));
 
-		assertEquals(geometry.viewport().bottom(), target.bottom() - viewport.scroll());
+		assertEquals(geometry.viewport().bottom() - Viewport.BOTTOM_INSET, target.bottom() - viewport.scroll());
 		assertFalse(viewport.reveal(new UiRect(viewport.cardX(), viewport.cardY(8), 168, 32)));
 	}
 
@@ -122,7 +122,7 @@ class ViewportTest {
 				}
 				assertEquals(plainTop, top);
 				assertEquals(geometry.tabs().bottom() + Theme.PAD, top);
-				assertEquals(geometry.viewport().bottom() - 10, top + (int) trackHeight.invoke(viewport));
+				assertEquals(geometry.viewport().bottom() - Viewport.BOTTOM_INSET - 10, top + (int) trackHeight.invoke(viewport));
 			}
 		}
 	}
@@ -190,7 +190,7 @@ class ViewportTest {
 
 		Method maxScroll = Viewport.class.getDeclaredMethod("maxScroll");
 		maxScroll.setAccessible(true);
-		assertEquals(217, maxScroll.invoke(viewport));
+		assertEquals(217 + Viewport.BOTTOM_INSET, maxScroll.invoke(viewport));
 	}
 
 	@Test
