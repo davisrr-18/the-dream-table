@@ -11,4 +11,4 @@ alwaysApply: false
 - Comment only what the code can't show: rules, limits and reasons. No section dividers, and no comments that narrate the next line.
 - Use full-word names.
 - Shared drawing or logic goes in a helper, not in copies.
-- Prefer small records for data that travels together, such as `ClipboardSheet.State`.
+- Prefer small records for data that travels together, such as `NearbyContainers.Found`.

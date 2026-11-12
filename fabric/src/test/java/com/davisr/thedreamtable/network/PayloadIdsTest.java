@@ -22,7 +22,6 @@ class PayloadIdsTest {
 	@Test
 	void payloadIdsAreFrozen() {
 		List<CustomPayload.Id<?>> ids = List.of(
-				DepositMaterialPayload.ID,
 				PlaceFarmPayload.ID,
 				CheckPlacementPayload.ID,
 				PlacementResultPayload.ID,
@@ -50,7 +49,6 @@ class PayloadIdsTest {
 		assertEquals(ids.size(), actual.size(), "payload ids must be unique");
 		assertEquals(new TreeSet<>(Set.of(
 				"the_dream_table:check_placement",
-				"the_dream_table:deposit_material",
 				"the_dream_table:farm_action_result",
 				"the_dream_table:farm_alert_ack",
 				"the_dream_table:farm_alerts",

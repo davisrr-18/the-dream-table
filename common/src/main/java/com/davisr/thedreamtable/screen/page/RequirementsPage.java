@@ -1,7 +1,8 @@
 package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.block.entity.TableSession;
-import com.davisr.thedreamtable.client.clipboard.WaterRow;
+import com.davisr.thedreamtable.client.ClientSettings;
+import com.davisr.thedreamtable.client.WaterRow;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.MaterialSpec;
 import com.davisr.thedreamtable.screen.DreamTableLayout;
@@ -16,7 +17,7 @@ import net.minecraft.util.Formatting;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
-/** The slot grid where materials can be dropped in, with the player inventory below. */
+/** The slot grid where materials can be dropped in, with the player inventory and the two delivery buttons below. */
 public final class RequirementsPage implements TablePage {
 	private final PageContext ui;
 
@@ -54,6 +55,11 @@ public final class RequirementsPage implements TablePage {
 			context.drawText(text, count, slotX + 8 - text.getWidth(count) / 2, slotY + 16, complete ? ACCENT : HINT, false);
 		}
 		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
+		boolean creative = ui.actions().creative();
+		drawDelivery(context, deliverAllY(), "deliver_all", "gui.the_dream_table.deliver_all", "gui.the_dream_table.deliver_all_hint",
+				creative ? "gui.the_dream_table.deliver_creative" : null, mouseX, mouseY);
+		drawDelivery(context, deliverNearbyY(), "deliver_nearby", "gui.the_dream_table.deliver_nearby", "gui.the_dream_table.deliver_nearby_tip",
+				nearbyBlocker(creative), mouseX, mouseY);
 		if (template != null && WaterRow.needed(template)) {
 			TableSession table = WaterRow.sessionAt(handler.getTablePos());
 			if (table != null) {
@@ -77,7 +83,47 @@ public final class RequirementsPage implements TablePage {
 			ui.go(DreamTableScreenHandler.PAGE_WORK, DreamTableScreenHandler.BUTTON_BACK);
 			return true;
 		}
+		if (ui.buttonHit(mouseX, mouseY, deliverAllY())) {
+			if (!ui.actions().creative()) {
+				ui.actions().press(DreamTableScreenHandler.BUTTON_DELIVER_ALL);
+			}
+			return true;
+		}
+		if (ui.buttonHit(mouseX, mouseY, deliverNearbyY())) {
+			if (nearbyBlocker(ui.actions().creative()) == null) {
+				ui.actions().press(DreamTableScreenHandler.BUTTON_DELIVER_NEARBY);
+			}
+			return true;
+		}
 		return false;
+	}
+
+	/** Why Deliver From Nearby is off, or null: the server setting wins over this player's own switch. */
+	private String nearbyBlocker(boolean creative) {
+		return nearbyBlocker(creative, ui.handler().nearbyDeliveryAllowed(), ClientSettings.deliverFromNearby());
+	}
+
+	static String nearbyBlocker(boolean creative, boolean serverAllows, boolean playerWants) {
+		if (creative) {
+			return "gui.the_dream_table.deliver_creative";
+		}
+		if (!serverAllows) {
+			return "gui.the_dream_table.deliver_nearby_off_server";
+		}
+		return playerWants ? null : "gui.the_dream_table.deliver_nearby_off_player";
+	}
+
+	/** A disabled button explains itself on its second line; an enabled one says what it does. */
+	private void drawDelivery(DrawContext context, int y, String key, String label, String hint, String blocker, int mouseX, int mouseY) {
+		ui.button(key, context, Text.translatable(label), Text.translatable(blocker == null ? hint : blocker), y, mouseX, mouseY, blocker == null, false);
+	}
+
+	private int deliverAllY() {
+		return ui.view().slotOriginY() + DreamTableLayout.deliverAllY(ui.materialCount());
+	}
+
+	private int deliverNearbyY() {
+		return ui.view().slotOriginY() + DreamTableLayout.deliverNearbyY(ui.materialCount());
 	}
 
 	@Override

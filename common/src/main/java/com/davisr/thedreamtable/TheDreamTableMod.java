@@ -12,7 +12,6 @@ import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.PendingRefunds;
 import com.davisr.thedreamtable.farm.alert.FarmAlertMonitor;
 import com.davisr.thedreamtable.network.CheckPlacementPayload;
-import com.davisr.thedreamtable.network.DepositMaterialPayload;
 import com.davisr.thedreamtable.network.FarmAreasPayload;
 import com.davisr.thedreamtable.network.FarmActionResultPayload;
 import com.davisr.thedreamtable.network.FarmAlertAckPayload;
@@ -60,7 +59,6 @@ public final class TheDreamTableMod {
 			FarmTemplates.reloadImports(server.getSavePath(WorldSavePath.ROOT));
 		});
 		Platform.serverEvents().onServerStopped(server -> FarmTemplates.clearSaved());
-		DepositMaterialPayload.register();
 		MaterialDelivery.register();
 		PlaceFarmPayload.register();
 		CheckPlacementPayload.register();

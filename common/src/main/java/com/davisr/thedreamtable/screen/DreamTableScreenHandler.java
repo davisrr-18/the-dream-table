@@ -23,6 +23,7 @@ import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerContext;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 
@@ -315,6 +316,15 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		}
 		copyFrom(table);
 		return true;
+	}
+
+	@Override
+	public void onSlotClick(int slotIndex, int button, SlotActionType actionType, PlayerEntity player) {
+		super.onSlotClick(slotIndex, button, actionType, player);
+		TableSession table = table();
+		if (table != null && player instanceof ServerPlayerEntity serverPlayer && getPage() == PAGE_REQUIREMENTS) {
+			table.resumeAfterSlots(serverPlayer);
+		}
 	}
 
 	@Override

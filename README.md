@@ -1,6 +1,6 @@
 # The Dream Table
 
-Version `1.3.0` for Minecraft **1.21.1** (Fabric with Fabric API, NeoForge and Forge) and **1.20.1** (Fabric with Fabric API, and Forge).
+Version `1.4.0` for Minecraft **1.21.1** (Fabric with Fabric API, NeoForge and Forge) and **1.20.1** (Fabric with Fabric API, and Forge).
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets how fast it builds.
 
@@ -20,14 +20,14 @@ Lapis lazuli on the top row and in the center, paper on the sides, and oak plank
 2. A small turning model of the chosen farm floats above the table. Close the menu. A yellow marker follows the crosshair.
 3. Right-click the ground to anchor the hologram. Right-click again to move it.
 4. **R** rotates the farm and **M** mirrors it (eight orientations together; the mirror is saved with the farm, so building, Repair and Take Down follow it). While it builds, the hologram shows only the layer being built and the one above; **H** switches to the whole farm and back. Both keys can be changed in Controls, under The Dream Table.
-5. Hold the material and right-click the clipboard to deliver it. The line is struck through when the count is met. On the Materials page, **Deliver All** moves every item the farm still needs from your inventory and offhand in one click, and **Deliver From Nearby** takes them from chests, trapped chests, barrels and placed shulker boxes within 6 blocks of the table (locked, never-opened loot and protected containers are skipped). Both are off in Creative, where builds are free, and Deliver From Nearby can be turned off in Settings.
-6. Return to the table and click Build. The position locks. The build can start before every material is on the clipboard, and it waits at the next missing block instead of skipping it. In Creative mode, the build needs no materials and runs at the server's fastest rate. While it builds, the same button reads **Pause**; press it to stop after the current block, and **Resume** to pick up from the next one.
+5. Open **Requirements** on the farm screen to deliver the materials. Each one has a slot: put the item in it, or shift-click it from your inventory, and the slot shows how much is delivered. On the same page, **Deliver All** moves every item the farm still needs from your inventory and offhand in one click, and **Deliver From Nearby** takes them from chests, trapped chests, barrels and placed shulker boxes within 6 blocks of the table (locked, never-opened loot and protected containers are skipped). Both are off in Creative, where builds are free, and Deliver From Nearby can be turned off in Settings.
+6. Return to the table and click Build. The position locks. The build can start before every material is delivered, and it waits at the next missing block instead of skipping it. In Creative mode, the build needs no materials and runs at the server's fastest rate. While it builds, the same button reads **Pause**; press it to stop after the current block, and **Resume** to pick up from the next one.
 
-**Materials**, on the farm screen, swaps a block for another of the same shape: full block for full block, stairs for stairs, slab for slab, glass for glass, bed for bed, and so on. Type in the search box at the top of the list to find a block by name. Pick the swap before delivering that material or starting the build. The hologram, the clipboard, and the build all use the new block. Options, on the farm list, opens Build Speed: Slow, Normal (the default) or Fast, which are 25%, 50% and 100% of the server's fastest rate (64, 128 and 256 blocks per second by default). Each option shows its share and how long the chosen farm would take. Custom has a slider: drag it to any share from 1% to 100%. Blocks are spread evenly over each second. While building or paused, the farm screen shows the time left, like "~4 min". Blocks already in place are skipped instantly and don't count against the pace. When the build waits for a missing block, delivering it on the clipboard continues the build on its own.
+**Materials**, on the farm screen, swaps a block for another of the same shape: full block for full block, stairs for stairs, slab for slab, glass for glass, bed for bed, and so on. Type in the search box at the top of the list to find a block by name. Pick the swap before delivering that material or starting the build. The hologram, Requirements, and the build all use the new block. Options, on the farm list, opens Build Speed: Slow, Normal (the default) or Fast, which are 25%, 50% and 100% of the server's fastest rate (64, 128 and 256 blocks per second by default). Each option shows its share and how long the chosen farm would take. Custom has a slider: drag it to any share from 1% to 100%. Blocks are spread evenly over each second. While building or paused, the farm screen shows the time left, like "~4 min". Blocks already in place are skipped instantly and don't count against the pace. When the build waits for a missing block, delivering it in Requirements continues the build on its own.
 
 The Dream Table holds the essential vanilla farms, one design each: sugar cane, bamboo, cactus, crops, honey, mob farm, creeper farm, iron farm, a Nether gold farm, and an animal farm, with more to come. For a bigger, smaller or different version of a farm, put its schematic in My Schematics. Blocks in the way are removed, without drops, as the build reaches them. Blocks that hold data, like chests, furnaces, hoppers, signs, beds, and spawners, are never removed. Neither are unbreakable blocks, redstone parts, pistons, rails, TNT, infested blocks, or blocks you can't get back, like budding amethyst and eggs. The build stops there and the block shows up red on the hologram. Clearing never updates the blocks around it, so nothing outside the farm falls, pops off, or fires.
 
-Every player has their own session at a table: their own menu page, farm, materials, swaps, clipboard, hologram and build. Players can use the same table at once without affecting each other, and two players' farms at one table can't overlap. When a table is broken, by anyone or anything, each player's project is kept for them and comes back in the next Dream Table they open: the farm, the materials they delivered, and a started build, paused on its spot. The build continues when the new table is in the same dimension and within 48 blocks of it. The adaptive menu has persistent Build, Farms, Schematics, and Settings tabs; it keeps the same safe inventory-slot region on compact and wide screens.
+Every player has their own session at a table: their own menu page, farm, materials, swaps, hologram and build. Players can use the same table at once without affecting each other, and two players' farms at one table can't overlap. When a table is broken, by anyone or anything, each player's project is kept for them and comes back in the next Dream Table they open: the farm, the materials they delivered, and a started build, paused on its spot. The build continues when the new table is in the same dimension and within 48 blocks of it. The adaptive menu has persistent Build, Farms, Schematics, and Settings tabs; it keeps the same safe inventory-slot region on compact and wide screens.
 
 Discard returns the materials and removes the hologram. Whatever leaned on the removed blocks, like cane or bamboo that grew, crops you planted, torches or redstone, drops as items, as it would when mined by hand. If the build has started and is not finished, Discard also takes apart the blocks the table placed and gives them back, along with anything stored in its chests and hoppers. It takes them apart a few dozen per tick, so large farms don't lag the server, and you can pick a new farm right away. Items delivered in Creative are never handed back. It asks for a second click first. Blocks you changed, or that were already there, are left alone. A block you turned or replaced is also left alone; opening a door doesn't count as a change. A finished farm is never taken apart.
 
@@ -72,7 +72,7 @@ The true or false keys accept only `true` or `false`; anything else is logged an
 
 A finished farm has a permanent identity, so its saved design and alerts survive Repair and world restarts. Favorite or track a farm from its page: My Farms can show only favorites or sort them first, and tracked farms show a direction and distance HUD. The selected farm page shows its operating state, Keep Loaded state, distance or dimension, storage, condition, and repair needs. Alerts report missing blocks, full storage, unavailable designs, and Repair problems: a farm with an active alert is marked with a warning sign in My Farms and its page ends with a red "Alert" line for each one.
 
-On a server, My Schematics lists the server's files, and players see the hologram, clipboard and miniature of those farms without having the files themselves.
+On a server, My Schematics lists the server's files, and players see the hologram and miniature of those farms without having the files themselves.
 
 Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` files of up to 16,384 blocks from these instance folders:
 
@@ -95,7 +95,7 @@ A finished farm keeps everything its blocks held in the schematic, like a hopper
 
 Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides, and the client and the server must run the same version (1.3.0).
 
-Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.3.0 on Minecraft 1.21.1. Farms that were shared in 1.0.0 keep their owners, and their collaborators are dropped. 1.0.0 was the first stable release and followed 2.2.0-beta; the lower number is intentional.
+Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.4.0 on Minecraft 1.21.1. Farms that were shared in 1.0.0 keep their owners, and their collaborators are dropped. 1.0.0 was the first stable release and followed 2.2.0-beta; the lower number is intentional.
 
 ## Known limitations
 
@@ -115,8 +115,8 @@ From the project root, with Java 21:
 
 The build places one jar per loader in its own folder:
 
-- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-mc1.21.1-1.3.0.jar`
-- NeoForge: `build/release/neoforge/the_dream_table-neoforge-mc1.21.1-1.3.0.jar`
-- Forge: `build/release/forge/the_dream_table-forge-mc1.21.1-1.3.0.jar`
+- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-mc1.21.1-1.4.0.jar`
+- NeoForge: `build/release/neoforge/the_dream_table-neoforge-mc1.21.1-1.4.0.jar`
+- Forge: `build/release/forge/the_dream_table-forge-mc1.21.1-1.4.0.jar`
 
 The `sources` and `dev-shadow` jars under each loader's `build/libs/` are for development only.

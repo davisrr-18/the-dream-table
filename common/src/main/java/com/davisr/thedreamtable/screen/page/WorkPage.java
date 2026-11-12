@@ -1,7 +1,6 @@
 package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.block.entity.BuildIssue;
-import com.davisr.thedreamtable.client.DreamTableClipboard;
 import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.DreamTableKeys;
 import com.davisr.thedreamtable.farm.BuildPace;
@@ -96,9 +95,7 @@ public final class WorkPage implements TablePage {
 			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(REQUIREMENTS))) {
-			DreamTableClipboard.pin(ui.handler().getTablePos());
-			ui.actions().press(DreamTableScreenHandler.BUTTON_REQUIREMENTS);
-			ui.actions().close();
+			ui.go(DreamTableScreenHandler.PAGE_REQUIREMENTS, DreamTableScreenHandler.BUTTON_REQUIREMENTS);
 			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(MATERIALS))) {
@@ -145,7 +142,6 @@ public final class WorkPage implements TablePage {
 		confirmUntil = 0L;
 		ui.handler().preview("", DreamTableScreenHandler.PAGE_SELECT);
 		DreamTableHologram.clear();
-		DreamTableClipboard.close();
 		ui.actions().press(DreamTableScreenHandler.BUTTON_DISCARD);
 	}
 

@@ -5,7 +5,7 @@ import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.client.world.ClientWorld;
 
 /**
- * Drops client state that belongs to one world: the table the hologram and clipboard follow and the other farms' areas
+ * Drops client state that belongs to one world: the table the hologram follows and the other farms' areas
  * when the world or dimension changes, and everything the server sent when the player leaves it.
  */
 public final class ClientLifecycle {
@@ -30,7 +30,6 @@ public final class ClientLifecycle {
 	static void leaveWorld() {
 		DreamTableHologram.clear();
 		BuildProgressLine.clear();
-		DreamTableClipboard.close();
 		OtherFarms.clear();
 		GhostRenderer.release();
 	}

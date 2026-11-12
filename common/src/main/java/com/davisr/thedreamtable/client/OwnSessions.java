@@ -9,7 +9,7 @@ import net.minecraft.util.math.BlockPos;
 
 /**
  * Receives the local player's own session from the server. A table's copy on the client starts without one,
- * for example after its chunk loads again, so the table the hologram or clipboard follows asks for it once a second.
+ * for example after its chunk loads again, so the table the hologram follows asks for it once a second.
  */
 public final class OwnSessions {
 	private static final int RETRY_TICKS = 20;
@@ -35,7 +35,6 @@ public final class OwnSessions {
 		}
 		cooldown = RETRY_TICKS;
 		request(client, DreamTableHologram.trackedTable());
-		request(client, DreamTableClipboard.pinnedTable());
 		request(client, BuildProgressLine.watched());
 	}
 

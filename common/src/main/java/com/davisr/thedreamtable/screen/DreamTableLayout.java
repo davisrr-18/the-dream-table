@@ -38,7 +38,16 @@ public final class DreamTableLayout {
 		return inventoryY(1);
 	}
 
+	/** Below the player inventory and the water row (inventoryY + 78), where the delivery buttons sit. */
+	public static int deliverAllY(int materials) {
+		return inventoryY(materials) + 92;
+	}
+
+	public static int deliverNearbyY(int materials) {
+		return deliverAllY(materials) + BUTTON + 6;
+	}
+
 	public static int requirementsHeight(int materials) {
-		return inventoryY(materials) + 3 * 18 + 4 + 18 + 12;
+		return deliverNearbyY(materials) + BUTTON + 8;
 	}
 }
