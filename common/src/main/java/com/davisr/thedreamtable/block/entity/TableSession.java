@@ -61,7 +61,6 @@ public final class TableSession {
 	private UUID player;
 	private String selectedFarm = "";
 	private int page;
-	private boolean requirementsBoard;
 	private int swapMaterial = -1;
 	/**
 	 * The dimension a started build stands in when it came back from a broken table, until it resumes from this one; null
@@ -183,7 +182,6 @@ public final class TableSession {
 			desk.returnAll(table.getWorld(), getPos(), receiver);
 		}
 		selectedFarm = farm == null ? "" : farm;
-		requirementsBoard = false;
 		desk.reset();
 		progress.reset(false);
 		swapMaterial = -1;
@@ -205,15 +203,6 @@ public final class TableSession {
 
 	public void setPage(int page) {
 		this.page = page;
-		sync();
-	}
-
-	public boolean isRequirementsBoard() {
-		return requirementsBoard;
-	}
-
-	public void setRequirementsBoard(boolean requirementsBoard) {
-		this.requirementsBoard = requirementsBoard;
 		sync();
 	}
 
@@ -436,29 +425,9 @@ public final class TableSession {
 		}
 	}
 
-	/** Delivers the held stack on the clipboard. When the build waits for exactly this block, it continues right away. */
-	public boolean offerFromHand(PlayerEntity giver) {
-		if (!requirementsBoard || template() == null) {
-			return false;
-		}
-		Hand hand = giver.getStackInHand(Hand.MAIN_HAND).isEmpty() ? Hand.OFF_HAND : Hand.MAIN_HAND;
-		ItemStack stack = giver.getStackInHand(hand);
-		boolean creative = giver.getAbilities().creativeMode;
-		reconcileMaterials(giver);
-		int accepted = desk.accept(stack, creative);
-		if (accepted <= 0) {
-			if (giver instanceof ServerPlayerEntity refused && !MaterialLedger.plain(stack) && desk.wants(stack)) {
-				MaterialDelivery.Tally tally = new MaterialDelivery.Tally(0, 1);
-				TableNoticePayload.send(refused, MaterialDelivery.summary(tally, false, 0), MaterialDelivery.severity(tally));
-			}
-			return false;
-		}
-		if (!creative) {
-			stack.decrement(accepted);
-		}
-		giver.swingHand(hand);
-		finishDelivery(giver);
-		return true;
+	/** Items put into the Requirements slots count at once; a build that waits for exactly this block continues right away. */
+	public void resumeAfterSlots(ServerPlayerEntity giver) {
+		continueIfWaiting(giver);
 	}
 
 	/** Moves everything the farm still needs from the player's inventory and offhand. */
@@ -535,7 +504,13 @@ public final class TableSession {
 		if (table.getWorld() != null) {
 			table.getWorld().playSound(null, getPos(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 0.5F, 1.15F);
 		}
-		if (giver instanceof ServerPlayerEntity deliverer && progress.is(PHASE_NEED) && nextStepReady()) {
+		if (giver instanceof ServerPlayerEntity deliverer) {
+			continueIfWaiting(deliverer);
+		}
+	}
+
+	private void continueIfWaiting(ServerPlayerEntity deliverer) {
+		if (progress.is(PHASE_NEED) && nextStepReady()) {
 			build.begin(deliverer, false);
 		}
 	}
@@ -669,7 +644,6 @@ public final class TableSession {
 		progress.reset(true);
 		page = 0;
 		selectedFarm = "";
-		requirementsBoard = false;
 		desk.reset();
 		swapMaterial = -1;
 		placement.clear();
@@ -834,7 +808,6 @@ public final class TableSession {
 	void write(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		nbt.putString("SelectedFarm", selectedFarm);
 		nbt.putInt("Page", page);
-		nbt.putBoolean("RequirementsBoard", requirementsBoard);
 		nbt.putInt("SwapMaterial", swapMaterial);
 		desk.write(nbt, registries);
 		progress.write(nbt);
@@ -851,7 +824,6 @@ public final class TableSession {
 	NbtCompound writeForClient() {
 		NbtCompound nbt = new NbtCompound();
 		nbt.putString("SelectedFarm", selectedFarm);
-		nbt.putBoolean("RequirementsBoard", requirementsBoard);
 		nbt.putInt("SwapMaterial", swapMaterial);
 		desk.writeForClient(nbt);
 		progress.writeForClient(nbt);
@@ -869,7 +841,6 @@ public final class TableSession {
 		if (page == REMOVED_INVITES_PAGE || page == REMOVED_ALERTS_PAGE) {
 			page = DreamTableScreenHandler.PAGE_LOADED;
 		}
-		requirementsBoard = nbt.getBoolean("RequirementsBoard");
 		swapMaterial = nbt.contains("SwapMaterial", NbtElement.INT_TYPE) ? nbt.getInt("SwapMaterial") : -1;
 		progress.read(nbt);
 		placement.read(nbt);

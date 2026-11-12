@@ -1,5 +1,5 @@
 ---
-description: Look and behavior of the table menu, clipboard and hologram
+description: Look and behavior of the table menu and hologram
 globs: common/src/main/java/com/davisr/thedreamtable/screen/**/*.java,common/src/main/java/com/davisr/thedreamtable/client/**/*.java
 alwaysApply: false
 ---
@@ -16,8 +16,6 @@ alwaysApply: false
 - Destructive actions, such as discarding a started build, need a second click.
 - Keyboard focus is always visible: after Tab or arrow navigation the focused card, button, chip or tab gets a three-layer ring (navy, white, theme cyan, `Painter.focusRing`) drawn inside its bounds, from the vanilla focus of its `UiControl` (`PageContext.setFocusedControl`, set by the screen each frame). It hides after a mouse click, like vanilla. Focus never moves to a control that is scrolled out of the content area. A disabled control narrates "Unavailable" once, followed by its own reason when it has one.
 - A "click again" arming hint (Discard, Take Down) is an information notice (`ScreenActions.hint`), not a red problem. Per-frame layout math (wrapped text heights, filtered lists) is computed once per change of its inputs and has no side effects such as network requests; requests are sent from `draw` only and retried on a timer until answered.
-- Clipboard icons use each item's own model, facing forward, at the 2D icon size.
-- Clipboard page arrows play the book page-turn sound.
 - Tooltips are only for controls that show no text of their own: the icon-only compact tabs and item/material slots. A control with a visible label, card detail or button detail (cards, buttons, chips, expanded tabs, option toggles) never has a hover tooltip, because its text scrolls and is fully readable; a tooltip must never repeat a title already on screen. Anything a player needs to know, such as why a control is disabled or why a file was rejected, is shown as the card or button detail line, never only in a tooltip. Pages draw no tooltips; the ones that exist go through `screen/ui/Tooltips` (wrapped to `Tooltips.maxWidth`, never wider than half the window, drawn with vanilla's positioner so it stays inside the screen); never call `DrawContext.drawTooltip` with unwrapped `Text` lines. `TooltipPolicyTest` guards this.
 - An item icon with no name of its own (farm storage and needs on My Farms, required materials on the Requirements slots) names itself on hover in vanilla's item style: the page calls `PageContext.hoverItem(stack, note, x, y, mouseX, mouseY)` with the icon's origin, and `DreamTableScreen` draws the item name and the optional note (such as "Stored: 1,200") through `Tooltips`. Pages still contain no tooltip code. A filled Requirements slot keeps vanilla's own slot tip.
 - A button that is off says why on its second line (`PageContext.button` or `buttonAt` with a detail). The reason is a lang key chosen by a static rule that tests cover (`FarmPage.keepLoadedReason`, `FarmPage.repairReason`); a control is never only greyed out. Take Down and Forget have no reason because the server decides them when clicked.

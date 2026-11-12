@@ -43,7 +43,6 @@ class PayloadCodecsTest {
 	@Test
 	void blockPosPayloadsKeepTheirLayout() {
 		assertEquals("0000004000003002", ByteBufUtil.hexDump(roundTrip(RequestSessionPayload.CODEC, new RequestSessionPayload(TABLE))));
-		assertEquals("0000004000003002", ByteBufUtil.hexDump(roundTrip(DepositMaterialPayload.CODEC, new DepositMaterialPayload(TABLE))));
 	}
 
 	@Test

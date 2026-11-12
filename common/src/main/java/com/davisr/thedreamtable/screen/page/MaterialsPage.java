@@ -1,6 +1,5 @@
 package com.davisr.thedreamtable.screen.page;
 
-import com.davisr.thedreamtable.client.ClientSettings;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import com.davisr.thedreamtable.screen.ui.Viewport;
@@ -11,7 +10,7 @@ import net.minecraft.text.Text;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
-/** Lists the farm materials; a swapped one shows its replacement and is marked as selected. The delivery buttons sit under the list. */
+/** Lists the farm materials; a swapped one shows its replacement and is marked as selected. */
 public final class MaterialsPage implements TablePage {
 	private final PageContext ui;
 
@@ -31,32 +30,7 @@ public final class MaterialsPage implements TablePage {
 			Item shown = replacement == null ? original : replacement;
 			ui.cardAt("material." + index, context, new ItemStack(shown), shown.getName(), x, y, mouseX, mouseY, shown != original, ui.handler().canSwap(index));
 		}
-		boolean creative = ui.actions().creative();
-		drawDelivery(context, deliverAllY(ui.view(), count), "deliver_all", "gui.the_dream_table.deliver_all", "gui.the_dream_table.deliver_all_hint",
-				creative ? "gui.the_dream_table.deliver_creative" : null, mouseX, mouseY);
-		drawDelivery(context, deliverNearbyY(ui.view(), count), "deliver_nearby", "gui.the_dream_table.deliver_nearby", "gui.the_dream_table.deliver_nearby_tip",
-				nearbyBlocker(creative), mouseX, mouseY);
 		ui.backButton(context, backY(ui.view(), count), mouseX, mouseY);
-	}
-
-	/** Why Deliver from Nearby is off, or null: the server setting wins over this player's own switch. */
-	private String nearbyBlocker(boolean creative) {
-		return nearbyBlocker(creative, ui.handler().nearbyDeliveryAllowed(), ClientSettings.deliverFromNearby());
-	}
-
-	static String nearbyBlocker(boolean creative, boolean serverAllows, boolean playerWants) {
-		if (creative) {
-			return "gui.the_dream_table.deliver_creative";
-		}
-		if (!serverAllows) {
-			return "gui.the_dream_table.deliver_nearby_off_server";
-		}
-		return playerWants ? null : "gui.the_dream_table.deliver_nearby_off_player";
-	}
-
-	/** A disabled button explains itself on its second line; an enabled one says what it does. */
-	private void drawDelivery(DrawContext context, int y, String key, String label, String hint, String blocker, int mouseX, int mouseY) {
-		ui.button(key, context, Text.translatable(label), Text.translatable(blocker == null ? hint : blocker), y, mouseX, mouseY, blocker == null, false);
 	}
 
 	@Override
@@ -71,18 +45,6 @@ public final class MaterialsPage implements TablePage {
 				ui.go(DreamTableScreenHandler.PAGE_SWAP, DreamTableScreenHandler.BUTTON_SWAP_OPEN + index);
 			} else if (!ui.handler().swapOptions(index).isEmpty()) {
 				ui.message("gui.the_dream_table.swap_locked");
-			}
-			return true;
-		}
-		if (ui.buttonHit(mouseX, mouseY, deliverAllY(ui.view(), count))) {
-			if (!ui.actions().creative()) {
-				ui.actions().press(DreamTableScreenHandler.BUTTON_DELIVER_ALL);
-			}
-			return true;
-		}
-		if (ui.buttonHit(mouseX, mouseY, deliverNearbyY(ui.view(), count))) {
-			if (nearbyBlocker(ui.actions().creative()) == null) {
-				ui.actions().press(DreamTableScreenHandler.BUTTON_DELIVER_NEARBY);
 			}
 			return true;
 		}
@@ -111,16 +73,8 @@ public final class MaterialsPage implements TablePage {
 		return view.gridCardY(index);
 	}
 
-	static int deliverAllY(Viewport view, int count) {
-		return count == 0 ? cardY(view, 0) + 10 : cardY(view, count - 1) + CARD_HEIGHT + 10;
-	}
-
-	static int deliverNearbyY(Viewport view, int count) {
-		return deliverAllY(view, count) + BUTTON_HEIGHT + BUTTON_GAP;
-	}
-
 	static int backY(Viewport view, int count) {
-		return deliverNearbyY(view, count) + BUTTON_HEIGHT + BUTTON_GAP;
+		return count == 0 ? cardY(view, 0) + 10 : cardY(view, count - 1) + CARD_HEIGHT + 10;
 	}
 
 	static int contentHeight(Viewport view, int count) {

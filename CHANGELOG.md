@@ -1,17 +1,18 @@
-# The Dream Table 1.3.0
+# The Dream Table 1.4.0
 
-Release date: 2026-11-05
+Release date: not yet released
 
-The Dream Table now runs on Forge, and on Minecraft 1.20.1. This version only adds platforms: gameplay is the same as in 1.2.0.
+Delivering materials now happens in the table menu, and the clipboard next to the table is gone.
 
-## New loaders and versions
+## Changes
 
-- **Forge** support on Minecraft 1.21.1, next to Fabric and NeoForge.
-- **Minecraft 1.20.1** support, on Fabric and Forge.
+- **Requirements** on the farm screen now opens a page of the table menu. Each material has a slot: put the item in it, or shift-click it from your inventory, and the slot shows how much is delivered.
+- **Deliver All** and **Deliver From Nearby** moved from the Materials page to the Requirements page. Materials now only swaps blocks.
+- The clipboard in the world is removed. It took space next to the table and could glitch between blocks, so you could not see or deliver materials. The menu has none of that.
+- A build that waits for a material continues on its own when you put the item in a Requirements slot, like it already did with Deliver All.
 
 ## Good to know
 
-- Every file is named after its loader and Minecraft version, for example `the_dream_table-forge-mc1.20.1-1.3.0.jar`. Pick the one that matches your game.
-- On Fabric, both versions still need Fabric API.
-- Worlds, finished farms and builds in progress from 1.2.0 carry over on Minecraft 1.21.1.
-- Saved designs and kept projects stay with their Minecraft version: a world from 1.21.1 does not move to 1.20.1, and the reverse is also true.
+- Delivering by right-clicking with the item in hand is gone. Use the Requirements slots or the delivery buttons.
+- The network protocol changed (version 4): a 1.4.0 server and its players must all run 1.4.0.
+- Worlds, finished farms and builds in progress from 1.3.0 carry over on Minecraft 1.21.1.

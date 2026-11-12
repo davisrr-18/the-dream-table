@@ -1,4 +1,4 @@
-package com.davisr.thedreamtable.client.clipboard;
+package com.davisr.thedreamtable.client;
 
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.NearbyWater;
@@ -29,7 +29,7 @@ public final class WaterRow {
 	private WaterRow() {
 	}
 
-	/** True when the farm has a water step, so the clipboard and the requirements page show the line. */
+	/** True when the farm has a water step, so the requirements page shows the line. */
 	public static boolean needed(FarmTemplate template) {
 		for (FarmStep step : template.steps()) {
 			if (FarmBuilder.isWater(step)) {
@@ -61,7 +61,7 @@ public final class WaterRow {
 		return client.world.getBlockEntity(table) instanceof DreamTableBlockEntity entity ? entity.session(client.player.getUuid()) : null;
 	}
 
-	/** Cached for the tick: the clipboard and the page ask every frame, and the scan reads up to 2197 cells. */
+	/** Cached for the tick: the page asks every frame, and the scan reads up to 2197 cells. */
 	public static boolean nearby(TableSession table, FarmTemplate template) {
 		ClientWorld world = MinecraftClient.getInstance().world;
 		if (world == null) {

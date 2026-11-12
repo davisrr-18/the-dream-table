@@ -318,7 +318,7 @@ final class BuildProgress {
 		}
 	}
 
-	/** What clients need to draw the menu, hologram and clipboard, and why the build stopped. The step records, timer and signature stay on the server. */
+	/** What clients need to draw the menu and hologram, and why the build stopped. The step records, timer and signature stay on the server. */
 	void writeForClient(NbtCompound nbt) {
 		nbt.putString("Phase", phase);
 		nbt.putInt("BuildIndex", index);

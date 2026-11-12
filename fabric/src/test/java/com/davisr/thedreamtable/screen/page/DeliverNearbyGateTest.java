@@ -18,18 +18,18 @@ class DeliverNearbyGateTest {
 
 	@Test
 	void buttonIsAvailableOnlyWhenServerAndPlayerAllowIt() {
-		assertNull(MaterialsPage.nearbyBlocker(false, true, true));
-		assertEquals("gui.the_dream_table.deliver_nearby_off_player", MaterialsPage.nearbyBlocker(false, true, false));
+		assertNull(RequirementsPage.nearbyBlocker(false, true, true));
+		assertEquals("gui.the_dream_table.deliver_nearby_off_player", RequirementsPage.nearbyBlocker(false, true, false));
 	}
 
 	@Test
 	void serverOffWinsWhateverThePlayerChose() {
-		assertEquals("gui.the_dream_table.deliver_nearby_off_server", MaterialsPage.nearbyBlocker(false, false, true));
-		assertEquals("gui.the_dream_table.deliver_nearby_off_server", MaterialsPage.nearbyBlocker(false, false, false));
+		assertEquals("gui.the_dream_table.deliver_nearby_off_server", RequirementsPage.nearbyBlocker(false, false, true));
+		assertEquals("gui.the_dream_table.deliver_nearby_off_server", RequirementsPage.nearbyBlocker(false, false, false));
 	}
 
 	@Test
 	void creativeNeverDelivers() {
-		assertEquals("gui.the_dream_table.deliver_creative", MaterialsPage.nearbyBlocker(true, true, true));
+		assertEquals("gui.the_dream_table.deliver_creative", RequirementsPage.nearbyBlocker(true, true, true));
 	}
 }

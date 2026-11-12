@@ -19,7 +19,7 @@ import java.util.Map;
 
 /**
  * On a server that runs on another computer, My Schematics lists the server's files, and each farm is fetched when the
- * hologram, clipboard or miniature first needs it. In singleplayer the client and server share the same files already.
+ * hologram or miniature first needs it. In singleplayer the client and server share the same files already.
  */
 public final class ServerSchematics {
 	private static final PendingRequests REQUESTED = new PendingRequests();

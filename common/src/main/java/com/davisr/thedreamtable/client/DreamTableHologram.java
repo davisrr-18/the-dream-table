@@ -512,7 +512,6 @@ public final class DreamTableHologram {
 	static boolean settle(TableView view) {
 		if (view == TableView.GONE) {
 			clear();
-			DreamTableClipboard.close();
 		}
 		return view == TableView.STANDING;
 	}

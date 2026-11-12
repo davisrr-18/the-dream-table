@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.client.DreamTableHologram;
-import com.davisr.thedreamtable.client.clipboard.WaterRow;
+import com.davisr.thedreamtable.client.WaterRow;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.MaterialSpec;
 import com.davisr.thedreamtable.farm.FarmTemplates;

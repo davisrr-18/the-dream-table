@@ -4,7 +4,6 @@ import com.davisr.thedreamtable.client.BuildProgressLine;
 import com.davisr.thedreamtable.client.TableNotices;
 import com.davisr.thedreamtable.client.ClientLifecycle;
 import com.davisr.thedreamtable.client.ClientSettings;
-import com.davisr.thedreamtable.client.DreamTableClipboard;
 import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.DreamTableKeys;
 import com.davisr.thedreamtable.client.FarmFaces;
@@ -29,7 +28,6 @@ public final class TheDreamTableClient {
 		Platform.clientRendering().registerBlockEntityRenderer(ModBlockEntities.DREAM_TABLE, FarmMiniature::new);
 		DreamTableKeys.register();
 		DreamTableHologram.register();
-		DreamTableClipboard.register();
 		DreamTableHologram.registerClicks();
 		DreamTableHologram.registerChecks();
 		ClientSettings.load();
