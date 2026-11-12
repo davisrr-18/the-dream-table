@@ -28,6 +28,7 @@ public final class RequirementsPage implements TablePage {
 	@Override
 	public void draw(DrawContext context, int mouseX, int mouseY) {
 		DreamTableScreenHandler handler = ui.handler();
+		handler.alignInventory(ui.materialCount());
 		TextRenderer text = ui.painter().text();
 		int left = ui.view().slotOriginX();
 		int top = ui.view().slotOriginY();

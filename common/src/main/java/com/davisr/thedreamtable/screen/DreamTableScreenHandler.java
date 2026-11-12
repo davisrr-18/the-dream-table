@@ -85,7 +85,11 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_TAB_SETTINGS = 3303;
 	private final ScreenHandlerContext context;
 	private final boolean client;
+	private static final int PLAYER_SLOTS = 36;
 	private final UUID playerId;
+	private final PlayerInventory playerInventory;
+	/** The material count the inventory slots were placed for; the grid above them is as tall as the farm has materials. */
+	private int inventoryFor;
 	private String selectedFarm;
 	private int page;
 	private int buildIndex;
@@ -123,6 +127,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		this.context = ScreenHandlerContext.create(inventory.player.getWorld(), pos);
 		this.client = inventory.player.getWorld().isClient();
 		this.playerId = inventory.player.getUuid();
+		this.playerInventory = inventory;
 		this.selectedFarm = selectedFarm == null ? "" : selectedFarm;
 		this.page = page;
 		this.phase = phase;
@@ -137,15 +142,32 @@ public class DreamTableScreenHandler extends ScreenHandler {
 			addSlot(new MaterialSlot(materials, index, DreamTableLayout.materialX(index), DreamTableLayout.materialY(index), this));
 		}
 		FarmTemplate template = FarmTemplates.get(selectedFarm);
-		int originX = DreamTableLayout.inventoryX();
-		int originY = DreamTableLayout.inventoryY(template == null ? 0 : template.materials().size());
-		for (int row = 0; row < 3; row++) {
-			for (int column = 0; column < 9; column++) {
-				addSlot(new PlayerSlot(inventory, column + row * 9 + 9, originX + column * 18, originY + row * 18));
-			}
+		inventoryFor = template == null ? 0 : template.materials().size();
+		for (int index = 0; index < PLAYER_SLOTS; index++) {
+			addSlot(playerSlot(index, DreamTableLayout.inventoryY(inventoryFor)));
 		}
-		for (int column = 0; column < 9; column++) {
-			addSlot(new PlayerSlot(inventory, column, originX + column * 18, originY + 3 * 18 + 4));
+	}
+
+	/** Three inventory rows, then the hotbar. */
+	private PlayerSlot playerSlot(int index, int originY) {
+		boolean hotbar = index >= 27;
+		int y = originY + (hotbar ? 3 * 18 + 4 : index / 9 * 18);
+		return new PlayerSlot(playerInventory, hotbar ? index - 27 : index + 9, DreamTableLayout.inventoryX() + index % 9 * 18, y);
+	}
+
+	/**
+	 * Slot coordinates are final and the farm can change while the menu stays open, so the client moves the inventory under
+	 * the grid by replacing its slots (same ids and inventory, new y). The server never reads the coordinates.
+	 */
+	public void alignInventory(int materials) {
+		if (!client || materials == inventoryFor) {
+			return;
+		}
+		inventoryFor = materials;
+		for (int index = 0; index < PLAYER_SLOTS; index++) {
+			Slot slot = playerSlot(index, DreamTableLayout.inventoryY(materials));
+			slot.id = FarmTemplate.MAX_SLOTS + index;
+			slots.set(slot.id, slot);
 		}
 	}
 
@@ -320,9 +342,10 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	@Override
 	public void onSlotClick(int slotIndex, int button, SlotActionType actionType, PlayerEntity player) {
-		super.onSlotClick(slotIndex, button, actionType, player);
 		TableSession table = table();
-		if (table != null && player instanceof ServerPlayerEntity serverPlayer && getPage() == PAGE_REQUIREMENTS) {
+		int before = table == null ? 0 : table.deliveredCount();
+		super.onSlotClick(slotIndex, button, actionType, player);
+		if (table != null && player instanceof ServerPlayerEntity serverPlayer && getPage() == PAGE_REQUIREMENTS && table.deliveredCount() > before) {
 			table.resumeAfterSlots(serverPlayer);
 		}
 	}

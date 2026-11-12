@@ -27,7 +27,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -534,6 +533,16 @@ public final class TableSession {
 
 	public int supplied(int index) {
 		return desk.supplied(index);
+	}
+
+	/** Everything delivered so far, to tell a click that delivered from one that only moved items around. */
+	public int deliveredCount() {
+		FarmTemplate farm = template();
+		int total = 0;
+		for (int index = 0; farm != null && index < farm.materials().size(); index++) {
+			total += desk.supplied(index);
+		}
+		return total;
 	}
 
 	public int stored(Item item) {
