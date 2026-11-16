@@ -191,7 +191,7 @@ public final class Painter {
 	}
 
 	public void slotFrame(DrawContext context, int x, int y) {
-		context.fill(x - 2, y - 2, x + 18, y + 18, 0xFF6F95BA);
+		context.fill(x - 2, y - 2, x + 18, y + 18, BLUE);
 		context.fill(x - 1, y - 1, x + 17, y + 17, 0xFFF3EEE4);
 	}
 
