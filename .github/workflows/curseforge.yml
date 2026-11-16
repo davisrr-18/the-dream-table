@@ -1,0 +1,107 @@
+name: CurseForge
+
+# Posts the jars of a published GitHub release to CurseForge, one CurseForge file per jar (loader and Minecraft
+# version set per step). The changelog is the release body (CHANGELOG.md, from `gh release create --notes-file`).
+# Needs the repository secret CURSEFORGE_TOKEN (CurseForge account > API tokens).
+on:
+  release:
+    types: [published]
+  # Re-run for an existing release, e.g. after a failed step; CurseForge refuses a jar it already has.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (e.g. v1.4.0)
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: curseforge-${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Download the release jars
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.jar' --dir dist
+          version="${TAG#v}"
+          for jar in fabric-mc1.21.1 neoforge-mc1.21.1 forge-mc1.21.1 fabric-mc1.20.1 forge-mc1.20.1; do
+            test -f "dist/the_dream_table-$jar-$version.jar" || { echo "missing the_dream_table-$jar-$version.jar"; exit 1; }
+          done
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > changelog.md
+
+      # Empty name: CurseForge shows the file name, as on the files uploaded by hand. Version type comes from the tag
+      # (v1.4.0 = release, v1.5.0-beta = beta). skip: a failed jar does not stop the others; the job still fails.
+      - name: Fabric 1.21.1
+        uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
+        with:
+          curseforge-id: 1759212
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: dist/the_dream_table-fabric-mc1.21.1-${{ env.VERSION }}.jar
+          name: ""
+          version: ${{ env.TAG }}
+          changelog-file: changelog.md
+          loaders: fabric
+          game-versions: 1.21.1
+          dependencies: fabric-api(required)
+          fail-mode: skip
+
+      - name: NeoForge 1.21.1
+        uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
+        with:
+          curseforge-id: 1759212
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: dist/the_dream_table-neoforge-mc1.21.1-${{ env.VERSION }}.jar
+          name: ""
+          version: ${{ env.TAG }}
+          changelog-file: changelog.md
+          loaders: neoforge
+          game-versions: 1.21.1
+          fail-mode: skip
+
+      - name: Forge 1.21.1
+        uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
+        with:
+          curseforge-id: 1759212
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: dist/the_dream_table-forge-mc1.21.1-${{ env.VERSION }}.jar
+          name: ""
+          version: ${{ env.TAG }}
+          changelog-file: changelog.md
+          loaders: forge
+          game-versions: 1.21.1
+          fail-mode: skip
+
+      - name: Fabric 1.20.1
+        uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
+        with:
+          curseforge-id: 1759212
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: dist/the_dream_table-fabric-mc1.20.1-${{ env.VERSION }}.jar
+          name: ""
+          version: ${{ env.TAG }}
+          changelog-file: changelog.md
+          loaders: fabric
+          game-versions: 1.20.1
+          dependencies: fabric-api(required)
+          fail-mode: skip
+
+      - name: Forge 1.20.1
+        uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
+        with:
+          curseforge-id: 1759212
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: dist/the_dream_table-forge-mc1.20.1-${{ env.VERSION }}.jar
+          name: ""
+          version: ${{ env.TAG }}
+          changelog-file: changelog.md
+          loaders: forge
+          game-versions: 1.20.1
+          fail-mode: skip
