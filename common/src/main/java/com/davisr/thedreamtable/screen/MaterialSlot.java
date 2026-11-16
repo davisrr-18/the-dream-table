@@ -26,7 +26,8 @@ public class MaterialSlot extends Slot {
 	@Override
 	public int getMaxItemCount() {
 		MaterialSpec spec = handler.material(materialIndex);
-		return spec == null ? 0 : spec.count();
+		// Only what the farm still needs: the ledger absorbs the slot right away, so the full count would let a surplus sit in it.
+		return spec == null ? 0 : Math.max(0, spec.count() - handler.supplied(materialIndex));
 	}
 
 	@Override
