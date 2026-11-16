@@ -107,8 +107,29 @@ public final class RequirementsLayout {
 		return deliverAllY(materials, columns) + BUTTON_HEIGHT + BUTTON_GAP;
 	}
 
-	public static int backY(int materials, int columns) {
+	public static int returnAllY(int materials, int columns) {
 		return deliverNearbyY(materials, columns) + BUTTON_HEIGHT + BUTTON_GAP;
+	}
+
+	public static int backY(int materials, int columns) {
+		return returnAllY(materials, columns) + BUTTON_HEIGHT + BUTTON_GAP;
+	}
+
+	/** Where each material's card goes: the ones still missing items keep their order at the top, the complete ones follow. Only positions move, never slot ids. */
+	public static int[] order(boolean[] complete) {
+		int[] position = new int[complete.length];
+		int next = 0;
+		for (int index = 0; index < complete.length; index++) {
+			if (!complete[index]) {
+				position[index] = next++;
+			}
+		}
+		for (int index = 0; index < complete.length; index++) {
+			if (complete[index]) {
+				position[index] = next++;
+			}
+		}
+		return position;
 	}
 
 	/** Height of the scrolling content, from the top of the viewport. */

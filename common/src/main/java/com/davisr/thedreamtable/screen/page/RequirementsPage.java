@@ -35,10 +35,15 @@ public final class RequirementsPage implements TablePage {
 		TextRenderer text = ui.painter().text();
 		int columns = columns();
 		int count = ui.materialCount();
-		handler.alignSlots(columns);
+		FarmTemplate template = ui.template();
+		boolean[] done = new boolean[count];
+		for (int index = 0; index < count; index++) {
+			MaterialSpec spec = template.materials().get(index);
+			done[index] = WaterRow.covers(handler.getTablePos(), template, spec.item()) || handler.supplied(index) >= spec.count();
+		}
+		handler.alignSlots(columns, RequirementsLayout.order(done));
 		int left = ui.view().slotOriginX();
 		int top = ui.view().slotOriginY();
-		FarmTemplate template = ui.template();
 		for (int index = 0; index < count; index++) {
 			MaterialSpec spec = template.materials().get(index);
 			Slot slot = handler.getSlot(index);
@@ -47,8 +52,8 @@ public final class RequirementsPage implements TablePage {
 			Item shown = handler.materialItem(index);
 			ItemStack required = new ItemStack(shown == null ? spec.item() : shown);
 			Text amount = Text.translatable("gui.the_dream_table.count", have, spec.count());
-			ui.painter().card(context, required, required.getName(), amount, left + RequirementsLayout.cardX(index, columns),
-					top + RequirementsLayout.cardY(index, columns), CARD_WIDTH, false, complete, true);
+			ui.painter().card(context, required, required.getName(), amount, left + RequirementsLayout.cardX(handler.cardPosition(index), columns),
+					top + RequirementsLayout.cardY(handler.cardPosition(index), columns), CARD_WIDTH, false, complete, true);
 			// An empty slot shows only the faded icon of what it wants, with no name; a filled one has the vanilla slot tip.
 			if (slot.getStack().isEmpty() && handler.getCursorStack().isEmpty()) {
 				ui.hoverItem(required, Text.translatable("gui.the_dream_table.item_supplied", amount).formatted(Formatting.GRAY),
@@ -59,8 +64,9 @@ public final class RequirementsPage implements TablePage {
 			TableSession table = WaterRow.sessionAt(handler.getTablePos());
 			if (table != null) {
 				boolean nearby = WaterRow.nearby(table, template);
+				// Red only while water is missing for real: no source nearby and the buckets are not all delivered.
 				context.drawText(text, Text.translatable(WaterRow.key(nearby)), left + RequirementsLayout.columnX(0),
-						top + RequirementsLayout.waterY(count, columns), nearby ? ACCENT : HINT, false);
+						top + RequirementsLayout.waterY(count, columns), nearby ? ACCENT : waterBucketsDelivered(template, handler) ? HINT : ERROR, false);
 			}
 		}
 		context.drawText(text, Text.translatable("gui.the_dream_table.inventory"), left + RequirementsLayout.inventoryX(columns),
@@ -77,13 +83,32 @@ public final class RequirementsPage implements TablePage {
 				creative ? "gui.the_dream_table.deliver_creative" : null, mouseX, mouseY);
 		drawDelivery(context, deliverNearbyY(), "deliver_nearby", "gui.the_dream_table.deliver_nearby", "gui.the_dream_table.deliver_nearby_tip",
 				nearbyBlocker(creative), mouseX, mouseY);
+		boolean holds = handler.holdsDelivered();
+		ui.button("return_all", context, Text.translatable("gui.the_dream_table.return_all"),
+				Text.translatable(holds ? "gui.the_dream_table.return_all_hint" : "gui.the_dream_table.return_all_none"), returnAllY(), mouseX, mouseY, holds, false);
 		ui.button(context, Text.translatable("gui.the_dream_table.back"), backY(), mouseX, mouseY, true, false);
+	}
+
+	private static boolean waterBucketsDelivered(FarmTemplate template, DreamTableScreenHandler handler) {
+		for (int index = 0; index < template.materials().size(); index++) {
+			MaterialSpec spec = template.materials().get(index);
+			if (spec.item() == net.minecraft.item.Items.WATER_BUCKET && handler.supplied(index) < spec.count()) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		if (ui.buttonHit(mouseX, mouseY, backY())) {
 			ui.go(DreamTableScreenHandler.PAGE_WORK, DreamTableScreenHandler.BUTTON_BACK);
+			return true;
+		}
+		if (ui.buttonHit(mouseX, mouseY, returnAllY())) {
+			if (ui.handler().holdsDelivered()) {
+				ui.actions().press(DreamTableScreenHandler.BUTTON_RETURN_ALL);
+			}
 			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, deliverAllY())) {
@@ -131,6 +156,10 @@ public final class RequirementsPage implements TablePage {
 
 	private int deliverNearbyY() {
 		return ui.view().slotOriginY() + RequirementsLayout.deliverNearbyY(ui.materialCount(), columns());
+	}
+
+	private int returnAllY() {
+		return ui.view().slotOriginY() + RequirementsLayout.returnAllY(ui.materialCount(), columns());
 	}
 
 	private int backY() {

@@ -34,7 +34,7 @@ final class TableButtons {
 			return true;
 		}
 		if (dynamicRange(id) == DynamicRange.SWAP_PICK) {
-			return pickSwap(table, id - BUTTON_SWAP_PICK);
+			return pickSwap(table, player, id - BUTTON_SWAP_PICK);
 		}
 		if (dynamicRange(id) == DynamicRange.SWAP_OPEN) {
 			return openSwap(table, id - BUTTON_SWAP_OPEN);
@@ -67,6 +67,7 @@ final class TableButtons {
 			case BUTTON_PAUSE -> table.build().pause();
 			case BUTTON_DELIVER_ALL -> table.deliverAll(player);
 			case BUTTON_DELIVER_NEARBY -> table.deliverNearby(player);
+			case BUTTON_RETURN_ALL -> table.returnItems(player);
 			case BUTTON_PROTECT_FARMS -> toggleFarmProtection(player);
 			case BUTTON_DISCARD -> {
 				table.discard(player);
@@ -141,9 +142,9 @@ final class TableButtons {
 		return page(table, PAGE_SWAP);
 	}
 
-	private static boolean pickSwap(TableSession table, int option) {
+	private static boolean pickSwap(TableSession table, ServerPlayerEntity player, int option) {
 		int material = table.getSwapMaterial();
-		if (material < 0 || !table.setSwap(material, option)) {
+		if (material < 0 || !table.setSwap(material, option, player)) {
 			return false;
 		}
 		return page(table, PAGE_MATERIALS);

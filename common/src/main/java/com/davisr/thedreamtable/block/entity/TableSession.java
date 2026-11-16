@@ -242,15 +242,17 @@ public final class TableSession {
 		return desk.swapOptions(index);
 	}
 
-	/** A material can be swapped only before any of it is delivered and before the build starts. */
+	/**
+	 * A material can be swapped while nothing of it was used by the build, also after some was delivered (that goes back
+	 * to the player). Not while a build runs or after it ends, and never in a repair, which keeps the finished farm's blocks.
+	 */
 	public boolean canSwap(int index) {
-		FarmTemplate template = template();
-		boolean valid = template != null && index >= 0 && index < template.materials().size();
-		return valid && progress.is(PHASE_IDLE) && progress.index() == 0 && desk.untouched(index);
+		boolean stopped = progress.is(PHASE_IDLE) || progress.is(PHASE_NEED) || progress.is(PHASE_PAUSED) || progress.is(PHASE_BLOCKED);
+		return stopped && progress.repairContext() == null && desk.swappable(index);
 	}
 
-	public boolean setSwap(int index, int option) {
-		if (!canSwap(index) || !desk.swap(index, option)) {
+	public boolean setSwap(int index, int option, @Nullable PlayerEntity receiver) {
+		if (!canSwap(index) || table.getWorld() == null || !desk.swap(index, option, table.getWorld(), getPos(), receiver)) {
 			return false;
 		}
 		sync();
@@ -264,6 +266,16 @@ public final class TableSession {
 	public void setSwapMaterial(int index) {
 		swapMaterial = index;
 		sync();
+	}
+
+	/** Gives back the delivered items the build has not used yet, and whatever sits in the slots. */
+	public boolean returnItems(PlayerEntity player) {
+		if (!desk.holdsItems() || table.getWorld() == null) {
+			return false;
+		}
+		desk.returnAll(table.getWorld(), getPos(), player);
+		sync();
+		return true;
 	}
 
 	// Placement
@@ -378,6 +390,10 @@ public final class TableSession {
 
 	public boolean isBusy() {
 		return progress.busy();
+	}
+
+	public boolean hasDelivered() {
+		return desk.holdsItems();
 	}
 
 	/** Whether the player has delivered items, or items in the material slots, that breaking the table would drop. */

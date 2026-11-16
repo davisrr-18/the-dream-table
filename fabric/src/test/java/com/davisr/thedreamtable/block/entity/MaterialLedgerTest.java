@@ -494,4 +494,27 @@ class MaterialLedgerTest {
 		ledger.reset();
 		assertEquals(before, saved);
 	}
+
+	@Test
+	void aMaterialCanBeSwappedUntilTheBuildUsesIt() {
+		MaterialLedger ledger = new MaterialLedger();
+		ledger.accept(farm, new ItemStack(Items.STONE, 4), false);
+		assertTrue(ledger.swappable(farm, 0), "delivered but unused");
+		ledger.consume(farm, Items.STONE);
+		assertFalse(ledger.swappable(farm, 0), "one stone is already a block");
+		assertTrue(ledger.swappable(farm, 1), "glass is untouched");
+	}
+
+	@Test
+	void releaseHandsBackTheUnusedDeliveryOfThatMaterialOnly() {
+		MaterialLedger ledger = new MaterialLedger();
+		ledger.accept(farm, new ItemStack(Items.STONE, 4), false);
+		ledger.accept(farm, new ItemStack(Items.GLASS, 2), false);
+		List<ItemStack> back = ledger.release(farm, 0);
+		assertEquals(4, count(back));
+		assertTrue(back.stream().allMatch(stack -> stack.isOf(Items.STONE)));
+		assertEquals(0, ledger.deposited(farm, 0));
+		assertEquals(2, ledger.deposited(farm, 1), "glass stays delivered");
+		assertEquals(4, ledger.accept(farm, new ItemStack(Items.STONE, 4), false), "the slot takes a new delivery");
+	}
 }
