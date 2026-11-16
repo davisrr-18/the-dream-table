@@ -33,6 +33,6 @@ alwaysApply: false
 - Taking apart and counting missing blocks use `BlockMatch.stillFarm` (also accepts farmland turned dirt, bamboo grown from its shoot). After each batch, `FarmDismantler.settle` sends neighbor and shape updates so cane, crops, torches, redstone and piston heads left without support drop.
 - Discard only takes apart unfinished builds, and only steps the table placed that still match with `BlockMatch.sameShape`, so a block the player turned or replaced stays. Refunds go only to paid steps. Water refunds nothing, because the bucket came back when it was poured. Empty containers into the player's hands before removing them.
 - Material counts are always keyed by the template's original item. `resolve()` gives the swapped item.
-- A material can be swapped only before any of it is delivered and before the build starts.
+- A material can be swapped while the build is stopped (idle, waiting, paused or blocked), is not a repair, and the build has used none of it (`MaterialLedger.swappable`); deliveries made for the old item are released and handed back to the player (`MaterialLedger.release`).
 - Respect protected land through `BuildPermission`: a new build needs `canBuildAll` for the starter; each step checks the online owner (`canBreak` for obstacles, `canPlace` otherwise) and stops with a `PROTECTED` issue; Discard skips blocks the discarding player can't break. Never place or remove blocks around these checks.
 - Keep NBT key names stable so existing worlds keep loading. New data gets new keys with safe defaults.

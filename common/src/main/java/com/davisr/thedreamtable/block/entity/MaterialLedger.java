@@ -129,6 +129,38 @@ public final class MaterialLedger {
 		return MaterialSwaps.options(template, template.materials().get(index).item());
 	}
 
+	/** A swap is safe while nothing of this material was used by the build: used items were placed as blocks of the old material. Indexes sharing the original item share the swap. */
+	public boolean swappable(FarmTemplate template, int index) {
+		if (template == null || index < 0 || index >= template.materials().size()) {
+			return false;
+		}
+		Item original = template.materials().get(index).item();
+		for (int other = 0; other < template.materials().size(); other++) {
+			if (template.materials().get(other).item() == original && consumed[other] > 0) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** Empties the unused deliveries of every index of this material and returns them (Creative ones are not returned): after a swap they are the wrong item. */
+	public List<ItemStack> release(FarmTemplate template, int index) {
+		List<ItemStack> stacks = new ArrayList<>();
+		Item original = template.materials().get(index).item();
+		for (int other = 0; other < template.materials().size(); other++) {
+			if (template.materials().get(other).item() != original) {
+				continue;
+			}
+			if (delivered[other] != null) {
+				refund(stacks, delivered[other], deposited[other] - free[other]);
+			}
+			deposited[other] = 0;
+			free[other] = 0;
+			delivered[other] = null;
+		}
+		return stacks;
+	}
+
 	public boolean swap(FarmTemplate template, int index, int option) {
 		List<Item> options = swapOptions(template, index);
 		if (option < 0 || option >= options.size()) {

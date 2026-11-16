@@ -3,6 +3,7 @@ package com.davisr.thedreamtable.screen;
 import org.junit.jupiter.api.Test;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.BUTTON_HEIGHT;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,5 +53,12 @@ class DreamTableLayoutTest {
 		}
 		assertTrue(RequirementsLayout.playerSlotX(1, 2) - RequirementsLayout.playerSlotX(0, 2) >= 18, "slots never overlap");
 		assertEquals(RequirementsLayout.playerSlotX(9, 2), RequirementsLayout.playerSlotX(27, 2));
+	}
+
+	@Test
+	void completeCardsMoveAfterTheMissingOnesKeepingTheirOrder() {
+		assertArrayEquals(new int[] {0, 2, 1, 3}, RequirementsLayout.order(new boolean[] {false, true, false, true}));
+		assertArrayEquals(new int[] {0, 1, 2}, RequirementsLayout.order(new boolean[] {false, false, false}));
+		assertArrayEquals(new int[] {}, RequirementsLayout.order(new boolean[] {}));
 	}
 }

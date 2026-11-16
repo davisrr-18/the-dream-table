@@ -54,6 +54,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_DELIVER_ALL = 106;
 	public static final int BUTTON_DELIVER_NEARBY = 107;
 	public static final int BUTTON_PROTECT_FARMS = 108;
+	public static final int BUTTON_RETURN_ALL = 109;
 	public static final int BUTTON_FARM_INFO = 113;
 	public static final int BUTTON_FARM_INFO_BACK = 114;
 	public static final int BUTTON_SCHEMES = 110;
@@ -91,6 +92,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private Inventory materialInventory;
 	/** What the slots were placed for: cards per row, and the material count that sets how far down the inventory is. */
 	private int slotColumns = 1;
+	/** Client only: card position of each material (see {@link RequirementsLayout#order}); identity until the page sorts. */
+	private int[] slotOrder = identity();
 	private int slotsFor;
 	private String selectedFarm;
 	private int page;
@@ -151,8 +154,17 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		}
 	}
 
+	private static int[] identity() {
+		int[] order = new int[FarmTemplate.MAX_SLOTS];
+		for (int index = 0; index < order.length; index++) {
+			order[index] = index;
+		}
+		return order;
+	}
+
 	private MaterialSlot materialSlot(int index) {
-		return new MaterialSlot(materialInventory, index, RequirementsLayout.slotX(index, slotColumns), RequirementsLayout.slotY(index, slotColumns), this);
+		int position = slotOrder[index];
+		return new MaterialSlot(materialInventory, index, RequirementsLayout.slotX(position, slotColumns), RequirementsLayout.slotY(position, slotColumns), this);
 	}
 
 	/** Three inventory rows, then the hotbar. */
@@ -168,11 +180,23 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	 * new coordinates) whenever either changes. The server never reads the coordinates.
 	 */
 	public void alignSlots(int columns) {
+		alignSlots(columns, slotOrder);
+	}
+
+	/** The card position of a material on the Requirements page. */
+	public int cardPosition(int index) {
+		return index >= 0 && index < slotOrder.length ? slotOrder[index] : index;
+	}
+
+	public void alignSlots(int columns, int[] order) {
 		FarmTemplate template = FarmTemplates.get(getSelectedFarm());
 		int materials = template == null ? 0 : template.materials().size();
-		if (!client || columns == slotColumns && materials == slotsFor) {
+		int[] wanted = identity();
+		System.arraycopy(order, 0, wanted, 0, Math.min(order.length, wanted.length));
+		if (!client || columns == slotColumns && materials == slotsFor && java.util.Arrays.equals(wanted, slotOrder)) {
 			return;
 		}
+		slotOrder = wanted;
 		slotColumns = columns;
 		slotsFor = materials;
 		for (int index = 0; index < FarmTemplate.MAX_SLOTS; index++) {
@@ -284,6 +308,12 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public int supplied(int index) {
 		TableSession table = table();
 		return table == null ? 0 : table.supplied(index);
+	}
+
+	/** True while delivered items wait unused (or sit in a slot), so Return All has something to give back. */
+	public boolean holdsDelivered() {
+		TableSession table = table();
+		return table != null && table.hasDelivered();
 	}
 
 	public MaterialSpec material(int index) {

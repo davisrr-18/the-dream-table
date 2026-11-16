@@ -77,8 +77,22 @@ final class MaterialDesk {
 		return ledger.untouched(index);
 	}
 
-	boolean swap(int index, int option) {
-		return ledger.swap(template.get(), index, option);
+	boolean swappable(int index) {
+		return ledger.swappable(template.get(), index);
+	}
+
+	/** Swaps the material; items already delivered for the old one go back to the receiver (or drop at the table). */
+	boolean swap(int index, int option, World world, BlockPos table, PlayerEntity receiver) {
+		FarmTemplate farm = template.get();
+		Item original = farm == null || index < 0 || index >= farm.materials().size() ? null : farm.materials().get(index).item();
+		Item before = original == null ? null : ledger.resolve(original);
+		if (!ledger.swap(farm, index, option)) {
+			return false;
+		}
+		if (ledger.resolve(original) != before) {
+			hand(ledger.release(farm, index), world, table, receiver);
+		}
+		return true;
 	}
 
 	// Counts
