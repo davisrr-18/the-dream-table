@@ -44,8 +44,12 @@ class DreamTableLayoutTest {
 		assertTrue(RequirementsLayout.inventoryX(2) + RequirementsLayout.inventoryWidth(2) <= right);
 		assertEquals(RequirementsLayout.inventoryY(5, 2), RequirementsLayout.playerSlotY(0, 5, 2));
 		assertEquals(RequirementsLayout.inventoryY(5, 2) + 18, RequirementsLayout.playerSlotY(27, 5, 2));
-		assertEquals(left, RequirementsLayout.playerSlotX(0, 2));
-		assertEquals(right, RequirementsLayout.playerSlotX(17, 2) + 18);
+		assertTrue(RequirementsLayout.playerSlotX(0, 2) - 2 >= left);
+		assertTrue(RequirementsLayout.playerSlotX(17, 2) + 18 <= right);
+		for (int column = 1; column < 18; column++) {
+			assertEquals(RequirementsLayout.playerSlotX(1, 2) - RequirementsLayout.playerSlotX(0, 2),
+					RequirementsLayout.playerSlotX(column, 2) - RequirementsLayout.playerSlotX(column - 1, 2), "equal pitch keeps every border the same thickness");
+		}
 		assertTrue(RequirementsLayout.playerSlotX(1, 2) - RequirementsLayout.playerSlotX(0, 2) >= 18, "slots never overlap");
 		assertEquals(RequirementsLayout.playerSlotX(9, 2), RequirementsLayout.playerSlotX(27, 2));
 	}
