@@ -1,6 +1,6 @@
 # The Dream Table 1.4.0
 
-Release date: not yet released
+Release date: 2026-11-16
 
 Delivering materials now happens in the table menu, and the clipboard next to the table is gone.
 
