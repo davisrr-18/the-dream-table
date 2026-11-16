@@ -64,9 +64,12 @@ public final class RequirementsLayout {
 		return columns > 1 ? WIDE_INVENTORY_COLUMNS : 9;
 	}
 
-	/** Wide: the slots keep their 18 px and the spare width goes between them, so the rows reach both edges of the content. */
+	/** Whole-pixel pitch of the wide rows, so every frame border has the same thickness. */
+	private static final int WIDE_PITCH = 19;
+
+	/** Wide: the slots keep their 18 px, one extra pixel between them; this is the frame span (a frame reaches 2 px left of its slot, 2 px right of its 16 px). */
 	public static int inventoryWidth(int columns) {
-		return columns > 1 ? flowWidth(columns) : inventoryColumns(columns) * 18;
+		return columns > 1 ? (WIDE_INVENTORY_COLUMNS - 1) * WIDE_PITCH + 20 : inventoryColumns(columns) * 18;
 	}
 
 	public static int inventoryHeight(int columns) {
@@ -74,13 +77,14 @@ public final class RequirementsLayout {
 	}
 
 	public static int inventoryX(int columns) {
-		return ScreenGeometry.CONTENT_INSET + (flowWidth(columns) - inventoryWidth(columns)) / 2;
+		int x = ScreenGeometry.CONTENT_INSET + (flowWidth(columns) - inventoryWidth(columns)) / 2;
+		return columns > 1 ? x + 2 : x;
 	}
 
 	/** Slot position of player slot {@code index} (0 to 26 the three inventory rows, 27 to 35 the hotbar), in handler order. */
 	public static int playerSlotX(int index, int columns) {
 		int column = index % inventoryColumns(columns);
-		return inventoryX(columns) + (columns > 1 ? column * (inventoryWidth(columns) - 18) / (WIDE_INVENTORY_COLUMNS - 1) : column * 18);
+		return inventoryX(columns) + column * (columns > 1 ? WIDE_PITCH : 18);
 	}
 
 	public static int playerSlotY(int index, int materials, int columns) {
