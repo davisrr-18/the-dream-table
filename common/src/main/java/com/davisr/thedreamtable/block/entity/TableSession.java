@@ -270,6 +270,14 @@ public final class TableSession {
 		if (!canSwap(index) || table.getWorld() == null || !desk.swap(index, option, table.getWorld(), getPos(), receiver)) {
 			return false;
 		}
+		// A build waiting for a material must ask for the new one, not the item it asked for before the swap.
+		BuildIssue waiting = progress.issue();
+		if (waiting != null && !waiting.temporary() && table.getWorld() instanceof ServerWorld serverWorld) {
+			BuildIssue now = FarmBuilder.check(this, serverWorld);
+			if (now != null) {
+				progress.setIssue(now);
+			}
+		}
 		sync();
 		return true;
 	}
