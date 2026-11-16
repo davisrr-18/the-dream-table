@@ -7,6 +7,7 @@ import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.MaterialSpec;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import com.davisr.thedreamtable.screen.RequirementsLayout;
+import com.davisr.thedreamtable.screen.ui.layout.UiRect;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.Item;
@@ -66,7 +67,10 @@ public final class RequirementsPage implements TablePage {
 				top + RequirementsLayout.inventoryLabelY(count, columns), HINT, false);
 		for (int index = FarmTemplate.MAX_SLOTS; index < handler.slots.size(); index++) {
 			Slot slot = handler.getSlot(index);
-			ui.painter().slotFrame(context, left + slot.x, top + slot.y);
+			// Same rule as DreamTableScreen.drawSlot: a slot cut by the clip shows neither item nor frame, since it cannot be clicked.
+			if (ui.view().fullyVisible(new UiRect(left + slot.x, top + slot.y, 16, 16))) {
+				ui.painter().slotFrame(context, left + slot.x, top + slot.y);
+			}
 		}
 		boolean creative = ui.actions().creative();
 		drawDelivery(context, deliverAllY(), "deliver_all", "gui.the_dream_table.deliver_all", "gui.the_dream_table.deliver_all_hint",
