@@ -248,7 +248,22 @@ public final class TableSession {
 	 */
 	public boolean canSwap(int index) {
 		boolean stopped = progress.is(PHASE_IDLE) || progress.is(PHASE_NEED) || progress.is(PHASE_PAUSED) || progress.is(PHASE_BLOCKED);
-		return stopped && progress.repairContext() == null && desk.swappable(index);
+		return stopped && progress.repairContext() == null && desk.swappable(index) && !placedWith(index);
+	}
+
+	/** True when the build already placed a step of this material. Creative builds spend nothing, so the ledger alone cannot tell. */
+	private boolean placedWith(int index) {
+		FarmTemplate template = template();
+		if (template == null || index < 0 || index >= template.materials().size()) {
+			return true;
+		}
+		Item original = template.materials().get(index).item();
+		for (int step = 0; step < template.steps().size(); step++) {
+			if (template.steps().get(step).item() == original && progress.placed(step)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public boolean setSwap(int index, int option, @Nullable PlayerEntity receiver) {
@@ -273,7 +288,7 @@ public final class TableSession {
 		if (!desk.holdsItems() || table.getWorld() == null) {
 			return false;
 		}
-		desk.returnAll(table.getWorld(), getPos(), player);
+		desk.returnUnused(table.getWorld(), getPos(), player);
 		sync();
 		return true;
 	}

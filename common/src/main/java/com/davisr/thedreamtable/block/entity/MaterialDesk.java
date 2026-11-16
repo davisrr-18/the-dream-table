@@ -159,6 +159,25 @@ final class MaterialDesk {
 		hand(back, world, table, receiver);
 	}
 
+	/** Like {@link #returnAll} but the build's used counts stay: only unused deliveries and slot contents go back. */
+	void returnUnused(World world, BlockPos table, PlayerEntity receiver) {
+		adjusting = true;
+		List<ItemStack> back;
+		try {
+			back = new ArrayList<>(ledger.drainUnused(template.get()));
+			for (int index = 0; index < slots.size(); index++) {
+				ItemStack left = slots.getStack(index);
+				if (!left.isEmpty()) {
+					back.add(left.copy());
+				}
+			}
+			slots.clear();
+		} finally {
+			adjusting = false;
+		}
+		hand(back, world, table, receiver);
+	}
+
 	/**
 	 * Hands back deliveries that no longer fit the farm's design, the same way {@link #returnAll} does, and returns
 	 * whether there were any. Without this they would count towards nothing and block new deliveries at their index.

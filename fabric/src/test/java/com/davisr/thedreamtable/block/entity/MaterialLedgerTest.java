@@ -517,4 +517,17 @@ class MaterialLedgerTest {
 		assertEquals(2, ledger.deposited(farm, 1), "glass stays delivered");
 		assertEquals(4, ledger.accept(farm, new ItemStack(Items.STONE, 4), false), "the slot takes a new delivery");
 	}
+
+	@Test
+	void returnUnusedKeepsTheUsedCounts() {
+		MaterialLedger ledger = new MaterialLedger();
+		ledger.accept(farm, new ItemStack(Items.STONE, 6), false);
+		ledger.consume(farm, Items.STONE);
+		ledger.consume(farm, Items.STONE);
+		List<ItemStack> back = ledger.drainUnused(farm);
+		assertEquals(4, count(back));
+		assertEquals(2, ledger.supplied(farm, 0), "used stone still counts as supplied");
+		assertFalse(ledger.swappable(farm, 0), "used stone keeps the swap locked");
+		assertEquals(8, ledger.accept(farm, new ItemStack(Items.STONE, 64), false));
+	}
 }

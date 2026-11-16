@@ -35,6 +35,7 @@ public final class RequirementsPage implements TablePage {
 		TextRenderer text = ui.painter().text();
 		int columns = columns();
 		int count = ui.materialCount();
+		boolean creative = ui.actions().creative();
 		FarmTemplate template = ui.template();
 		boolean[] done = new boolean[count];
 		for (int index = 0; index < count; index++) {
@@ -66,7 +67,7 @@ public final class RequirementsPage implements TablePage {
 				boolean nearby = WaterRow.nearby(table, template);
 				// Red only while water is missing for real: no source nearby and the buckets are not all delivered.
 				context.drawText(text, Text.translatable(WaterRow.key(nearby)), left + RequirementsLayout.columnX(0),
-						top + RequirementsLayout.waterY(count, columns), nearby ? ACCENT : waterBucketsDelivered(template, handler) ? HINT : ERROR, false);
+						top + RequirementsLayout.waterY(count, columns), nearby ? ACCENT : creative || waterBucketsDelivered(template, handler) ? HINT : ERROR, false);
 			}
 		}
 		context.drawText(text, Text.translatable("gui.the_dream_table.inventory"), left + RequirementsLayout.inventoryX(columns),
@@ -78,7 +79,6 @@ public final class RequirementsPage implements TablePage {
 				ui.painter().slotFrame(context, left + slot.x, top + slot.y);
 			}
 		}
-		boolean creative = ui.actions().creative();
 		drawDelivery(context, deliverAllY(), "deliver_all", "gui.the_dream_table.deliver_all", "gui.the_dream_table.deliver_all_hint",
 				creative ? "gui.the_dream_table.deliver_creative" : null, mouseX, mouseY);
 		drawDelivery(context, deliverNearbyY(), "deliver_nearby", "gui.the_dream_table.deliver_nearby", "gui.the_dream_table.deliver_nearby_tip",
