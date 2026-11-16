@@ -64,8 +64,9 @@ public final class RequirementsLayout {
 		return columns > 1 ? WIDE_INVENTORY_COLUMNS : 9;
 	}
 
+	/** Wide: the slots keep their 18 px and the spare width goes between them, so the rows reach both edges of the content. */
 	public static int inventoryWidth(int columns) {
-		return inventoryColumns(columns) * 18;
+		return columns > 1 ? flowWidth(columns) : inventoryColumns(columns) * 18;
 	}
 
 	public static int inventoryHeight(int columns) {
@@ -78,7 +79,8 @@ public final class RequirementsLayout {
 
 	/** Slot position of player slot {@code index} (0 to 26 the three inventory rows, 27 to 35 the hotbar), in handler order. */
 	public static int playerSlotX(int index, int columns) {
-		return inventoryX(columns) + index % inventoryColumns(columns) * 18;
+		int column = index % inventoryColumns(columns);
+		return inventoryX(columns) + (columns > 1 ? column * (inventoryWidth(columns) - 18) / (WIDE_INVENTORY_COLUMNS - 1) : column * 18);
 	}
 
 	public static int playerSlotY(int index, int materials, int columns) {

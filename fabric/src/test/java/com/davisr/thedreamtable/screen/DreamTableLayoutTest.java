@@ -44,6 +44,9 @@ class DreamTableLayoutTest {
 		assertTrue(RequirementsLayout.inventoryX(2) + RequirementsLayout.inventoryWidth(2) <= right);
 		assertEquals(RequirementsLayout.inventoryY(5, 2), RequirementsLayout.playerSlotY(0, 5, 2));
 		assertEquals(RequirementsLayout.inventoryY(5, 2) + 18, RequirementsLayout.playerSlotY(27, 5, 2));
-		assertEquals(RequirementsLayout.playerSlotX(18, 2) + 9 * 18, RequirementsLayout.playerSlotX(27, 2));
+		assertEquals(left, RequirementsLayout.playerSlotX(0, 2));
+		assertEquals(right, RequirementsLayout.playerSlotX(17, 2) + 18);
+		assertTrue(RequirementsLayout.playerSlotX(1, 2) - RequirementsLayout.playerSlotX(0, 2) >= 18, "slots never overlap");
+		assertEquals(RequirementsLayout.playerSlotX(9, 2), RequirementsLayout.playerSlotX(27, 2));
 	}
 }
