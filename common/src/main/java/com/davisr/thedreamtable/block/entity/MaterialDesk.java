@@ -90,7 +90,21 @@ final class MaterialDesk {
 			return false;
 		}
 		if (ledger.resolve(original) != before) {
-			hand(ledger.release(farm, index), world, table, receiver);
+			List<ItemStack> back = new ArrayList<>(ledger.release(farm, index));
+			// Surplus the slot kept of the old item no longer fits any card, so it goes back too.
+			adjusting = true;
+			try {
+				for (int other = 0; other < farm.materials().size() && other < slots.size(); other++) {
+					ItemStack left = slots.getStack(other);
+					if (farm.materials().get(other).item() == original && !left.isEmpty() && !left.isOf(ledger.resolve(original))) {
+						back.add(left.copy());
+						slots.setStack(other, ItemStack.EMPTY);
+					}
+				}
+			} finally {
+				adjusting = false;
+			}
+			hand(back, world, table, receiver);
 		}
 		return true;
 	}

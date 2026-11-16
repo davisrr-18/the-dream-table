@@ -37,7 +37,7 @@ final class TableButtons {
 			return pickSwap(table, player, id - BUTTON_SWAP_PICK);
 		}
 		if (dynamicRange(id) == DynamicRange.SWAP_OPEN) {
-			return openSwap(table, id - BUTTON_SWAP_OPEN);
+			return openSwap(table, player, id - BUTTON_SWAP_OPEN);
 		}
 		if (dynamicRange(id) == DynamicRange.SCHEMATIC) {
 			List<FarmOptions.FarmOption> imported = FarmTemplates.imported();
@@ -134,8 +134,10 @@ final class TableButtons {
 		return false;
 	}
 
-	private static boolean openSwap(TableSession table, int material) {
+	private static boolean openSwap(TableSession table, ServerPlayerEntity player, int material) {
 		if (!table.canSwap(material) || table.swapOptions(material).isEmpty()) {
+			// The client cannot see a repair, so it may offer a swap the server refuses: say why.
+			TableNoticePayload.problem(player, Text.translatable("gui.the_dream_table.swap_locked"));
 			return false;
 		}
 		table.setSwapMaterial(material);
