@@ -1,0 +1,19 @@
+name: CurseForge token check
+
+# Checks CURSEFORGE_TOKEN against the CurseForge upload API (the host and header mc-publish uses) without posting
+# anything. 200 = the token is valid; 400 = wrong token; 401 = no token.
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "X-Api-Token: $TOKEN" https://minecraft.curseforge.com/api/game/versions)
+          echo "CurseForge upload API answered $code"
+          test "$code" = 200
