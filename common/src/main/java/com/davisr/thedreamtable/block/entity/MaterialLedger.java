@@ -308,6 +308,30 @@ public final class MaterialLedger {
 	}
 
 	/**
+	 * Hands back the delivered items the build has not used, and keeps the used counts: those items are blocks in the
+	 * farm, and forgetting them would show the material as missing again and break swaps and take-down.
+	 */
+	public List<ItemStack> drainUnused(FarmTemplate template) {
+		List<ItemStack> stacks = new ArrayList<>();
+		for (int index = 0; index < deposited.length; index++) {
+			Item item = delivered[index];
+			if (item == null && template != null && index < template.materials().size()) {
+				item = resolve(template.materials().get(index).item());
+			}
+			int left = deposited[index] - free[index];
+			deposited[index] = 0;
+			free[index] = 0;
+			if (consumed[index] == 0) {
+				delivered[index] = null;
+			}
+			if (left > 0 && item != null) {
+				refund(stacks, item, left);
+			}
+		}
+		return stacks;
+	}
+
+	/**
 	 * Empties the indexes whose delivered items don't fit the template's material there, and returns the unspent ones,
 	 * leaving out Creative ones. That happens when the design changed under a delivery. Items already used stay used: they
 	 * were placed as blocks of the old design, so they are cleared without a refund. Indexes the template no longer has
