@@ -20,7 +20,8 @@ public class MaterialSlot extends Slot {
 	@Override
 	public boolean canInsert(ItemStack stack) {
 		Item item = handler.materialItem(materialIndex);
-		return item != null && stack.isOf(item) && MaterialLedger.plain(stack);
+		// No room means no insert: vanilla insertItem counts a 0-item split as a move, and shift-click then loops forever.
+		return item != null && stack.isOf(item) && MaterialLedger.plain(stack) && getMaxItemCount() > 0;
 	}
 
 	@Override
