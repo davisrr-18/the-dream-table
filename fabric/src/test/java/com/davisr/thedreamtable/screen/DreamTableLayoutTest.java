@@ -1,8 +1,10 @@
 package com.davisr.thedreamtable.screen;
 
+import com.davisr.thedreamtable.screen.ui.layout.ScreenGeometry;
 import org.junit.jupiter.api.Test;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.BUTTON_HEIGHT;
+import static com.davisr.thedreamtable.screen.ui.Theme.CARD_HEIGHT;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -53,6 +55,31 @@ class DreamTableLayoutTest {
 		}
 		assertTrue(RequirementsLayout.playerSlotX(1, 2) - RequirementsLayout.playerSlotX(0, 2) >= 18, "slots never overlap");
 		assertEquals(RequirementsLayout.playerSlotX(9, 2), RequirementsLayout.playerSlotX(27, 2));
+	}
+
+	/** The re-enabled page once put slots off their cards and squeezed the content into a strip of the panel (2026-11-11). */
+	@Test
+	void everyMaterialSlotSitsInsideItsCardInsideTheFlowAndNoTwoOverlap() {
+		int cardWidth = ScreenGeometry.COLUMN_WIDTH;
+		for (int columns = 1; columns <= 2; columns++) {
+			int left = RequirementsLayout.columnX(0), right = left + RequirementsLayout.flowWidth(columns);
+			for (int materials = 1; materials <= 54; materials++) {
+				for (int i = 0; i < materials; i++) {
+					String at = " (material " + i + " of " + materials + ", " + columns + " columns)";
+					int cx = RequirementsLayout.cardX(i, columns), cy = RequirementsLayout.cardY(i, columns);
+					int sx = RequirementsLayout.slotX(i, columns), sy = RequirementsLayout.slotY(i, columns);
+					assertTrue(cx >= left && cx + cardWidth <= right, "card inside the flow" + at);
+					assertTrue(sx >= cx && sx + 16 <= cx + cardWidth && sy >= cy && sy + 16 <= cy + CARD_HEIGHT, "slot inside its card" + at);
+					for (int j = 0; j < i; j++) {
+						boolean apart = Math.abs(RequirementsLayout.slotX(j, columns) - sx) >= 18 || Math.abs(RequirementsLayout.slotY(j, columns) - sy) >= 18;
+						assertTrue(apart, "slots " + j + " and " + i + " do not overlap" + at);
+					}
+				}
+			}
+			if (columns == 2) {
+				assertEquals(right, RequirementsLayout.cardX(1, 2) + cardWidth, "two columns use the whole flow width, not a strip");
+			}
+		}
 	}
 
 	@Test
