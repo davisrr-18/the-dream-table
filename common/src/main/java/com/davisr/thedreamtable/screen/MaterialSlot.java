@@ -20,15 +20,22 @@ public class MaterialSlot extends Slot {
 	@Override
 	public boolean canInsert(ItemStack stack) {
 		Item item = handler.materialItem(materialIndex);
-		// No room means no insert: vanilla insertItem counts a 0-item split as a move, and shift-click then loops forever.
-		return item != null && stack.isOf(item) && MaterialLedger.plain(stack) && getMaxItemCount() > 0;
+		return accepts(item != null && stack.isOf(item) && MaterialLedger.plain(stack), getMaxItemCount());
+	}
+
+	/** No room means no insert: vanilla insertItem counts a 0-item split as a move, and shift-click then loops forever. */
+	static boolean accepts(boolean matches, int room) {
+		return matches && room > 0;
 	}
 
 	@Override
 	public int getMaxItemCount() {
-		MaterialSpec spec = handler.material(materialIndex);
-		// Only what the farm still needs: the ledger absorbs the slot right away, so the full count would let a surplus sit in it.
-		return spec == null ? 0 : Math.max(0, spec.count() - handler.supplied(materialIndex));
+		return room(handler.material(materialIndex), handler.supplied(materialIndex));
+	}
+
+	/** Only what the farm still needs: the ledger absorbs the slot right away, so the full count would let a surplus sit in it. */
+	static int room(MaterialSpec spec, int supplied) {
+		return spec == null ? 0 : Math.max(0, spec.count() - supplied);
 	}
 
 	@Override
