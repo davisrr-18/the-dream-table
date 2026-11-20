@@ -6,6 +6,7 @@ import com.davisr.thedreamtable.screen.page.MaterialsPage;
 import com.davisr.thedreamtable.screen.page.CategoryPage;
 import com.davisr.thedreamtable.screen.page.FarmInfoPage;
 import com.davisr.thedreamtable.screen.page.FarmPage;
+import com.davisr.thedreamtable.screen.page.FeedbackSection;
 import com.davisr.thedreamtable.screen.page.LoadedFarmsPage;
 import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.client.BuildProgressLine;
@@ -29,6 +30,7 @@ import com.davisr.thedreamtable.screen.ui.ControlId;
 import com.davisr.thedreamtable.screen.ui.Adjustment;
 import com.davisr.thedreamtable.screen.ui.ControlRegistry;
 import com.davisr.thedreamtable.screen.ui.ControlSpec;
+import com.davisr.thedreamtable.screen.ui.FeedbackForm;
 import com.davisr.thedreamtable.screen.ui.Painter;
 import com.davisr.thedreamtable.screen.ui.SearchBox;
 import com.davisr.thedreamtable.screen.ui.Tooltips;
@@ -72,6 +74,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private ScreenGeometry geometry;
 	private SearchBox search;
 	private String searchText = "";
+	private FeedbackForm feedback;
 	private TablePage selection;
 	private TablePage work;
 	private TablePage requirements;
@@ -100,6 +103,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	@Override
 	protected void init() {
 		pendingFocusRestore = controls.focusedId().orElse(null);
+		boolean typing = feedback != null && feedback.focused();
 		super.init();
 		tabControls.clear();
 		pageControls.clear();
@@ -109,6 +113,10 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			view.resetScroll();
 		});
 		addSelectableChild(search.widget());
+		if (feedback == null) {
+			feedback = new FeedbackForm(this.textRenderer, Text.translatable("gui.the_dream_table.feedback.placeholder"));
+		}
+		addSelectableChild(feedback.widget());
 		for (PrimaryTab tab : PrimaryTab.values()) {
 			ControlSpec placeholder = tabSpec(tab, new UiRect(0, 0, 1, 1));
 			UiControl control = new UiControl(placeholder, () -> openTab(tab));
@@ -120,7 +128,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		work = new WorkPage(ui);
 		requirements = new RequirementsPage(ui);
 		schemes = new SchemesPage(ui);
-		options = new OptionsPage(ui);
+		options = new OptionsPage(ui, feedback);
 		speed = new SpeedPage(ui);
 		category = new CategoryPage(ui);
 		loaded = new LoadedFarmsPage(ui, search);
@@ -129,6 +137,9 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		swap = new SwapPage(ui, search);
 		farmInfo = new FarmInfoPage(ui);
 		schemesHelp = new SchemesHelpPage(ui);
+		if (typing) {
+			setFocused(feedback.widget());
+		}
 		layout();
 	}
 
@@ -184,9 +195,14 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		boolean drawable = view.clip(context);
 		ui.beginControls(this.handler.getPage(), page);
 		ui.setFocusedControl(keyboardFocus && getFocused() instanceof UiControl focused ? focused.id() : null);
+		// Only the Settings page places the feedback box again each frame; on any other page it stays hidden.
+		feedback.hide();
 		// Without a content area nothing may be drawn, since there is no scissor to keep it off the header and tabs.
 		if (drawable) {
 			page.draw(context, mouseX, mouseY);
+		}
+		if (feedback.focused() && !feedback.shown()) {
+			leaveField();
 		}
 		syncPageControls();
 	}
@@ -211,6 +227,9 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		layout();
 		keyboardFocus = false;
+		if (feedback.focused() && !feedback.widget().isMouseOver(mouseX, mouseY)) {
+			leaveField();
+		}
 		if (button == 0 && view.beginDrag(mouseX, mouseY)) {
 			return true;
 		}
@@ -265,6 +284,18 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		if (search.focused() && keyCode != GLFW.GLFW_KEY_ESCAPE && keyCode != GLFW.GLFW_KEY_TAB) {
 			search.widget().keyPressed(keyCode, scanCode, modifiers);
 			return true;
+		}
+		// The text box takes every key while it has focus, so R and M type letters; only Escape (leave the box) and Tab (move on) pass.
+		if (feedback.focused()) {
+			if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+				leaveField();
+				keyboardFocus = true;
+				return true;
+			}
+			if (keyCode != GLFW.GLFW_KEY_TAB) {
+				feedback.widget().keyPressed(keyCode, scanCode, modifiers);
+				return true;
+			}
 		}
 		if (DreamTableKeys.ROTATE.matchesKey(keyCode, scanCode)) {
 			DreamTableHologram.rotate();
@@ -493,6 +524,10 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			setFocused(search.widget());
 			return;
 		}
+		if (FeedbackSection.FIELD.equals(id)) {
+			setFocused(feedback.widget());
+			return;
+		}
 		for (UiControl control : tabControls.values()) {
 			if (control.id().equals(id)) {
 				setFocused(control);
@@ -503,6 +538,12 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		if (control != null) {
 			setFocused(control);
 		}
+	}
+
+	/** Takes the keyboard focus off the feedback text box and gives it to the feedback switch, which then shows the focus ring. */
+	private void leaveField() {
+		setFocused(null);
+		controls.focus(FeedbackSection.CARD);
 	}
 
 	private void focusPageControlAt(double mouseX, double mouseY) {

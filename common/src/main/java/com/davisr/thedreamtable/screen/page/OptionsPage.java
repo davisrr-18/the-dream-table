@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.client.ClientSettings;
 import com.davisr.thedreamtable.client.OtherFarms;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
+import com.davisr.thedreamtable.screen.ui.FeedbackForm;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -13,9 +14,10 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /**
  * The options: Build Speed, which opens {@link SpeedPage}; the "Show Other Farms", tracker and "Deliver from Nearby"
- * switches, kept on this player's computer; and the "Protect My Farms" switch, which the server keeps because it enforces
- * it. Each card carries its own description, or the reason it is off, as its detail line, never as hover text.
- * "Show Other Farms" is also off, and says so, when the server sends no other farms (a privacy switch).
+ * switches, kept on this player's computer; the "Protect My Farms" switch, which the server keeps because it enforces
+ * it; and the feedback card below the grid. Each card carries its own description, or the reason it is off, as its
+ * detail line, never as hover text. "Show Other Farms" is also off, and says so, when the server sends no other farms
+ * (a privacy switch).
  */
 public final class OptionsPage implements TablePage {
 	private static final int SPEED = 0;
@@ -26,9 +28,11 @@ public final class OptionsPage implements TablePage {
 	private static final int CARDS = 5;
 
 	private final PageContext ui;
+	private final FeedbackSection feedback;
 
-	public OptionsPage(PageContext ui) {
+	public OptionsPage(PageContext ui, FeedbackForm form) {
 		this.ui = ui;
+		this.feedback = new FeedbackSection(ui, form);
 	}
 
 	@Override
@@ -66,6 +70,7 @@ public final class OptionsPage implements TablePage {
 				Text.translatable(protecting ? "gui.the_dream_table.protect_farms_on" : "gui.the_dream_table.protect_farms_off"),
 				Text.translatable(protectionAllowed ? "gui.the_dream_table.protect_farms_hint" : "gui.the_dream_table.protect_farms_off_server"),
 				ui.view().gridCardX(PROTECT), ui.view().gridCardY(PROTECT), mouseX, mouseY, protecting, protectionAllowed);
+		feedback.draw(context, mouseX, mouseY, sectionTop());
 	}
 
 	@Override
@@ -105,12 +110,18 @@ public final class OptionsPage implements TablePage {
 			ui.actions().press(DreamTableScreenHandler.BUTTON_PROTECT_FARMS);
 			return true;
 		}
-		return false;
+		return feedback.click(mouseX, mouseY, sectionTop());
 	}
 
 	@Override
 	public int contentHeight() {
-		return ui.view().gridContentHeight(CARDS);
+		return ui.view().gridContentHeight(CARDS) + CARD_GAP + feedback.height();
+	}
+
+	/** The top of the feedback section: the row after the last row of the card grid, one gap below it. */
+	private int sectionTop() {
+		int columns = ui.view().columnCount();
+		return ui.view().cardY((CARDS + columns - 1) / columns);
 	}
 
 	@Override
