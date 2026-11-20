@@ -87,7 +87,7 @@ Linux and macOS:
 cd tools/feedback-worker
 npm install
 (cd test && npm install)
-npm install --save-dev --save-exact wrangler@4.158.0
+npm install --save-dev --save-exact --legacy-peer-deps wrangler@4.163.0
 ```
 
 Windows (PowerShell):
@@ -98,11 +98,12 @@ npm install
 Set-Location test
 npm install
 Set-Location ..
-npm install --save-dev --save-exact wrangler@4.158.0
+npm install --save-dev --save-exact --legacy-peer-deps wrangler@4.163.0
 ```
 
-If the last command fails in the agent session, run it yourself. It only adds a
-line to `package.json` and `package-lock.json`.
+`cf` requires wrangler 4.163.0 or newer. `--legacy-peer-deps` is needed because that
+wrangler lists a newer optional `@cloudflare/workers-types` peer than the pinned one.
+The KV namespace already exists and its id is in `cloudflare.config.ts` (step 3 is done).
 
 ### 2. Install the Cloudflare CLI and sign in
 
@@ -141,8 +142,9 @@ unique in the account; change it if another Rate Limiting binding already uses i
 
 ### 5. Set the token as a secret and deploy
 
-Use the `cf` documented path: `cf deploy --secrets-file`, which uploads the secret
-with the Worker version. Create a JSON file **outside the repository**, deploy with
+A Worker that does not exist yet cannot get secrets in advance, and `cf deploy`
+stops without `GITHUB_TOKEN`: the first deploy must use `cf deploy --secrets-file`,
+which uploads the secret with the Worker version. Create a JSON file **outside the repository**, deploy with
 it, and delete the file right after.
 
 Linux and macOS:

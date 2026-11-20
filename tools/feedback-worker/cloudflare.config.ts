@@ -9,7 +9,7 @@ export default defineConfig({
     compatibilityDate: "2026-09-17",
     env: {
       // Replace with the id printed by `cf kv namespaces create` (see README).
-      FEEDBACK_KV: bindings.kv({ id: "REPLACE_WITH_KV_NAMESPACE_ID" }),
+      FEEDBACK_KV: bindings.kv({ id: "54966ea3e0334d1fb448050bcdcd8a75" }),
       // Namespace ids are account-wide integers as strings; 3 requests per IP per 60 seconds.
       FEEDBACK_RATE_LIMITER: bindings.rateLimit({
         namespace: "1001",
