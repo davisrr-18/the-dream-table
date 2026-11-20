@@ -43,6 +43,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int PAGE_LOADED = 8;
 	public static final int PAGE_FARM = 9;
 	public static final int PAGE_FARM_INFO = 21;
+	/** How It Works on My Schematics. Help only: never saved (see {@code TableSession.savedPage}). */
+	public static final int PAGE_SCHEMES_HELP = 22;
 	/** Plus the category index, so a reopened menu returns to the same category. */
 	public static final int PAGE_CATEGORY = 10;
 
@@ -60,6 +62,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_FARM_INFO_BACK = 114;
 	public static final int BUTTON_SCHEMES = 110;
 	public static final int BUTTON_SCHEMES_BACK = 111;
+	public static final int BUTTON_SCHEMES_HELP = 112;
+	public static final int BUTTON_SCHEMES_HELP_BACK = 115;
 	public static final int BUTTON_OPTIONS = 120;
 	public static final int BUTTON_OPTIONS_BACK = 121;
 	public static final int BUTTON_SPEED_OPEN = 140;

@@ -16,11 +16,14 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /**
  * My Schematics: the farms read from schematic files, then the files that can't be used, greyed out. A file that can't
- * be used says why in the detail line of its card, which scrolls when it is longer than the card.
+ * be used says why in the detail line of its card, which scrolls when it is longer than the card. A How It Works button
+ * above the list opens the help page on the folders, formats and reasons.
  */
 public final class SchemesPage implements TablePage {
 	private static final int EMPTY_HEIGHT = 48;
 	private static final int REJECTED_NOTE = 24;
+	/** The How It Works button above the cards, and the gap under it. */
+	static final int HELP_ROW = BUTTON_HEIGHT + CARD_GAP;
 
 	private final PageContext ui;
 
@@ -37,8 +40,9 @@ public final class SchemesPage implements TablePage {
 	public void draw(DrawContext context, int mouseX, int mouseY) {
 		List<FarmOption> schemes = schemes();
 		List<ImportedStructures.Rejected> rejected = FarmTemplates.rejected();
+		ui.buttonAt("help", context, Text.translatable("gui.the_dream_table.info_button"), ui.view().collectionX(), helpY(ui.view()), mouseX, mouseY, true, false);
 		if (schemes.isEmpty() && rejected.isEmpty()) {
-			ui.collectionNote(context, Text.translatable("gui.the_dream_table.schemes_empty"), ui.view().cardY(0), HINT);
+			ui.collectionNote(context, Text.translatable("gui.the_dream_table.schemes_empty"), firstRowY(ui.view()), HINT);
 		}
 		boolean locked = ProjectState.locked(ui.handler());
 		for (int index = 0; index < schemes.size(); index++) {
@@ -61,6 +65,10 @@ public final class SchemesPage implements TablePage {
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
+		if (ui.buttonHit(mouseX, mouseY, ui.view().collectionX(), helpY(ui.view()))) {
+			ui.go(DreamTableScreenHandler.PAGE_SCHEMES_HELP, DreamTableScreenHandler.BUTTON_SCHEMES_HELP);
+			return true;
+		}
 		List<FarmOption> schemes = schemes();
 		for (int index = 0; index < schemes.size(); index++) {
 			if (ui.cardHit(mouseX, mouseY, cardX(ui.view(), index), cardY(ui.view(), index))) {
@@ -78,7 +86,7 @@ public final class SchemesPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		return PAD + listHeight() + 8;
+		return PAD + HELP_ROW + listHeight() + 8;
 	}
 
 	@Override
@@ -119,7 +127,16 @@ public final class SchemesPage implements TablePage {
 	}
 
 	static int cardY(com.davisr.thedreamtable.screen.ui.Viewport view, int index) {
-		return view.gridCardY(index);
+		return view.gridCardY(index) + HELP_ROW;
+	}
+
+	static int helpY(com.davisr.thedreamtable.screen.ui.Viewport view) {
+		return view.cardY(0);
+	}
+
+	/** The top of the first row of cards, under the How It Works button. */
+	static int firstRowY(com.davisr.thedreamtable.screen.ui.Viewport view) {
+		return view.cardY(0) + HELP_ROW;
 	}
 
 	static int cardsHeight(com.davisr.thedreamtable.screen.ui.Viewport view, int count) {
@@ -128,7 +145,7 @@ public final class SchemesPage implements TablePage {
 	}
 
 	static int rejectedNoteY(com.davisr.thedreamtable.screen.ui.Viewport view, int farms) {
-		return view.cardY(0) + cardsHeight(view, farms) + (farms > 0 ? CARD_GAP : 0) + 2;
+		return firstRowY(view) + cardsHeight(view, farms) + (farms > 0 ? CARD_GAP : 0) + 2;
 	}
 
 	static int rejectedY(com.davisr.thedreamtable.screen.ui.Viewport view, int index, int farms) {

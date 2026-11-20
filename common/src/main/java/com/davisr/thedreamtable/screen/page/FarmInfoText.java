@@ -1,6 +1,5 @@
 package com.davisr.thedreamtable.screen.page;
 
-import com.davisr.thedreamtable.farm.FarmInfo;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 
@@ -25,6 +24,13 @@ final class FarmInfoText {
 	record Row(OrderedText text, int top, int indent, int color, boolean bullet) {
 	}
 
+	/** A section: the translation key of its heading and its bullet lines, already in the current language. */
+	record Heading(String titleKey, List<String> bullets) {
+		Heading {
+			bullets = List.copyOf(bullets);
+		}
+	}
+
 	record Layout(List<Row> rows, int height) {
 		static final Layout EMPTY = new Layout(List.of(), 0);
 	}
@@ -33,18 +39,18 @@ final class FarmInfoText {
 	}
 
 	/** {@code wrap} cuts a text into lines no wider than the given width. */
-	static Layout layout(List<FarmInfo.Block> blocks, int width, BiFunction<Text, Integer, List<OrderedText>> wrap) {
+	static Layout layout(List<Heading> sections, int width, BiFunction<Text, Integer, List<OrderedText>> wrap) {
 		List<Row> rows = new ArrayList<>();
 		int top = 0;
-		for (FarmInfo.Block block : blocks) {
+		for (Heading section : sections) {
 			if (!rows.isEmpty()) {
 				top += SECTION_GAP;
 			}
-			for (OrderedText heading : wrap.apply(Text.translatable(block.section().titleKey()), width)) {
+			for (OrderedText heading : wrap.apply(Text.translatable(section.titleKey()), width)) {
 				rows.add(new Row(heading, top, 0, ACCENT, false));
 				top += LINE_HEIGHT;
 			}
-			for (String bullet : block.bullets()) {
+			for (String bullet : section.bullets()) {
 				boolean first = true;
 				for (OrderedText line : wrap.apply(Text.literal(bullet), width - BULLET_INDENT)) {
 					rows.add(new Row(line, top, BULLET_INDENT, NAME, first));

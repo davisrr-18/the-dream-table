@@ -46,8 +46,8 @@ class FarmInfoTextTest {
 	@Test
 	void headingsUseTheAccentColorAndBulletsStartWithAMark() {
 		FarmInfoText.Layout layout = FarmInfoText.layout(List.of(
-				new FarmInfo.Block(FarmInfo.Section.HOW, List.of("One", "Two")),
-				new FarmInfo.Block(FarmInfo.Section.TIPS, List.of("Three"))), 168, FarmInfoTextTest::wrap);
+				new FarmInfoText.Heading(FarmInfo.Section.HOW.titleKey(), List.of("One", "Two")),
+				new FarmInfoText.Heading(FarmInfo.Section.TIPS.titleKey(), List.of("Three"))), 168, FarmInfoTextTest::wrap);
 		List<FarmInfoText.Row> rows = layout.rows();
 		assertEquals(5, rows.size());
 		assertEquals(ACCENT, rows.get(0).color());
@@ -64,7 +64,7 @@ class FarmInfoTextTest {
 	@Test
 	void longBulletsWrapInsideTheCardWithOnlyTheFirstLineMarked() {
 		String longText = "x".repeat(CARD_WIDTH - FarmInfoText.BULLET_INDENT + 5);
-		FarmInfoText.Layout layout = FarmInfoText.layout(List.of(new FarmInfo.Block(FarmInfo.Section.WORKS, List.of(longText))), 168, FarmInfoTextTest::wrap);
+		FarmInfoText.Layout layout = FarmInfoText.layout(List.of(new FarmInfoText.Heading(FarmInfo.Section.WORKS.titleKey(), List.of(longText))), 168, FarmInfoTextTest::wrap);
 		List<FarmInfoText.Row> rows = layout.rows();
 		assertEquals(3, rows.size());
 		assertTrue(rows.get(1).bullet());
@@ -77,13 +77,24 @@ class FarmInfoTextTest {
 	@Test
 	void rowsStackWithoutOverlapAndSectionsAreSeparated() {
 		FarmInfoText.Layout layout = FarmInfoText.layout(List.of(
-				new FarmInfo.Block(FarmInfo.Section.HOW, List.of("One")),
-				new FarmInfo.Block(FarmInfo.Section.OUTPUT, List.of("Two"))), 168, FarmInfoTextTest::wrap);
+				new FarmInfoText.Heading(FarmInfo.Section.HOW.titleKey(), List.of("One")),
+				new FarmInfoText.Heading(FarmInfo.Section.OUTPUT.titleKey(), List.of("Two"))), 168, FarmInfoTextTest::wrap);
 		List<FarmInfoText.Row> rows = layout.rows();
 		assertEquals(0, rows.get(0).top());
 		assertEquals(FarmInfoText.LINE_HEIGHT, rows.get(1).top());
 		assertEquals(2 * FarmInfoText.LINE_HEIGHT + FarmInfoText.SECTION_GAP, rows.get(2).top());
 		assertEquals(4 * FarmInfoText.LINE_HEIGHT + FarmInfoText.SECTION_GAP, layout.height());
+	}
+
+	@Test
+	void headingsKeepAnyTitleKeyEvenOutsideTheFarmSections() {
+		FarmInfoText.Layout layout = FarmInfoText.layout(List.of(
+				new FarmInfoText.Heading("gui.the_dream_table.schemes_help.where", List.of("One"))), 168, FarmInfoTextTest::wrap);
+		List<FarmInfoText.Row> rows = layout.rows();
+		assertEquals(2, rows.size());
+		assertEquals(ACCENT, rows.get(0).color());
+		assertEquals("gui.the_dream_table.schemes_help.where", plain(rows.get(0).text()));
+		assertEquals("One", plain(rows.get(1).text()));
 	}
 
 	@Test

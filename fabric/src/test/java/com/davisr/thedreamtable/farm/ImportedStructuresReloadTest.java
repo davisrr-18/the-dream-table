@@ -57,6 +57,11 @@ class ImportedStructuresReloadTest {
 	}
 
 	private static NbtCompound stone() {
+		return stones(1);
+	}
+
+	/** This many stone blocks in a row along x, so files of different sizes can be told apart. */
+	private static NbtCompound stones(int count) {
 		NbtCompound root = new NbtCompound();
 		NbtList names = new NbtList();
 		NbtCompound entry = new NbtCompound();
@@ -64,14 +69,16 @@ class ImportedStructuresReloadTest {
 		names.add(entry);
 		root.put("palette", names);
 		NbtList blocks = new NbtList();
-		NbtCompound block = new NbtCompound();
-		NbtList pos = new NbtList();
-		pos.add(NbtInt.of(0));
-		pos.add(NbtInt.of(0));
-		pos.add(NbtInt.of(0));
-		block.put("pos", pos);
-		block.putInt("state", 0);
-		blocks.add(block);
+		for (int index = 0; index < count; index++) {
+			NbtCompound block = new NbtCompound();
+			NbtList pos = new NbtList();
+			pos.add(NbtInt.of(index));
+			pos.add(NbtInt.of(0));
+			pos.add(NbtInt.of(0));
+			block.put("pos", pos);
+			block.putInt("state", 0);
+			blocks.add(block);
+		}
 		root.put("blocks", blocks);
 		return root;
 	}
@@ -116,6 +123,15 @@ class ImportedStructuresReloadTest {
 		write(game.resolve("config").resolve("the_dream_table").resolve("structures"), "SAME.nbt");
 
 		assertEquals(List.of("nbt:same"), ids(ImportedStructures.reload(null)));
+	}
+
+	@Test
+	void theCopyInTheEarlierFolderIsTheOneRead() throws IOException {
+		Path structures = Files.createDirectories(game.resolve("config").resolve("the_dream_table").resolve("structures"));
+		NbtIo.writeCompressed(stones(1), schematics.resolve("same.nbt"));
+		NbtIo.writeCompressed(stones(2), structures.resolve("SAME.nbt"));
+
+		assertEquals(1, ImportedStructures.reload(null).templates().get("nbt:same").steps().size());
 	}
 
 	@Test

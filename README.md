@@ -74,13 +74,13 @@ A finished farm has a permanent identity, so its saved design and alerts survive
 
 On a server, My Schematics lists the server's files, and players see the hologram and miniature of those farms without having the files themselves.
 
-Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` files of up to 16,384 blocks from these instance folders:
+Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` files of up to 16,384 blocks from these instance folders, in this order:
 
 - `schematics`
 - `config/worldedit/schematics`
 - `config/litematica`
-- `config/the_dream_table/structures`
 - `schematics` inside the world folder
+- `config/the_dream_table/structures`
 
 Each file is checked when the list is read, before anyone builds it. A file that can't be used is still listed, greyed out, with the reason: it can't be read or is damaged, it isn't in one of these formats, it has no blocks, more than 16,384 blocks, more than 64 MB of data, it is taller than any world or longer than 512 blocks on a side, it needs more than 54 different materials, or it places two blocks in the same spot. A farm the table can build may come with warnings, shown on its card and on the farm screen before you press Build: blocks from mods that aren't installed, which are left out, blocks a survival player can't get, like bedrock or spawners, so only Creative can finish it, and Dream Table blocks, which are left out. Click events on signs in a file are removed, so a sign can't run commands. On a server, players see the same reasons and warnings for the server's files. New or changed files show up within a second.
 

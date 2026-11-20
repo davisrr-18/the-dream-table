@@ -86,6 +86,12 @@ public final class FarmInfo {
 		return false;
 	}
 
+	/** The bullet lines of a translation key in the current language, none when the language lacks the key. */
+	public static List<String> lines(String key) {
+		String text = translation(key);
+		return text == null ? List.of() : bullets(text);
+	}
+
 	/** Splits a section's text at line feeds, trimming each line and dropping blank ones. */
 	static List<String> bullets(String text) {
 		List<String> bullets = new ArrayList<>();
