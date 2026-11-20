@@ -2,11 +2,38 @@ package com.davisr.thedreamtable.screen;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.stream.IntStream;
+
+import static com.davisr.thedreamtable.screen.DreamTableScreenHandler.BUTTON_SCHEME;
+import static com.davisr.thedreamtable.screen.DreamTableScreenHandler.MAX_SCHEMES;
 import static com.davisr.thedreamtable.screen.TableButtons.DynamicRange.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class TableButtonRangesTest {
+	@Test
+	void theLastSchematicIdIsStillAScheme() {
+		assertEquals(800, MAX_SCHEMES);
+		assertEquals(SCHEMATIC, TableButtons.dynamicRange(BUTTON_SCHEME + MAX_SCHEMES - 1));
+		assertEquals(SWAP_OPEN, TableButtons.dynamicRange(BUTTON_SCHEME + MAX_SCHEMES));
+	}
+
+	@Test
+	void aLongSchematicListIsCutToTheIdsThatAreStillSchemes() {
+		List<Integer> shown = DreamTableScreenHandler.firstSchemes(IntStream.range(0, 1000).boxed().toList());
+
+		assertEquals(MAX_SCHEMES, shown.size());
+		assertEquals(MAX_SCHEMES - 1, shown.getLast());
+	}
+
+	@Test
+	void aShortSchematicListIsKeptWhole() {
+		List<String> schemes = List.of("first", "second");
+
+		assertEquals(schemes, DreamTableScreenHandler.firstSchemes(schemes));
+	}
+
 	@Test
 	void boundsEveryLegacyDynamicRange() {
 		assertEquals(NONE, TableButtons.dynamicRange(199));

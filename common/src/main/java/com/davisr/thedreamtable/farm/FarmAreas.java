@@ -386,7 +386,7 @@ public final class FarmAreas extends PersistentState {
 		}
 	}
 
-	/** What this area would overlap, other than the asker's own farm. Finished farms that were taken down are forgotten here. */
+	/** What this area would overlap, other than the asker's own farm. A finished farm whose blocks are gone is skipped here, never removed. */
 	public Conflict conflict(ServerWorld world, Key asker, Box box) {
 		return conflict(world, asker, box, null);
 	}
@@ -400,9 +400,12 @@ public final class FarmAreas extends PersistentState {
 				continue;
 			}
 			if (forgotten(world, entry.getKey(), entry.getValue())) {
-				entries.remove();
-				byInstance = null;
-				markDirty();
+				// A forgotten finished farm is skipped and kept: its record leaves only through Take Down or Forget.
+				if (entry.getKey().kind() != Kind.FINISHED) {
+					entries.remove();
+					byInstance = null;
+					markDirty();
+				}
 				continue;
 			}
 			if (entry.getKey().kind() != Kind.FINISHED) {
@@ -522,6 +525,10 @@ public final class FarmAreas extends PersistentState {
 				continue;
 			}
 			if (test.test(entry.getValue().box())) {
+				// Skipped as in conflict, and kept: a forgotten finished farm does not block the spot, its record stays.
+				if (entry.getKey().kind() == Kind.FINISHED && forgotten(world, entry.getKey(), entry.getValue())) {
+					continue;
+				}
 				return true;
 			}
 		}

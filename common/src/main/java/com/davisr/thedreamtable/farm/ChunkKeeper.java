@@ -41,8 +41,8 @@ public final class ChunkKeeper {
 		ChunkPos chunk = new ChunkPos(spot);
 		Long2LongOpenHashMap renewed = RENEWED.computeIfAbsent(world, ignored -> new Long2LongOpenHashMap());
 		long now = world.getTime();
-		long last = renewed.getOrDefault(chunk.toLong(), Long.MIN_VALUE);
-		if (now - last < RENEW_TICKS && world.isChunkLoaded(chunk.x, chunk.z)) {
+		long last = lastRenewed(renewed, chunk.toLong(), now);
+		if (!renewDue(now, last, world.isChunkLoaded(chunk.x, chunk.z))) {
 			return;
 		}
 		if (renewed.size() > 4096) {
@@ -50,5 +50,15 @@ public final class ChunkKeeper {
 		}
 		renewed.put(chunk.toLong(), now);
 		world.getChunkManager().addTicket(TICKET, chunk, 0, chunk);
+	}
+
+	/** The tick a chunk was last renewed. A chunk never renewed reads as renewed RENEW_TICKS ago, so its first request is due. */
+	static long lastRenewed(Long2LongOpenHashMap renewed, long chunk, long now) {
+		return renewed.getOrDefault(chunk, now - RENEW_TICKS);
+	}
+
+	/** A ticket is due when the chunk is unloaded, or its last renewal is RENEW_TICKS or more ago. */
+	static boolean renewDue(long now, long last, boolean loaded) {
+		return !loaded || now - last >= RENEW_TICKS;
 	}
 }

@@ -449,4 +449,22 @@ class FinishedFarmsTest {
 
 		assertEquals(4, areas.alerts(instanceId).orElseThrow().active(FarmAlertType.BLOCKS_MISSING).orElseThrow().quantity());
 	}
+
+	@Test
+	void aPlacementPreviewSkipsAForgottenFinishedFarmWithoutRemovingItsRecord() {
+		NbtCompound nbt = saved(FarmTemplates.get(FarmOptions.CROP.id()));
+		NbtCompound area = nbt.getList("Areas", 10).getCompound(0);
+		area.remove("Layout");
+		area.putLong("FarmSignature", 12345L);
+		FarmAreas restored = FarmAreas.read(nbt, null);
+		FarmAreas.Finished farm = restored.finishedBy(PLAYER).getFirst();
+		restored.setDirty(false);
+		FarmAreas.Key asker = FarmAreas.Key.build(new BlockPos(200, 64, 200), UUID.randomUUID());
+
+		assertEquals(FarmAreas.Conflict.NONE, restored.conflict(null, asker, farm.box()));
+
+		assertTrue(restored.finished(farm.instanceId()).isPresent());
+		assertEquals(1, restored.finishedBy(PLAYER).size());
+		assertFalse(restored.isDirty());
+	}
 }
