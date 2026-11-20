@@ -203,10 +203,10 @@ class SchematicLimitsTest {
 			for (String key : List.of("messages", "filtered_messages")) {
 				NbtList lines = kept.getCompoundOrEmpty(face).getListOrEmpty(key);
 				assertEquals(2, lines.size());
-				assertFalse(lines.getString(0, "").contains("clickEvent"), lines.getString(0, ""));
-				assertFalse(lines.getString(0, "").contains("/op"));
-				assertTrue(lines.getString(0, "").contains("Click") && lines.getString(0, "").contains("more"));
-				assertEquals("\"plain\"", lines.getString(1, ""));
+				assertFalse(lines.get(0).toString().contains("clickEvent"), lines.get(0).toString());
+				assertFalse(lines.get(0).toString().contains("/op"));
+				assertEquals("Clickmore", SignTextTest.shown(lines.get(0)));
+				assertEquals("plain", SignTextTest.shown(lines.get(1)));
 			}
 		}
 		assertFalse(kept.getBoolean("is_waxed", false));
@@ -216,8 +216,8 @@ class SchematicLimitsTest {
 	void aSignLineThatIsNotValidTextBecomesEmpty() {
 		NbtCompound kept = read(signStructure("{\"text\":", "\"ok\"")).template().steps().get(0).blockNbt();
 		NbtList lines = kept.getCompoundOrEmpty("front_text").getListOrEmpty("messages");
-		assertEquals("\"\"", lines.getString(0, ""));
-		assertEquals("\"ok\"", lines.getString(1, ""));
+		assertEquals("", SignTextTest.shown(lines.get(0)));
+		assertEquals("ok", SignTextTest.shown(lines.get(1)));
 	}
 
 	@Test

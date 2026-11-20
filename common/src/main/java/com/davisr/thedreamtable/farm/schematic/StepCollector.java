@@ -84,7 +84,7 @@ final class StepCollector {
 		if (stripContents) {
 			CONTENT_KEYS.forEach(copy::remove);
 			// Sign click events run commands for whoever clicks the sign.
-			SignText.strip(copy);
+			SignText.strip(copy, dataVersion);
 		}
 		return copy;
 	}
@@ -195,7 +195,9 @@ final class StepCollector {
 			creativeNames.add(Registries.BLOCK.getId(state.getBlock()).toString());
 		}
 		int index = steps.size();
-		if (store(FarmStep.block(x, y, z, state, BlockItems.itemFor(state), blockNbt == null ? null : copyOf(blockNbt)))) {
+		// A block over the limit is only counted, so its data is not cleaned (sign lines go through the data fixer, about 75 µs each).
+		NbtCompound data = blockNbt == null || index >= SchematicReader.MAX_BLOCKS ? null : copyOf(blockNbt);
+		if (store(FarmStep.block(x, y, z, state, BlockItems.itemFor(state), data))) {
 			blockAt.put(BlockPos.asLong(x, y, z), index);
 		}
 	}

@@ -48,6 +48,14 @@ public final class DataFixes {
 		return name(TypeReferences.ENTITY_NAME, id, from);
 	}
 
+	/**
+	 * A text component written at data version {@code from}, in the game's current format: a JSON string until 4289, NBT from
+	 * 4290 on (the schema the game's own fixer for that change stops at). Sign lines use it.
+	 */
+	public static NbtElement textComponent(NbtElement line, int from) {
+		return fix(TypeReferences.TEXT_COMPONENT, line, from);
+	}
+
 	private static String name(DSL.TypeReference type, String id, int from) {
 		return fix(type, NbtString.of(id), from).asString().orElse(id);
 	}

@@ -149,6 +149,10 @@ Pre-sessions flat format: `TableSession.write` output placed at the root, with n
 
 Expected reader results: the table reads one session under SHARED (`00000000-0000-0000-0000-000000000000`) with `getSelectedFarm()` = `crop`. Writing it back produces a `Sessions` list with that one entry, and reading the upgraded form again gives the same compound.
 
+## farm_signatures.properties
+
+The `FarmTemplate.signature()` of every built-in farm (`FarmOptions.ALL`) as the 1.21.1 build of the mod computes it, one `id=value` line each. `BuiltInSignaturesTest` requires this game to compute the same values: a build or take-down job saved by 1.21.1 holds one, and a different value reads as "the farm changed". Printed by a throwaway test in a scratch copy of `main` at 0042e7d (the 1.21.1 code, not recomputed here); regenerate it the same way only if a built-in farm's design changes on purpose. The `sugarcane`, `bamboo` and `crop` values equal the `FarmSignature` values above. Only `animal` (it has `minecraft:chain`) needed code: the hash maps `iron_chain` back to `chain`.
+
 ## Limitations and what the fixtures do not cover
 
 - Parked project: built from the keys that `ParkedProjectsTest` uses, not from `TableSession.park` (it needs a `ServerWorld`). The `Aim` compound is from `AimedSpot.toNbt()`.

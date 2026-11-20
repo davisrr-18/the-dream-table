@@ -3,6 +3,7 @@ package com.davisr.thedreamtable.farm;
 import net.minecraft.block.Blocks;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -81,12 +82,24 @@ public record FarmTemplate(String id, List<FarmStep> steps, List<MaterialSpec> m
 		List<FarmStep> steps = template.steps;
 		for (FarmStep step : steps) {
 			hash = 31 * hash + BlockPos.asLong(step.x(), step.y(), step.z());
-			hash = 31 * hash + (step.state() == null ? 0 : step.state().toString().hashCode());
-			hash = 31 * hash + (step.item() == null ? 0 : Registries.ITEM.getId(step.item()).hashCode());
+			// shortcut: only the one id renamed since 1.21.1 that a built-in farm uses is mapped back; a design with another renamed id reads as "changed" once, upgrade with a per-version table.
+			hash = 31 * hash + (step.state() == null ? 0 : step.state().toString().replace("minecraft:iron_chain", "minecraft:chain").hashCode());
+			hash = 31 * hash + (step.item() == null ? 0 : legacy(Registries.ITEM.getId(step.item())).hashCode());
 			hash = 31 * hash + (step.entity() == null ? 0 : Registries.ENTITY_TYPE.getId(step.entity()).hashCode());
 		}
 		return hash == 0 ? 1 : hash;
 	}
+
+	/**
+	 * The fingerprint is saved with a build and a take-down job, so it must not change when the game renames an id:
+	 * 1.21.9 turned {@code minecraft:chain} into {@code minecraft:iron_chain}, and the fingerprint of every farm built
+	 * with it, saved by 1.21.1, would no longer match. Both names hash as the old one.
+	 */
+	private static Identifier legacy(Identifier id) {
+		return IRON_CHAIN.equals(id) ? Identifier.ofVanilla("chain") : id;
+	}
+
+	private static final Identifier IRON_CHAIN = Identifier.ofVanilla("iron_chain");
 
 	/** Plant segments that grow back by themselves are not asked for; see {@link FarmGrowth}. */
 	private static boolean grows(FarmStep step) {

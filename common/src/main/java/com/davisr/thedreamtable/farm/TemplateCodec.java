@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.DataFixes;
 import com.davisr.thedreamtable.Nbts;
+import com.davisr.thedreamtable.farm.schematic.SignText;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.EntityType;
 import net.minecraft.item.Item;
@@ -97,7 +98,9 @@ public final class TemplateCodec {
 	public static FarmTemplate decode(String id, NbtCompound nbt) {
 		// The list readers throw on a wrong-typed entry: a malformed saved layout must fail whole (and be kept as it was
 		// by the caller), never decode with placeholder entries.
-		int from = nbt.getInt("DataVersion", DataFixes.ASSUMED);
+		int stamped = nbt.getInt("DataVersion", DataFixes.ASSUMED);
+		// A missing or non-positive stamp reads as 1.21.1, as the schematic readers do.
+		int from = stamped > 0 ? stamped : DataFixes.ASSUMED;
 		List<BlockState> states = new ArrayList<>();
 		for (NbtCompound entry : Nbts.compounds(nbt, "Palette")) {
 			states.add(NbtHelper.toBlockState(Registries.BLOCK, DataFixes.blockState(entry, from)));
@@ -116,7 +119,10 @@ public final class TemplateCodec {
 		int[] item = Nbts.ints(nbt, "Item");
 		Map<Integer, NbtCompound> blockData = new HashMap<>();
 		for (NbtCompound data : Nbts.compounds(nbt, "BlockData")) {
-			blockData.put(data.getInt("Step", 0), data.getCompoundOrEmpty("Nbt"));
+			// A copy, as the saved design is not to be changed; sign lines are read as the design's version wrote them.
+			NbtCompound block = data.getCompoundOrEmpty("Nbt").copy();
+			SignText.strip(block, from);
+			blockData.put(data.getInt("Step", 0), block);
 		}
 		List<FarmStep> steps = new ArrayList<>();
 		int entity = 0;
