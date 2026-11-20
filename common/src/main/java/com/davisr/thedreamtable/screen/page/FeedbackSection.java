@@ -3,7 +3,6 @@ package com.davisr.thedreamtable.screen.page;
 import com.davisr.thedreamtable.client.ClientSettings;
 import com.davisr.thedreamtable.client.feedback.FeedbackCategory;
 import com.davisr.thedreamtable.client.feedback.FeedbackEndpoint;
-import com.davisr.thedreamtable.client.feedback.FeedbackJson;
 import com.davisr.thedreamtable.client.feedback.FeedbackRules;
 import com.davisr.thedreamtable.client.feedback.FeedbackRules.Block;
 import com.davisr.thedreamtable.client.feedback.FeedbackSender;
@@ -11,11 +10,9 @@ import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import com.davisr.thedreamtable.screen.ui.ControlId;
 import com.davisr.thedreamtable.screen.ui.FeedbackForm;
 import com.davisr.thedreamtable.screen.ui.layout.UiRect;
-import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 
@@ -101,7 +98,7 @@ public final class FeedbackSection {
 		form.place(box.x(), box.y(), box.width(), box.height(), ui.view().visible(box));
 		ui.fieldAt(FIELD_KEY, Text.translatable("gui.the_dream_table.feedback.field"), x, rows.field(), width, FeedbackLayout.FIELD_HEIGHT, true);
 		form.draw(context, mouseX, mouseY);
-		drawCounter(context, x, width, rows.counter());
+		// The character count under the box is the game's own (EditBoxWidget draws it for a box with a max length).
 		for (FeedbackCategory category : FeedbackCategory.values()) {
 			ui.segmentAt("feedback." + category.wire(), context,
 					Text.translatable("gui.the_dream_table.feedback.category." + category.wire()),
@@ -111,13 +108,6 @@ public final class FeedbackSection {
 		Optional<Block> blocked = blocked();
 		ui.buttonAt(SEND_KEY, context, Text.translatable("gui.the_dream_table.feedback.send"),
 				blocked.map(FeedbackSection::reason).orElse(Text.empty()), x, rows.send(), mouseX, mouseY, blocked.isEmpty(), true);
-	}
-
-	private void drawCounter(DrawContext context, int x, int width, int y) {
-		TextRenderer text = ui.painter().text();
-		OrderedText count = Text.translatable("gui.the_dream_table.feedback.count",
-				FeedbackJson.cleanText(form.text()).length(), FeedbackJson.MAX_LENGTH).asOrderedText();
-		context.drawText(text, count, x + width - text.getWidth(count), y, HINT, false);
 	}
 
 	private void send() {
