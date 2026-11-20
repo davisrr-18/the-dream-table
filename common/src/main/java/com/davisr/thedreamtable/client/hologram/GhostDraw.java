@@ -89,13 +89,17 @@ final class GhostDraw {
 
 	/** Draws one finished immediate buffer with the pipeline and closes it. */
 	static void draw(RenderPipeline pipeline, BuiltBuffer built, Matrix4fc modelView, Vector4fc tint) {
-		try (built; RenderPass pass = begin(pipeline, modelView, tint)) {
+		try (built) {
 			BuiltBuffer.DrawParameters parameters = built.getDrawParameters();
+			// Both uploads write GPU buffers, which the encoder refuses while a render pass is open: do them before it starts.
 			GpuBuffer vertices = pipeline.getVertexFormat().uploadImmediateVertexBuffer(built.getBuffer());
 			RenderSystem.ShapeIndexBuffer shape = RenderSystem.getSequentialBuffer(parameters.mode());
-			pass.setVertexBuffer(0, vertices);
-			pass.setIndexBuffer(shape.getIndexBuffer(parameters.indexCount()), shape.getIndexType());
-			pass.drawIndexed(0, 0, parameters.indexCount(), 1);
+			GpuBuffer indices = shape.getIndexBuffer(parameters.indexCount());
+			try (RenderPass pass = begin(pipeline, modelView, tint)) {
+				pass.setVertexBuffer(0, vertices);
+				pass.setIndexBuffer(indices, shape.getIndexType());
+				pass.drawIndexed(0, 0, parameters.indexCount(), 1);
+			}
 		}
 	}
 
