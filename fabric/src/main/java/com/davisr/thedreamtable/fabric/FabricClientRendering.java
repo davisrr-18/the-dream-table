@@ -3,12 +3,15 @@ package com.davisr.thedreamtable.fabric;
 import com.davisr.thedreamtable.platform.ClientRendering;
 import com.davisr.thedreamtable.platform.RenderFrame;
 import com.davisr.thedreamtable.platform.RenderStage;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.block.entity.state.BlockEntityRenderState;
+import net.minecraft.util.Identifier;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
 import net.minecraft.client.gui.screen.ingame.ScreenHandlerProvider;
@@ -27,18 +30,20 @@ final class FabricClientRendering implements ClientRendering {
 	public void onWorldRender(RenderStage stage, Consumer<RenderFrame> listener) {
 		switch (stage) {
 			case AFTER_ENTITIES -> WorldRenderEvents.AFTER_ENTITIES.register(context -> listener.accept(frame(context)));
-			case AFTER_TRANSLUCENT -> WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> listener.accept(frame(context)));
+			case END_MAIN -> WorldRenderEvents.END_MAIN.register(context -> listener.accept(frame(context)));
 		}
 	}
 
 	@Override
 	public void hideBlockOutlineWhen(BooleanSupplier hidden) {
-		WorldRenderEvents.BLOCK_OUTLINE.register((context, outline) -> !hidden.getAsBoolean());
+		WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, outline) -> !hidden.getAsBoolean());
 	}
+
+	private static int hudElements;
 
 	@Override
 	public void onHud(Consumer<DrawContext> listener) {
-		HudRenderCallback.EVENT.register((context, tickCounter) -> listener.accept(context));
+		HudElementRegistry.addLast(Identifier.of("the_dream_table", "hud_" + hudElements++), (context, tickCounter) -> listener.accept(context));
 	}
 
 	@Override
@@ -47,11 +52,13 @@ final class FabricClientRendering implements ClientRendering {
 	}
 
 	@Override
-	public <T extends BlockEntity> void registerBlockEntityRenderer(Supplier<? extends BlockEntityType<? extends T>> type, BlockEntityRendererFactory<T> factory) {
+	public <T extends BlockEntity, S extends BlockEntityRenderState> void registerBlockEntityRenderer(Supplier<? extends BlockEntityType<? extends T>> type,
+			BlockEntityRendererFactory<T, S> factory) {
 		BlockEntityRendererFactories.register(type.get(), factory);
 	}
 
 	private static RenderFrame frame(WorldRenderContext context) {
-		return new RenderFrame(context.world(), context.matrixStack(), context.consumers(), context.camera());
+		MinecraftClient client = MinecraftClient.getInstance();
+		return new RenderFrame(client.world, context.matrices(), context.consumers(), client.gameRenderer.getCamera());
 	}
 }

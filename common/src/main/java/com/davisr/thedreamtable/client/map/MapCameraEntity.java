@@ -5,8 +5,11 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.DataTracker;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
@@ -34,12 +37,18 @@ final class MapCameraEntity extends Entity {
 	protected void initDataTracker(DataTracker.Builder builder) {
 	}
 
+	/** The camera is client-only and never in a server world, so nothing damages it. */
 	@Override
-	protected void readCustomDataFromNbt(NbtCompound nbt) {
+	public boolean damage(ServerWorld world, DamageSource source, float amount) {
+		return false;
 	}
 
 	@Override
-	protected void writeCustomDataToNbt(NbtCompound nbt) {
+	protected void readCustomData(ReadView view) {
+	}
+
+	@Override
+	protected void writeCustomData(WriteView view) {
 	}
 
 	/**
@@ -53,7 +62,7 @@ final class MapCameraEntity extends Entity {
 		float pitch = (float) view.pitch();
 		Vec3d eye = view.position();
 		refreshPositionAndAngles(eye.x, eye.y - getStandingEyeHeight(), eye.z, yaw, pitch);
-		prevYaw = yaw;
-		prevPitch = pitch;
+		lastYaw = yaw;
+		lastPitch = pitch;
 	}
 }

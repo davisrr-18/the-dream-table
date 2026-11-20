@@ -33,7 +33,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
-import org.joml.Vector3f;
+import org.joml.Vector3fc;
 
 /**
  * Where the farm preview sits. Before the build the player aims, anchors with a right-click, rotates with R and mirrors with M;
@@ -87,7 +87,8 @@ public final class DreamTableHologram {
 	}
 
 	public static void register() {
-		Platform.clientRendering().onWorldRender(RenderStage.AFTER_TRANSLUCENT, DreamTableHologram::render);
+		// 1.21.11 has no after-translucent event: the hologram draws at the end of the main pass (see RenderStage.END_MAIN).
+		Platform.clientRendering().onWorldRender(RenderStage.END_MAIN, DreamTableHologram::render);
 		Platform.clientRendering().hideBlockOutlineWhen(DreamTableHologram::hidesBlockOutline);
 	}
 
@@ -413,8 +414,8 @@ public final class DreamTableHologram {
 		if (placement == null && cursor == null && !mapActive) {
 			return;
 		}
-		Vec3d camera = context.camera().getPos();
-		Vector3f view = context.camera().getHorizontalPlane();
+		Vec3d camera = context.camera().getCameraPos();
+		Vector3fc view = context.camera().getHorizontalPlane();
 		Vec3d forward = new Vec3d(view.x(), view.y(), view.z());
 		MatrixStack matrices = context.matrixStack();
 		float wave = (float) (0.5 + 0.5 * Math.sin(context.world().getTime() * 0.3));
@@ -530,13 +531,13 @@ public final class DreamTableHologram {
 	}
 
 	private static boolean tryPlace(PlayerEntity player, BlockHitResult hit) {
-		if (placingOff || !tableStillThere(player.getWorld()) || farmId.isEmpty() || locked()) {
+		if (placingOff || !tableStillThere(player.getEntityWorld()) || farmId.isEmpty() || locked()) {
 			return false;
 		}
-		if (player.getWorld().getBlockState(hit.getBlockPos()).getBlock() instanceof DreamTableBlock) {
+		if (player.getEntityWorld().getBlockState(hit.getBlockPos()).getBlock() instanceof DreamTableBlock) {
 			return false;
 		}
-		BlockPos anchor = anchorFrom(hit, player.getWorld());
+		BlockPos anchor = anchorFrom(hit, player.getEntityWorld());
 		if (anchor == null) {
 			return false;
 		}

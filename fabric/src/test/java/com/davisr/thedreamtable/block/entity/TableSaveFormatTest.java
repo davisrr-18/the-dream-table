@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.block.entity;
 
 import com.davisr.thedreamtable.GameSetup;
+import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import com.davisr.thedreamtable.DataFixes;
 import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.TheDreamTableMod;
@@ -34,8 +35,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Constructor;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -193,21 +192,9 @@ class TableSaveFormatTest {
 		}
 
 		@Override
-		@SuppressWarnings({"unchecked", "rawtypes"})
 		public <T extends BlockEntity> BlockEntityType<T> blockEntityType(BlockEntityFactory<T> factory, Block... blocks) {
-			// 1.21.2+ has no public builder; the constructor taking the factory and the block set is private.
-			try {
-				for (Constructor<?> constructor : BlockEntityType.class.getDeclaredConstructors()) {
-					if (constructor.getParameterCount() == 2) {
-						constructor.setAccessible(true);
-						BlockEntityType.BlockEntityFactory<T> wrapped = factory::create;
-						return (BlockEntityType<T>) constructor.newInstance(wrapped, Set.of(blocks));
-					}
-				}
-				throw new IllegalStateException("no two-argument BlockEntityType constructor");
-			} catch (ReflectiveOperationException failed) {
-				throw new IllegalStateException(failed);
-			}
+			// 1.21.2+ has no public builder; Fabric API's builder is what the Fabric adapter uses too.
+			return FabricBlockEntityTypeBuilder.<T>create(factory::create, blocks).build();
 		}
 	}
 }

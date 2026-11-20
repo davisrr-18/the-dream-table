@@ -5,11 +5,14 @@ import com.davisr.thedreamtable.network.FarmAreasPayload.WatchAreasPayload;
 import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.platform.RenderFrame;
 import com.davisr.thedreamtable.platform.RenderStage;
-import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.render.VertexRendering;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShapes;
 
 import java.util.List;
 
@@ -56,17 +59,16 @@ public final class OtherFarms {
 		if (!ClientSettings.showOtherFarms() || areas.isEmpty() || context.consumers() == null || context.matrixStack() == null) {
 			return;
 		}
-		Vec3d camera = context.camera().getPos();
+		Vec3d camera = context.camera().getCameraPos();
 		MatrixStack matrices = context.matrixStack();
-		VertexConsumer lines = context.consumers().getBuffer(RenderLayer.getLines());
+		VertexConsumer lines = context.consumers().getBuffer(RenderLayers.lines());
+		// Lines carry their width per vertex in 1.21.11; the game's own selection outline uses this width.
+		float width = MinecraftClient.getInstance().getWindow().getMinimumLineWidth();
 		matrices.push();
 		matrices.translate(-camera.x, -camera.y, -camera.z);
 		for (FarmAreasPayload.Area area : areas) {
-			if (area.finished()) {
-				WorldRenderer.drawBox(matrices, lines, area.box(), 0.45F, 0.95F, 0.55F, 0.8F);
-			} else {
-				WorldRenderer.drawBox(matrices, lines, area.box(), 1.0F, 0.62F, 0.25F, 0.9F);
-			}
+			int color = area.finished() ? ColorHelper.fromFloats(0.8F, 0.45F, 0.95F, 0.55F) : ColorHelper.fromFloats(0.9F, 1.0F, 0.62F, 0.25F);
+			VertexRendering.drawOutline(matrices, lines, VoxelShapes.cuboid(area.box()), 0.0, 0.0, 0.0, color, width);
 		}
 		matrices.pop();
 	}

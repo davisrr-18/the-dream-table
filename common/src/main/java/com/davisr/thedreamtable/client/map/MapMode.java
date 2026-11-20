@@ -10,7 +10,7 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Predicate;
@@ -42,6 +42,8 @@ public final class MapMode {
 	private static MapCamera view;
 	private static MapCameraEntity camera;
 	private static int limitCooldown;
+	/** The player's own F1 state, put back when the mode ends. */
+	private static boolean hudWasHidden;
 	/** The movement as it eases toward the held keys, so the camera speeds up and slows down instead of jumping. */
 	private static double easedForward;
 	private static double easedStrafe;
@@ -123,8 +125,11 @@ public final class MapMode {
 		easedSpeed = 1.0;
 		active = true;
 		client.setCameraEntity(camera);
-		// The first-person hand would be drawn from the free camera, so it is off while the mode is open.
-		client.gameRenderer.setRenderHand(false);
+		// The first-person hand would be drawn from the free camera. 1.21.11 has no switch for the hand alone (setRenderHand is gone,
+		// renderHand is private), but it is skipped while hudHidden is set, so the mode hides the HUD and the hand together and
+		// puts the player's own setting back on exit. MapScreen draws the crosshair, which hudHidden removes with the HUD.
+		hudWasHidden = client.options.hudHidden;
+		client.options.hudHidden = true;
 		DreamTableHologram.setMapActive(true);
 		return true;
 	}
@@ -142,7 +147,7 @@ public final class MapMode {
 		view = null;
 		table = null;
 		world = null;
-		client.gameRenderer.setRenderHand(true);
+		client.options.hudHidden = hudWasHidden;
 		DreamTableHologram.setMapActive(false);
 	}
 
@@ -205,7 +210,7 @@ public final class MapMode {
 	/** Where the aim ray starts: the camera as the game draws it this frame, so the spot under the crosshair is the one on screen. */
 	@Nullable
 	public static Vec3d rayOrigin(MinecraftClient client) {
-		return active ? client.gameRenderer.getCamera().getPos() : null;
+		return active ? client.gameRenderer.getCamera().getCameraPos() : null;
 	}
 
 	/** The aim ray's unit direction: the drawn camera's look vector, which runs through the centre of the screen. Null when the mode is off. */
@@ -214,7 +219,7 @@ public final class MapMode {
 		if (!active) {
 			return null;
 		}
-		Vector3f look = client.gameRenderer.getCamera().getHorizontalPlane();
+		Vector3fc look = client.gameRenderer.getCamera().getHorizontalPlane();
 		return new Vec3d(look.x(), look.y(), look.z()).normalize();
 	}
 

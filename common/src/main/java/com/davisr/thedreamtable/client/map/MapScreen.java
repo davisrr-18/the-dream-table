@@ -2,6 +2,8 @@ package com.davisr.thedreamtable.client.map;
 
 import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.DreamTableKeys;
+import com.davisr.thedreamtable.client.TableNotices;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -11,6 +13,7 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.util.Window;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.EnumSet;
@@ -34,6 +37,7 @@ public final class MapScreen extends Screen {
 	private static final int KEY_BORDER = 0xFF8CD8FF;
 	private static final int KEY_TEXT = 0xFFFFFFFF;
 	private static final int ACTION_TEXT = 0xFFD8D8D8;
+	private static final Identifier CROSSHAIR = Identifier.ofVanilla("hud/crosshair");
 
 	/**
 	 * The held movement: forward and strafe (right is positive) follow the view, vertical is world Y, each is -1, 0 or 1.
@@ -126,6 +130,11 @@ public final class MapScreen extends Screen {
 			held.clear();
 		}
 		MapMode.frame(client, movement(), client.getRenderTickCounter().getDynamicDeltaTicks());
+		// The mode hides the HUD (and with it the hand), and the game's crosshair goes with the HUD; the crosshair is the aim here,
+		// so the screen draws the game's own sprite at the same place.
+		context.drawGuiTexture(RenderPipelines.CROSSHAIR, CROSSHAIR, (width - 15) / 2, (height - 15) / 2, 15, 15);
+		// The notice layer is part of the hidden HUD too: the limit notice and the server's notices are drawn here instead.
+		TableNotices.draw(context, textRenderer, true);
 		drawControls(context);
 	}
 

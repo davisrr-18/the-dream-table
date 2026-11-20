@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.fabric;
 
 import com.davisr.thedreamtable.platform.Content;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
+import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.minecraft.block.Block;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
@@ -32,6 +33,6 @@ final class FabricContent implements Content {
 
 	@Override
 	public <T extends BlockEntity> BlockEntityType<T> blockEntityType(BlockEntityFactory<T> factory, Block... blocks) {
-		return BlockEntityType.Builder.create(factory::create, blocks).build(null);
+		return FabricBlockEntityTypeBuilder.<T>create(factory::create, blocks).build();
 	}
 }

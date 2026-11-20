@@ -4,28 +4,27 @@ import com.davisr.thedreamtable.block.entity.TableSession;
 import com.davisr.thedreamtable.client.FarmFaces;
 import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.ShaderProgram;
-import net.minecraft.client.gl.VertexBuffer;
 import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.render.model.BakedQuad;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.screen.PlayerScreenHandler;
+import net.minecraft.client.util.math.Vector2f;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
+import org.joml.Vector3fc;
+import org.joml.Vector4f;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,14 +35,17 @@ import java.util.function.UnaryOperator;
  * The whole farm turns red when the server says it can't be built where it was placed.
  * <p>
  * The parts are split into {@link GhostPlan#CHUNK chunks}. A chunk that is entirely unbuilt and inside the visible layers is
- * baked once into a GPU buffer and redrawn each frame with one tint, passed through the shader's color modulator, so the
- * pulse needs no rebuild. The chunk with the next block is drawn directly each frame, since its parts change as blocks are
- * placed. A baked chunk is rebuilt only when the visible layer window changes, and first bakes and face builds are spread
- * over frames by {@link #BUDGET}.
+ * baked once into a GPU buffer and redrawn each frame with one tint, passed through the pipeline's {@code ColorModulator}
+ * ({@link GhostDraw}), so the pulse needs no rebuild. The chunk with the next block is drawn directly each frame, since its
+ * parts change as blocks are placed. A baked chunk is rebuilt only when the visible layer window changes, and first bakes and
+ * face builds are spread over frames by {@link #BUDGET}.
  * <p>
  * Parts are not ordered by height (water, lava and plants come after every other block), so a face may be covered by a
  * built block above the window. Baked chunks keep such faces out of their buffer ("seams") and draw them each frame with
  * the exact rule, so the result matches drawing every part directly.
+ * <p>
+ * Every draw is its own render pass on the main framebuffer (no global state to restore, so nothing can leak into the passes
+ * after it); see {@link GhostDraw} for the pipelines.
  */
 public final class GhostRenderer {
 	/** Per frame, how long the hologram may spend building faces and baking buffers. */
@@ -70,7 +72,6 @@ public final class GhostRenderer {
 	private static final Matrix4f IDENTITY = new Matrix4f();
 	private static final Matrix4f SCRATCH = new Matrix4f();
 	private static final Tint NEUTRAL = new Tint(1.0F, 1.0F, 1.0F, 255);
-	private static final List<VertexBuffer> BAKED = new ArrayList<>();
 	private static final List<Mesh> BAKED_MESHES = new ArrayList<>();
 	private static int bakedThisFrame;
 
@@ -103,38 +104,33 @@ public final class GhostRenderer {
 		float[] rgb = status.rgb();
 		// The frame is drawn as ribbons that face the camera and widen with distance, so it keeps one width on screen
 		// and never splits or stretches; the aimed block gets corner brackets and a short beam that fades upward, and only the floor and the beam are translucent.
-		RenderSystem.enableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 		Matrix4f matrix = matrices.peek().getPositionMatrix();
+		Matrix4f view = GhostDraw.view();
 		// One buffer at a time: the passes share the tessellator's memory, so each is drawn before the next is begun.
 		if (footprint != null) {
-			BufferBuilder frame = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			BufferBuilder frame = colorBuffer();
 			emit(frame, matrix, PlacementOutline.ribbons(footprint.expand(OUTLINE_GROW), camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH), rgb);
-			drawPass(frame, false);
+			drawColor(GhostDraw.SOLID, frame, view);
 			if (floor) {
-				BufferBuilder ground = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-				fill(matrices, ground, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
-				drawPass(ground, true);
+				BufferBuilder ground = colorBuffer();
+				fill(ground, matrix, new Box(footprint.minX, footprint.minY, footprint.minZ, footprint.maxX, footprint.minY + 0.04, footprint.maxZ), rgb, 0.2F + 0.1F * wave);
+				drawColor(GhostDraw.TRANSLUCENT, ground, view);
 			}
 		}
 		if (anchor != null) {
 			// The block's corners are bracketed right on its edges, and a beam fading upward finds the spot from far away.
-			BufferBuilder brackets = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			BufferBuilder brackets = colorBuffer();
 			emit(brackets, matrix, PlacementOutline.brackets(anchor, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BRACKET_WIDTH_FACTOR, BRACKET_MAX_HALF), rgb);
-			drawPass(brackets, false);
-			BufferBuilder beam = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+			drawColor(GhostDraw.SOLID, brackets, view);
+			BufferBuilder beam = colorBuffer();
 			float[] alpha = {1.0F, 1.0F, 0.0F, 0.0F};
 			for (Vec3d[] ribbon : PlacementOutline.beam(anchor, BEAM_HEIGHT, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BEAM_WIDTH_FACTOR, BEAM_MAX_HALF)) {
 				for (int corner = 0; corner < ribbon.length; corner++) {
 					beam.vertex(matrix, (float) ribbon[corner].x, (float) ribbon[corner].y, (float) ribbon[corner].z).color(rgb[0], rgb[1], rgb[2], alpha[corner]);
 				}
 			}
-			drawPass(beam, true);
+			drawColor(GhostDraw.TRANSLUCENT, beam, view);
 		}
-		RenderSystem.depthMask(true);
-		RenderSystem.enableCull();
-		RenderSystem.disableBlend();
 	}
 
 	/**
@@ -142,39 +138,27 @@ public final class GhostRenderer {
 	 * are drawn over the terrain, so no block hides them. Blocks outside the view cone are skipped.
 	 */
 	public static void drawEdge(MatrixStack matrices, List<BlockPos> edge, Vec3d camera, Vec3d forward) {
-		RenderSystem.disableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 		Matrix4f matrix = matrices.peek().getPositionMatrix();
-		BufferBuilder corners = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+		BufferBuilder corners = colorBuffer();
 		for (BlockPos pos : edge) {
 			if (PlacementOutline.outsideView(Vec3d.ofCenter(pos).subtract(camera), forward)) {
 				continue;
 			}
 			emit(corners, matrix, PlacementOutline.cornerBrackets(pos, camera, forward, RIBBON_NEAR, RIBBON_HALF_WIDTH * BRACKET_WIDTH_FACTOR, BRACKET_MAX_HALF), EDGE_RGB);
 		}
-		drawPass(corners, false);
-		RenderSystem.depthMask(true);
-		RenderSystem.enableCull();
-		RenderSystem.disableBlend();
-		RenderSystem.enableDepthTest();
+		drawColor(GhostDraw.OVER_TERRAIN, corners, GhostDraw.view());
 	}
 
-	/** Draws one finished buffer, solid (no blending, writes depth) or translucent (blended, no depth write). */
-	private static void drawPass(BufferBuilder buffer, boolean translucent) {
+	private static BufferBuilder colorBuffer() {
+		return Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+	}
+
+	/** Draws one finished colour buffer with the pipeline; nothing when it holds no vertex. */
+	private static void drawColor(RenderPipeline pipeline, BufferBuilder buffer, Matrix4fc view) {
 		BuiltBuffer built = buffer.endNullable();
-		if (built == null) {
-			return;
+		if (built != null) {
+			GhostDraw.draw(pipeline, built, view, GhostDraw.WHITE);
 		}
-		if (translucent) {
-			RenderSystem.enableBlend();
-			RenderSystem.defaultBlendFunc();
-			RenderSystem.depthMask(false);
-		} else {
-			RenderSystem.disableBlend();
-			RenderSystem.depthMask(true);
-		}
-		BufferRenderer.drawWithGlobalProgram(built);
 	}
 
 	private static void emit(BufferBuilder buffer, Matrix4f matrix, List<Vec3d[]> ribbons, float[] rgb) {
@@ -185,8 +169,27 @@ public final class GhostRenderer {
 		}
 	}
 
-	private static void fill(MatrixStack matrices, BufferBuilder buffer, Box box, float[] rgb, float alpha) {
-		WorldRenderer.renderFilledBox(matrices, buffer, box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ, rgb[0], rgb[1], rgb[2], alpha);
+	/** The six faces of the box as quads of one colour (the pipeline does not cull, so the winding does not matter). */
+	private static void fill(BufferBuilder buffer, Matrix4f matrix, Box box, float[] rgb, float alpha) {
+		float x0 = (float) box.minX;
+		float y0 = (float) box.minY;
+		float z0 = (float) box.minZ;
+		float x1 = (float) box.maxX;
+		float y1 = (float) box.maxY;
+		float z1 = (float) box.maxZ;
+		float[][] faces = {
+				{x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1},
+				{x0, y1, z0, x0, y1, z1, x1, y1, z1, x1, y1, z0},
+				{x0, y0, z0, x0, y1, z0, x1, y1, z0, x1, y0, z0},
+				{x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1},
+				{x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0},
+				{x1, y0, z0, x1, y1, z0, x1, y1, z1, x1, y0, z1}
+		};
+		for (float[] face : faces) {
+			for (int corner = 0; corner < 4; corner++) {
+				buffer.vertex(matrix, face[corner * 3], face[corner * 3 + 1], face[corner * 3 + 2]).color(rgb[0], rgb[1], rgb[2], alpha);
+			}
+		}
 	}
 
 	/**
@@ -213,7 +216,6 @@ public final class GhostRenderer {
 		matrices.push();
 		matrices.translate(anchor.getX(), anchor.getY(), anchor.getZ());
 		Matrix4f world = new Matrix4f(matrices.peek().getPositionMatrix());
-		BAKED.clear();
 		BAKED_MESHES.clear();
 		for (int chunk = 0; chunk < plan.chunks(); chunk++) {
 			if (plan.kind(chunk, first, window) != GhostPlan.Kind.BAKED) {
@@ -222,23 +224,15 @@ public final class GhostRenderer {
 			Mesh mesh = mesh(key, parts, plan, steps, chunk, window, frame);
 			if (mesh != null) {
 				BAKED_MESHES.add(mesh);
-				if (mesh.buffer() != null) {
-					BAKED.add(mesh.buffer());
-				}
 			}
 		}
-		prepareState();
+		Matrix4f view = GhostDraw.view();
 		// The live chunk (the next block's glow) holds the lowest layers and goes first, as the single buffer used to draw it:
 		// the translucent layers above it then blend over it instead of hiding it behind their depth.
-		drawLive(matrices, parts, steps, plan, first / GhostPlan.CHUNK, shownPlaced, window, blocked, refused, wave);
-		if (!BAKED.isEmpty()) {
-			drawBaked(world, Tint.of(false, blocked, refused, wave));
-		}
-		BAKED.clear();
+		drawLive(matrices, view, parts, steps, plan, first / GhostPlan.CHUNK, shownPlaced, window, blocked, refused, wave);
+		drawBaked(view.mul(world, new Matrix4f()), Tint.of(false, blocked, refused, wave));
 		BAKED_MESHES.clear();
 		matrices.pop();
-		// The world render after this stage must not inherit blending.
-		RenderSystem.disableBlend();
 	}
 
 	private static GhostPlan plan(String key, List<FarmFaces.Part> parts, List<FarmStep> steps, long frame) {
@@ -279,7 +273,7 @@ public final class GhostRenderer {
 	 * whether that block is built, so it is recorded as a seam and drawn each frame instead.
 	 */
 	private static Mesh bake(List<FarmFaces.Part> parts, GhostPlan plan, List<FarmStep> steps, int chunk, int window) {
-		BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
+		BufferBuilder buffer = blockBuffer();
 		List<Integer> seams = new ArrayList<>();
 		for (int index = plan.chunkStart(chunk); index < plan.chunkEnd(chunk); index++) {
 			if (plan.layer(index) > window) {
@@ -304,52 +298,43 @@ public final class GhostRenderer {
 		BuiltBuffer built = buffer.endNullable();
 		int[] seamList = seams.stream().mapToInt(Integer::intValue).toArray();
 		if (built == null) {
-			return new Mesh(null, seamList);
+			return new Mesh(null, 0, seamList);
 		}
-		VertexBuffer vertices = new VertexBuffer(VertexBuffer.Usage.STATIC);
-		vertices.bind();
-		vertices.upload(built);
-		VertexBuffer.unbind();
-		return new Mesh(vertices, seamList);
+		int indexCount = built.getDrawParameters().indexCount();
+		return new Mesh(GhostDraw.upload(built), indexCount, seamList);
 	}
 
-	private static void prepareState() {
-		RenderSystem.setShaderTexture(0, PlayerScreenHandler.BLOCK_ATLAS_TEXTURE);
-		RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
-		RenderSystem.enableBlend();
-		RenderSystem.defaultBlendFunc();
-		RenderSystem.enableDepthTest();
-		RenderSystem.depthMask(true);
-		RenderSystem.enableCull();
+	private static BufferBuilder blockBuffer() {
+		return Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
 	}
 
-	/** Draws the baked chunks with the shader set up once; the tint goes through the shader's color modulator. */
-	private static void drawBaked(Matrix4f world, Tint tint) {
-		ShaderProgram shader = RenderSystem.getShader();
-		if (shader == null) {
+	/** Draws the baked chunks in one pass; the tint goes through the pipeline's colour modulator, the matrix places the anchor. */
+	private static void drawBaked(Matrix4f modelView, Tint tint) {
+		int largest = 0;
+		for (Mesh mesh : BAKED_MESHES) {
+			largest = Math.max(largest, mesh.buffer() == null ? 0 : mesh.indexCount());
+		}
+		if (largest == 0) {
 			return;
 		}
-		Matrix4f view = new Matrix4f(RenderSystem.getModelViewMatrix()).mul(world);
-		shader.initializeUniforms(VertexFormat.DrawMode.QUADS, view, RenderSystem.getProjectionMatrix(), MinecraftClient.getInstance().getWindow());
-		if (shader.colorModulator != null) {
-			shader.colorModulator.set(tint.red(), tint.green(), tint.blue(), tint.alpha() / 255.0F);
+		GpuBuffer indices = GhostDraw.quadIndices(largest);
+		Vector4f modulator = new Vector4f(tint.red(), tint.green(), tint.blue(), tint.alpha() / 255.0F);
+		try (RenderPass pass = GhostDraw.begin(GhostDraw.BLOCKS, modelView, modulator)) {
+			for (Mesh mesh : BAKED_MESHES) {
+				if (mesh.buffer() != null) {
+					GhostDraw.drawKept(pass, mesh.buffer(), indices, mesh.indexCount());
+				}
+			}
 		}
-		shader.bind();
-		for (VertexBuffer vertices : BAKED) {
-			vertices.bind();
-			vertices.draw();
-		}
-		VertexBuffer.unbind();
-		shader.unbind();
 	}
 
 	/**
 	 * The live chunk, rebuilt every frame since its parts get built one by one and the next one is lit, plus the seams of
 	 * the baked chunks, which depend on what is built.
 	 */
-	private static void drawLive(MatrixStack matrices, List<FarmFaces.Part> parts, List<FarmStep> steps, GhostPlan plan, int chunk,
+	private static void drawLive(MatrixStack matrices, Matrix4f view, List<FarmFaces.Part> parts, List<FarmStep> steps, GhostPlan plan, int chunk,
 			int shownPlaced, int window, boolean blocked, boolean refused, float wave) {
-		BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
+		BufferBuilder buffer = blockBuffer();
 		Matrix4f base = matrices.peek().getPositionMatrix();
 		for (int index = plan.chunkStart(chunk); index < plan.chunkEnd(chunk); index++) {
 			FarmFaces.Part part = parts.get(index);
@@ -367,10 +352,9 @@ public final class GhostRenderer {
 			}
 		}
 		BuiltBuffer built = buffer.endNullable();
-		if (built == null) {
-			return;
+		if (built != null) {
+			GhostDraw.draw(GhostDraw.BLOCKS, built, view, GhostDraw.WHITE);
 		}
-		BufferRenderer.drawWithGlobalProgram(built);
 	}
 
 	private record Tint(float red, float green, float blue, int alpha) {
@@ -395,10 +379,10 @@ public final class GhostRenderer {
 	}
 
 	/**
-	 * One baked chunk: its buffer (null when nothing in the window has faces) and the seams, pairs of part index and quad
-	 * index, that are drawn each frame.
+	 * One baked chunk: its GPU buffer (null when nothing in the window has faces) with its index count, and the seams, pairs of
+	 * part index and quad index, that are drawn each frame. Closing it frees the buffer (the cache does when it evicts or clears).
 	 */
-	private record Mesh(VertexBuffer buffer, int[] seams) {
+	private record Mesh(GpuBuffer buffer, int indexCount, int[] seams) {
 		void close() {
 			if (buffer != null) {
 				buffer.close();
@@ -436,25 +420,16 @@ public final class GhostRenderer {
 	}
 
 	private static void ghostQuad(BufferBuilder buffer, Matrix4f matrix, BakedQuad quad, int color, Tint tint) {
-		int[] data = quad.getVertexData();
-		int stride = data.length / 4;
-		if (stride < 6) {
-			return;
-		}
 		float tintRed = color == -1 ? 1.0F : ((color >> 16) & 255) / 255.0F;
 		float tintGreen = color == -1 ? 1.0F : ((color >> 8) & 255) / 255.0F;
 		float tintBlue = color == -1 ? 1.0F : (color & 255) / 255.0F;
 		int red = Math.min(255, (int) (tintRed * tint.red() * 255.0F));
 		int green = Math.min(255, (int) (tintGreen * tint.green() * 255.0F));
 		int blue = Math.min(255, (int) (tintBlue * tint.blue() * 255.0F));
-		for (int vertex = 0; vertex < 4; vertex++) {
-			int offset = vertex * stride;
-			float x = Float.intBitsToFloat(data[offset]);
-			float y = Float.intBitsToFloat(data[offset + 1]);
-			float z = Float.intBitsToFloat(data[offset + 2]);
-			float u = Float.intBitsToFloat(data[offset + 4]);
-			float v = Float.intBitsToFloat(data[offset + 5]);
-			buffer.vertex(matrix, x, y, z).texture(u, v).color(red, green, blue, tint.alpha());
+		for (int vertex = 0; vertex < BakedQuad.NUM_VERTICES; vertex++) {
+			Vector3fc at = quad.getPosition(vertex);
+			long uv = quad.getTexcoords(vertex);
+			buffer.vertex(matrix, at.x(), at.y(), at.z()).texture(Vector2f.getX(uv), Vector2f.getY(uv)).color(red, green, blue, tint.alpha());
 		}
 	}
 

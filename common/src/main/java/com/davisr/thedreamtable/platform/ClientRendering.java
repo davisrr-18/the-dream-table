@@ -6,6 +6,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.ScreenHandlerProvider;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.render.block.entity.state.BlockEntityRenderState;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerType;
@@ -29,8 +30,12 @@ public interface ClientRendering {
 	/** Opens the screen for menus of the type when the server opens one. The type is read once the loader asks for screens. */
 	<T extends ScreenHandler, S extends Screen & ScreenHandlerProvider<T>> void registerScreen(Supplier<? extends ScreenHandlerType<? extends T>> type, ScreenFactory<T, S> factory);
 
-	/** Draws block entities of the type with renderers the factory creates. The type is read once the loader asks for renderers. */
-	<T extends BlockEntity> void registerBlockEntityRenderer(Supplier<? extends BlockEntityType<? extends T>> type, BlockEntityRendererFactory<T> factory);
+	/**
+	 * Draws block entities of the type with renderers the factory creates (the 1.21.11 render-state API: the renderer extracts a
+	 * state per frame and submits to the command queue). The type is read once the loader asks for renderers.
+	 */
+	<T extends BlockEntity, S extends BlockEntityRenderState> void registerBlockEntityRenderer(Supplier<? extends BlockEntityType<? extends T>> type,
+			BlockEntityRendererFactory<T, S> factory);
 
 	@FunctionalInterface
 	interface ScreenFactory<T extends ScreenHandler, S extends Screen & ScreenHandlerProvider<T>> {

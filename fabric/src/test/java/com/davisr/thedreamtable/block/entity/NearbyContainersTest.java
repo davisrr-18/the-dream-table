@@ -15,6 +15,8 @@ import net.minecraft.inventory.ContainerLock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.loot.LootTables;
+import net.minecraft.predicate.NumberRange;
+import net.minecraft.predicate.item.ItemPredicate;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -56,7 +58,7 @@ class NearbyContainersTest {
 		ChestBlockEntity open = new ChestBlockEntity(TABLE, Blocks.CHEST.getDefaultState());
 		assertFalse(NearbyContainers.locked(open));
 		ChestBlockEntity locked = new ChestBlockEntity(TABLE, Blocks.CHEST.getDefaultState());
-		locked.readComponents(ComponentMap.builder().add(DataComponentTypes.LOCK, new ContainerLock("key")).build(), ComponentChanges.EMPTY);
+		locked.readComponents(ComponentMap.builder().add(DataComponentTypes.LOCK, new ContainerLock(ItemPredicate.Builder.create().count(NumberRange.IntRange.atLeast(1)).build())).build(), ComponentChanges.EMPTY);
 		assertTrue(NearbyContainers.locked(locked));
 	}
 

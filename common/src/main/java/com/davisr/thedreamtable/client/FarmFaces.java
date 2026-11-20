@@ -12,14 +12,14 @@ import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.color.block.BlockColors;
-import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.client.render.model.BakedQuad;
+import net.minecraft.client.render.model.BlockModelPart;
+import net.minecraft.client.render.model.BlockStateModel;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
-import net.minecraft.world.EmptyBlockView;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,8 +64,9 @@ public final class FarmFaces {
 
 	/**
 	 * One block to draw: its build step, where it sits, its final state, and its quads with their tints and the step of
-	 * the solid block covering each, or -1. Chests and other animated blocks have no quads and are drawn as entities;
-	 * {@code fallback} covers blocks without a model.
+	 * the solid block covering each, or -1. Chests, beds and other blocks drawn through a special model have no quads
+	 * ({@code animated}): the miniature submits them as blocks and the hologram draws {@code fallback}, a cube of the
+	 * particle sprite.
 	 */
 	public record Part(int step, BlockPos pos, BlockState state, List<BakedQuad> quads, int[] tints, int[] coveredBy, boolean animated, Sprite fallback) {
 		public boolean covered(int quad) {
@@ -226,7 +227,7 @@ public final class FarmFaces {
 			}
 			positions[index] = pos;
 			states.put(pos.asLong(), state);
-			if (state.isOpaqueFullCube(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) {
+			if (state.isOpaqueFullCube()) {
 				solid.put(pos.asLong(), index);
 			}
 		}
@@ -242,41 +243,47 @@ public final class FarmFaces {
 				return;
 			}
 			BlockColors colors = client.getBlockColors();
-			BakedModel model = client.getBlockRenderManager().getModel(state);
-			if (type == BlockRenderType.ENTITYBLOCK_ANIMATED) {
-				parts.add(new Part(index, pos, state, List.of(), new int[0], new int[0], true, model.getParticleSprite()));
-				return;
-			}
+			BlockStateModel model = client.getBlockRenderManager().getModel(state);
+			List<BlockModelPart> modelParts = new ArrayList<>();
+			random.setSeed(pos.asLong());
+			model.addParts(random, modelParts);
 			List<BakedQuad> quads = new ArrayList<>();
 			List<Integer> covers = new ArrayList<>();
 			for (Direction side : Direction.values()) {
-				random.setSeed(pos.asLong());
-				List<BakedQuad> faces = model.getQuads(state, side, random);
 				int cover = solid.getOrDefault(pos.offset(side).asLong(), -1);
-				quads.addAll(faces);
-				faces.forEach(face -> covers.add(cover));
+				for (BlockModelPart modelPart : modelParts) {
+					List<BakedQuad> faces = modelPart.getQuads(side);
+					quads.addAll(faces);
+					faces.forEach(face -> covers.add(cover));
+				}
 			}
-			random.setSeed(pos.asLong());
-			List<BakedQuad> loose = model.getQuads(state, null, random);
-			quads.addAll(loose);
-			loose.forEach(face -> covers.add(-1));
+			for (BlockModelPart modelPart : modelParts) {
+				List<BakedQuad> loose = modelPart.getQuads(null);
+				quads.addAll(loose);
+				loose.forEach(face -> covers.add(-1));
+			}
+			if (quads.isEmpty()) {
+				// Chests, beds, banners and the like draw through a special model, not quads (1.21.5+ has no animated render type).
+				parts.add(new Part(index, pos, state, List.of(), new int[0], new int[0], true, model.particleSprite()));
+				return;
+			}
 			int[] tints = new int[quads.size()];
 			int[] coveredBy = new int[quads.size()];
 			for (int quad = 0; quad < quads.size(); quad++) {
 				tints[quad] = tint(colors, state, quads.get(quad));
 				coveredBy[quad] = covers.get(quad);
 			}
-			parts.add(new Part(index, pos, state, List.copyOf(quads), tints, coveredBy, false, model.getParticleSprite()));
+			parts.add(new Part(index, pos, state, List.copyOf(quads), tints, coveredBy, false, model.particleSprite()));
 		}
 	}
 
 	/** Grass, leaves and the like are tinted with their default colors, since a preview has no biome. */
 	private static int tint(BlockColors colors, BlockState state, BakedQuad quad) {
-		if (!quad.hasColor()) {
+		if (!quad.hasTint()) {
 			return -1;
 		}
 		try {
-			return colors.getColor(state, null, null, quad.getColorIndex());
+			return colors.getColor(state, null, null, quad.tintIndex());
 		} catch (RuntimeException noDefault) {
 			return -1;
 		}
