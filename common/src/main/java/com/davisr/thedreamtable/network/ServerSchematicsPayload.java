@@ -19,6 +19,7 @@ import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
@@ -99,10 +100,10 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 
 	public static void send(ServerPlayerEntity player) {
 		List<Entry> entries = new ArrayList<>();
-		for (FarmOption option : FarmTemplates.imported()) {
-			if (entries.size() >= MAX_SCHEMATICS) {
-				break;
-			}
+		if (FarmTemplates.imported().size() > DreamTableScreenHandler.MAX_SCHEMES) {
+			TableNoticePayload.info(player, Text.translatable("gui.the_dream_table.schematics_capped", DreamTableScreenHandler.MAX_SCHEMES));
+		}
+		for (FarmOption option : DreamTableScreenHandler.firstSchemes(FarmTemplates.imported())) {
 			String name = option.literalName() == null ? option.id() : option.literalName();
 			List<ImportNote> notes = FarmTemplates.notes(option.id());
 			entries.add(new Entry(option.id(), Registries.ITEM.getId(option.icon()).toString(), name, Math.max(0, FarmTemplates.stepCount(option.id())), FarmTemplates.version(option.id()),

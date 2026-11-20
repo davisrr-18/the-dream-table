@@ -28,9 +28,14 @@ public final class SchemesPage implements TablePage {
 		this.ui = ui;
 	}
 
+	/** The listed schematics. Each one's button id is BUTTON_SCHEME plus its index, so the list stops before the swap ids. */
+	private static List<FarmOption> schemes() {
+		return DreamTableScreenHandler.firstSchemes(FarmTemplates.imported());
+	}
+
 	@Override
 	public void draw(DrawContext context, int mouseX, int mouseY) {
-		List<FarmOption> schemes = FarmTemplates.imported();
+		List<FarmOption> schemes = schemes();
 		List<ImportedStructures.Rejected> rejected = FarmTemplates.rejected();
 		if (schemes.isEmpty() && rejected.isEmpty()) {
 			ui.collectionNote(context, Text.translatable("gui.the_dream_table.schemes_empty"), ui.view().cardY(0), HINT);
@@ -56,7 +61,7 @@ public final class SchemesPage implements TablePage {
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
-		List<FarmOption> schemes = FarmTemplates.imported();
+		List<FarmOption> schemes = schemes();
 		for (int index = 0; index < schemes.size(); index++) {
 			if (ui.cardHit(mouseX, mouseY, cardX(ui.view(), index), cardY(ui.view(), index))) {
 				String id = schemes.get(index).id();
@@ -82,15 +87,15 @@ public final class SchemesPage implements TablePage {
 	}
 
 	private int listHeight() {
-		return listHeight(ui.view(), FarmTemplates.imported().size(), FarmTemplates.rejected().size());
+		return listHeight(ui.view(), schemes().size(), FarmTemplates.rejected().size());
 	}
 
 	private int rejectedNoteY() {
-		return rejectedNoteY(ui.view(), FarmTemplates.imported().size());
+		return rejectedNoteY(ui.view(), schemes().size());
 	}
 
 	private int rejectedY(int index) {
-		return rejectedY(ui.view(), index, FarmTemplates.imported().size());
+		return rejectedY(ui.view(), index, schemes().size());
 	}
 
 	private void drawCard(FarmOption option, int x, int y, DrawContext context, int mouseX, int mouseY, boolean selected, boolean enabled) {

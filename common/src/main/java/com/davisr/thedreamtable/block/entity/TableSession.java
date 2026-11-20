@@ -660,8 +660,20 @@ public final class TableSession {
 		return true;
 	}
 
+	/**
+	 * Whether a take-apart finds no farm file, so the blocks stay in place and the player is told. Only a started build that
+	 * is not done needs it, the same build the take-apart would have taken apart.
+	 */
+	static boolean needsTemplateGoneNotice(boolean takeApart, boolean templateGone, boolean phaseDone, int index) {
+		return takeApart && templateGone && !phaseDone && index > 0;
+	}
+
 	private void discard(World world, @Nullable PlayerEntity discarder, boolean takeApart) {
 		FarmTemplate template = template();
+		if (needsTemplateGoneNotice(takeApart, template == null, progress.is(PHASE_DONE), progress.index())
+				&& discarder instanceof ServerPlayerEntity serverDiscarder) {
+			TableNoticePayload.problem(serverDiscarder, Text.translatable("gui.the_dream_table.discard_changed"));
+		}
 		if (takeApart && table.getWorld() instanceof ServerWorld serverWorld && template != null && !progress.is(PHASE_DONE) && progress.index() > 0) {
 			if (movedBuildDimension != null && !movedBuildHere(serverWorld)) {
 				// A build from a broken table that stands in another world or out of reach is not this table's to take apart.
@@ -853,9 +865,14 @@ public final class TableSession {
 
 	// Saving and syncing
 
+	/** Farm Info saves as the work page: its id is the removed Alerts page, which reads back as My Farms. */
+	static int savedPage(int page) {
+		return page == DreamTableScreenHandler.PAGE_FARM_INFO ? DreamTableScreenHandler.PAGE_WORK : page;
+	}
+
 	void write(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		nbt.putString("SelectedFarm", selectedFarm);
-		nbt.putInt("Page", page);
+		nbt.putInt("Page", savedPage(page));
 		nbt.putInt("SwapMaterial", swapMaterial);
 		desk.write(nbt, registries);
 		progress.write(nbt);
