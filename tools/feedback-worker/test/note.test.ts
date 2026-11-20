@@ -54,3 +54,45 @@ describe("text sanitization before the note is written", () => {
     expect(lines).toEqual(["> Tudo bem por aqui, sem nada especial."]);
   });
 });
+
+describe("escape order and hidden markup (review fixes)", () => {
+  it("escapes an existing backslash first, so a typed link stays plain text", async () => {
+    const lines = await quotedLines(String.raw`\[x\](https://evil.example/p) texto`);
+    expect(lines).toEqual([String.raw`> \\\[x\\\](https://evil.example/p) texto`]);
+  });
+
+  it("a doubled backslash before #tag does not leave the tag unescaped", async () => {
+    const lines = await quotedLines(String.raw`\\#tag aqui`);
+    expect(lines).toEqual([String.raw`> \\\\\#tag aqui`]);
+  });
+
+  it("escapes #tag and a typed \\#tag", async () => {
+    const lines = await quotedLines(String.raw`\#tag aqui`);
+    expect(lines).toEqual([String.raw`> \\\#tag aqui`]);
+  });
+
+  it("keeps a lone trailing backslash literal and the next line intact", async () => {
+    const lines = await quotedLines("primeira linha\\\nsegunda linha aqui");
+    expect(lines).toEqual([String.raw`> primeira linha\\`, "> segunda linha aqui"]);
+  });
+
+  it("escapes HTML so comments and tags stay visible in Obsidian", async () => {
+    const lines = await quotedLines("<!-- instrucao --> e <script>x</script> <img src=x>");
+    expect(lines).toEqual([String.raw`> \<!-- instrucao --> e \<script>x\</script> \<img src=x>`]);
+  });
+
+  it("escapes every percent sign, so %%% cannot hide text", async () => {
+    const lines = await quotedLines("tres %%% sinais");
+    expect(lines).toEqual([String.raw`> tres \%\%\% sinais`]);
+  });
+
+  it("escapes indented code fences and rules, not only the ones at column 0", async () => {
+    const lines = await quotedLines("texto\n   ```\n  ---");
+    expect(lines).toEqual(["> texto", "> \\   ```", "> \\  ---"]);
+  });
+
+  it("removes zero-width characters from the stored text", async () => {
+    const lines = await quotedLines("aaaaaaaaaa​bbb‌‍⁠﻿");
+    expect(lines.join("\n")).not.toMatch(/[​-‍⁠﻿]/);
+  });
+});

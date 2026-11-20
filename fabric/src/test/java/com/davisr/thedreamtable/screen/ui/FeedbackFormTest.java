@@ -88,7 +88,7 @@ class FeedbackFormTest {
 		assertEquals(200, first.getWidth());
 		assertEquals(40, first.getHeight());
 		assertFalse(first.active);
-		assertTrue(form.shown());
+		assertFalse(form.usable());
 	}
 
 	/**

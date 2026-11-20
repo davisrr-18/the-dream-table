@@ -3,8 +3,9 @@ package com.davisr.thedreamtable.client.feedback;
 import java.util.Locale;
 
 /**
- * Builds the JSON body the feedback Worker accepts. Text limits count UTF-16 units, the length JavaScript reports, so
- * the client and the Worker accept the same texts.
+ * Builds the JSON body the feedback Worker accepts. The text is cleaned the way the Worker cleans it (controls and
+ * zero-width characters removed, then trimmed like JavaScript's trim), and the limits count UTF-16 units of the cleaned
+ * text, so the client and the Worker accept the same texts.
  */
 public final class FeedbackJson {
 	public static final int MIN_LENGTH = 10;
@@ -16,9 +17,28 @@ public final class FeedbackJson {
 	private FeedbackJson() {
 	}
 
-	/** The text with every line break as {@code \n} and the surrounding whitespace removed. */
+	/**
+	 * The text the Worker stores: every line break as {@code \n}, control and zero-width characters removed, and the
+	 * whitespace at both ends removed as JavaScript's trim does (Unicode spaces and U+FEFF included).
+	 */
 	public static String cleanText(String raw) {
-		return raw.replace("\r\n", "\n").replace('\r', '\n').strip();
+		String lines = raw.replace("\r\n", "\n").replace('\r', '\n');
+		StringBuilder kept = new StringBuilder(lines.length());
+		for (int index = 0; index < lines.length(); index++) {
+			char character = lines.charAt(index);
+			if (character == '\n' || !(Character.isISOControl(character) || isZeroWidth(character))) {
+				kept.append(character);
+			}
+		}
+		int start = 0;
+		int end = kept.length();
+		while (start < end && isTrimmable(kept.charAt(start))) {
+			start++;
+		}
+		while (end > start && isTrimmable(kept.charAt(end - 1))) {
+			end--;
+		}
+		return kept.substring(start, end);
 	}
 
 	public static boolean validText(String cleaned) {
@@ -83,6 +103,15 @@ public final class FeedbackJson {
 				}
 			}
 		}
+	}
+
+	private static boolean isZeroWidth(char character) {
+		return (character >= '\u200B' && character <= '\u200D') || character == '\u2060' || character == '\uFEFF';
+	}
+
+	/** The characters JavaScript's trim removes: white space, line and paragraph separators, and U+FEFF. */
+	private static boolean isTrimmable(char character) {
+		return Character.isWhitespace(character) || Character.isSpaceChar(character) || character == '\uFEFF';
 	}
 
 	private static boolean isFieldCharacter(char character) {

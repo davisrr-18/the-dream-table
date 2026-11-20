@@ -385,12 +385,20 @@ public final class FarmAreas extends PersistentState {
 		}
 	}
 
-	/** What this area would overlap, other than the asker's own farm. A finished farm whose blocks are gone is skipped here, never removed. */
+	/** What this area would overlap, other than the asker's own farm, for a build that starts here (see the 5-argument form). */
 	public Conflict conflict(ServerWorld world, Key asker, Box box) {
 		return conflict(world, asker, box, null);
 	}
 
 	public Conflict conflict(ServerWorld world, Key asker, Box box, @Nullable UUID ignoredFinished) {
+		return conflict(world, asker, box, ignoredFinished, true);
+	}
+
+	/**
+	 * {@code forgetStale}: a finished farm whose blocks are gone is removed when a build starts or resumes on its spot, so the
+	 * new farm can record itself under the same key. An aim passes false: it only skips such a farm and keeps its record.
+	 */
+	public Conflict conflict(ServerWorld world, Key asker, Box box, @Nullable UUID ignoredFinished, boolean forgetStale) {
 		Conflict found = Conflict.NONE;
 		Iterator<Map.Entry<Key, Area>> entries = areas.entrySet().iterator();
 		while (entries.hasNext()) {
@@ -399,8 +407,8 @@ public final class FarmAreas extends PersistentState {
 				continue;
 			}
 			if (forgotten(world, entry.getKey(), entry.getValue())) {
-				// A forgotten finished farm is skipped and kept: its record leaves only through Take Down or Forget.
-				if (entry.getKey().kind() != Kind.FINISHED) {
+				// An aim keeps a forgotten finished farm's record; a build removes it, as it always did, so it can record its own farm.
+				if (forgetStale || entry.getKey().kind() != Kind.FINISHED) {
 					entries.remove();
 					byInstance = null;
 					markDirty();
@@ -524,10 +532,6 @@ public final class FarmAreas extends PersistentState {
 				continue;
 			}
 			if (test.test(entry.getValue().box())) {
-				// Skipped as in conflict, and kept: a forgotten finished farm does not block the spot, its record stays.
-				if (entry.getKey().kind() == Kind.FINISHED && forgotten(world, entry.getKey(), entry.getValue())) {
-					continue;
-				}
 				return true;
 			}
 		}

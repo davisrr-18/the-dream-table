@@ -28,22 +28,32 @@ export function parseFeedback(body: unknown): Feedback | null {
   if (typeof text !== "string") return null;
   const trimmed = text.trim();
   if (trimmed.length < 10 || trimmed.length > 2000) return null;
+  // The minimum also applies after cleaning, so text made only of invisible characters is refused.
+  if (cleanText(trimmed).trim().length < 10) return null;
   if (!isCategory(category) || !isToken(modVersion) || !isToken(loader) || !isToken(mcVersion)) return null;
   return { text: trimmed, category, modVersion, loader, mcVersion };
 }
 
-// Player text becomes inert Markdown inside the quote block. Brackets are escaped
-// (covers [[links]], ![[embeds]] and [markdown](links)); each step is needed for Obsidian.
-export function sanitizeText(input: string): string {
+// Removes what a reader cannot see or that breaks the note: CR (as LF), controls except LF,
+// zero-width characters, and runs of 3+ line breaks.
+export function cleanText(input: string): string {
   return input
     .replace(/\r\n?/g, "\n")
     .replace(/(?!\n)\p{Cc}/gu, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/[[\]]/g, "\\$&")
-    .replace(/(^|[^\p{L}\p{N}_\\])#(?=[\p{L}\p{N}_])/gmu, "$1\\#")
-    .replace(/%%/g, "\\%\\%")
-    .replace(/^(?=---|```)/gm, "\\")
-    .replace(/^>/gm, "\\>");
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+// Player text becomes inert Markdown inside the quote block. Order matters: a backslash is
+// doubled first, so the escapes added afterwards are not doubled again.
+// Every < [ ] % is escaped (HTML, links, embeds, comments), not only the ones that pair up.
+export function sanitizeText(input: string): string {
+  return cleanText(input)
+    .replace(/\\/g, "\\\\")
+    .replace(/[[\]<%]/g, "\\$&")
+    .replace(/(^|[^\p{L}\p{N}_])#(?=[\p{L}\p{N}_])/gmu, "$1\\#")
+    .replace(/^(?= *(?:---|```))/gm, "\\")
+    .replace(/^( *)>/gm, "$1\\>");
 }
 
 export function buildNote(f: Feedback, date: string): string {
