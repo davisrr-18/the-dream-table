@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.client.feedback;
 
 import com.davisr.thedreamtable.TheDreamTableMod;
+import com.davisr.thedreamtable.client.ClientSettings;
 import com.davisr.thedreamtable.client.TableNotices;
 import com.davisr.thedreamtable.platform.ModInfo;
 import com.davisr.thedreamtable.platform.Platform;
@@ -38,10 +39,14 @@ public final class FeedbackSender {
 		return nextAllowed;
 	}
 
-	/** Sends the text unless one send is already running; {@code sent} runs on the client thread once the Worker accepts it. */
-	public static void send(String rawText, FeedbackCategory category, Runnable sent) {
-		if (sending || !FeedbackEndpoint.available()) {
-			return;
+	/**
+	 * Sends the text when the switch is on, the endpoint is set, no other send runs and the text is valid; returns false
+	 * and sends nothing otherwise. {@code sent} runs on the client thread once the Worker accepts the text.
+	 */
+	public static boolean send(String rawText, FeedbackCategory category, Runnable sent) {
+		if (FeedbackRules.blocked(rawText, ClientSettings.feedbackEnabled(), FeedbackEndpoint.available(), sending,
+				Util.getMeasuringTimeMs(), nextAllowed).isPresent()) {
+			return false;
 		}
 		ModInfo info = Platform.modInfo();
 		String json = FeedbackJson.body(rawText, category, info.version(), info.loader(), SharedConstants.getGameVersion().getName());
@@ -54,6 +59,7 @@ public final class FeedbackSender {
 		sending = true;
 		CLIENT.sendAsync(request, HttpResponse.BodyHandlers.discarding())
 				.whenComplete((response, error) -> MinecraftClient.getInstance().execute(() -> finish(response, error, sent)));
+		return true;
 	}
 
 	private static void finish(HttpResponse<Void> response, Throwable error, Runnable sent) {

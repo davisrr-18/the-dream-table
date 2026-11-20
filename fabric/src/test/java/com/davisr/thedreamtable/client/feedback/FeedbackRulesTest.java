@@ -11,11 +11,16 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 /** Decides whether Send is enabled and why not, so the button's second line always names the reason. */
 class FeedbackRulesTest {
 	private static Optional<Block> blocked(String text, boolean available, boolean busy, long now, long nextAllowed) {
-		return FeedbackRules.blocked(text, available, busy, now, nextAllowed);
+		return FeedbackRules.blocked(text, true, available, busy, now, nextAllowed);
 	}
 
 	@Test
-	void notAvailableWinsOverEverything() {
+	void offWinsOverEverything() {
+		assertEquals(Optional.of(Block.OFF), FeedbackRules.blocked("a valid text", false, false, false, 0, 0));
+	}
+
+	@Test
+	void notAvailableWinsOverEverythingElse() {
 		assertEquals(Optional.of(Block.NOT_AVAILABLE), blocked("", false, true, 0, 100));
 	}
 
@@ -41,6 +46,8 @@ class FeedbackRulesTest {
 	@Test
 	void whitespaceOnlyTextIsTooShort() {
 		assertEquals(Optional.of(Block.TOO_SHORT), blocked("          \n  ", true, false, 0, 0));
+		assertEquals(Optional.of(Block.TOO_SHORT), blocked("\u00A0".repeat(10), true, false, 0, 0));
+		assertEquals(Optional.of(Block.TOO_SHORT), blocked("\u200B".repeat(10), true, false, 0, 0));
 	}
 
 	@Test

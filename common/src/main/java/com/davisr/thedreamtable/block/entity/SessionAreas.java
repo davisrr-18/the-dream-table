@@ -42,11 +42,19 @@ final class SessionAreas {
 	}
 
 	/**
-	 * Why the farm can't start at the site, as a lang key, or null when it can: it is in a dimension the farm is not made for, it leaves the world, covers its own or another Dream Table (new builds only), overlaps another farm
-	 * at any table, or touches land the player may not build in. Build and the hologram check both ask this.
+	 * The aim's check (the hologram and CheckPlacement): as {@link #problemAt}, but a finished farm whose blocks are gone is only
+	 * skipped, its record kept. Only starting or resuming a build there replaces that record.
 	 */
-	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template) {
-		return problemAt(world, asker, site, template, null);
+	String aimProblemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template) {
+		return problemAt(world, asker, site, template, null, null, false);
+	}
+
+	/**
+	 * Why the farm can't start at the site, as a lang key, or null when it can: it is in a dimension the farm is not made for, it leaves the world, covers its own or another Dream Table (new builds only), overlaps another farm
+	 * at any table, or touches land the player may not build in. Starting a build asks this; a finished farm whose blocks are gone is removed here, so the build can record its own farm.
+	 */
+	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template, @Nullable UUID ignoredFinished) {
+		return problemAt(world, asker, site, template, ignoredFinished, null, true);
 	}
 
 	/**
@@ -54,15 +62,11 @@ final class SessionAreas {
 	 * does not count against its own spot. Other holds, and every other check, still apply.
 	 */
 	String resumeProblemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template) {
-		return problemAt(world, asker, site, template, null, session.seat(world));
-	}
-
-	String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template, @Nullable UUID ignoredFinished) {
-		return problemAt(world, asker, site, template, ignoredFinished, null);
+		return problemAt(world, asker, site, template, null, session.seat(world), true);
 	}
 
 	private String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site, FarmTemplate template, @Nullable UUID ignoredFinished,
-			@Nullable ParkedProjects.Seat own) {
+			@Nullable ParkedProjects.Seat own, boolean forgetStale) {
 		Box area = site.footprint(template);
 		if (FarmOptions.byId(session.getSelectedFarm()).filter(option -> option.outsideIntendedDimension(world.getRegistryKey())).isPresent()) {
 			return "gui.the_dream_table.wrong_dimension";
@@ -82,7 +86,7 @@ final class SessionAreas {
 		if (session.table().overlapsOthers(session, area)) {
 			return "gui.the_dream_table.farm_overlaps";
 		}
-		FarmAreas.Conflict conflict = FarmAreas.of(world).conflict(world, key(), area, ignoredFinished);
+		FarmAreas.Conflict conflict = FarmAreas.of(world).conflict(world, key(), area, ignoredFinished, forgetStale);
 		if (conflict == FarmAreas.Conflict.ACTIVE) {
 			return "gui.the_dream_table.farm_overlaps";
 		}

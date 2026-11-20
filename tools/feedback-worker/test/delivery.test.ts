@@ -203,3 +203,75 @@ describe("GitHub write", () => {
     }
   });
 });
+
+describe("daily cap counts only notes GitHub accepted (review fixes)", () => {
+  const KEY = "feedback-count:2026-11-20";
+
+  it("GitHub 500 does not use up a daily slot", async () => {
+    const env = makeEnv();
+    stubFetch(() => new Response("{}", { status: 500 }));
+    const res = await worker.fetch(post(GOOD), env);
+    expect(res.status).toBe(502);
+    expect(env.kv.store.get(KEY)).toBeUndefined();
+  });
+
+  it.each([401, 403, 404])("GitHub %i does not use up a daily slot", async (status) => {
+    const env = makeEnv();
+    env.kv.store.set(KEY, "199");
+    stubFetch(() => new Response("{}", { status }));
+    const res = await worker.fetch(post(GOOD), env);
+    expect(res.status).toBe(502);
+    expect(env.kv.store.get(KEY)).toBe("199");
+  });
+
+  it("two 422 responses do not use up a daily slot", async () => {
+    const env = makeEnv();
+    env.kv.store.set(KEY, "10");
+    stubFetch(() => new Response("{}", { status: 422 }));
+    await worker.fetch(post(GOOD), env);
+    expect(env.kv.store.get(KEY)).toBe("10");
+  });
+
+  it("an accepted note uses up exactly one slot", async () => {
+    const env = makeEnv();
+    env.kv.store.set(KEY, "199");
+    stubFetch(() => created());
+    await worker.fetch(post(GOOD), env);
+    expect(env.kv.store.get(KEY)).toBe("200");
+  });
+});
+
+describe("failure log is one fixed line (review fixes)", () => {
+  it("logs only the numeric status and a fixed reason, never text, IP, token or GitHub body", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const other = [vi.spyOn(console, "log"), vi.spyOn(console, "warn"), vi.spyOn(console, "info")];
+    const env = makeEnv();
+    stubFetch(() => new Response("bad credentials fake-token-for-tests body-xyz", { status: 401 }));
+    await worker.fetch(post({ ...GOOD, text: "SEGREDO-DO-JOGADOR-XYZ" }), env);
+    expect(error.mock.calls).toEqual([["github-write-failed status=401"]]);
+    for (const spy of other) expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("a network failure logs status=0 with the same fixed reason", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new TypeError("fetch failed fake-token-for-tests");
+    }));
+    await worker.fetch(post(GOOD), makeEnv());
+    expect(error.mock.calls).toEqual([["github-write-failed status=0"]]);
+  });
+});
+
+describe("counter write failure after an accepted note (review fix)", () => {
+  it("still answers ok, because the note was saved", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const env = makeEnv();
+    env.kv.put = async () => {
+      throw new Error("kv down");
+    };
+    stubFetch(() => created());
+    const res = await worker.fetch(post(GOOD), env);
+    expect(res.status).toBe(200);
+    expect(error.mock.calls).toEqual([["daily-counter-write-failed"]]);
+  });
+});

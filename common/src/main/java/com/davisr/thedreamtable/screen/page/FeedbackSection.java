@@ -123,20 +123,23 @@ public final class FeedbackSection {
 	private void send() {
 		Optional<Block> blocked = blocked();
 		if (blocked.isEmpty()) {
-			FeedbackSender.send(form.text(), form.category(), form::clear);
-			ui.actions().click();
+			String sent = form.text();
+			if (FeedbackSender.send(sent, form.category(), () -> form.clearIfUnchanged(sent))) {
+				ui.actions().click();
+			}
 		} else if (blocked.get() == Block.NOT_AVAILABLE) {
 			ui.message("gui.the_dream_table.feedback.not_available");
 		}
 	}
 
 	private Optional<Block> blocked() {
-		return FeedbackRules.blocked(form.text(), FeedbackEndpoint.available(), FeedbackSender.sending(),
-				Util.getMeasuringTimeMs(), FeedbackSender.nextAllowed());
+		return FeedbackRules.blocked(form.text(), ClientSettings.feedbackEnabled(), FeedbackEndpoint.available(),
+				FeedbackSender.sending(), Util.getMeasuringTimeMs(), FeedbackSender.nextAllowed());
 	}
 
 	private static Text reason(Block block) {
 		return Text.translatable("gui.the_dream_table.feedback.reason." + switch (block) {
+			case OFF -> "off";
 			case NOT_AVAILABLE -> "not_available";
 			case BUSY -> "busy";
 			case COOLDOWN -> "cooldown";

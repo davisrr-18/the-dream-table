@@ -8,14 +8,18 @@ public final class FeedbackRules {
 	public static final long COOLDOWN_MILLIS = 30_000L;
 
 	public enum Block {
-		NOT_AVAILABLE, BUSY, COOLDOWN, TOO_SHORT, TOO_LONG
+		OFF, NOT_AVAILABLE, BUSY, COOLDOWN, TOO_SHORT, TOO_LONG
 	}
 
 	private FeedbackRules() {
 	}
 
-	public static Optional<Block> blocked(String rawText, boolean available, boolean busy, long now, long nextAllowed) {
+	/** Why a send may not run now, or empty when it may. {@code enabled} is the player's Feedback switch. */
+	public static Optional<Block> blocked(String rawText, boolean enabled, boolean available, boolean busy, long now, long nextAllowed) {
 		int length = FeedbackJson.cleanText(rawText).length();
+		if (!enabled) {
+			return Optional.of(Block.OFF);
+		}
 		if (!available) {
 			return Optional.of(Block.NOT_AVAILABLE);
 		}

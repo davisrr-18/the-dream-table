@@ -177,3 +177,27 @@ describe("request validation", () => {
     }
   });
 });
+
+describe("minimum length is checked after cleaning (review fixes)", () => {
+  it.each([
+    ["10 control characters", "\u0001".repeat(10)],
+    ["10 zero-width spaces", "​".repeat(10)],
+    ["10 zero-width joiners", "‍".repeat(10)],
+    ["10 word joiners", "⁠".repeat(10)],
+    ["10 byte order marks", "﻿".repeat(10)],
+    ["9 letters and 1 zero-width space", "abcdefghi​"],
+  ])("%s -> 400", async (_label, text) => {
+    const { res } = await send({ ...GOOD, text });
+    expect(res.status).toBe(400);
+  });
+
+  it("10 letters with a zero-width space still count as valid text (zero-width removed)", async () => {
+    const { res } = await send({ ...GOOD, text: "aaaaaaaaaa​" });
+    expect(res.status).toBe(200);
+  });
+
+  it("the raw 2000 limit still applies before cleaning", async () => {
+    const { res } = await send({ ...GOOD, text: "a".repeat(2001) });
+    expect(res.status).toBe(400);
+  });
+});

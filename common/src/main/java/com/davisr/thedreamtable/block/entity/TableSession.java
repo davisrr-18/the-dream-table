@@ -394,10 +394,10 @@ public final class TableSession {
 		}
 	}
 
-	/** Why the farm can't start at the site, as a lang key, or null. See {@link SessionAreas#problemAt}. */
+	/** Why the aimed farm can't start at the site, as a lang key, or null. See {@link SessionAreas#aimProblemAt}. */
 	public String problemAt(ServerWorld world, ServerPlayerEntity asker, FarmSite site) {
 		FarmTemplate template = template();
-		return template == null ? null : areas.problemAt(world, asker, site, template);
+		return template == null ? null : areas.aimProblemAt(world, asker, site, template);
 	}
 
 	public int existingPercent(ServerWorld world, FarmSite site) {

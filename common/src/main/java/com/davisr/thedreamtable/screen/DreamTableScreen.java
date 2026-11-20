@@ -199,7 +199,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		if (drawable) {
 			page.draw(context, mouseX, mouseY);
 		}
-		if (feedback.focused() && !feedback.shown()) {
+		if (feedback.focused() && !feedback.usable()) {
 			leaveField();
 		}
 		syncPageControls();

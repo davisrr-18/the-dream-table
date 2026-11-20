@@ -7,12 +7,12 @@ Bug fixes found in a code review of 1.4.0. The rest of this update is still in p
 ## Changes
 
 - My Schematics has a How It Works page: where to save files, which formats and size are read, how it works on a server, and why a file is greyed out.
-- Settings has a feedback form: a bug, an idea or another note, sent with its text, category, mod version, loader and Minecraft version, and nothing that identifies you. A switch turns it off.
+- Settings has a feedback form: a bug, an idea or another note, sent with its text, category, mod version, loader and Minecraft version; no name, account or ID of yours is sent. A switch turns it off.
 
 ## Fixes
 
 - A build far from you keeps the chunk of its next block loaded from the first block, so it no longer stops when that chunk unloads.
-- Aiming a new farm over a finished farm whose blocks are mostly gone no longer removes that farm from My Farms. It stays listed until you take it down.
+- Aiming a new farm over a finished farm whose blocks are mostly gone no longer removes that farm from My Farms. Starting the build there replaces it, as before.
 - Discarding a started build whose farm file is gone now says that its blocks were left in place.
 - Above 800 schematics, some schematic buttons acted as material swaps. My Schematics now shows the first 800 and says when there are more.
 - Reopening a table on the Farm Info page returns to the farm's page, not to My Farms.

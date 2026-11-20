@@ -85,19 +85,29 @@ export default {
     const fields = parseFeedback(body);
     if (fields === null) return json({ error: "invalid feedback fields" }, 400);
 
-    const capKey = `feedback-count:${new Date().toISOString().slice(0, 10)}`;
+    const date = new Date().toISOString().slice(0, 10);
+    const capKey = `feedback-count:${date}`;
     const count = Number((await env.FEEDBACK_KV.get(capKey)) ?? 0);
     if (count >= DAILY_CAP) return json({ error: "daily limit reached" }, 429);
-    await env.FEEDBACK_KV.put(capKey, String(count + 1), { expirationTtl: CAP_TTL_SECONDS });
 
-    const date = new Date().toISOString().slice(0, 10);
+    // 0 means no HTTP response (network error). Only the status is logged, never the body or text.
+    let status = 0;
     try {
-      let status = await commit(env, fields, date, newId());
+      status = await commit(env, fields, date, newId());
       if (status === 422) status = await commit(env, fields, date, newId());
-      if (status < 200 || status >= 300) return json({ error: "could not save feedback" }, 502);
     } catch {
+      status = 0;
+    }
+    if (status < 200 || status >= 300) {
+      console.error(`github-write-failed status=${status}`);
       return json({ error: "could not save feedback" }, 502);
     }
+
+    // Counted only after GitHub accepted the note, so failed writes do not use up the day's cap.
+    // The note is already saved, so a counter write error must not turn this into a failure.
+    await env.FEEDBACK_KV.put(capKey, String(count + 1), { expirationTtl: CAP_TTL_SECONDS }).catch(() =>
+      console.error("daily-counter-write-failed"),
+    );
     return json({ ok: true }, 200);
   },
 } satisfies ExportedHandler<Env>;

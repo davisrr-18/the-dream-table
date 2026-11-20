@@ -461,10 +461,28 @@ class FinishedFarmsTest {
 		restored.setDirty(false);
 		FarmAreas.Key asker = FarmAreas.Key.build(new BlockPos(200, 64, 200), UUID.randomUUID());
 
-		assertEquals(FarmAreas.Conflict.NONE, restored.conflict(null, asker, farm.box()));
+		assertEquals(FarmAreas.Conflict.NONE, restored.conflict(null, asker, farm.box(), null, false));
 
 		assertTrue(restored.finished(farm.instanceId()).isPresent());
 		assertEquals(1, restored.finishedBy(PLAYER).size());
 		assertFalse(restored.isDirty());
+	}
+
+	@Test
+	void aBuildStartedOnAForgottenFinishedFarmReplacesItsRecord() {
+		NbtCompound nbt = saved(FarmTemplates.get(FarmOptions.CROP.id()));
+		NbtCompound area = nbt.getList("Areas", 10).getCompound(0);
+		area.remove("Layout");
+		area.putLong("FarmSignature", 12345L);
+		FarmAreas restored = FarmAreas.read(nbt, null);
+		FarmAreas.Finished old = restored.finishedBy(PLAYER).getFirst();
+		FarmAreas.Key asker = FarmAreas.Key.build(new BlockPos(200, 64, 200), UUID.randomUUID());
+
+		assertEquals(FarmAreas.Conflict.NONE, restored.conflict(null, asker, old.box(), null, true));
+		assertTrue(restored.finishedBy(PLAYER).isEmpty());
+
+		restored.recordFinished(PLAYER, FarmTemplates.get(FarmOptions.CROP.id()), SITE, Map.of());
+		FarmAreas.Finished replacement = restored.finishedBy(PLAYER).getFirst();
+		assertNotEquals(old.instanceId(), replacement.instanceId());
 	}
 }
