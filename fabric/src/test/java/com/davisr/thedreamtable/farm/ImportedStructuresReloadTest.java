@@ -128,8 +128,8 @@ class ImportedStructuresReloadTest {
 	@Test
 	void theCopyInTheEarlierFolderIsTheOneRead() throws IOException {
 		Path structures = Files.createDirectories(game.resolve("config").resolve("the_dream_table").resolve("structures"));
-		NbtIo.writeCompressed(stones(1), schematics.resolve("same.nbt"));
-		NbtIo.writeCompressed(stones(2), structures.resolve("SAME.nbt"));
+		NbtIo.writeCompressed(stones(1), schematics.resolve("same.nbt").toFile());
+		NbtIo.writeCompressed(stones(2), structures.resolve("SAME.nbt").toFile());
 
 		assertEquals(1, ImportedStructures.reload(null).templates().get("nbt:same").steps().size());
 	}

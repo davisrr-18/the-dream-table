@@ -457,7 +457,7 @@ class FinishedFarmsTest {
 		area.remove("Layout");
 		area.putLong("FarmSignature", 12345L);
 		FarmAreas restored = FarmAreas.read(nbt, null);
-		FarmAreas.Finished farm = restored.finishedBy(PLAYER).getFirst();
+		FarmAreas.Finished farm = restored.finishedBy(PLAYER).get(0);
 		restored.setDirty(false);
 		FarmAreas.Key asker = FarmAreas.Key.build(new BlockPos(200, 64, 200), UUID.randomUUID());
 

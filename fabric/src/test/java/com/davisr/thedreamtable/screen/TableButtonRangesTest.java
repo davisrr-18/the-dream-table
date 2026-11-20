@@ -24,7 +24,7 @@ class TableButtonRangesTest {
 		List<Integer> shown = DreamTableScreenHandler.firstSchemes(IntStream.range(0, 1000).boxed().toList());
 
 		assertEquals(MAX_SCHEMES, shown.size());
-		assertEquals(MAX_SCHEMES - 1, shown.getLast());
+		assertEquals(MAX_SCHEMES - 1, shown.get(shown.size() - 1));
 	}
 
 	@Test
