@@ -15,6 +15,7 @@ public final class Platform {
 	private static ClientNetwork clientNetwork;
 	private static ClientEvents clientEvents;
 	private static ClientRendering clientRendering;
+	private static ModInfo modInfo;
 
 	private Platform() {
 	}
@@ -28,6 +29,11 @@ public final class Platform {
 		Platform.serverEvents = serverEvents;
 		Platform.menus = menus;
 		Platform.content = content;
+	}
+
+	/** Installed by each loader's install, next to the other seams; the Settings feedback form reads the version from it. */
+	public static void installModInfo(ModInfo modInfo) {
+		Platform.modInfo = modInfo;
 	}
 
 	public static void installClient(ClientNetwork clientNetwork, ClientEvents clientEvents, ClientRendering clientRendering) {
@@ -74,6 +80,10 @@ public final class Platform {
 
 	public static ClientRendering clientRendering() {
 		return installed(clientRendering);
+	}
+
+	public static ModInfo modInfo() {
+		return installed(modInfo);
 	}
 
 	private static <T> T installed(T seam) {

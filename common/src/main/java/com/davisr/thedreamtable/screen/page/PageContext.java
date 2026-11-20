@@ -172,6 +172,19 @@ public final class PageContext {
 		focusRing(context, id, x, y, width, BUTTON_HEIGHT);
 	}
 
+	/** A button of a given width in a row of choices; a selected one uses the primary style. */
+	public void segmentAt(String stableKey, DrawContext context, Text label, int x, int y, int width, int mouseX, int mouseY, boolean selected, boolean enabled) {
+		ControlId id = register(stableKey, label, Text.empty(), Text.empty(), x, y, width, BUTTON_HEIGHT, selected, enabled);
+		boolean hit = view.hit(mouseX, mouseY, x, y, width, BUTTON_HEIGHT);
+		painter.button(context, label, x, y, width, hit, enabled, selected);
+		focusRing(context, id, x, y, width, BUTTON_HEIGHT);
+	}
+
+	/** A text box the keyboard reaches in page order; the screen gives the box itself the focus when this control is focused. */
+	public void fieldAt(String stableKey, Text label, int x, int y, int width, int height, boolean enabled) {
+		register(stableKey, label, Text.empty(), Text.empty(), x, y, width, height, false, enabled);
+	}
+
 	/** The Back button of a card grid: it spans the whole collection width, from the first column to the last. */
 	public void backButton(DrawContext context, int y, int mouseX, int mouseY) {
 		buttonAt("back", context, Text.translatable("gui.the_dream_table.back"), view.collectionX(), y, mouseX, mouseY, true, false);

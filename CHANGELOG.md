@@ -7,6 +7,7 @@ Bug fixes found in a code review of 1.4.0. The rest of this update is still in p
 ## Changes
 
 - My Schematics has a How It Works page: where to save files, which formats and size are read, how it works on a server, and why a file is greyed out.
+<!-- - Settings has a feedback form: a bug, an idea or another note, sent with its text, category, mod version, loader and Minecraft version, and nothing that identifies you. A switch turns it off. Enabled once the feedback service is set up. -->
 
 ## Fixes
 

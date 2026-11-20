@@ -16,6 +16,7 @@ final class ForgePlatform {
 		ForgeServerNetwork network = new ForgeServerNetwork();
 		Platform.install(new ForgePaths(), new ForgeBlockBreakGuard(), new ForgeBlockPlaceGuard(),
 				network, new ForgeServerEvents(), new ForgeMenus(), new ForgeContent(modBus));
+		Platform.installModInfo(new ForgeModInfo());
 		return network;
 	}
 

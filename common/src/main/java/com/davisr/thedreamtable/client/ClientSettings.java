@@ -16,10 +16,12 @@ public final class ClientSettings {
 	private static final String SHOW_OTHER_FARMS = "show_other_farms";
 	private static final String SHOW_TRACKED_FARM = "show_tracked_farm";
 	private static final String DELIVER_NEARBY = "deliver_from_nearby";
+	static final String FEEDBACK = "feedback_enabled";
 
 	private static boolean showOtherFarms;
 	private static boolean showTrackedFarm = true;
 	private static boolean deliverFromNearby = true;
+	private static boolean feedbackEnabled = true;
 
 	private ClientSettings() {
 	}
@@ -52,6 +54,20 @@ public final class ClientSettings {
 		save();
 	}
 
+	/** Whether the Settings page shows the feedback form; off, it shows only what is sent and nothing can be sent. */
+	public static boolean feedbackEnabled() {
+		return feedbackEnabled;
+	}
+
+	public static void setFeedbackEnabled(boolean enabled) {
+		feedbackEnabled = enabled;
+		save();
+	}
+
+	static boolean readFeedbackEnabled(Properties properties) {
+		return Boolean.parseBoolean(properties.getProperty(FEEDBACK, "true"));
+	}
+
 	public static void load() {
 		Path path = path();
 		if (!Files.isRegularFile(path)) {
@@ -63,6 +79,7 @@ public final class ClientSettings {
 			showOtherFarms = Boolean.parseBoolean(properties.getProperty(SHOW_OTHER_FARMS, "false"));
 			showTrackedFarm = Boolean.parseBoolean(properties.getProperty(SHOW_TRACKED_FARM, "true"));
 			deliverFromNearby = Boolean.parseBoolean(properties.getProperty(DELIVER_NEARBY, "true"));
+			feedbackEnabled = readFeedbackEnabled(properties);
 		} catch (IOException exception) {
 			TheDreamTableMod.LOGGER.warn("Could not read {}", path, exception);
 		}
@@ -74,6 +91,7 @@ public final class ClientSettings {
 		properties.setProperty(SHOW_OTHER_FARMS, Boolean.toString(showOtherFarms));
 		properties.setProperty(SHOW_TRACKED_FARM, Boolean.toString(showTrackedFarm));
 		properties.setProperty(DELIVER_NEARBY, Boolean.toString(deliverFromNearby));
+		properties.setProperty(FEEDBACK, Boolean.toString(feedbackEnabled));
 		try {
 			Files.createDirectories(path.getParent());
 			try (Writer writer = Files.newBufferedWriter(path)) {
