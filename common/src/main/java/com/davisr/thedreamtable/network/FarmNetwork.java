@@ -27,12 +27,12 @@ final class FarmNetwork {
 				|| !handler.getTablePos().equals(pos) || !handler.canUse(player)) {
 			return null;
 		}
-		return player.getWorld().getBlockEntity(pos) instanceof DreamTableBlockEntity table ? table : null;
+		return player.getEntityWorld().getBlockEntity(pos) instanceof DreamTableBlockEntity table ? table : null;
 	}
 
 	static @Nullable FarmDirectory.Located resolve(ServerPlayerEntity player, String externalKey) {
 		FarmPayloadGuard.Parsed parsed = FarmPayloadGuard.parse(externalKey);
-		return parsed.key() == null ? null : FarmDirectory.resolve(player.getServer(), parsed.key()).orElse(null);
+		return parsed.key() == null ? null : FarmDirectory.resolve(player.getEntityWorld().getServer(), parsed.key()).orElse(null);
 	}
 
 	static @Nullable Checked authorize(ServerPlayerEntity player, BlockPos tablePos, String externalKey, FarmAction action,
@@ -54,7 +54,7 @@ final class FarmNetwork {
 			result(player, externalKey, resultAction, FarmActionResultPayload.Result.INVALID_INPUT);
 			return null;
 		}
-		FarmDirectory.Located located = FarmDirectory.resolve(player.getServer(), parsed.key()).orElse(null);
+		FarmDirectory.Located located = FarmDirectory.resolve(player.getEntityWorld().getServer(), parsed.key()).orElse(null);
 		FarmActionResultPayload.Result authorization = FarmPayloadGuard.authorize(
 				located == null ? null : located.record(), player.getUuid(), action);
 		if (authorization != FarmActionResultPayload.Result.SUCCESS) {
@@ -76,7 +76,7 @@ final class FarmNetwork {
 	 * nor the other handlers' scans, which each have their own {@link RequestThrottle}.
 	 */
 	static void refresh(ServerPlayerEntity player) {
-		if (REFRESHES.request(player.getUuid(), player.getServer().getTicks())) {
+		if (REFRESHES.request(player.getUuid(), player.getEntityWorld().getServer().getTicks())) {
 			LoadedFarmsPayload.send(player);
 		}
 	}

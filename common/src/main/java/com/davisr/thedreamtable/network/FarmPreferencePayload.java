@@ -37,7 +37,7 @@ public record FarmPreferencePayload(BlockPos table, String key, Operation operat
 		if (checked == null) {
 			return;
 		}
-		FarmPreferences preferences = FarmPreferences.of(player.getServer());
+		FarmPreferences preferences = FarmPreferences.of(player.getEntityWorld().getServer());
 		boolean accepted = switch (payload.operation()) {
 			case FAVORITE -> preferences.setFavorite(player.getUuid(), checked.farm().key(), true);
 			case UNFAVORITE -> preferences.setFavorite(player.getUuid(), checked.farm().key(), false);

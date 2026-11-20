@@ -141,8 +141,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	private DreamTableScreenHandler(int syncId, PlayerInventory inventory, BlockPos pos, Inventory materials, String selectedFarm, int page, int phase, int buildIndex) {
 		super(ModScreenHandlers.DREAM_TABLE.get(), syncId);
-		this.context = ScreenHandlerContext.create(inventory.player.getWorld(), pos);
-		this.client = inventory.player.getWorld().isClient();
+		this.context = ScreenHandlerContext.create(inventory.player.getEntityWorld(), pos);
+		this.client = inventory.player.getEntityWorld().isClient();
 		this.playerId = inventory.player.getUuid();
 		this.playerInventory = inventory;
 		this.selectedFarm = selectedFarm == null ? "" : selectedFarm;
@@ -389,7 +389,7 @@ public class DreamTableScreenHandler extends ScreenHandler {
 		if (!canUse(player) || !(player instanceof ServerPlayerEntity serverPlayer) || table == null) {
 			return false;
 		}
-		FarmTemplates.refreshImports(serverPlayer.getServerWorld().getServer());
+		FarmTemplates.refreshImports(serverPlayer.getEntityWorld().getServer());
 		table.reconcileMaterials(serverPlayer);
 		if (!TableButtons.press(table, serverPlayer, id)) {
 			return false;

@@ -3,12 +3,10 @@ package com.davisr.thedreamtable.platform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.world.World;
 
@@ -44,6 +42,6 @@ public interface ClientEvents {
 
 	@FunctionalInterface
 	interface UseItemListener {
-		TypedActionResult<ItemStack> use(PlayerEntity player, World world, Hand hand);
+		ActionResult use(PlayerEntity player, World world, Hand hand);
 	}
 }

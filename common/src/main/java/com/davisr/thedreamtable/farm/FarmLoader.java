@@ -16,10 +16,10 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.GameRules;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateType;
 import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.world.rule.GameRules;
 
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -176,7 +176,7 @@ public final class FarmLoader extends PersistentState {
 		for (Map.Entry<ServerWorld, LongSet> entry : loadedChunks.entrySet()) {
 			ServerWorld world = entry.getKey();
 			world.resetIdleTimeout();
-			int speed = world.getGameRules().getInt(GameRules.RANDOM_TICK_SPEED);
+			int speed = world.getGameRules().getValue(GameRules.RANDOM_TICK_SPEED);
 			if (speed <= 0) {
 				continue;
 			}

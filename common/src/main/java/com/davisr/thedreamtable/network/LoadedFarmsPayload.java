@@ -69,7 +69,7 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, int limit) implem
 		FarmNetwork.register();
 		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
 			boolean toggling = !payload.toggle().isEmpty();
-			long now = player.getServer().getTicks();
+			long now = player.getEntityWorld().getServer().getTicks();
 			LoadedFarmsGate.Route route = LoadedFarmsGate.route(toggling, (toggling ? TOGGLE_THROTTLE : THROTTLE).allow(player.getUuid(), now));
 			if (route == LoadedFarmsGate.Route.DROP || FarmNetwork.table(player, payload.table()) == null) {
 				return;
@@ -90,7 +90,7 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, int limit) implem
 			FarmNetwork.Checked checked = FarmNetwork.authorize(player, payload.table(), payload.toggle(), FarmAction.KEEP_LOADED,
 					FarmActionResultPayload.Action.KEEP_LOADED);
 			if (checked != null) {
-				FarmLoader.ToggleResult result = FarmLoader.of(player.getServer()).toggle(player.getServer(), player.getUuid(), checked.farm().key());
+				FarmLoader.ToggleResult result = FarmLoader.of(player.getEntityWorld().getServer()).toggle(player.getEntityWorld().getServer(), player.getUuid(), checked.farm().key());
 				FarmActionResultPayload.Result response = switch (result) {
 					case SELECTED, UNSELECTED -> FarmActionResultPayload.Result.SUCCESS;
 					case OWNER_QUOTA_FULL, TOO_LARGE -> FarmActionResultPayload.Result.LIMIT_REACHED;
@@ -114,9 +114,9 @@ public record LoadedFarmsPayload(List<FarmLoader.Entry> farms, int limit) implem
 		if (!Platform.network().canSend(player, ID)) {
 			return;
 		}
-		List<FarmLoader.Entry> farms = FarmLoader.of(player.getServer()).farmsOf(player.getServer(), player.getUuid());
+		List<FarmLoader.Entry> farms = FarmLoader.of(player.getEntityWorld().getServer()).farmsOf(player.getEntityWorld().getServer(), player.getUuid());
 		LoadedFarmsPayload list = new LoadedFarmsPayload(List.copyOf(farms.subList(0, Math.min(MAX_FARMS, farms.size()))), DreamTableConfig.maxLoadedFarms());
-		RECENT.put(player.getUuid(), Boolean.TRUE, list, player.getServer().getTicks());
+		RECENT.put(player.getUuid(), Boolean.TRUE, list, player.getEntityWorld().getServer().getTicks());
 		Platform.network().send(player, list);
 	}
 

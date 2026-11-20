@@ -94,7 +94,7 @@ public record FarmDetailsPayload(String key, boolean loaded, int stored, int cap
 		Platform.network().registerServerToClient(ID, CODEC);
 		THROTTLE.forgetOnDisconnect();
 		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
-			if (!THROTTLE.allow(player.getUuid(), player.getServer().getTicks())) {
+			if (!THROTTLE.allow(player.getUuid(), player.getEntityWorld().getServer().getTicks())) {
 				return;
 			}
 			FarmNetwork.Checked checked = FarmNetwork.authorize(player, payload.table(), payload.key(), FarmAction.VIEW,

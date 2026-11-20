@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.block.DreamTableBlock;
 import com.davisr.thedreamtable.farm.FarmProtection;
 import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.platform.Platform;
+import net.minecraft.command.DefaultPermissions;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
@@ -24,9 +25,6 @@ import java.util.UUID;
  * covers players only: explosions, pistons and other mods' block removal are not covered, and they keep the projects too.
  */
 public final class TableBreakGuard {
-	/** Permission level from which a player may always break a table, like the vanilla command operators. */
-	static final int OPERATOR_LEVEL = 2;
-
 	/** Why a session or saved entry keeps the table from being broken, strongest last so {@link #blocker} can pick the clearest reason. */
 	public enum Reason {
 		MATERIALS("gui.the_dream_table.table_break_materials"),
@@ -96,7 +94,7 @@ public final class TableBreakGuard {
 		if (!DreamTableConfig.tableBreakGuardEnabled() || !(world.getBlockEntity(pos) instanceof DreamTableBlockEntity table)) {
 			return Optional.empty();
 		}
-		return blocker(table.breakClaims(), player.getUuid(), player.hasPermissionLevel(OPERATOR_LEVEL));
+		return blocker(table.breakClaims(), player.getUuid(), player.getPermissions().hasPermission(DefaultPermissions.GAMEMASTERS));
 	}
 
 	public static void tell(ServerWorld world, ServerPlayerEntity player, Claim claim) {

@@ -3,6 +3,7 @@ package com.davisr.thedreamtable.farm;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.vehicle.MinecartEntity;
 import net.minecraft.item.Item;
@@ -52,7 +53,7 @@ final class FarmSpawns {
 
 			@Override
 			public Entity createCart() {
-				Entity cart = EntityType.MINECART.create(world);
+				Entity cart = EntityType.MINECART.create(world, SpawnReason.EVENT);
 				if (cart != null) {
 					cart.setPosition(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
 				}
@@ -66,7 +67,7 @@ final class FarmSpawns {
 
 			@Override
 			public boolean mount(Entity passenger, Entity cart) {
-				return passenger.startRiding(cart, true);
+				return passenger.startRiding(cart, true, false);
 			}
 
 			@Override
@@ -130,7 +131,7 @@ final class FarmSpawns {
 		List<Entity> passengers = passengers(world, pos, step);
 		Box search = new Box(pos).expand(0.5);
 		List<MinecartEntity> broadCarts = new ArrayList<>(world.getEntitiesByType(EntityType.MINECART, search, Entity::isAlive));
-		List<MinecartEntity> carts = MinecartPairing.inCell(pos, broadCarts, Entity::getPos);
+		List<MinecartEntity> carts = MinecartPairing.inCell(pos, broadCarts, Entity::getEntityPos);
 		int freePassengers = (int) passengers.stream().filter(passenger -> !passenger.hasVehicle()).count();
 		int emptyCarts = (int) carts.stream().filter(cart -> !cart.hasPassengers()).count();
 		int intactPairs = (int) passengers.stream().filter(passenger -> carts.stream().anyMatch(cart ->
@@ -145,11 +146,11 @@ final class FarmSpawns {
 	private static List<Entity> passengers(ServerWorld world, BlockPos pos, FarmStep step) {
 		Box search = new Box(pos).expand(0.5);
 		List<Entity> broad = new ArrayList<>(world.getEntitiesByType(step.entity(), search, Entity::isAlive));
-		return MinecartPairing.inCell(pos, broad, Entity::getPos);
+		return MinecartPairing.inCell(pos, broad, Entity::getEntityPos);
 	}
 
 	private static Entity createPassenger(ServerWorld world, BlockPos pos, FarmStep step) {
-		Entity passenger = step.entity().create(world);
+		Entity passenger = step.entity().create(world, SpawnReason.EVENT);
 		if (passenger == null) {
 			return null;
 		}

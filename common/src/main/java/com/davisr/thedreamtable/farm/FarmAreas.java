@@ -75,7 +75,7 @@ public final class FarmAreas extends PersistentState {
 
 		static Key finished(UUID player, FarmSite site) {
 			BlockPos origin = site.anchor() != null ? site.anchor() : site.table();
-			return new Key(site.table().asLong(), player, Kind.FINISHED, origin.asLong() * 4 + site.facing().getHorizontal());
+			return new Key(site.table().asLong(), player, Kind.FINISHED, origin.asLong() * 4 + site.facing().getHorizontalQuarterTurns());
 		}
 	}
 

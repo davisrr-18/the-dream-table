@@ -70,7 +70,7 @@ public record ServerSchematicsPayload(List<Entry> schematics, List<ImportedStruc
 		Platform.network().registerServerToClient(Farm.ID, Farm.CODEC);
 		REQUESTS.forgetOnDisconnect();
 		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
-			if (!REQUESTS.allow(player.getUuid(), player.getServer().getTicks())) {
+			if (!REQUESTS.allow(player.getUuid(), player.getEntityWorld().getServer().getTicks())) {
 				return;
 			}
 			if (!FarmTemplates.isImported(payload.id()) && !FarmTemplates.isSaved(payload.id())) {

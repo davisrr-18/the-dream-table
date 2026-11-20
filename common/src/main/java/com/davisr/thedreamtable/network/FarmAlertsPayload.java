@@ -58,7 +58,7 @@ public record FarmAlertsPayload(String key, String token, List<Entry> entries) i
 		THROTTLE.forgetOnDisconnect();
 		Platform.serverEvents().onPlayerDisconnect((player, server) -> server.execute(() -> TOKENS.forget(player.getUuid())));
 		Platform.network().registerClientToServer(Request.ID, Request.CODEC, (payload, player) -> {
-			if (THROTTLE.allow(player.getUuid(), player.getServer().getTicks())) {
+			if (THROTTLE.allow(player.getUuid(), player.getEntityWorld().getServer().getTicks())) {
 				send(player, payload);
 			}
 		});

@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable;
 
+import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.block.entity.MaterialDelivery;
 import com.davisr.thedreamtable.block.entity.TableBreakGuard;
@@ -61,6 +62,8 @@ public final class TheDreamTableMod {
 			FarmTemplates.reloadImports(server.getSavePath(WorldSavePath.ROOT));
 		});
 		Platform.serverEvents().onServerStopped(server -> FarmTemplates.clearSaved());
+		Platform.serverEvents().onTickEnd(server -> DreamTableBlockEntity.settleReplaced());
+		Platform.serverEvents().onServerStopped(server -> DreamTableBlockEntity.forgetReplaced());
 		MaterialDelivery.register();
 		PlaceFarmPayload.register();
 		CheckPlacementPayload.register();

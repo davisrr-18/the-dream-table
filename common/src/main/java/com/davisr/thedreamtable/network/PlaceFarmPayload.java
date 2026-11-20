@@ -22,7 +22,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 			BlockPos.PACKET_CODEC, PlaceFarmPayload::table,
 			BlockPos.PACKET_CODEC, PlaceFarmPayload::anchor,
 			Direction.PACKET_CODEC, PlaceFarmPayload::facing,
-			PacketCodecs.BOOL, PlaceFarmPayload::mirrored,
+			PacketCodecs.BOOLEAN, PlaceFarmPayload::mirrored,
 			PlaceFarmPayload::new
 	);
 
@@ -35,7 +35,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 	public static void register() {
 		THROTTLE.forgetOnDisconnect();
 		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> {
-			if (!THROTTLE.allow(player.getUuid(), player.getServer().getTicks()) || player.isSpectator() || player.squaredDistanceTo(payload.table().toCenterPos()) > 64.0) {
+			if (!THROTTLE.allow(player.getUuid(), player.getEntityWorld().getServer().getTicks()) || player.isSpectator() || player.squaredDistanceTo(payload.table().toCenterPos()) > 64.0) {
 				return;
 			}
 			DreamTableBlockEntity blockEntity = FarmNetwork.table(player, payload.table());
@@ -57,7 +57,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 				return;
 			}
 			table.setPlacement(anchor, facing, payload.mirrored());
-			table.rememberAim(player.getWorld().getRegistryKey().getValue(), anchor, facing, payload.mirrored());
+			table.rememberAim(player.getEntityWorld().getRegistryKey().getValue(), anchor, facing, payload.mirrored());
 			if (!table.build().begin(player, true)) {
 				// A refused start keeps the spot as the aim, not as a placement that would reserve the area.
 				table.clearPlacement();
@@ -73,7 +73,7 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 		if (anchor == null || anchor.equals(table)) {
 			return false;
 		}
-		if (anchor.getY() < player.getWorld().getBottomY() || anchor.getY() >= player.getWorld().getTopY()) {
+		if (anchor.getY() < player.getEntityWorld().getBottomY() || anchor.getY() > player.getEntityWorld().getTopYInclusive()) {
 			return false;
 		}
 		return FarmGeometry.withinReach(table, anchor);

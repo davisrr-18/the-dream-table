@@ -22,7 +22,7 @@ public record PlacementResultPayload(BlockPos table, BlockPos anchor, Direction 
 			BlockPos.PACKET_CODEC, PlacementResultPayload::table,
 			BlockPos.PACKET_CODEC, PlacementResultPayload::anchor,
 			Direction.PACKET_CODEC, PlacementResultPayload::facing,
-			PacketCodecs.BOOL, PlacementResultPayload::mirrored,
+			PacketCodecs.BOOLEAN, PlacementResultPayload::mirrored,
 			PacketCodecs.STRING, PlacementResultPayload::problem,
 			PacketCodecs.VAR_INT, PlacementResultPayload::existing,
 			PlacementResultPayload::new

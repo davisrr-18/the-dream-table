@@ -67,7 +67,7 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 		Platform.network().registerClientToServer(WatchAreasPayload.ID, WatchAreasPayload.CODEC, (payload, player) -> {
 			if (payload.watch()) {
 				WATCHERS.add(player.getUuid());
-				if (DreamTableConfig.showOtherFarmsEnabled() && STARTS.allow(player.getUuid(), player.getServer().getTicks())) {
+				if (DreamTableConfig.showOtherFarmsEnabled() && STARTS.allow(player.getUuid(), player.getEntityWorld().getServer().getTicks())) {
 					send(player);
 				}
 			} else {
@@ -112,7 +112,7 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 			return;
 		}
 		List<Area> areas = new ArrayList<>();
-		for (FarmAreas.View view : FarmAreas.of(player.getServerWorld()).near(player.getBlockPos(), RADIUS, player.getUuid())) {
+		for (FarmAreas.View view : FarmAreas.of(player.getEntityWorld()).near(player.getBlockPos(), RADIUS, player.getUuid())) {
 			if (areas.size() >= MAX_AREAS) {
 				break;
 			}
@@ -130,7 +130,7 @@ public record FarmAreasPayload(List<Area> areas) implements CustomPayload {
 	public record WatchAreasPayload(boolean watch) implements CustomPayload {
 		public static final Id<WatchAreasPayload> ID = new Id<>(Identifier.of(TheDreamTableMod.MOD_ID, "watch_areas"));
 		public static final PacketCodec<RegistryByteBuf, WatchAreasPayload> CODEC = PacketCodec.tuple(
-				PacketCodecs.BOOL, WatchAreasPayload::watch,
+				PacketCodecs.BOOLEAN, WatchAreasPayload::watch,
 				WatchAreasPayload::new
 		);
 

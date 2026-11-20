@@ -618,7 +618,7 @@ public final class TableSession {
 	 * {@link FarmDismantler}, which takes it apart over the next ticks; a finished farm stays standing.
 	 */
 	public void discard(PlayerEntity discarder) {
-		discard(discarder.getWorld(), discarder, true);
+		discard(discarder.getEntityWorld(), discarder, true);
 	}
 
 	/**
@@ -657,7 +657,7 @@ public final class TableSession {
 			return false;
 		}
 		returning.sendMessage(Text.translatable(notice), false);
-		discard(returning.getWorld(), returning, false);
+		discard(returning.getEntityWorld(), returning, false);
 		return true;
 	}
 

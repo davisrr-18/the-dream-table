@@ -118,7 +118,7 @@ public class DreamTableBlock extends BlockWithEntity {
 	}
 
 	@Override
-	protected VoxelShape getCullingShape(BlockState state, BlockView world, BlockPos pos) {
+	protected VoxelShape getCullingShape(BlockState state) {
 		return BASE_SHAPE;
 	}
 
@@ -140,14 +140,11 @@ public class DreamTableBlock extends BlockWithEntity {
 		return validateTicker(type, ModBlockEntities.DREAM_TABLE.get(), DreamTableBlockEntity::tick);
 	}
 
-	@Override
-	protected void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
-		// Only the server owns the sessions: the client's copy gets this call too when the server's block change arrives.
-		if (!world.isClient() && !state.isOf(newState.getBlock()) && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table) {
-			table.onBroken(world);
-		}
-		super.onStateReplaced(state, world, pos, newState, moved);
-	}
+	/*
+	 * The break hook is DreamTableBlockEntity.onBlockReplaced, not Block.onStateReplaced: on 1.21.11 WorldChunk removes the
+	 * block entity before onStateReplaced runs, so the table is no longer in the world there. Changes that skip the hook
+	 * (/setblock, /fill, structures) are settled at the end of the tick (DreamTableBlockEntity.settleReplaced).
+	 */
 
 	/**
 	 * Whoever starts to break the table is told why they can't when another player has materials or work here
@@ -168,7 +165,7 @@ public class DreamTableBlock extends BlockWithEntity {
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table) {
+		if (!world.isClient() && player instanceof ServerPlayerEntity serverPlayer && world.getBlockEntity(pos) instanceof DreamTableBlockEntity table) {
 			Platform.menus().open(serverPlayer, table);
 		}
 		return ActionResult.SUCCESS;

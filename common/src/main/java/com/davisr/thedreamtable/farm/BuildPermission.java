@@ -18,7 +18,7 @@ public final class BuildPermission {
 	}
 
 	public static boolean canPlace(ServerWorld world, PlayerEntity player, BlockPos pos) {
-		return player.getAbilities().allowModifyWorld && world.canPlayerModifyAt(player, pos);
+		return player.getAbilities().allowModifyWorld && world.canEntityModifyAt(player, pos);
 	}
 
 	/** The vanilla checks plus the loader's place probe for the block about to go there. Asked per step, never for a whole farm. */

@@ -37,6 +37,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
+import net.minecraft.world.chunk.WorldChunk;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -65,6 +66,8 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	private static final UUID NO_PLAYER = ParkedProjects.NO_PLAYER;
 	private static final String CLIENT_VIEW = "ClientView";
 	private static final double SEND_DISTANCE = 512.0;
+	/** Tables whose block was replaced without the break hook (flag 256 of /setblock, /fill, structures), handled at the end of the tick. Server thread only. */
+	private static final List<DreamTableBlockEntity> REPLACED = new ArrayList<>();
 
 	private final Map<UUID, TableSession> sessions = new LinkedHashMap<>();
 	/** Discarded builds still being taken apart. Server only; never sent to clients. */
@@ -79,6 +82,8 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	private final List<NbtCompound> unreadableSessions = new ArrayList<>();
 	private final List<NbtCompound> unreadableJobs = new ArrayList<>();
 	private boolean ownSessionReceived;
+	/** Set once {@link #onBroken} ran, so the two hooks that can reach it never park the same sessions twice. */
+	private boolean broken;
 
 	public DreamTableBlockEntity(BlockPos pos, BlockState state) {
 		super(ModBlockEntities.DREAM_TABLE.get(), pos, state);
@@ -102,7 +107,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		for (TableSession session : sessions.values()) {
 			ServerPlayerEntity owner = session.onlineOwner(world);
 			// The change is consumed only when it can be delivered, so an owner who is away or dead still gets it later.
-			if (owner != null && owner.getServerWorld() == world && owner.squaredDistanceTo(pos.toCenterPos()) < SEND_DISTANCE * SEND_DISTANCE
+			if (owner != null && owner.getEntityWorld() == world && owner.squaredDistanceTo(pos.toCenterPos()) < SEND_DISTANCE * SEND_DISTANCE
 					&& session.takeClientDirty()) {
 				Platform.network().send(owner, new SessionSyncPayload(pos, session.writeForClient()));
 			}
@@ -271,14 +276,57 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 	}
 
 	/**
+	 * The break hook for a block replaced by a player, an explosion or a plain {@code setBlockState}: vanilla calls it on the
+	 * server while the block entity is still in the chunk (see DreamTableBlock). A change carrying flag 256 ({@code /setblock},
+	 * {@code /fill}, structures) skips it, and its {@code Block.onStateReplaced} comes after the removal or not at all
+	 * ({@code strict}), so {@link #markRemoved} sets those tables aside for {@link #settleReplaced}.
+	 */
+	@Override
+	public void onBlockReplaced(BlockPos pos, BlockState oldState) {
+		onBroken(world);
+		super.onBlockReplaced(pos, oldState);
+	}
+
+	/**
+	 * Marks a table that leaves the chunk with its block already replaced. The chunk is read only when it is loaded and never
+	 * created: a chunk unload also ends here, and then the chunk is gone or still holds the table, so nothing is set aside.
+	 */
+	@Override
+	public void markRemoved() {
+		super.markRemoved();
+		if (!broken && world instanceof ServerWorld serverWorld) {
+			WorldChunk chunk = serverWorld.getChunkManager().getWorldChunk(pos.getX() >> 4, pos.getZ() >> 4);
+			if (chunk != null && !chunk.getBlockState(pos).isOf(getCachedState().getBlock())) {
+				REPLACED.add(this);
+			}
+		}
+	}
+
+	/** At the end of each server tick: parks or returns what the tables removed without the break hook held. */
+	public static void settleReplaced() {
+		if (REPLACED.isEmpty()) {
+			return;
+		}
+		List<DreamTableBlockEntity> tables = new ArrayList<>(REPLACED);
+		REPLACED.clear();
+		tables.forEach(table -> table.onBroken(table.world));
+	}
+
+	/** When the server stops: a table still waiting belongs to a world that is gone. */
+	public static void forgetReplaced() {
+		REPLACED.clear();
+	}
+
+	/**
 	 * When the table is broken, however that happens, each player's project is kept for them in {@link ParkedProjects} and comes
 	 * back in the next table they open, and its farm areas are freed. Built blocks stay, even half-dismantled ones. Delivered
 	 * materials drop only for a project that can't be kept: it belongs to no player, or its player has as many kept as allowed.
 	 */
 	public void onBroken(World world) {
-		if (!(world instanceof ServerWorld serverWorld)) {
+		if (broken || !(world instanceof ServerWorld serverWorld)) {
 			return;
 		}
+		broken = true;
 		ParkedProjects parked = ParkedProjects.of(serverWorld.getServer());
 		// Saved sessions this version cannot read are kept as they were, for a version that can; take-apart jobs are lost, so the log keeps a copy.
 		for (NbtCompound raw : unreadableSessions) {
@@ -382,7 +430,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		TableSession session = player instanceof ServerPlayerEntity serverPlayer ? openSession(serverPlayer) : session(player);
 		session.markClientDirty();
 		if (player instanceof ServerPlayerEntity serverPlayer) {
-			FarmTemplates.refreshImports(serverPlayer.getServer());
+			FarmTemplates.refreshImports(serverPlayer.getEntityWorld().getServer());
 			ServerSchematicsPayload.send(serverPlayer);
 		}
 		return new DreamTableScreenHandler(syncId, playerInventory, session);

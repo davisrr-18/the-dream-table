@@ -28,13 +28,13 @@ public record RequestSessionPayload(BlockPos table) implements CustomPayload {
 	public static void register() {
 		THROTTLE.forgetOnDisconnect();
 		Platform.network().registerClientToServer(ID, CODEC, (payload, player) -> {
-			if (!THROTTLE.allow(player.getUuid(), player.getServer().getTicks())) {
+			if (!THROTTLE.allow(player.getUuid(), player.getEntityWorld().getServer().getTicks())) {
 				return;
 			}
 			if (player.squaredDistanceTo(payload.table().toCenterPos()) > MAX_DISTANCE * MAX_DISTANCE) {
 				return;
 			}
-			if (player.getWorld().isChunkLoaded(payload.table()) && player.getWorld().getBlockEntity(payload.table()) instanceof DreamTableBlockEntity table) {
+			if (player.getEntityWorld().isChunkLoaded(payload.table()) && player.getEntityWorld().getBlockEntity(payload.table()) instanceof DreamTableBlockEntity table) {
 				table.resend(player);
 			}
 		});

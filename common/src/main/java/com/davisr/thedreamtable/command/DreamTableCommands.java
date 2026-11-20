@@ -21,9 +21,6 @@ import java.util.List;
  * configuration again without a restart, and {@code /dreamtable status} prints what the mod is holding.
  */
 public final class DreamTableCommands {
-	/** The vanilla operator level, like {@code FarmProtection.OPERATOR_LEVEL}. */
-	static final int OPERATOR_LEVEL = 2;
-
 	private DreamTableCommands() {
 	}
 
@@ -33,7 +30,7 @@ public final class DreamTableCommands {
 
 	static void install(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(CommandManager.literal("dreamtable")
-				.requires(source -> source.hasPermissionLevel(OPERATOR_LEVEL))
+				.requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK))
 				.then(CommandManager.literal("reload").executes(DreamTableCommands::reload))
 				.then(CommandManager.literal("status").executes(DreamTableCommands::status)));
 	}

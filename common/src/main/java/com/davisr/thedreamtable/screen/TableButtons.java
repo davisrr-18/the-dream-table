@@ -108,7 +108,7 @@ final class TableButtons {
 		if (!DreamTableConfig.farmProtectionEnabled()) {
 			return false;
 		}
-		FarmPreferences preferences = FarmPreferences.of(player.getServer());
+		FarmPreferences preferences = FarmPreferences.of(player.getEntityWorld().getServer());
 		return savedOrTold(player, preferences.setProtectsFarms(player.getUuid(), !preferences.protectsFarms(player.getUuid())));
 	}
 

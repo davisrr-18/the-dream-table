@@ -25,7 +25,7 @@ public final class FarmStorage {
 
 	public static int status(ServerWorld world, FarmTemplate template, FarmSite site) {
 		BlockPos middle = site.anchor() != null ? site.anchor() : site.table();
-		if (!world.isChunkLoaded(middle) || !world.shouldTickEntity(middle)) {
+		if (!world.isChunkLoaded(middle) || !world.shouldTickEntityAt(middle)) {
 			return UNLOADED;
 		}
 		return template != null && full(world, template, site) ? FULL : RUNNING;

@@ -3,7 +3,7 @@ package com.davisr.thedreamtable.farm;
 import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.platform.Platform;
-import com.mojang.authlib.GameProfile;
+import net.minecraft.command.DefaultPermissions;
 import net.minecraft.block.AbstractPlantPartBlock;
 import net.minecraft.block.AttachedStemBlock;
 import net.minecraft.block.BambooBlock;
@@ -23,10 +23,10 @@ import net.minecraft.item.Item;
 import net.minecraft.block.SugarCaneBlock;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.PlayerConfigEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
-import net.minecraft.util.UserCache;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
@@ -45,8 +45,6 @@ import java.util.function.BooleanSupplier;
  * pistons, mobs, fluids and fire don't go through the player break event and are not covered.
  */
 public final class FarmProtection {
-	/** Permission level from which a player bypasses the protection, like the vanilla command operators. */
-	static final int OPERATOR_LEVEL = 2;
 	/** Nesting depth of the mod's own permission probes (server thread only), during which a denial tells nobody. */
 	private static int probes;
 	/** The design's blocks per site, built on the first break that asks inside a farm. Shared by identity, like {@link FarmGrowth}'s. */
@@ -93,7 +91,7 @@ public final class FarmProtection {
 			return null;
 		}
 		FarmPreferences preferences = FarmPreferences.of(world.getServer());
-		boolean operator = player.hasPermissionLevel(OPERATOR_LEVEL);
+		boolean operator = player.getPermissions().hasPermission(DefaultPermissions.GAMEMASTERS);
 		for (FarmAreas.Guard guard : guards) {
 			FarmRecord record = new FarmRecord(FarmKey.of(world, guard.instanceId()), guard.ownerUuid());
 			if (denies(true, preferences.protectsFarms(guard.ownerUuid()), operator,
@@ -192,8 +190,7 @@ public final class FarmProtection {
 		if (online != null) {
 			return online.getName();
 		}
-		UserCache cache = server.getUserCache();
-		Optional<String> cached = cache == null ? Optional.empty() : cache.getByUuid(owner).map(GameProfile::getName);
+		Optional<String> cached = server.getApiServices().nameToIdCache().getByUuid(owner).map(PlayerConfigEntry::name);
 		return cached.<Text>map(Text::literal).orElseGet(() -> Text.translatable("gui.the_dream_table.farm_owner_unknown"));
 	}
 }

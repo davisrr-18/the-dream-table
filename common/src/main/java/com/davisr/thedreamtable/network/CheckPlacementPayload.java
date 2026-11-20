@@ -28,8 +28,8 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 			BlockPos.PACKET_CODEC, CheckPlacementPayload::table,
 			BlockPos.PACKET_CODEC, CheckPlacementPayload::anchor,
 			Direction.PACKET_CODEC, CheckPlacementPayload::facing,
-			PacketCodecs.BOOL, CheckPlacementPayload::mirrored,
-			PacketCodecs.BOOL, CheckPlacementPayload::announce,
+			PacketCodecs.BOOLEAN, CheckPlacementPayload::mirrored,
+			PacketCodecs.BOOLEAN, CheckPlacementPayload::announce,
 			CheckPlacementPayload::new
 	);
 
@@ -62,7 +62,7 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 			if (player.isSpectator()) {
 				return;
 			}
-			if (player.squaredDistanceTo(payload.table().toCenterPos()) > MAX_DISTANCE * MAX_DISTANCE || !(player.getWorld() instanceof ServerWorld world)) {
+			if (player.squaredDistanceTo(payload.table().toCenterPos()) > MAX_DISTANCE * MAX_DISTANCE || !(player.getEntityWorld() instanceof ServerWorld world)) {
 				return;
 			}
 			if (!(world.getBlockEntity(payload.table()) instanceof DreamTableBlockEntity blockEntity)) {
@@ -74,7 +74,7 @@ public record CheckPlacementPayload(BlockPos table, BlockPos anchor, Direction f
 				return;
 			}
 			Direction facing = PlaceFarmPayload.horizontal(payload.facing(), player);
-			long now = player.getServer().getTicks();
+			long now = player.getEntityWorld().getServer().getTicks();
 			Question question = new Question(payload.table(), payload.anchor(), facing, payload.mirrored(), payload.announce(), table.getSelectedFarm());
 			PlacementResultPayload result = RECENT.get(player.getUuid(), question, now);
 			if (result == null) {
