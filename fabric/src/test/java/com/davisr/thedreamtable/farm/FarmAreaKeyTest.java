@@ -160,6 +160,6 @@ class FarmAreaKeyTest {
 
 		assertNotNull(restored);
 		assertEquals(identity, restored.identity());
-		assertEquals(7L, restored.identity().alerts().getLong("NextAlertEvent"));
+		assertEquals(7L, restored.identity().alerts().getLong("NextAlertEvent", 0L));
 	}
 }

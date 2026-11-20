@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable.farm.alert;
 
+import com.davisr.thedreamtable.Nbts;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 
 import java.util.ArrayList;
@@ -98,16 +98,16 @@ public final class FarmAlerts {
 
 	public static FarmAlerts read(NbtCompound nbt) {
 		FarmAlerts alerts = new FarmAlerts();
-		read(nbt.getList(ACTIVE, NbtElement.COMPOUND_TYPE), alerts.active, alerts, true);
-		read(nbt.getList(HISTORY, NbtElement.COMPOUND_TYPE), null, alerts, false);
-		alerts.nextEventId = Math.max(nbt.getLong(NEXT), alerts.nextEventId);
+		read(Nbts.list(nbt, ACTIVE, NbtCompound.class), alerts.active, alerts, true);
+		read(Nbts.list(nbt, HISTORY, NbtCompound.class), null, alerts, false);
+		alerts.nextEventId = Math.max(nbt.getLong(NEXT, 0L), alerts.nextEventId);
 		alerts.trimHistory();
 		return alerts;
 	}
 
 	private static void read(NbtList saved, Map<FarmAlertType, Event> destination, FarmAlerts alerts, boolean active) {
 		for (int index = 0; index < saved.size() && index < MAX_HISTORY; index++) {
-			Event event = readEvent(saved.getCompound(index));
+			Event event = readEvent(saved.getCompoundOrEmpty(index));
 			if (event == null) {
 				continue;
 			}
@@ -135,12 +135,12 @@ public final class FarmAlerts {
 
 	private static Event readEvent(NbtCompound saved) {
 		try {
-			long event = saved.getLong(EVENT);
-			int quantity = saved.getInt(QUANTITY);
+			long event = saved.getLong(EVENT, 0L);
+			int quantity = saved.getInt(QUANTITY, 0);
 			if (event <= 0 || quantity <= 0) {
 				return null;
 			}
-			return new Event(event, FarmAlertType.valueOf(saved.getString(TYPE)), quantity, saved.getLong(TIME));
+			return new Event(event, FarmAlertType.valueOf(saved.getString(TYPE, "")), quantity, saved.getLong(TIME, 0L));
 		} catch (IllegalArgumentException malformed) {
 			return null;
 		}

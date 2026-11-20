@@ -1,13 +1,14 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.PersistentState;
+import net.minecraft.world.PersistentStateType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,7 +23,7 @@ import java.util.function.BiPredicate;
 /** Per-player farm UI preferences, stored once in the overworld. */
 public final class FarmPreferences extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_farm_preferences";
-	private static final Type<FarmPreferences> TYPE = new Type<>(FarmPreferences::new, FarmPreferences::read, null);
+	static final PersistentStateType<FarmPreferences> TYPE = SavedState.type(STATE_KEY, FarmPreferences::new, nbt -> read(nbt, null), state -> state.writeNbt(new NbtCompound(), null));
 	private static final int PRUNE_INTERVAL_TICKS = 1200;
 	static final int MAX_SAVED_PLAYERS = 4096;
 	static final int MAX_SAVED_FARMS_PER_PLAYER = 4096;
@@ -43,7 +44,7 @@ public final class FarmPreferences extends PersistentState {
 	private final Set<UUID> protecting = new LinkedHashSet<>();
 
 	public static FarmPreferences of(MinecraftServer server) {
-		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
+		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE);
 	}
 
 	public static void register() {
@@ -254,12 +255,12 @@ public final class FarmPreferences extends PersistentState {
 		return existing.size() < MAX_SAVED_FARMS_PER_PLAYER;
 	}
 
-	@Override
+	/** Writes the state in the format 1.21.1 saved; {@link #read} is its inverse. The lookup is unused. */
 	public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		NbtList list = new NbtList();
 		for (UUID playerUuid : allPlayers()) {
 			NbtCompound item = new NbtCompound();
-			item.putUuid("Player", playerUuid);
+			Nbts.putUuid(item, "Player", playerUuid);
 			PlayerPreferences preferences = players.get(playerUuid);
 			NbtList favorites = new NbtList();
 			if (preferences != null) {
@@ -295,42 +296,42 @@ public final class FarmPreferences extends PersistentState {
 		NbtList list = new NbtList();
 		for (UUID playerUuid : members) {
 			NbtCompound item = new NbtCompound();
-			item.putUuid("Player", playerUuid);
+			Nbts.putUuid(item, "Player", playerUuid);
 			list.add(item);
 		}
 		nbt.put(key, list);
 	}
 
 	private static void readPlayers(NbtCompound nbt, String key, Set<UUID> members) {
-		NbtList list = nbt.getList(key, NbtElement.COMPOUND_TYPE);
+		NbtList list = Nbts.list(nbt, key, NbtCompound.class);
 		for (int index = 0; index < Math.min(list.size(), MAX_SAVED_PLAYERS); index++) {
-			NbtCompound item = list.getCompound(index);
-			if (item.containsUuid("Player")) {
-				members.add(item.getUuid("Player"));
+			NbtCompound item = list.getCompoundOrEmpty(index);
+			if (Nbts.containsUuid(item, "Player")) {
+				members.add(Nbts.getUuid(item, "Player"));
 			}
 		}
 	}
 
 	static FarmPreferences read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		FarmPreferences state = new FarmPreferences();
-		NbtList list = nbt.getList("Players", NbtElement.COMPOUND_TYPE);
+		NbtList list = Nbts.list(nbt, "Players", NbtCompound.class);
 		for (int index = 0; index < Math.min(list.size(), MAX_SAVED_PLAYERS); index++) {
-			NbtCompound item = list.getCompound(index);
-			if (!item.containsUuid("Player")) {
+			NbtCompound item = list.getCompoundOrEmpty(index);
+			if (!Nbts.containsUuid(item, "Player")) {
 				continue;
 			}
-			UUID playerUuid = item.getUuid("Player");
+			UUID playerUuid = Nbts.getUuid(item, "Player");
 			PlayerPreferences preferences = new PlayerPreferences();
-			NbtList favorites = item.getList("Favorites", NbtElement.STRING_TYPE);
+			NbtList favorites = Nbts.list(item, "Favorites", NbtString.class);
 			for (int favorite = 0; favorite < Math.min(favorites.size(), MAX_SAVED_FARMS_PER_PLAYER); favorite++) {
-				parseKey(favorites.getString(favorite)).ifPresent(preferences.favorites()::add);
+				parseKey(favorites.getString(favorite, "")).ifPresent(preferences.favorites()::add);
 			}
-			NbtList cursors = item.getList("Acknowledgements", NbtElement.COMPOUND_TYPE);
+			NbtList cursors = Nbts.list(item, "Acknowledgements", NbtCompound.class);
 			for (int cursor = 0; cursor < Math.min(cursors.size(), MAX_SAVED_FARMS_PER_PLAYER); cursor++) {
-				NbtCompound saved = cursors.getCompound(cursor);
-				long value = saved.getLong("Cursor");
+				NbtCompound saved = cursors.getCompoundOrEmpty(cursor);
+				long value = saved.getLong("Cursor", 0L);
 				if (value > 0) {
-					parseKey(saved.getString("Farm")).ifPresent(key -> {
+					parseKey(saved.getString("Farm", "")).ifPresent(key -> {
 						if (preferences.favorites().contains(key) || preferences.acknowledgements().containsKey(key)
 								|| relationshipCount(preferences) < MAX_SAVED_FARMS_PER_PLAYER) {
 							preferences.acknowledgements().merge(key, value, Math::max);
@@ -341,7 +342,7 @@ public final class FarmPreferences extends PersistentState {
 			if (!preferences.favorites().isEmpty() || !preferences.acknowledgements().isEmpty()) {
 				state.players.put(playerUuid, preferences);
 			}
-			parseKey(item.getString("Tracked")).ifPresent(key -> {
+			parseKey(item.getString("Tracked", "")).ifPresent(key -> {
 				if (preferences.favorites().contains(key) || preferences.acknowledgements().containsKey(key)
 						|| relationshipCount(preferences) < MAX_SAVED_FARMS_PER_PLAYER) {
 					state.tracked.put(playerUuid, key);

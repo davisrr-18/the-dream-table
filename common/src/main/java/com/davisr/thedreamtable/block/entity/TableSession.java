@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.DreamTableConfig;
@@ -19,7 +20,7 @@ import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtInt;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -791,10 +792,10 @@ public final class TableSession {
 	 * occupies at the anchor, in the world it stands in. Null for a project without a spot, or whose farm this server does not know.
 	 */
 	public static @Nullable ParkedProjects.Reservation keptReservation(NbtCompound project) {
-		Identifier world = project.contains("MovedBuildDimension", NbtElement.STRING_TYPE)
-				? Identifier.tryParse(project.getString("MovedBuildDimension")) : null;
-		FarmTemplate template = world == null || !project.contains("AnchorX", NbtElement.INT_TYPE)
-				? null : FarmTemplates.get(project.getString("SelectedFarm"));
+		Identifier world = Nbts.hasString(project, "MovedBuildDimension")
+				? Identifier.tryParse(project.getString("MovedBuildDimension", "")) : null;
+		FarmTemplate template = world == null || !(project.get("AnchorX") instanceof NbtInt)
+				? null : FarmTemplates.get(project.getString("SelectedFarm", ""));
 		if (template == null) {
 			return null;
 		}
@@ -907,18 +908,18 @@ public final class TableSession {
 	}
 
 	void read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-		selectedFarm = nbt.getString("SelectedFarm");
-		page = nbt.getInt("Page");
+		selectedFarm = nbt.getString("SelectedFarm", "");
+		page = nbt.getInt("Page", 0);
 		// The farm page needs a farm chosen in My Farms on the client, which a reload doesn't have.
 		if (page == REMOVED_INVITES_PAGE || page == REMOVED_ALERTS_PAGE) {
 			page = DreamTableScreenHandler.PAGE_LOADED;
 		}
-		swapMaterial = nbt.contains("SwapMaterial", NbtElement.INT_TYPE) ? nbt.getInt("SwapMaterial") : -1;
+		swapMaterial = nbt.get("SwapMaterial") instanceof NbtInt ? nbt.getInt("SwapMaterial", -1) : -1;
 		progress.read(nbt);
 		placement.read(nbt);
 		desk.read(nbt, registries);
-		movedBuildDimension = nbt.contains("MovedBuildDimension", NbtElement.STRING_TYPE) ? Identifier.tryParse(nbt.getString("MovedBuildDimension")) : null;
-		aim = nbt.contains("Aim", NbtElement.COMPOUND_TYPE) ? AimedSpot.fromNbt(nbt.getCompound("Aim")) : null;
+		movedBuildDimension = Nbts.hasString(nbt, "MovedBuildDimension") ? Identifier.tryParse(nbt.getString("MovedBuildDimension", "")) : null;
+		aim = Nbts.hasCompound(nbt, "Aim") ? AimedSpot.fromNbt(nbt.getCompoundOrEmpty("Aim")) : null;
 	}
 
 	/** The player who started the build, for sessions saved before players had their own. */

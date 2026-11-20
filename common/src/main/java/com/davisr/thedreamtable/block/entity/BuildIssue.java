@@ -119,13 +119,13 @@ public record BuildIssue(Kind kind, BlockPos where, String subject, int attempts
 		if (!nbt.contains("Issue")) {
 			return null;
 		}
-		NbtCompound issue = nbt.getCompound("Issue");
+		NbtCompound issue = nbt.getCompoundOrEmpty("Issue");
 		Kind kind;
 		try {
-			kind = Kind.valueOf(issue.getString("Kind"));
+			kind = Kind.valueOf(issue.getString("Kind", ""));
 		} catch (IllegalArgumentException unknown) {
 			return null;
 		}
-		return new BuildIssue(kind, BlockPos.fromLong(issue.getLong("Where")), issue.getString("Subject"), Math.max(1, issue.getInt("Attempts")));
+		return new BuildIssue(kind, BlockPos.fromLong(issue.getLong("Where", 0L)), issue.getString("Subject", ""), Math.max(1, issue.getInt("Attempts", 0)));
 	}
 }

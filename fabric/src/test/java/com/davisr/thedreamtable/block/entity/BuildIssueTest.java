@@ -33,7 +33,7 @@ class BuildIssueTest {
 		assertNull(BuildIssue.read(new NbtCompound()));
 		NbtCompound nbt = new NbtCompound();
 		BuildIssue.at(BuildIssue.Kind.PROTECTED, BlockPos.ORIGIN).write(nbt);
-		nbt.getCompound("Issue").putString("Kind", "SOMETHING_NEW");
+		nbt.getCompoundOrEmpty("Issue").putString("Kind", "SOMETHING_NEW");
 		assertNull(BuildIssue.read(nbt));
 	}
 

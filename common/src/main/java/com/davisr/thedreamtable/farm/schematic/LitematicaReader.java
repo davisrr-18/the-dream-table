@@ -1,8 +1,8 @@
 package com.davisr.thedreamtable.farm.schematic;
 
+import com.davisr.thedreamtable.Nbts;
 import net.minecraft.block.BlockState;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 
 import java.util.ArrayList;
@@ -17,11 +17,11 @@ final class LitematicaReader {
 	}
 
 	static boolean accepts(NbtCompound root) {
-		return root.contains("Regions", NbtElement.COMPOUND_TYPE);
+		return Nbts.hasCompound(root, "Regions");
 	}
 
 	static void read(NbtCompound root, StepCollector steps) {
-		NbtCompound regions = root.getCompound("Regions");
+		NbtCompound regions = root.getCompoundOrEmpty("Regions");
 		if (regions.getKeys().size() > MAX_REGIONS) {
 			steps.overflow();
 			return;
@@ -30,7 +30,7 @@ final class LitematicaReader {
 		long[] origin = {Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE};
 		long[] far = {Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE};
 		for (String name : regions.getKeys()) {
-			NbtCompound region = regions.getCompound(name);
+			NbtCompound region = regions.getCompoundOrEmpty(name);
 			long[] min = minimumCorner(region);
 			for (int axis = 0; axis < 3; axis++) {
 				origin[axis] = Math.min(origin[axis], min[axis]);
@@ -51,12 +51,12 @@ final class LitematicaReader {
 			if (steps.oversized()) {
 				return;
 			}
-			if (region.contains("TileEntities", NbtElement.LIST_TYPE)) {
-				attachTiles(steps, region, origin, region.getList("TileEntities", NbtElement.COMPOUND_TYPE));
+			if (Nbts.hasList(region, "TileEntities")) {
+				attachTiles(steps, region, origin, Nbts.list(region, "TileEntities", NbtCompound.class));
 			}
-			if (region.contains("Entities", NbtElement.LIST_TYPE)) {
+			if (Nbts.hasList(region, "Entities")) {
 				// Entity positions are relative to the region's Position, which is not its lowest corner when a size is negative.
-				steps.entities(region.getList("Entities", NbtElement.COMPOUND_TYPE), (int) (position(region, 0) - origin[0]),
+				steps.entities(Nbts.list(region, "Entities", NbtCompound.class), (int) (position(region, 0) - origin[0]),
 						(int) (position(region, 1) - origin[1]), (int) (position(region, 2) - origin[2]));
 			}
 		}
@@ -64,7 +64,7 @@ final class LitematicaReader {
 
 	/** The palette is read once; each cell then only looks its id up. */
 	private static void readRegion(NbtCompound region, long[] origin, StepCollector steps) {
-		NbtList palette = region.getList("BlockStatePalette", NbtElement.COMPOUND_TYPE);
+		NbtList palette = Nbts.list(region, "BlockStatePalette", NbtCompound.class);
 		if (palette.size() > SchematicReader.MAX_PALETTE) {
 			steps.overflow();
 			return;
@@ -80,13 +80,13 @@ final class LitematicaReader {
 		if (sizeX == 0 || sizeY == 0 || sizeZ == 0) {
 			return;
 		}
-		long[] packed = region.getLongArray("BlockStates");
+		long[] packed = Nbts.longs(region, "BlockStates");
 		int bits = Math.max(2, 32 - Integer.numberOfLeadingZeros(Math.max(1, palette.size()) - 1));
 		long mask = (1L << bits) - 1L;
 		long stored = packed.length * 64L / bits;
 		BlockState[] states = new BlockState[palette.size()];
 		for (int id = 0; id < states.length; id++) {
-			states[id] = NbtReading.state(palette.getCompound(id));
+			states[id] = NbtReading.state(palette.getCompoundOrEmpty(id), steps.dataVersion());
 		}
 		int index = 0;
 		for (int y = 0; y < sizeY; y++) {
@@ -100,7 +100,7 @@ final class LitematicaReader {
 						continue;
 					}
 					if (states[id] == null) {
-						steps.unknown(palette.getCompound(id).getString("Name"));
+						steps.unknown(palette.getCompoundOrEmpty(id).getString("Name", ""));
 					} else {
 						steps.block((int) (min[0] + x - origin[0]), (int) (min[1] + y - origin[1]), (int) (min[2] + z - origin[2]), states[id], null);
 					}
@@ -117,10 +117,10 @@ final class LitematicaReader {
 	private static void attachTiles(StepCollector steps, NbtCompound region, long[] origin, NbtList tiles) {
 		long[] min = minimumCorner(region);
 		for (int index = 0; index < tiles.size(); index++) {
-			NbtCompound data = tiles.getCompound(index);
-			int x = data.getInt("x");
-			int y = data.getInt("y");
-			int z = data.getInt("z");
+			NbtCompound data = tiles.getCompoundOrEmpty(index);
+			int x = data.getInt("x", 0);
+			int y = data.getInt("y", 0);
+			int z = data.getInt("z", 0);
 			if (x >= 0 && x < size(region, 0) && y >= 0 && y < size(region, 1) && z >= 0 && z < size(region, 2)) {
 				steps.blockData((int) (min[0] + x - origin[0]), (int) (min[1] + y - origin[1]), (int) (min[2] + z - origin[2]), data);
 			} else if (!steps.blockData(x, y, z, data)) {

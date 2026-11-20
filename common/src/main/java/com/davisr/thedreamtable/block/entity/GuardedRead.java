@@ -1,8 +1,8 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 
 import java.util.ArrayList;
@@ -23,7 +23,7 @@ final class GuardedRead {
 
 	/** Whether {@code entry} is a saved session of a player who has a readable one now. */
 	static boolean superseded(NbtCompound entry, Set<UUID> live) {
-		return entry.containsUuid("Player") && live.contains(entry.getUuid("Player"));
+		return Nbts.containsUuid(entry, "Player") && live.contains(Nbts.getUuid(entry, "Player"));
 	}
 
 	/**
@@ -36,7 +36,7 @@ final class GuardedRead {
 		while (entries.hasNext()) {
 			NbtCompound entry = entries.next();
 			if (superseded(entry, live)) {
-				TheDreamTableMod.LOGGER.warn("Dropping an unreadable saved session of {}: a newer one exists", entry.getUuid("Player"));
+				TheDreamTableMod.LOGGER.warn("Dropping an unreadable saved session of {}: a newer one exists", Nbts.getUuid(entry, "Player"));
 				entries.remove();
 				dropped++;
 			}
@@ -48,7 +48,7 @@ final class GuardedRead {
 	static List<NbtCompound> forEach(NbtList list, String what, Consumer<NbtCompound> reader) {
 		List<NbtCompound> unreadable = new ArrayList<>();
 		for (int index = 0; index < list.size(); index++) {
-			NbtCompound entry = list.getCompound(index);
+			NbtCompound entry = list.getCompoundOrEmpty(index);
 			try {
 				reader.accept(entry);
 			} catch (RuntimeException corrupt) {

@@ -1,5 +1,7 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.DataFixes;
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.Handover;
 import net.minecraft.block.BlockState;
@@ -8,7 +10,6 @@ import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.math.BlockPos;
@@ -245,7 +246,9 @@ final class MaterialDesk {
 	// Saving
 
 	void write(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-		nbt.put("Materials", slots.toNbtList(registries));
+		nbt.put("Materials", Nbts.writeItems(slots.getHeldStacks(), registries));
+		// The stacks are in this game's format; a save without the stamp (1.21.1) reads as written by 1.21.1.
+		nbt.putInt("DataVersion", DataFixes.current());
 		ledger.write(nbt);
 	}
 
@@ -257,8 +260,11 @@ final class MaterialDesk {
 		adjusting = true;
 		try {
 			slots.clear();
-			if (nbt.contains("Materials", NbtElement.LIST_TYPE)) {
-				slots.readNbtList(nbt.getList("Materials", NbtElement.COMPOUND_TYPE), registries);
+			if (Nbts.hasList(nbt, "Materials")) {
+				int from = nbt.getInt("DataVersion", DataFixes.ASSUMED);
+				for (ItemStack stack : Nbts.readItems(nbt.getListOrEmpty("Materials"), registries, from)) {
+					slots.addStack(stack);
+				}
 			}
 		} finally {
 			adjusting = false;

@@ -16,6 +16,8 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.state.property.Properties;
+import net.minecraft.storage.NbtReadView;
+import net.minecraft.util.ErrorReporter;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.jetbrains.annotations.Nullable;
@@ -304,7 +306,10 @@ public final class FarmBuilder {
 			data.putInt("x", target.getX());
 			data.putInt("y", target.getY());
 			data.putInt("z", target.getZ());
-			blockEntity.read(data, world.getRegistryManager());
+			try (ErrorReporter.Logging reporter = new ErrorReporter.Logging(blockEntity.getReporterContext(), TheDreamTableMod.LOGGER)) {
+				// Component-less: the 1.21.1 read never touched the placed block's components.
+				blockEntity.readComponentlessData(NbtReadView.create(reporter, world.getRegistryManager(), data));
+			}
 		}
 		if (sound) {
 			world.playSound(null, target, placed.getSoundGroup().getPlaceSound(), SoundCategory.BLOCKS, 0.85F, 0.9F + world.random.nextFloat() * 0.2F);

@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
 import com.davisr.thedreamtable.block.entity.MaterialLedger;
@@ -8,7 +9,6 @@ import com.davisr.thedreamtable.farm.alert.FarmAlertType;
 import net.minecraft.block.BlockState;
 import net.minecraft.item.Item;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.world.ServerWorld;
@@ -16,6 +16,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.PersistentState;
+import net.minecraft.world.PersistentStateType;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
@@ -39,7 +40,7 @@ import java.util.function.UnaryOperator;
  */
 public final class FarmAreas extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_farm_areas";
-	private static final Type<FarmAreas> TYPE = new Type<>(FarmAreas::new, FarmAreas::read, null);
+	static final PersistentStateType<FarmAreas> TYPE = SavedState.type(STATE_KEY, FarmAreas::new, nbt -> read(nbt, null), state -> state.writeNbt(new NbtCompound(), null));
 	private final Map<Key, Area> areas = new LinkedHashMap<>();
 	private final Map<UUID, RepairLease> repairLeases = new LinkedHashMap<>();
 	private final Map<UUID, FarmAlerts> alerts = new LinkedHashMap<>();
@@ -102,7 +103,7 @@ public final class FarmAreas extends PersistentState {
 	}
 
 	public static FarmAreas of(ServerWorld world) {
-		return world.getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
+		return world.getPersistentStateManager().getOrCreate(TYPE);
 	}
 
 	public void claim(Key key, Box box) {
@@ -547,7 +548,7 @@ public final class FarmAreas extends PersistentState {
 	 */
 	boolean unreadableCovers(Predicate<Box> test) {
 		for (NbtCompound raw : unreadable) {
-			int[] box = raw.getIntArray("Box");
+			int[] box = Nbts.ints(raw, "Box");
 			if (box.length == 6 && test.test(new Box(box[0], box[1], box[2], box[3], box[4], box[5]))) {
 				return true;
 			}
@@ -646,21 +647,21 @@ public final class FarmAreas extends PersistentState {
 		return new Presence(blocks == 0 ? 0 : found * 100 / blocks, missing, blocks - found - missing, unloaded, needs);
 	}
 
-	@Override
+	/** Writes the state in the format 1.21.1 saved; {@link #read} is its inverse. The lookup is unused. */
 	public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		NbtList list = new NbtList();
 		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
 			NbtCompound item = new NbtCompound();
 			Key key = entry.getKey();
 			item.putLong("Table", key.table());
-			item.putUuid("Player", key.player());
+			Nbts.putUuid(item, "Player", key.player());
 			item.putString("Kind", key.kind().name());
 			item.putLong("Spot", key.spot());
 			Box box = entry.getValue().box();
 			item.putIntArray("Box", new int[]{(int) box.minX, (int) box.minY, (int) box.minZ, (int) box.maxX, (int) box.maxY, (int) box.maxZ});
 			Built built = entry.getValue().built();
 			if (built != null) {
-				item.putUuid("InstanceId", built.instanceId());
+				Nbts.putUuid(item, "InstanceId", built.instanceId());
 				item.putString("Farm", built.farmId());
 				item.putLong("FarmSignature", built.signature());
 				NbtCompound site = new NbtCompound();
@@ -698,11 +699,11 @@ public final class FarmAreas extends PersistentState {
 	static FarmAreas read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		FarmAreas state = new FarmAreas();
 		Set<UUID> instanceIds = new HashSet<>();
-		NbtList list = nbt.getList("Areas", NbtElement.COMPOUND_TYPE);
+		NbtList list = Nbts.list(nbt, "Areas", NbtCompound.class);
 		for (int index = 0; index < list.size(); index++) {
-			NbtCompound item = list.getCompound(index);
-			int[] box = item.getIntArray("Box");
-			if (box.length != 6 || !item.containsUuid("Player")) {
+			NbtCompound item = list.getCompoundOrEmpty(index);
+			int[] box = Nbts.ints(item, "Box");
+			if (box.length != 6 || !Nbts.containsUuid(item, "Player")) {
 				TheDreamTableMod.LOGGER.error("Keeping farm area record #{} unchanged: it has no box or player", index);
 				state.unreadable.add(item.copy());
 				continue;
@@ -710,7 +711,7 @@ public final class FarmAreas extends PersistentState {
 			try {
 				Kind kind = kindOf(item);
 				Built built = kind == Kind.FINISHED ? readBuilt(state, item, instanceIds) : null;
-				Key key = new Key(item.getLong("Table"), item.getUuid("Player"), kind, item.getLong("Spot"));
+				Key key = new Key(item.getLong("Table", 0L), Nbts.getUuid(item, "Player"), kind, item.getLong("Spot", 0L));
 				state.areas.put(key, new Area(new Box(box[0], box[1], box[2], box[3], box[4], box[5]), built));
 			} catch (RuntimeException corrupt) {
 				// One malformed record must not discard the dimension's other farms, nor be deleted by the next save.
@@ -727,24 +728,24 @@ public final class FarmAreas extends PersistentState {
 	 * matches, and are saved again with it.
 	 */
 	private static Built readBuilt(FarmAreas state, NbtCompound item, Set<UUID> instanceIds) {
-		UUID instanceId = item.containsUuid("InstanceId") ? item.getUuid("InstanceId") : null;
+		UUID instanceId = Nbts.containsUuid(item, "InstanceId") ? Nbts.getUuid(item, "InstanceId") : null;
 		if (instanceId == null || !instanceIds.add(instanceId)) {
 			int salt = 0;
 			do {
-				String seed = item.getUuid("Player") + ":" + item.getLong("Table") + ":" + item.getLong("Spot") + ":" + salt++;
+				String seed = Nbts.getUuid(item, "Player") + ":" + item.getLong("Table", 0L) + ":" + item.getLong("Spot", 0L) + ":" + salt++;
 				instanceId = UUID.nameUUIDFromBytes(seed.getBytes(StandardCharsets.UTF_8));
 			} while (!instanceIds.add(instanceId));
 			state.markDirty();
 		}
-		String farmId = FarmTemplates.baseId(item.getString("Farm"));
-		long signature = item.getLong("FarmSignature");
+		String farmId = FarmTemplates.baseId(item.getString("Farm", ""));
+		long signature = item.getLong("FarmSignature", 0L);
 		FarmTemplate layout = null;
-		if (item.contains("Layout", NbtElement.COMPOUND_TYPE)) {
-			String layoutId = item.contains("LayoutId", NbtElement.STRING_TYPE)
-					? item.getString("LayoutId") : FarmTemplates.newSavedId(farmId, signature);
-			layout = TemplateCodec.decode(layoutId, item.getCompound("Layout"));
+		if (Nbts.hasCompound(item, "Layout")) {
+			String layoutId = Nbts.hasString(item, "LayoutId")
+					? item.getString("LayoutId", "") : FarmTemplates.newSavedId(farmId, signature);
+			layout = TemplateCodec.decode(layoutId, item.getCompoundOrEmpty("Layout"));
 			FarmTemplates.keepSaved(layout);
-			if (!item.contains("LayoutId", NbtElement.STRING_TYPE)) {
+			if (!Nbts.hasString(item, "LayoutId")) {
 				state.markDirty();
 			}
 		} else {
@@ -755,8 +756,8 @@ public final class FarmAreas extends PersistentState {
 			}
 		}
 		String customName = null;
-		if (item.contains("CustomName", NbtElement.STRING_TYPE)) {
-			FarmNames.Validation validation = FarmNames.validate(item.getString("CustomName"));
+		if (Nbts.hasString(item, "CustomName")) {
+			FarmNames.Validation validation = FarmNames.validate(item.getString("CustomName", ""));
 			if (validation.result() == FarmNames.Result.VALID) {
 				customName = validation.name();
 			} else {
@@ -767,15 +768,15 @@ public final class FarmAreas extends PersistentState {
 		if (lease != null) {
 			state.repairLeases.put(instanceId, lease);
 		}
-		if (item.contains("Alerts", NbtElement.COMPOUND_TYPE)) {
-			state.alerts.put(instanceId, FarmAlerts.read(item.getCompound("Alerts")));
+		if (Nbts.hasCompound(item, "Alerts")) {
+			state.alerts.put(instanceId, FarmAlerts.read(item.getCompoundOrEmpty("Alerts")));
 		}
-		boolean steps = item.contains("PlacedSteps", NbtElement.LONG_ARRAY_TYPE) && item.contains("PaidSteps", NbtElement.LONG_ARRAY_TYPE);
-		BitSet placed = steps ? BitSet.valueOf(item.getLongArray("PlacedSteps")) : every(layout);
-		BitSet paid = steps ? BitSet.valueOf(item.getLongArray("PaidSteps")) : every(layout);
+		boolean steps = Nbts.hasLongArray(item, "PlacedSteps") && Nbts.hasLongArray(item, "PaidSteps");
+		BitSet placed = steps ? BitSet.valueOf(Nbts.longs(item, "PlacedSteps")) : every(layout);
+		BitSet paid = steps ? BitSet.valueOf(Nbts.longs(item, "PaidSteps")) : every(layout);
 		// Collaborator, invite and payer data saved by earlier versions is not read and is dropped on the next save.
-		return new Built(instanceId, farmId, signature, FarmSite.read(item.getCompound("Site")), MaterialLedger.readSwaps(item), customName,
-				item.getLong("FinishedAt"), layout, placed, paid);
+		return new Built(instanceId, farmId, signature, FarmSite.read(item.getCompoundOrEmpty("Site")), MaterialLedger.readSwaps(item), customName,
+				item.getLong("FinishedAt", 0L), layout, placed, paid);
 	}
 
 	/** A copy of the design under its saved id, kept in {@link FarmTemplates} so builds and take-aparts can find it. */
@@ -787,13 +788,13 @@ public final class FarmAreas extends PersistentState {
 
 	/** Areas saved by 1.1.3 only had a Dismantling flag. */
 	private static Kind kindOf(NbtCompound item) {
-		if (item.contains("Kind", NbtElement.STRING_TYPE)) {
+		if (Nbts.hasString(item, "Kind")) {
 			for (Kind kind : Kind.values()) {
-				if (kind.name().equals(item.getString("Kind"))) {
+				if (kind.name().equals(item.getString("Kind", ""))) {
 					return kind;
 				}
 			}
 		}
-		return item.getBoolean("Dismantling") ? Kind.DISMANTLE : Kind.BUILD;
+		return item.getBoolean("Dismantling", false) ? Kind.DISMANTLE : Kind.BUILD;
 	}
 }

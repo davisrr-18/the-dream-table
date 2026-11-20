@@ -1,8 +1,8 @@
 package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.GameSetup;
+import com.davisr.thedreamtable.Nbts;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -36,11 +36,11 @@ class FarmAreasLegacyRecordTest {
 		FarmSite site = new FarmSite(new BlockPos(0, 64, 0), new BlockPos(10, 64, 10), Direction.NORTH);
 		areas.recordFinished(OWNER, FarmTemplates.get(FarmOptions.SUGAR_CANE.id()), site, Map.of(), INSTANCE, "My Cane");
 		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
-		NbtCompound item = nbt.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0);
+		NbtCompound item = nbt.getListOrEmpty("Areas").getCompoundOrEmpty(0);
 
 		NbtList grants = new NbtList();
 		NbtCompound grant = new NbtCompound();
-		grant.putUuid("Player", FORMER_OPERATOR);
+		Nbts.putUuid(grant, "Player", FORMER_OPERATOR);
 		grant.putString("Role", "OPERATOR");
 		grant.putLong("AcceptedAt", 5L);
 		grants.add(grant);
@@ -48,8 +48,8 @@ class FarmAreasLegacyRecordTest {
 
 		NbtList invites = new NbtList();
 		NbtCompound invite = new NbtCompound();
-		invite.putUuid("InviteId", UUID.fromString("60000000-0000-0000-0000-000000000006"));
-		invite.putUuid("Player", FORMER_VIEWER);
+		Nbts.putUuid(invite, "InviteId", UUID.fromString("60000000-0000-0000-0000-000000000006"));
+		Nbts.putUuid(invite, "Player", FORMER_VIEWER);
 		invite.putString("Role", "VIEWER");
 		invite.putLong("CreatedAt", 1L);
 		invite.putLong("ExpiresAt", 1L + Duration.ofDays(7).toMillis());
@@ -58,7 +58,7 @@ class FarmAreasLegacyRecordTest {
 
 		NbtList paidBy = new NbtList();
 		NbtCompound payer = new NbtCompound();
-		payer.putUuid("Player", FORMER_OPERATOR);
+		Nbts.putUuid(payer, "Player", FORMER_OPERATOR);
 		payer.putLongArray("Steps", new long[]{1L});
 		paidBy.add(payer);
 		item.put("PaidBy", paidBy);
@@ -82,13 +82,13 @@ class FarmAreasLegacyRecordTest {
 	@Test
 	void legacyCollaboratorDataIsNotWrittenAgain() {
 		NbtCompound saved = FarmAreas.read(legacySave(), null).writeNbt(new NbtCompound(), null);
-		NbtCompound item = saved.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0);
+		NbtCompound item = saved.getListOrEmpty("Areas").getCompoundOrEmpty(0);
 
 		assertFalse(item.contains("Grants"));
 		assertFalse(item.contains("Invites"));
 		assertFalse(item.contains("PaidBy"));
-		assertEquals("My Cane", item.getString("CustomName"));
-		assertEquals(OWNER, item.getUuid("Player"));
-		assertEquals(INSTANCE, item.getUuid("InstanceId"));
+		assertEquals("My Cane", item.getString("CustomName", ""));
+		assertEquals(OWNER, Nbts.getUuid(item, "Player"));
+		assertEquals(INSTANCE, Nbts.getUuid(item, "InstanceId"));
 	}
 }

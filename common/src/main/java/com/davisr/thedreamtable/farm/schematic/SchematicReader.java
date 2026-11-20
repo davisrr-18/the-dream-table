@@ -1,5 +1,7 @@
 package com.davisr.thedreamtable.farm.schematic;
 
+import com.davisr.thedreamtable.DataFixes;
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmStep;
 import com.davisr.thedreamtable.farm.FarmTemplate;
@@ -8,7 +10,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.PlantBlock;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.nbt.NbtSizeValidationException;
@@ -92,10 +93,12 @@ public final class SchematicReader {
 
 	/** @param stripContents drops the items held by block entities, true for a player's file and false for bundled farms. */
 	static Result fromRoot(String id, NbtCompound root, boolean stripContents) {
-		if (root.contains("Schematic", NbtElement.COMPOUND_TYPE)) {
-			root = root.getCompound("Schematic");
+		if (Nbts.hasCompound(root, "Schematic")) {
+			root = root.getCompoundOrEmpty("Schematic");
 		}
 		StepCollector collector = new StepCollector(stripContents);
+		// Litematica names the Minecraft version it wrote for; Sponge and the vanilla structure format call it DataVersion.
+		collector.dataVersion(root.getInt("MinecraftDataVersion", root.getInt("DataVersion", DataFixes.ASSUMED)));
 		if (LitematicaReader.accepts(root)) {
 			LitematicaReader.read(root, collector);
 		} else if (SpongeReader.accepts(root)) {

@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.entity.MaterialLedger;
@@ -13,7 +14,7 @@ import net.minecraft.inventory.Inventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtLong;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -394,7 +395,7 @@ public final class FarmDismantler {
 	}
 
 	public void write(NbtCompound nbt) {
-		nbt.putUuid("Player", player);
+		Nbts.putUuid(nbt, "Player", player);
 		nbt.putString("Farm", farmId);
 		nbt.putLong("FarmSignature", signature);
 		NbtCompound where = new NbtCompound();
@@ -412,8 +413,8 @@ public final class FarmDismantler {
 		}
 		nbt.putLongArray("Standing", standing.toLongArray());
 		if (identity != null) {
-			nbt.putUuid("Instance", identity.instanceId());
-			nbt.putUuid("Owner", identity.owner());
+			Nbts.putUuid(nbt, "Instance", identity.instanceId());
+			Nbts.putUuid(nbt, "Owner", identity.owner());
 			if (identity.customName() != null) {
 				nbt.putString("CustomName", identity.customName());
 			}
@@ -436,42 +437,42 @@ public final class FarmDismantler {
 	/** The area claim a saved job holds, read without its layout, so the claim of a job that can't be read is still freed. Null when even that is unreadable. */
 	public static FarmAreas.@Nullable Key claimOf(NbtCompound nbt) {
 		try {
-			if (!nbt.containsUuid("Player")) {
+			if (!Nbts.containsUuid(nbt, "Player")) {
 				return null;
 			}
-			long areaSpot = nbt.contains("AreaSpot", NbtElement.LONG_TYPE) ? nbt.getLong("AreaSpot") : 0L;
-			BlockPos host = nbt.contains("Host", NbtElement.LONG_TYPE) ? BlockPos.fromLong(nbt.getLong("Host")) : FarmSite.read(nbt.getCompound("Site")).table();
-			return FarmAreas.Key.dismantle(host, nbt.getUuid("Player"), areaSpot);
+			long areaSpot = nbt.get("AreaSpot") instanceof NbtLong ? nbt.getLong("AreaSpot", 0L) : 0L;
+			BlockPos host = nbt.get("Host") instanceof NbtLong ? BlockPos.fromLong(nbt.getLong("Host", 0L)) : FarmSite.read(nbt.getCompoundOrEmpty("Site")).table();
+			return FarmAreas.Key.dismantle(host, Nbts.getUuid(nbt, "Player"), areaSpot);
 		} catch (RuntimeException unreadable) {
 			return null;
 		}
 	}
 
 	private static @Nullable FarmDismantler readJob(NbtCompound nbt) {
-		if (!nbt.containsUuid("Player")) {
+		if (!Nbts.containsUuid(nbt, "Player")) {
 			return null;
 		}
-		long areaSpot = nbt.contains("AreaSpot", NbtElement.LONG_TYPE) ? nbt.getLong("AreaSpot") : 0L;
-		String farmId = nbt.getString("Farm");
-		FarmSite site = FarmSite.read(nbt.getCompound("Site"));
+		long areaSpot = nbt.get("AreaSpot") instanceof NbtLong ? nbt.getLong("AreaSpot", 0L) : 0L;
+		String farmId = nbt.getString("Farm", "");
+		FarmSite site = FarmSite.read(nbt.getCompoundOrEmpty("Site"));
 		FarmTemplate layout = null;
-		if (nbt.contains("Layout", NbtElement.COMPOUND_TYPE)) {
-			layout = TemplateCodec.decode(farmId, nbt.getCompound("Layout"));
+		if (Nbts.hasCompound(nbt, "Layout")) {
+			layout = TemplateCodec.decode(farmId, nbt.getCompoundOrEmpty("Layout"));
 			FarmTemplates.keepSaved(layout);
 		}
-		BlockPos host = nbt.contains("Host", NbtElement.LONG_TYPE) ? BlockPos.fromLong(nbt.getLong("Host")) : site.table();
+		BlockPos host = nbt.get("Host") instanceof NbtLong ? BlockPos.fromLong(nbt.getLong("Host", 0L)) : site.table();
 		Identity identity = null;
-		if (nbt.containsUuid("Instance") && nbt.containsUuid("Owner")) {
-			String name = nbt.contains("CustomName", NbtElement.STRING_TYPE) ? nbt.getString("CustomName") : null;
-			identity = new Identity(nbt.getUuid("Instance"), nbt.getUuid("Owner"), name,
-					nbt.contains("Alerts", NbtElement.COMPOUND_TYPE) ? nbt.getCompound("Alerts") : null);
+		if (Nbts.containsUuid(nbt, "Instance") && Nbts.containsUuid(nbt, "Owner")) {
+			String name = Nbts.hasString(nbt, "CustomName") ? nbt.getString("CustomName", "") : null;
+			identity = new Identity(Nbts.getUuid(nbt, "Instance"), Nbts.getUuid(nbt, "Owner"), name,
+					Nbts.hasCompound(nbt, "Alerts") ? nbt.getCompoundOrEmpty("Alerts") : null);
 		}
 		// Collaborator, invite and payer data saved by earlier versions is not read and is dropped on the next save.
-		FarmDismantler job = new FarmDismantler(nbt.getUuid("Player"), farmId, nbt.getLong("FarmSignature"), site, MaterialLedger.readSwaps(nbt),
-				BitSet.valueOf(nbt.getLongArray("PlacedSteps")), BitSet.valueOf(nbt.getLongArray("PaidSteps")), nbt.getInt("Next") + 1, areaSpot, host, layout,
+		FarmDismantler job = new FarmDismantler(Nbts.getUuid(nbt, "Player"), farmId, nbt.getLong("FarmSignature", 0L), site, MaterialLedger.readSwaps(nbt),
+				BitSet.valueOf(Nbts.longs(nbt, "PlacedSteps")), BitSet.valueOf(Nbts.longs(nbt, "PaidSteps")), nbt.getInt("Next", 0) + 1, areaSpot, host, layout,
 				identity);
-		job.removed = nbt.getInt("Removed");
-		job.standing.or(BitSet.valueOf(nbt.getLongArray("Standing")));
+		job.removed = nbt.getInt("Removed", 0);
+		job.standing.or(BitSet.valueOf(Nbts.longs(nbt, "Standing")));
 		return job;
 	}
 }

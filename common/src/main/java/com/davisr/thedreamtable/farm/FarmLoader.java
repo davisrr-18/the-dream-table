@@ -1,11 +1,11 @@
 package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.DreamTableConfig;
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.registry.ModTicketTypes;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
 import net.minecraft.registry.RegistryWrapper;
@@ -18,6 +18,7 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.GameRules;
 import net.minecraft.world.PersistentState;
+import net.minecraft.world.PersistentStateType;
 import net.minecraft.world.chunk.WorldChunk;
 
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -47,7 +48,7 @@ import java.util.UUID;
  */
 public final class FarmLoader extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_loaded_farms";
-	private static final Type<FarmLoader> TYPE = new Type<>(FarmLoader::new, FarmLoader::read, null);
+	static final PersistentStateType<FarmLoader> TYPE = SavedState.type(STATE_KEY, FarmLoader::new, nbt -> read(nbt, null), state -> state.writeNbt(new NbtCompound(), null));
 	private static final int INTERVAL_TICKS = 100;
 	/** Radius 2 makes the farm's chunk entity-ticking, which item drops and golems need. */
 	private static final int RADIUS = 2;
@@ -205,7 +206,7 @@ public final class FarmLoader extends PersistentState {
 	}
 
 	public static FarmLoader of(MinecraftServer server) {
-		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
+		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE);
 	}
 
 	/** Every finished farm of the player, newest first, and whether each is picked. */
@@ -433,7 +434,7 @@ public final class FarmLoader extends PersistentState {
 		}
 	}
 
-	@Override
+	/** Writes the state in the format 1.21.1 saved; {@link #read} is its inverse. The lookup is unused. */
 	public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		NbtCompound players = new NbtCompound();
 		for (Map.Entry<UUID, Set<String>> entry : picked.entrySet()) {
@@ -450,7 +451,7 @@ public final class FarmLoader extends PersistentState {
 	/** Reads at most the server's hard limit of picked farms per player, so a corrupt list stays bounded. */
 	static FarmLoader read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		FarmLoader loader = new FarmLoader();
-		NbtCompound players = nbt.getCompound("Players");
+		NbtCompound players = nbt.getCompoundOrEmpty("Players");
 		for (String player : players.getKeys()) {
 			UUID id;
 			try {
@@ -459,9 +460,9 @@ public final class FarmLoader extends PersistentState {
 				continue;
 			}
 			Set<String> keys = new LinkedHashSet<>();
-			NbtList list = players.getList(player, NbtElement.STRING_TYPE);
+			NbtList list = Nbts.list(players, player, NbtString.class);
 			for (int index = 0; index < Math.min(list.size(), DreamTableConfig.MAX_LOADED_LIMIT); index++) {
-				keys.add(list.getString(index));
+				list.getString(index).ifPresent(keys::add);
 			}
 			loader.picked.put(id, keys);
 		}

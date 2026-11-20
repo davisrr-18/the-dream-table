@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.Nbts;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
@@ -88,12 +89,12 @@ class FarmPreferencesTest {
 		NbtCompound saved = preferences.writeNbt(new NbtCompound(), null);
 		NbtList viewersBreak = new NbtList();
 		NbtCompound viewer = new NbtCompound();
-		viewer.putUuid("Player", BOB);
+		Nbts.putUuid(viewer, "Player", BOB);
 		viewersBreak.add(viewer);
 		saved.put("ViewersBreak", viewersBreak);
 		NbtList declining = new NbtList();
 		NbtCompound decliner = new NbtCompound();
-		decliner.putUuid("Player", BOB);
+		Nbts.putUuid(decliner, "Player", BOB);
 		declining.add(decliner);
 		saved.put("DecliningInvites", declining);
 
@@ -184,7 +185,7 @@ class FarmPreferencesTest {
 	void hostileSavedCollectionsAreBoundedAndInvalidCursorsAreIgnored() {
 		NbtCompound nbt = new NbtCompound();
 		NbtCompound player = new NbtCompound();
-		player.putUuid("Player", ALICE);
+		Nbts.putUuid(player, "Player", ALICE);
 		NbtList favorites = new NbtList();
 		for (int index = 0; index < 5000; index++) {
 			favorites.add(NbtString.of(new FarmKey(Identifier.of("minecraft", "overworld"), new UUID(0L, index + 1L)).externalForm()));
@@ -201,8 +202,8 @@ class FarmPreferencesTest {
 		nbt.put("Players", players);
 
 		FarmPreferences restored = FarmPreferences.read(nbt, null);
-		NbtList savedFavorites = restored.writeNbt(new NbtCompound(), null).getList("Players", 10)
-				.getCompound(0).getList("Favorites", 8);
+		NbtList savedFavorites = restored.writeNbt(new NbtCompound(), null).getListOrEmpty("Players")
+				.getCompoundOrEmpty(0).getListOrEmpty("Favorites");
 
 		assertEquals(4096, savedFavorites.size());
 		assertEquals(0L, restored.acknowledgement(ALICE, FIRST));
@@ -214,7 +215,7 @@ class FarmPreferencesTest {
 
 		preferences.setFavorite(ALICE, FIRST, false);
 
-		assertEquals(0, preferences.writeNbt(new NbtCompound(), null).getList("Players", 10).size());
+		assertEquals(0, preferences.writeNbt(new NbtCompound(), null).getListOrEmpty("Players").size());
 		assertFalse(preferences.isDirty());
 	}
 
@@ -228,8 +229,8 @@ class FarmPreferencesTest {
 		FarmKey overflow = new FarmKey(Identifier.of("minecraft", "overworld"), new UUID(40L, Long.MAX_VALUE));
 
 		assertFalse(preferences.setFavorite(ALICE, overflow, true));
-		NbtList saved = preferences.writeNbt(new NbtCompound(), null).getList("Players", 10)
-				.getCompound(0).getList("Favorites", 8);
+		NbtList saved = preferences.writeNbt(new NbtCompound(), null).getListOrEmpty("Players")
+				.getCompoundOrEmpty(0).getListOrEmpty("Favorites");
 		assertEquals(FarmPreferences.MAX_SAVED_FARMS_PER_PLAYER, saved.size());
 	}
 }

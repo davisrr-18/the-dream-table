@@ -1,10 +1,12 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.DataFixes;
+import com.davisr.thedreamtable.Nbts;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.EntityType;
 import net.minecraft.item.Item;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtHelper;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
@@ -75,6 +77,9 @@ public final class TemplateCodec {
 			}
 		}
 		NbtCompound nbt = new NbtCompound();
+		// The game's data version at the time: ids are kept as written, and decode updates older ones by it. Designs
+		// saved before 1.21.11 have none and read as written by 1.21.1.
+		nbt.putInt("DataVersion", DataFixes.current());
 		nbt.put("Palette", palette);
 		nbt.put("Items", itemIds);
 		nbt.put("Entities", entities);
@@ -90,40 +95,42 @@ public final class TemplateCodec {
 	}
 
 	public static FarmTemplate decode(String id, NbtCompound nbt) {
-		NbtList palette = nbt.getList("Palette", NbtElement.COMPOUND_TYPE);
+		// The list readers throw on a wrong-typed entry: a malformed saved layout must fail whole (and be kept as it was
+		// by the caller), never decode with placeholder entries.
+		int from = nbt.getInt("DataVersion", DataFixes.ASSUMED);
 		List<BlockState> states = new ArrayList<>();
-		for (int index = 0; index < palette.size(); index++) {
-			states.add(NbtHelper.toBlockState(Registries.BLOCK.getReadOnlyWrapper(), palette.getCompound(index)));
+		for (NbtCompound entry : Nbts.compounds(nbt, "Palette")) {
+			states.add(NbtHelper.toBlockState(Registries.BLOCK, DataFixes.blockState(entry, from)));
 		}
-		NbtList itemIds = nbt.getList("Items", NbtElement.STRING_TYPE);
 		List<Item> items = new ArrayList<>();
-		for (int index = 0; index < itemIds.size(); index++) {
-			Identifier itemId = Identifier.tryParse(itemIds.getString(index));
-			items.add(itemId == null ? null : Registries.ITEM.get(itemId));
+		for (String raw : Nbts.strings(nbt, "Items")) {
+			Identifier itemId = Identifier.tryParse(DataFixes.itemName(raw, from));
+			// An item this game no longer has reads as air, as the registry's default did before 1.21.2 (get is nullable now).
+			items.add(itemId == null ? null : Registries.ITEM.getOptionalValue(itemId).orElse(Items.AIR));
 		}
-		NbtList entities = nbt.getList("Entities", NbtElement.COMPOUND_TYPE);
-		int[] x = nbt.getIntArray("X");
-		int[] y = nbt.getIntArray("Y");
-		int[] z = nbt.getIntArray("Z");
-		int[] state = nbt.getIntArray("State");
-		int[] item = nbt.getIntArray("Item");
+		List<NbtCompound> entities = Nbts.compounds(nbt, "Entities");
+		int[] x = Nbts.ints(nbt, "X");
+		int[] y = Nbts.ints(nbt, "Y");
+		int[] z = Nbts.ints(nbt, "Z");
+		int[] state = Nbts.ints(nbt, "State");
+		int[] item = Nbts.ints(nbt, "Item");
 		Map<Integer, NbtCompound> blockData = new HashMap<>();
-		NbtList dataList = nbt.getList("BlockData", NbtElement.COMPOUND_TYPE);
-		for (int index = 0; index < dataList.size(); index++) {
-			NbtCompound data = dataList.getCompound(index);
-			blockData.put(data.getInt("Step"), data.getCompound("Nbt"));
+		for (NbtCompound data : Nbts.compounds(nbt, "BlockData")) {
+			blockData.put(data.getInt("Step", 0), data.getCompoundOrEmpty("Nbt"));
 		}
 		List<FarmStep> steps = new ArrayList<>();
 		int entity = 0;
 		for (int index = 0; index < x.length; index++) {
 			Item cost = item[index] == NONE ? null : items.get(item[index]);
 			if (state[index] == NONE) {
-				NbtCompound data = entities.getCompound(entity++);
-				EntityType<?> type = EntityType.get(data.getString("Id")).orElse(null);
+				// Past the end reads as an empty entry (the entity is skipped), as the old list getter did.
+				NbtCompound data = entity < entities.size() ? entities.get(entity) : new NbtCompound();
+				entity++;
+				EntityType<?> type = EntityType.get(DataFixes.entityName(data.getString("Id", ""), from)).orElse(null);
 				if (type == null) {
 					continue;
 				}
-				int flags = data.getInt("Flags");
+				int flags = data.getInt("Flags", 0);
 				FarmStep step = (flags & MINECART) != 0
 						? FarmStep.minecart(x[index], y[index], z[index], type)
 						: FarmStep.entity(x[index], y[index], z[index], type, (flags & NO_AI) != 0);

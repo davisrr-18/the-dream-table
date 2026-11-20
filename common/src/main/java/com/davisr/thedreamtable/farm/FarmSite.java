@@ -66,11 +66,11 @@ public record FarmSite(BlockPos table, @Nullable BlockPos anchor, Direction faci
 	}
 
 	public static FarmSite read(NbtCompound nbt) {
-		Direction facing = Direction.byName(nbt.getString("Facing"));
+		Direction facing = Direction.byId(nbt.getString("Facing", ""));
 		return new FarmSite(
-				BlockPos.fromLong(nbt.getLong("Table")),
-				nbt.contains("Anchor") ? BlockPos.fromLong(nbt.getLong("Anchor")) : null,
+				BlockPos.fromLong(nbt.getLong("Table", 0L)),
+				nbt.contains("Anchor") ? BlockPos.fromLong(nbt.getLong("Anchor", 0L)) : null,
 				facing != null && facing.getAxis().isHorizontal() ? facing : Direction.SOUTH,
-				nbt.getBoolean("Mirrored"));
+				nbt.getBoolean("Mirrored", false));
 	}
 }

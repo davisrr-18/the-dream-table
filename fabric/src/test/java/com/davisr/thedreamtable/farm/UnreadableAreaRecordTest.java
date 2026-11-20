@@ -1,8 +1,8 @@
 package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.GameSetup;
+import com.davisr.thedreamtable.Nbts;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
@@ -32,7 +32,7 @@ class UnreadableAreaRecordTest {
 		FarmSite site = new FarmSite(new BlockPos(0, 64, 0), new BlockPos(10, 64, 10), Direction.NORTH);
 		areas.recordFinished(OWNER, FarmTemplates.get(FarmOptions.SUGAR_CANE.id()), site, Map.of(), INSTANCE, "My Cane");
 		NbtCompound nbt = areas.writeNbt(new NbtCompound(), null);
-		nbt.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0).remove("Player");
+		nbt.getListOrEmpty("Areas").getCompoundOrEmpty(0).remove("Player");
 		return nbt;
 	}
 
@@ -40,7 +40,7 @@ class UnreadableAreaRecordTest {
 	void anUnreadableRecordStillHoldsItsBox() {
 		NbtCompound nbt = unreadableSave();
 		FarmAreas read = FarmAreas.read(nbt, null);
-		int[] saved = nbt.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0).getIntArray("Box");
+		int[] saved = Nbts.ints(nbt.getListOrEmpty("Areas").getCompoundOrEmpty(0), "Box");
 		Box area = new Box(saved[0], saved[1], saved[2], saved[3], saved[4], saved[5]);
 		assertEquals(1, read.unreadableCount());
 		assertTrue(read.unreadableCovers(box -> box.intersects(area)));
@@ -51,9 +51,9 @@ class UnreadableAreaRecordTest {
 	@Test
 	void theRecordIsSavedAsItWas() {
 		NbtCompound nbt = unreadableSave();
-		NbtCompound original = nbt.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0).copy();
+		NbtCompound original = nbt.getListOrEmpty("Areas").getCompoundOrEmpty(0).copy();
 		NbtCompound back = FarmAreas.read(nbt, null).writeNbt(new NbtCompound(), null);
-		assertEquals(original, back.getList("Areas", NbtElement.COMPOUND_TYPE).getCompound(0));
-		assertEquals(1, back.getList("Areas", NbtElement.COMPOUND_TYPE).size());
+		assertEquals(original, back.getListOrEmpty("Areas").getCompoundOrEmpty(0));
+		assertEquals(1, back.getListOrEmpty("Areas").size());
 	}
 }

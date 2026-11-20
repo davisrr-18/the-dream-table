@@ -1,14 +1,16 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.block.entity.TableSession;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.NbtLong;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.PersistentState;
+import net.minecraft.world.PersistentStateType;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -30,7 +32,7 @@ import java.util.function.Predicate;
  */
 public final class ParkedProjects extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_parked_projects";
-	private static final Type<ParkedProjects> TYPE = new Type<>(ParkedProjects::new, ParkedProjects::read, null);
+	static final PersistentStateType<ParkedProjects> TYPE = SavedState.type(STATE_KEY, ParkedProjects::new, nbt -> read(nbt, null), state -> state.writeNbt(new NbtCompound(), null));
 	static final int MAX_PLAYERS = 4096;
 	static final int MAX_PER_PLAYER = 16;
 	/** Key for an unreadable saved session that names no player. No player has this id, so nobody is offered its projects, and it reserves nothing. */
@@ -60,7 +62,7 @@ public final class ParkedProjects extends PersistentState {
 	private long reservationsRevision;
 
 	public static ParkedProjects of(MinecraftServer server) {
-		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
+		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE);
 	}
 
 	/** Whether one more project can be kept for the player within the limits, held builds included. */
@@ -195,10 +197,10 @@ public final class ParkedProjects extends PersistentState {
 			found.add(new Found(seat, reservation));
 			return false;
 		}
-		return project.contains("MovedBuildDimension", NbtElement.STRING_TYPE) && FarmTemplates.get(project.getString("SelectedFarm")) == null;
+		return Nbts.hasString(project, "MovedBuildDimension") && FarmTemplates.get(project.getString("SelectedFarm", "")) == null;
 	}
 
-	@Override
+	/** Writes the state in the format 1.21.1 saved; {@link #read} is its inverse. The lookup is unused. */
 	public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		NbtCompound players = new NbtCompound();
 		for (Map.Entry<UUID, List<NbtCompound>> entry : parked.entrySet()) {
@@ -210,7 +212,7 @@ public final class ParkedProjects extends PersistentState {
 		NbtList holds = new NbtList();
 		for (Hold hold : held) {
 			NbtCompound entry = new NbtCompound();
-			entry.putUuid("Player", hold.seat().player());
+			Nbts.putUuid(entry, "Player", hold.seat().player());
 			entry.putString("World", hold.seat().world().toString());
 			entry.putLong("Table", hold.seat().table());
 			entry.put("Project", hold.project().copy());
@@ -226,7 +228,7 @@ public final class ParkedProjects extends PersistentState {
 	 */
 	static ParkedProjects read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		ParkedProjects state = new ParkedProjects();
-		NbtCompound players = nbt.getCompound("Players");
+		NbtCompound players = nbt.getCompoundOrEmpty("Players");
 		for (String player : players.getKeys()) {
 			UUID id;
 			try {
@@ -234,24 +236,25 @@ public final class ParkedProjects extends PersistentState {
 			} catch (IllegalArgumentException malformed) {
 				continue;
 			}
-			NbtList saved = players.getList(player, NbtElement.COMPOUND_TYPE);
+			NbtList saved = Nbts.list(players, player, NbtCompound.class);
 			List<NbtCompound> projects = new ArrayList<>();
 			for (int index = 0; index < saved.size() && projects.size() < MAX_PER_PLAYER; index++) {
-				projects.add(saved.getCompound(index).copy());
+				projects.add(saved.getCompoundOrEmpty(index).copy());
 			}
 			if (!projects.isEmpty() && state.parked.size() < MAX_PLAYERS) {
 				state.parked.put(id, projects);
 			}
 		}
-		NbtList holds = nbt.getList("Held", NbtElement.COMPOUND_TYPE);
+		NbtList holds = Nbts.list(nbt, "Held", NbtCompound.class);
 		for (int index = 0; index < holds.size() && state.held.size() < MAX_PLAYERS; index++) {
-			NbtCompound entry = holds.getCompound(index);
-			Identifier world = Identifier.tryParse(entry.getString("World"));
-			if (world == null || !entry.containsUuid("Player") || !entry.contains("Table", NbtElement.LONG_TYPE)
-					|| !entry.contains("Project", NbtElement.COMPOUND_TYPE)) {
+			NbtCompound entry = holds.getCompoundOrEmpty(index);
+			Identifier world = Identifier.tryParse(entry.getString("World", ""));
+			// Table must be a real long, as before; Project a compound.
+			if (world == null || !Nbts.containsUuid(entry, "Player") || !(entry.get("Table") instanceof NbtLong)
+					|| !Nbts.hasCompound(entry, "Project")) {
 				continue;
 			}
-			state.held.add(new Hold(new Seat(entry.getUuid("Player"), world, entry.getLong("Table")), entry.getCompound("Project").copy()));
+			state.held.add(new Hold(new Seat(Nbts.getUuid(entry, "Player"), world, entry.getLong("Table", 0L)), entry.getCompoundOrEmpty("Project").copy()));
 		}
 		return state;
 	}

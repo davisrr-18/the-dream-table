@@ -1,10 +1,11 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmNames;
 import com.davisr.thedreamtable.farm.schematic.SchematicReader;
+import net.minecraft.nbt.NbtByte;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.BitSet;
@@ -290,7 +291,7 @@ final class BuildProgress {
 		nbt.putFloat("Credit", credit);
 		nbt.putInt("BlocksPerSecond", pace);
 		if (owner != null) {
-			nbt.putUuid("Owner", owner);
+			Nbts.putUuid(nbt, "Owner", owner);
 		}
 		nbt.putLong("FarmSignature", signature);
 		nbt.putLongArray("PlacedSteps", placed.toLongArray());
@@ -303,7 +304,7 @@ final class BuildProgress {
 			repairContext.write(nbt);
 		}
 		if (repairInstanceId != null) {
-			nbt.putUuid("RepairInstanceId", repairInstanceId);
+			Nbts.putUuid(nbt, "RepairInstanceId", repairInstanceId);
 		}
 		if (repairCustomName != null) {
 			nbt.putString("RepairCustomName", repairCustomName);
@@ -330,29 +331,29 @@ final class BuildProgress {
 	}
 
 	void read(NbtCompound nbt) {
-		String stored = nbt.getString("Phase");
+		String stored = nbt.getString("Phase", "");
 		phase = stored.isEmpty() ? PHASE_IDLE : stored;
-		index = clampIndex(nbt.getInt("BuildIndex"));
-		credit = Math.max(0, Math.min(1, nbt.getFloat("Credit")));
-		pace = BuildPace.valid(nbt.getInt("BlocksPerSecond"));
-		owner = nbt.containsUuid("Owner") ? nbt.getUuid("Owner") : null;
-		signature = nbt.getLong("FarmSignature");
+		index = clampIndex(nbt.getInt("BuildIndex", 0));
+		credit = Math.max(0, Math.min(1, nbt.getFloat("Credit", 0f)));
+		pace = BuildPace.valid(nbt.getInt("BlocksPerSecond", 0));
+		owner = Nbts.containsUuid(nbt, "Owner") ? Nbts.getUuid(nbt, "Owner") : null;
+		signature = nbt.getLong("FarmSignature", 0L);
 		placed.clear();
-		placed.or(BitSet.valueOf(nbt.getLongArray("PlacedSteps")));
+		placed.or(BitSet.valueOf(Nbts.longs(nbt, "PlacedSteps")));
 		paid.clear();
-		paid.or(BitSet.valueOf(nbt.getLongArray("PaidSteps")));
-		clearedLayers = nbt.contains("ClearedLayers", NbtElement.LONG_ARRAY_TYPE) ? BitSet.valueOf(nbt.getLongArray("ClearedLayers")) : null;
-		if (is(PHASE_DONE) && !nbt.contains("PlacedSteps", NbtElement.LONG_ARRAY_TYPE)) {
+		paid.or(BitSet.valueOf(Nbts.longs(nbt, "PaidSteps")));
+		clearedLayers = Nbts.hasLongArray(nbt, "ClearedLayers") ? BitSet.valueOf(Nbts.longs(nbt, "ClearedLayers")) : null;
+		if (is(PHASE_DONE) && !Nbts.hasLongArray(nbt, "PlacedSteps")) {
 			// Finished by a version that didn't record steps: its farm is taken down as a whole, like before.
 			placed.set(0, index);
 			paid.set(0, index);
 		}
-		repair = nbt.getBoolean("Repair");
+		repair = nbt.getBoolean("Repair", false);
 		if (repair) {
 			repairContext = RepairContext.read(nbt);
 			repairInstanceId = repairContext != null ? repairContext.farmKey().instanceId()
-					: nbt.containsUuid("RepairInstanceId") ? nbt.getUuid("RepairInstanceId") : UUID.randomUUID();
-			FarmNames.Validation name = FarmNames.validate(nbt.getString("RepairCustomName"));
+					: Nbts.containsUuid(nbt, "RepairInstanceId") ? Nbts.getUuid(nbt, "RepairInstanceId") : UUID.randomUUID();
+			FarmNames.Validation name = FarmNames.validate(nbt.getString("RepairCustomName", ""));
 			repairCustomName = name.result() == FarmNames.Result.VALID ? name.name() : null;
 		} else {
 			repairContext = null;
@@ -360,14 +361,14 @@ final class BuildProgress {
 			repairCustomName = null;
 		}
 		// "RepairGrants" and "RepairInvites" from earlier versions are not read and are dropped on the next save.
-		kept = nbt.getInt("Kept");
+		kept = nbt.getInt("Kept", 0);
 		// A DONE session saved without the flag counts as recorded, so a farm taken down or forgotten since can't come back by
 		// itself. Versions before 1.1.4-beta never recorded, though, so its first tick decides whether the farm still stands and
 		// has no record ({@link SessionBuild#legacyDecision}).
-		boolean flagged = nbt.contains("FinishedRecorded", NbtElement.BYTE_TYPE);
-		finishedRecorded = flagged ? nbt.getBoolean("FinishedRecorded") : is(PHASE_DONE);
+		boolean flagged = nbt.get("FinishedRecorded") instanceof NbtByte;
+		finishedRecorded = flagged ? nbt.getBoolean("FinishedRecorded", false) : is(PHASE_DONE);
 		legacyDone = !flagged && is(PHASE_DONE);
-		returnNotice = nbt.getString("ReturnNotice");
+		returnNotice = nbt.getString("ReturnNotice", "");
 		issue = BuildIssue.read(nbt);
 	}
 }

@@ -171,14 +171,14 @@ class SchematicValidationTest {
 		SchematicReader.Result result = read(root);
 		FarmStep step = result.template().steps().get(0);
 		assertNotNull(step.blockNbt());
-		assertEquals("\"Loot\"", step.blockNbt().getString("CustomName"));
+		assertEquals("\"Loot\"", step.blockNbt().getString("CustomName", ""));
 	}
 
 	@Test
 	void bigFilesWithManyContainersReadQuickly() {
 		int count = SchematicReader.MAX_BLOCKS;
 		NbtCompound root = structure(List.of("minecraft:chest"));
-		NbtList blocks = root.getList("blocks", 10);
+		NbtList blocks = root.getListOrEmpty("blocks");
 		for (int index = 0; index < count; index++) {
 			NbtCompound entry = new NbtCompound();
 			NbtList pos = new NbtList();
@@ -203,7 +203,7 @@ class SchematicValidationTest {
 		items.add(stack);
 		data.put("Items", items);
 		data.putString("CustomName", "Loot");
-		root.getList("blocks", 10).getCompound(0).put("nbt", data);
+		root.getListOrEmpty("blocks").getCompoundOrEmpty(0).put("nbt", data);
 		return root;
 	}
 
@@ -212,7 +212,7 @@ class SchematicValidationTest {
 		NbtCompound kept = read(chestStructure()).template().steps().get(0).blockNbt();
 		assertNotNull(kept);
 		assertFalse(kept.contains("Items"));
-		assertEquals("Loot", kept.getString("CustomName"));
+		assertEquals("Loot", kept.getString("CustomName", ""));
 	}
 
 	@Test

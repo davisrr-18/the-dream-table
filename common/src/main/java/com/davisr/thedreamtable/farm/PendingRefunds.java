@@ -1,9 +1,10 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.DataFixes;
 import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.item.Item;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtInt;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
@@ -11,6 +12,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.PersistentState;
+import net.minecraft.world.PersistentStateType;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -25,7 +27,7 @@ import java.util.UUID;
  */
 public final class PendingRefunds extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_pending_refunds";
-	private static final Type<PendingRefunds> TYPE = new Type<>(PendingRefunds::new, PendingRefunds::read, null);
+	static final PersistentStateType<PendingRefunds> TYPE = SavedState.type(STATE_KEY, PendingRefunds::new, nbt -> read(nbt, null), state -> state.writeNbt(new NbtCompound(), null));
 	private static final int CHECK_INTERVAL_TICKS = 40;
 	static final int MAX_PLAYERS = 4096;
 	static final int MAX_KINDS_PER_PLAYER = 256;
@@ -33,7 +35,7 @@ public final class PendingRefunds extends PersistentState {
 	private final Map<UUID, Map<String, Integer>> owed = new LinkedHashMap<>();
 
 	public static PendingRefunds of(MinecraftServer server) {
-		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, STATE_KEY);
+		return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE);
 	}
 
 	public static void register() {
@@ -92,10 +94,12 @@ public final class PendingRefunds extends PersistentState {
 		Iterator<Map.Entry<String, Integer>> entries = items.entrySet().iterator();
 		while (entries.hasNext()) {
 			Map.Entry<String, Integer> entry = entries.next();
-			Identifier id = Identifier.tryParse(entry.getKey());
-			Item item = id == null ? null : Registries.ITEM.getOrEmpty(id).orElse(null);
+			// A refund saved by 1.21.1 under an id the game has renamed since is still owed under its new id.
+			Identifier id = Identifier.tryParse(DataFixes.itemName(entry.getKey(), DataFixes.ASSUMED));
+			Item item = id == null ? null : Registries.ITEM.getOptionalValue(id).orElse(null);
 			if (item != null) {
-				now.put(item, entry.getValue());
+				// An id and its renamed successor are two keys but one item (a refund saved before and one after the rename): add them.
+				now.merge(item, entry.getValue(), (owedBefore, more) -> (int) Math.min(Integer.MAX_VALUE, (long) owedBefore + more));
 				entries.remove();
 			}
 		}
@@ -116,7 +120,7 @@ public final class PendingRefunds extends PersistentState {
 		}
 	}
 
-	@Override
+	/** Writes the state in the format 1.21.1 saved; {@link #read} is its inverse. The lookup is unused. */
 	public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		NbtCompound players = new NbtCompound();
 		for (Map.Entry<UUID, Map<String, Integer>> entry : owed.entrySet()) {
@@ -131,7 +135,7 @@ public final class PendingRefunds extends PersistentState {
 	/** Reads at most the limits of players and item kinds, so a corrupt file stays bounded; malformed entries are skipped. */
 	static PendingRefunds read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		PendingRefunds refunds = new PendingRefunds();
-		NbtCompound players = nbt.getCompound("Players");
+		NbtCompound players = nbt.getCompoundOrEmpty("Players");
 		for (String player : players.getKeys()) {
 			UUID id;
 			try {
@@ -139,11 +143,12 @@ public final class PendingRefunds extends PersistentState {
 			} catch (IllegalArgumentException malformed) {
 				continue;
 			}
-			NbtCompound saved = players.getCompound(player);
+			NbtCompound saved = players.getCompoundOrEmpty(player);
 			Map<String, Integer> items = new HashMap<>();
 			for (String item : saved.getKeys()) {
-				if (items.size() < MAX_KINDS_PER_PLAYER && saved.contains(item, NbtElement.INT_TYPE) && saved.getInt(item) > 0) {
-					items.put(item, saved.getInt(item));
+				// Only a real int counts, as before; a byte, long or string under an item key is skipped.
+				if (items.size() < MAX_KINDS_PER_PLAYER && saved.get(item) instanceof NbtInt count && count.intValue() > 0) {
+					items.put(item, count.intValue());
 				}
 			}
 			if (!items.isEmpty() && refunds.owed.size() < MAX_PLAYERS) {

@@ -1,9 +1,9 @@
 package com.davisr.thedreamtable.farm.schematic;
 
+import com.davisr.thedreamtable.Nbts;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 
 
@@ -13,11 +13,11 @@ final class SpongeReader {
 	}
 
 	static boolean accepts(NbtCompound root) {
-		return root.contains("BlockData", NbtElement.BYTE_ARRAY_TYPE) || nested(root);
+		return root.getByteArray("BlockData").isPresent() || nested(root);
 	}
 
 	static void read(NbtCompound root, StepCollector steps) {
-		NbtCompound blocks = nested(root) ? root.getCompound("Blocks") : root;
+		NbtCompound blocks = nested(root) ? root.getCompoundOrEmpty("Blocks") : root;
 		int width = NbtReading.number(root, "Width");
 		int height = NbtReading.number(root, "Height");
 		int length = NbtReading.number(root, "Length");
@@ -28,7 +28,7 @@ final class SpongeReader {
 		if (!(steps.side(width) & steps.side(height) & steps.side(length)) || !steps.reserve(width, height, length)) {
 			return;
 		}
-		NbtCompound paletteNbt = blocks.contains("Palette", NbtElement.COMPOUND_TYPE) ? blocks.getCompound("Palette") : root.getCompound("Palette");
+		NbtCompound paletteNbt = Nbts.hasCompound(blocks, "Palette") ? blocks.getCompoundOrEmpty("Palette") : root.getCompoundOrEmpty("Palette");
 		String[] names = names(paletteNbt);
 		if (names == null) {
 			steps.overflow();
@@ -36,13 +36,13 @@ final class SpongeReader {
 		}
 		BlockState[] palette = new BlockState[names.length];
 		for (int id = 0; id < names.length; id++) {
-			palette[id] = names[id] == null ? Blocks.AIR.getDefaultState() : NbtReading.state(names[id]);
+			palette[id] = names[id] == null ? Blocks.AIR.getDefaultState() : NbtReading.state(names[id], steps.dataVersion());
 		}
-		byte[] data = blocks.contains("Data", NbtElement.BYTE_ARRAY_TYPE) ? blocks.getByteArray("Data") : root.getByteArray("BlockData");
+		byte[] data = blocks.getByteArray("Data").orElseGet(() -> root.getByteArray("BlockData").orElseGet(() -> new byte[0]));
 		int[] cursor = {0};
 		readCells(steps, palette, names, data, cursor, width, height, length);
 		steps.blockEntities(blockEntities(root, blocks));
-		steps.entities(root.getList("Entities", NbtElement.COMPOUND_TYPE));
+		steps.entities(Nbts.list(root, "Entities", NbtCompound.class));
 	}
 
 	/** Cells are stored y, then z, then x, each as a palette varint. A null palette state is a block this game doesn't have. */
@@ -67,17 +67,17 @@ final class SpongeReader {
 	}
 
 	private static boolean nested(NbtCompound root) {
-		return root.contains("Blocks", NbtElement.COMPOUND_TYPE) && root.getCompound("Blocks").contains("Data", NbtElement.BYTE_ARRAY_TYPE);
+		return Nbts.hasCompound(root, "Blocks") && root.getCompoundOrEmpty("Blocks").getByteArray("Data").isPresent();
 	}
 
 	private static NbtList blockEntities(NbtCompound root, NbtCompound blocks) {
-		if (blocks.contains("BlockEntities", NbtElement.LIST_TYPE)) {
-			return blocks.getList("BlockEntities", NbtElement.COMPOUND_TYPE);
+		if (Nbts.hasList(blocks, "BlockEntities")) {
+			return Nbts.list(blocks, "BlockEntities", NbtCompound.class);
 		}
-		if (root.contains("BlockEntities", NbtElement.LIST_TYPE)) {
-			return root.getList("BlockEntities", NbtElement.COMPOUND_TYPE);
+		if (Nbts.hasList(root, "BlockEntities")) {
+			return Nbts.list(root, "BlockEntities", NbtCompound.class);
 		}
-		return root.getList("TileEntities", NbtElement.COMPOUND_TYPE);
+		return Nbts.list(root, "TileEntities", NbtCompound.class);
 	}
 
 	/** The palette key for each id; ids nothing uses stay null and read as air. Null when an id passes {@link SchematicReader#MAX_PALETTE}. */

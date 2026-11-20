@@ -1,9 +1,9 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmKey;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -148,19 +148,19 @@ class BuildProgressTest {
 		UUID farm = UUID.randomUUID();
 		NbtCompound nbt = new NbtCompound();
 		nbt.putBoolean("Repair", true);
-		nbt.putUuid("RepairInstanceId", farm);
+		Nbts.putUuid(nbt, "RepairInstanceId", farm);
 		nbt.putString("RepairCustomName", "River Farm");
 		NbtList grants = new NbtList();
 		NbtCompound grant = new NbtCompound();
-		grant.putUuid("Player", UUID.randomUUID());
+		Nbts.putUuid(grant, "Player", UUID.randomUUID());
 		grant.putString("Role", "OPERATOR");
 		grant.putLong("AcceptedAt", 123L);
 		grants.add(grant);
 		nbt.put("RepairGrants", grants);
 		NbtList invites = new NbtList();
 		NbtCompound invite = new NbtCompound();
-		invite.putUuid("InviteId", UUID.randomUUID());
-		invite.putUuid("Player", UUID.randomUUID());
+		Nbts.putUuid(invite, "InviteId", UUID.randomUUID());
+		Nbts.putUuid(invite, "Player", UUID.randomUUID());
 		invite.putString("Role", "VIEWER");
 		invites.add(invite);
 		nbt.put("RepairInvites", invites);
@@ -204,7 +204,7 @@ class BuildProgressTest {
 	@Test
 	void aNormalBuildIgnoresStrayRepairMetadata() {
 		NbtCompound nbt = new NbtCompound();
-		nbt.putUuid("RepairInstanceId", UUID.randomUUID());
+		Nbts.putUuid(nbt, "RepairInstanceId", UUID.randomUUID());
 		nbt.putString("RepairCustomName", "Injected");
 
 		BuildProgress loaded = new BuildProgress();
@@ -241,7 +241,7 @@ class BuildProgressTest {
 		UUID actor = UUID.randomUUID();
 		NbtCompound nbt = new NbtCompound();
 		nbt.putBoolean("Repair", true);
-		nbt.putUuid("Owner", actor);
+		Nbts.putUuid(nbt, "Owner", actor);
 
 		BuildProgress restored = new BuildProgress();
 		restored.read(nbt);
@@ -366,7 +366,7 @@ class BuildProgressTest {
 		progress.stop(DreamTableBlockEntity.PHASE_PAUSED);
 		NbtCompound nbt = new NbtCompound();
 		progress.write(nbt);
-		assertTrue(nbt.contains("ClearedLayers", NbtElement.LONG_ARRAY_TYPE));
+		assertTrue(Nbts.hasLongArray(nbt, "ClearedLayers"));
 
 		BuildProgress loaded = new BuildProgress();
 		loaded.read(nbt);
@@ -389,7 +389,7 @@ class BuildProgressTest {
 		progress.start(UUID.randomUUID(), true, 7L);
 		NbtCompound nbt = new NbtCompound();
 		progress.write(nbt);
-		assertTrue(nbt.contains("ClearedLayers", NbtElement.LONG_ARRAY_TYPE));
+		assertTrue(Nbts.hasLongArray(nbt, "ClearedLayers"));
 
 		BuildProgress loaded = new BuildProgress();
 		loaded.read(nbt);

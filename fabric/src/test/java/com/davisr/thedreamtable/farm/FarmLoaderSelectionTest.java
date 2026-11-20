@@ -62,7 +62,7 @@ class FarmLoaderSelectionTest {
 
 		assertEquals(FarmLoader.ToggleResult.NOT_FOUND, loader.toggleKnown(player, "forged", false));
 		assertFalse(loader.writeNbt(new net.minecraft.nbt.NbtCompound(), null)
-				.getCompound("Players").contains(player.toString()));
+				.getCompoundOrEmpty("Players").contains(player.toString()));
 	}
 
 	@Test

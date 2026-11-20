@@ -57,7 +57,7 @@ class ParkedProjectsTest {
 
 	private static String take(ParkedProjects parked, UUID player) {
 		List<String> taken = new ArrayList<>();
-		parked.restore(player, saved -> taken.add(saved.getString("SelectedFarm")));
+		parked.restore(player, saved -> taken.add(saved.getString("SelectedFarm", "")));
 		return taken.isEmpty() ? null : taken.get(0);
 	}
 
@@ -87,8 +87,8 @@ class ParkedProjectsTest {
 		parked.park(PLAYER, project("good"));
 		List<String> offered = new ArrayList<>();
 		assertTrue(parked.restore(PLAYER, saved -> {
-			offered.add(saved.getString("SelectedFarm"));
-			return !saved.getString("SelectedFarm").equals("unreadable");
+			offered.add(saved.getString("SelectedFarm", ""));
+			return !saved.getString("SelectedFarm", "").equals("unreadable");
 		}));
 		assertEquals(List.of("unreadable", "good"), offered);
 		assertEquals(1, parked.count(PLAYER));
@@ -148,8 +148,8 @@ class ParkedProjectsTest {
 		ParkedProjects read = ParkedProjects.read(parked.writeNbt(new NbtCompound(), null), null);
 		List<NbtCompound> back = new ArrayList<>();
 		read.restore(PLAYER, back::add);
-		assertEquals(spot, AimedSpot.fromNbt(back.get(0).getCompound("Aim")));
-		assertEquals("farm", back.get(0).getString("SelectedFarm"));
+		assertEquals(spot, AimedSpot.fromNbt(back.get(0).getCompoundOrEmpty("Aim")));
+		assertEquals("farm", back.get(0).getString("SelectedFarm", ""));
 	}
 
 	@Test

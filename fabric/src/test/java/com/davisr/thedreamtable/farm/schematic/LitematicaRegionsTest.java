@@ -47,7 +47,7 @@ class LitematicaRegionsTest {
 
 	private static String name(List<FarmStep> steps, int x, int y, int z) {
 		FarmStep step = at(steps, x, y, z);
-		return step.blockNbt() == null ? null : step.blockNbt().getString("CustomName");
+		return step.blockNbt() == null ? null : step.blockNbt().getString("CustomName", "");
 	}
 
 	private static NbtCompound xyz(int x, int y, int z) {

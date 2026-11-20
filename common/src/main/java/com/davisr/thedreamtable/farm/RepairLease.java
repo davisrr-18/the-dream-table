@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.farm;
 
+import com.davisr.thedreamtable.Nbts;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
 
@@ -16,15 +17,15 @@ public record RepairLease(UUID operationId, UUID actorUuid, BlockPos tablePos) {
 	}
 
 	void write(NbtCompound nbt) {
-		nbt.putUuid("RepairOperationId", operationId);
-		nbt.putUuid("RepairActor", actorUuid);
+		Nbts.putUuid(nbt, "RepairOperationId", operationId);
+		Nbts.putUuid(nbt, "RepairActor", actorUuid);
 		nbt.putLong("RepairTable", tablePos.asLong());
 	}
 
 	static RepairLease read(NbtCompound nbt) {
-		if (!nbt.containsUuid("RepairOperationId") || !nbt.containsUuid("RepairActor")) {
+		if (!Nbts.containsUuid(nbt, "RepairOperationId") || !Nbts.containsUuid(nbt, "RepairActor")) {
 			return null;
 		}
-		return new RepairLease(nbt.getUuid("RepairOperationId"), nbt.getUuid("RepairActor"), BlockPos.fromLong(nbt.getLong("RepairTable")));
+		return new RepairLease(Nbts.getUuid(nbt, "RepairOperationId"), Nbts.getUuid(nbt, "RepairActor"), BlockPos.fromLong(nbt.getLong("RepairTable", 0L)));
 	}
 }

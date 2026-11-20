@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.Nbts;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
 import org.junit.jupiter.api.Test;
@@ -29,16 +30,16 @@ class GuardedReadTest {
 		List<Integer> read = new ArrayList<>();
 
 		List<NbtCompound> unreadable = GuardedRead.forEach(list, "test entry", nbt -> {
-			if (nbt.getInt("Id") == 2) {
+			if (nbt.getInt("Id", 0) == 2) {
 				throw new IllegalStateException("malformed");
 			}
-			read.add(nbt.getInt("Id"));
+			read.add(nbt.getInt("Id", 0));
 		});
 
 		assertEquals(List.of(1, 3), read);
 		assertEquals(1, unreadable.size());
 		assertEquals(entry(2), unreadable.get(0));
-		assertNotSame(list.getCompound(1), unreadable.get(0));
+		assertNotSame(list.getCompoundOrEmpty(1), unreadable.get(0));
 	}
 
 	@Test
@@ -54,9 +55,9 @@ class GuardedReadTest {
 		UUID live = UUID.nameUUIDFromBytes("live".getBytes());
 		UUID other = UUID.nameUUIDFromBytes("other".getBytes());
 		NbtCompound superseded = new NbtCompound();
-		superseded.putUuid("Player", live);
+		Nbts.putUuid(superseded, "Player", live);
 		NbtCompound alone = new NbtCompound();
-		alone.putUuid("Player", other);
+		Nbts.putUuid(alone, "Player", other);
 		NbtCompound noPlayer = new NbtCompound();
 		noPlayer.putString("Phase", "building");
 		List<NbtCompound> unreadable = new ArrayList<>(List.of(superseded, alone, noPlayer));
@@ -70,7 +71,7 @@ class GuardedReadTest {
 	void aSessionStartedAfterTheLoadSupersedesTheUnreadableOneAtTheNextSave() {
 		UUID player = UUID.nameUUIDFromBytes("player".getBytes());
 		NbtCompound raw = new NbtCompound();
-		raw.putUuid("Player", player);
+		Nbts.putUuid(raw, "Player", player);
 		List<NbtCompound> unreadable = new ArrayList<>(List.of(raw));
 
 		// The player has no session worth saving yet: the raw one is written back as it was.

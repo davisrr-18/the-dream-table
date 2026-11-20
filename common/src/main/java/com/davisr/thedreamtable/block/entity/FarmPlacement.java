@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable.block.entity;
 
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtInt;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
@@ -52,9 +52,9 @@ final class FarmPlacement {
 	}
 
 	void read(NbtCompound nbt) {
-		facing = horizontal(Direction.byName(nbt.getString("FarmFacing")));
-		mirrored = nbt.getBoolean("FarmMirror");
-		anchor = nbt.contains("AnchorX", NbtElement.INT_TYPE) ? new BlockPos(nbt.getInt("AnchorX"), nbt.getInt("AnchorY"), nbt.getInt("AnchorZ")) : null;
+		facing = horizontal(Direction.byId(nbt.getString("FarmFacing", "")));
+		mirrored = nbt.getBoolean("FarmMirror", false);
+		anchor = nbt.get("AnchorX") instanceof NbtInt ? new BlockPos(nbt.getInt("AnchorX", 0), nbt.getInt("AnchorY", 0), nbt.getInt("AnchorZ", 0)) : null;
 	}
 
 	private static Direction horizontal(Direction facing) {

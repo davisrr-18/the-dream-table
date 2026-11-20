@@ -2,7 +2,6 @@ package com.davisr.thedreamtable.farm;
 
 import com.davisr.thedreamtable.DreamTableConfig;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
 import org.junit.jupiter.api.Test;
@@ -27,6 +26,6 @@ class FarmLoaderReadTest {
 		NbtCompound written = FarmLoader.read(nbt, null).writeNbt(new NbtCompound(), null);
 
 		assertEquals(DreamTableConfig.MAX_LOADED_LIMIT,
-				written.getCompound("Players").getList(player.toString(), NbtElement.STRING_TYPE).size());
+				written.getCompoundOrEmpty("Players").getListOrEmpty(player.toString()).size());
 	}
 }

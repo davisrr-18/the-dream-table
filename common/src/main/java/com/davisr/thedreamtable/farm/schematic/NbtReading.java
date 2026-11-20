@@ -1,10 +1,12 @@
 package com.davisr.thedreamtable.farm.schematic;
 
+import com.davisr.thedreamtable.DataFixes;
+import com.davisr.thedreamtable.Nbts;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.nbt.AbstractNbtNumber;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtInt;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
@@ -17,42 +19,49 @@ final class NbtReading {
 	private NbtReading() {
 	}
 
-	/** Reads a vanilla or Litematica palette entry: {@code {Name: "...", Properties: {...}}}. Null when the block isn't in this game. */
-	static BlockState state(NbtCompound entry) {
-		Block block = block(entry.getString("Name"));
+	/**
+	 * Reads a vanilla or Litematica palette entry: {@code {Name: "...", Properties: {...}}} written at data version
+	 * {@code from}, updated to this game's names first. Null when the block isn't in this game.
+	 */
+	static BlockState state(NbtCompound saved, int from) {
+		NbtCompound entry = DataFixes.blockState(saved, from);
+		Block block = block(entry.getString("Name", ""));
 		if (block == null) {
 			return null;
 		}
 		BlockState state = block.getDefaultState();
-		if (!entry.contains("Properties", NbtElement.COMPOUND_TYPE)) {
+		if (!Nbts.hasCompound(entry, "Properties")) {
 			return state;
 		}
-		NbtCompound properties = entry.getCompound("Properties");
+		NbtCompound properties = entry.getCompoundOrEmpty("Properties");
 		for (String key : properties.getKeys()) {
-			state = with(state, block, key, properties.getString(key));
+			state = with(state, block, key, properties.getString(key, ""));
 		}
 		return state;
 	}
 
-	/** Reads a Sponge palette key: {@code minecraft:stairs[facing=east,half=bottom]}. Null when the block isn't in this game. */
-	static BlockState state(String raw) {
-		Block block = block(name(raw));
-		if (block == null) {
-			return null;
-		}
+	/**
+	 * Reads a Sponge palette key: {@code minecraft:stairs[facing=east,half=bottom]}, written at data version {@code from}.
+	 * Null when the block isn't in this game.
+	 */
+	static BlockState state(String raw, int from) {
+		NbtCompound entry = new NbtCompound();
+		entry.putString("Name", name(raw));
 		int bracket = raw.indexOf('[');
-		BlockState state = block.getDefaultState();
-		if (bracket < 0) {
-			return state;
-		}
-		String properties = raw.substring(bracket + 1, raw.endsWith("]") ? raw.length() - 1 : raw.length());
-		for (String part : properties.split(",")) {
-			String[] pair = part.split("=", 2);
-			if (pair.length == 2) {
-				state = with(state, block, pair[0], pair[1]);
+		if (bracket >= 0) {
+			NbtCompound properties = new NbtCompound();
+			String list = raw.substring(bracket + 1, raw.endsWith("]") ? raw.length() - 1 : raw.length());
+			for (String part : list.split(",")) {
+				String[] pair = part.split("=", 2);
+				if (pair.length == 2) {
+					properties.putString(pair[0], pair[1]);
+				}
+			}
+			if (!properties.isEmpty()) {
+				entry.put("Properties", properties);
 			}
 		}
-		return state;
+		return state(entry, from);
 	}
 
 	/** The block id of a Sponge palette key, without its properties. */
@@ -73,15 +82,15 @@ final class NbtReading {
 
 	/** One coordinate of a position or size stored as an int array, an int list, or Litematica's {@code {x, y, z}} compound. */
 	static int numberAt(NbtCompound compound, String key, int index) {
-		if (compound.contains(key, NbtElement.COMPOUND_TYPE)) {
-			return index < 3 ? number(compound.getCompound(key), AXES[index]) : 0;
+		if (Nbts.hasCompound(compound, key)) {
+			return index < 3 ? number(compound.getCompoundOrEmpty(key), AXES[index]) : 0;
 		}
-		if (compound.contains(key, NbtElement.INT_ARRAY_TYPE)) {
-			int[] values = compound.getIntArray(key);
+		if (Nbts.hasIntArray(compound, key)) {
+			int[] values = Nbts.ints(compound, key);
 			return index < values.length ? values[index] : 0;
 		}
-		NbtList list = compound.getList(key, NbtElement.INT_TYPE);
-		return index < list.size() ? list.getInt(index) : 0;
+		NbtList list = Nbts.list(compound, key, NbtInt.class);
+		return index < list.size() ? list.getInt(index, 0) : 0;
 	}
 
 	private static BlockState with(BlockState state, Block block, String key, String value) {

@@ -1,5 +1,7 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.DataFixes;
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.MaterialSpec;
 import com.davisr.thedreamtable.farm.MaterialSwaps;
@@ -9,7 +11,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
 import net.minecraft.registry.Registries;
@@ -362,9 +363,9 @@ public final class MaterialLedger {
 	}
 
 	public void read(NbtCompound nbt) {
-		copy(nbt.getIntArray("Deposited"), deposited);
-		copy(nbt.getIntArray("Consumed"), consumed);
-		copy(nbt.getIntArray("FreeDeposited"), free);
+		copy(Nbts.ints(nbt, "Deposited"), deposited);
+		copy(Nbts.ints(nbt, "Consumed"), consumed);
+		copy(Nbts.ints(nbt, "FreeDeposited"), free);
 		for (int index = 0; index < deposited.length; index++) {
 			deposited[index] = Math.max(0, Math.min(deposited[index], MAX_COUNT));
 			consumed[index] = Math.max(0, Math.min(consumed[index], MAX_COUNT));
@@ -390,9 +391,9 @@ public final class MaterialLedger {
 
 	private void readDelivered(NbtCompound nbt) {
 		Arrays.fill(delivered, null);
-		NbtList list = nbt.getList(DELIVERED_KEY, NbtElement.STRING_TYPE);
+		NbtList list = Nbts.list(nbt, DELIVERED_KEY, NbtString.class);
 		for (int index = 0; index < list.size() && index < delivered.length; index++) {
-			Identifier id = Identifier.tryParse(list.getString(index));
+			Identifier id = Identifier.tryParse(DataFixes.itemName(list.getString(index, ""), DataFixes.ASSUMED));
 			if (id != null && Registries.ITEM.containsId(id)) {
 				Item item = Registries.ITEM.get(id);
 				delivered[index] = item == Items.AIR ? null : item;
@@ -413,10 +414,10 @@ public final class MaterialLedger {
 
 	public static Map<Item, Item> readSwaps(NbtCompound nbt) {
 		Map<Item, Item> swaps = new LinkedHashMap<>();
-		NbtList list = nbt.getList("Swaps", NbtElement.COMPOUND_TYPE);
+		NbtList list = Nbts.list(nbt, "Swaps", NbtCompound.class);
 		for (int index = 0; index < list.size(); index++) {
-			Identifier from = Identifier.tryParse(list.getCompound(index).getString("From"));
-			Identifier to = Identifier.tryParse(list.getCompound(index).getString("To"));
+			Identifier from = Identifier.tryParse(DataFixes.itemName(list.getCompoundOrEmpty(index).getString("From", ""), DataFixes.ASSUMED));
+			Identifier to = Identifier.tryParse(DataFixes.itemName(list.getCompoundOrEmpty(index).getString("To", ""), DataFixes.ASSUMED));
 			if (from != null && to != null && Registries.ITEM.containsId(from) && Registries.ITEM.containsId(to)) {
 				swaps.put(Registries.ITEM.get(from), Registries.ITEM.get(to));
 			}

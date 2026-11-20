@@ -1,7 +1,7 @@
 package com.davisr.thedreamtable.block.entity;
 
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtInt;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -34,14 +34,14 @@ public record AimedSpot(BlockPos anchor, Direction facing, boolean mirrored, Ide
 
 	/** The spot {@link #toNbt} wrote, or null when the entry lacks any part of it. */
 	public static @Nullable AimedSpot fromNbt(NbtCompound nbt) {
-		if (!nbt.contains("X", NbtElement.INT_TYPE) || !nbt.contains("Y", NbtElement.INT_TYPE) || !nbt.contains("Z", NbtElement.INT_TYPE)) {
+		if (!(nbt.get("X") instanceof NbtInt) || !(nbt.get("Y") instanceof NbtInt) || !(nbt.get("Z") instanceof NbtInt)) {
 			return null;
 		}
-		Identifier dimension = Identifier.tryParse(nbt.getString("Dimension"));
+		Identifier dimension = Identifier.tryParse(nbt.getString("Dimension", ""));
 		if (dimension == null) {
 			return null;
 		}
-		BlockPos anchor = new BlockPos(nbt.getInt("X"), nbt.getInt("Y"), nbt.getInt("Z"));
-		return new AimedSpot(anchor, Direction.byName(nbt.getString("Facing")), nbt.getBoolean("Mirror"), dimension);
+		BlockPos anchor = new BlockPos(nbt.getInt("X", 0), nbt.getInt("Y", 0), nbt.getInt("Z", 0));
+		return new AimedSpot(anchor, Direction.byId(nbt.getString("Facing", "")), nbt.getBoolean("Mirror", false), dimension);
 	}
 }

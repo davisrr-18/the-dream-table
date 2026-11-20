@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.farm.FarmKey;
 import net.minecraft.nbt.NbtCompound;
 import org.jetbrains.annotations.Nullable;
@@ -18,18 +19,18 @@ public record RepairContext(FarmKey farmKey, UUID farmOwnerUuid, UUID actorUuid,
 
 	void write(NbtCompound nbt) {
 		nbt.putString("RepairFarmKey", farmKey.externalForm());
-		nbt.putUuid("RepairFarmOwner", farmOwnerUuid);
-		nbt.putUuid("RepairActor", actorUuid);
-		nbt.putUuid("RepairOperationId", operationId);
+		Nbts.putUuid(nbt, "RepairFarmOwner", farmOwnerUuid);
+		Nbts.putUuid(nbt, "RepairActor", actorUuid);
+		Nbts.putUuid(nbt, "RepairOperationId", operationId);
 	}
 
 	static @Nullable RepairContext read(NbtCompound nbt) {
-		if (!nbt.containsUuid("RepairFarmOwner") || !nbt.containsUuid("RepairActor") || !nbt.containsUuid("RepairOperationId")) {
+		if (!Nbts.containsUuid(nbt, "RepairFarmOwner") || !Nbts.containsUuid(nbt, "RepairActor") || !Nbts.containsUuid(nbt, "RepairOperationId")) {
 			return null;
 		}
 		try {
-			return new RepairContext(FarmKey.parse(nbt.getString("RepairFarmKey")), nbt.getUuid("RepairFarmOwner"),
-					nbt.getUuid("RepairActor"), nbt.getUuid("RepairOperationId"));
+			return new RepairContext(FarmKey.parse(nbt.getString("RepairFarmKey", "")), Nbts.getUuid(nbt, "RepairFarmOwner"),
+					Nbts.getUuid(nbt, "RepairActor"), Nbts.getUuid(nbt, "RepairOperationId"));
 		} catch (IllegalArgumentException malformed) {
 			return null;
 		}

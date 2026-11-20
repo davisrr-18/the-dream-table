@@ -1,5 +1,7 @@
 package com.davisr.thedreamtable.farm.schematic;
 
+import com.davisr.thedreamtable.DataFixes;
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.block.DreamTableBlock;
 import com.davisr.thedreamtable.farm.FarmStep;
@@ -10,7 +12,8 @@ import net.minecraft.block.Blocks;
 import net.minecraft.block.InfestedBlock;
 import net.minecraft.entity.EntityType;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtDouble;
+import net.minecraft.nbt.NbtInt;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Properties;
@@ -62,6 +65,17 @@ final class StepCollector {
 	/** @param stripContents true for a player's file; bundled farms keep the items their designer put in. */
 	StepCollector(boolean stripContents) {
 		this.stripContents = stripContents;
+	}
+
+	/** The data version the file was written in; block, item and entity ids are updated from it to the game's names. */
+	private int dataVersion = DataFixes.ASSUMED;
+
+	void dataVersion(int version) {
+		this.dataVersion = version > 0 ? version : DataFixes.ASSUMED;
+	}
+
+	int dataVersion() {
+		return dataVersion;
 	}
 
 	/** A copy of the data, without the held items when this collector strips them. */
@@ -200,8 +214,8 @@ final class StepCollector {
 	/** Block entity lists keep the position either in {@code Pos} or in separate x, y and z keys. */
 	void blockEntities(NbtList blockEntities) {
 		for (int index = 0; index < blockEntities.size(); index++) {
-			NbtCompound data = blockEntities.getCompound(index);
-			int[] pos = data.contains("Pos", NbtElement.INT_ARRAY_TYPE) ? data.getIntArray("Pos") : new int[]{data.getInt("x"), data.getInt("y"), data.getInt("z")};
+			NbtCompound data = blockEntities.getCompoundOrEmpty(index);
+			int[] pos = Nbts.hasIntArray(data, "Pos") ? Nbts.ints(data, "Pos") : new int[]{data.getInt("x", 0), data.getInt("y", 0), data.getInt("z", 0)};
 			if (pos.length >= 3) {
 				blockData(pos[0], pos[1], pos[2], data);
 			}
@@ -215,16 +229,17 @@ final class StepCollector {
 	/** Entities whose positions are relative to a corner that sits at this offset in the farm. */
 	void entities(NbtList entities, int offsetX, int offsetY, int offsetZ) {
 		for (int index = 0; index < entities.size(); index++) {
-			FarmStep step = entity(entities.getCompound(index), offsetX, offsetY, offsetZ);
+			FarmStep step = entity(entities.getCompoundOrEmpty(index), offsetX, offsetY, offsetZ);
 			if (step != null) {
 				store(step);
 			}
 		}
 	}
 
-	private static FarmStep entity(NbtCompound entry, int offsetX, int offsetY, int offsetZ) {
-		NbtCompound data = entry.contains("nbt", NbtElement.COMPOUND_TYPE) ? entry.getCompound("nbt") : entry;
-		Optional<EntityType<?>> type = EntityType.get(data.contains("id") ? data.getString("id") : entry.getString("Id"));
+	private FarmStep entity(NbtCompound entry, int offsetX, int offsetY, int offsetZ) {
+		NbtCompound data = Nbts.hasCompound(entry, "nbt") ? entry.getCompoundOrEmpty("nbt") : entry;
+		String rawId = data.contains("id") ? data.getString("id", "") : entry.getString("Id", "");
+		Optional<EntityType<?>> type = EntityType.get(DataFixes.entityName(rawId, dataVersion));
 		int[] pos = entityPos(entry);
 		if (type.isEmpty() || pos == null) {
 			return null;
@@ -233,13 +248,13 @@ final class StepCollector {
 	}
 
 	private static int[] entityPos(NbtCompound entry) {
-		if (entry.contains("blockPos", NbtElement.LIST_TYPE)) {
-			NbtList pos = entry.getList("blockPos", NbtElement.INT_TYPE);
-			return pos.size() < 3 ? null : new int[]{pos.getInt(0), pos.getInt(1), pos.getInt(2)};
+		if (Nbts.hasList(entry, "blockPos")) {
+			NbtList pos = Nbts.list(entry, "blockPos", NbtInt.class);
+			return pos.size() < 3 ? null : new int[]{pos.getInt(0, 0), pos.getInt(1, 0), pos.getInt(2, 0)};
 		}
-		if (entry.contains("Pos", NbtElement.LIST_TYPE)) {
-			NbtList pos = entry.getList("Pos", NbtElement.DOUBLE_TYPE);
-			return pos.size() < 3 ? null : new int[]{(int) Math.floor(pos.getDouble(0)), (int) Math.floor(pos.getDouble(1)), (int) Math.floor(pos.getDouble(2))};
+		if (Nbts.hasList(entry, "Pos")) {
+			NbtList pos = Nbts.list(entry, "Pos", NbtDouble.class);
+			return pos.size() < 3 ? null : new int[]{(int) Math.floor(pos.getDouble(0, 0.0)), (int) Math.floor(pos.getDouble(1, 0.0)), (int) Math.floor(pos.getDouble(2, 0.0))};
 		}
 		return null;
 	}

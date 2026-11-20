@@ -1,5 +1,6 @@
 package com.davisr.thedreamtable.block.entity;
 
+import com.davisr.thedreamtable.Nbts;
 import com.davisr.thedreamtable.network.TableNoticePayload;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.farm.FarmAreas;
@@ -21,14 +22,17 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
@@ -263,7 +267,7 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 
 	/** The player a saved entry names, or null when it names none. */
 	private static @Nullable UUID namedPlayer(NbtCompound raw) {
-		return raw.containsUuid("Player") ? raw.getUuid("Player") : null;
+		return Nbts.containsUuid(raw, "Player") ? Nbts.getUuid(raw, "Player") : null;
 	}
 
 	/**
@@ -395,15 +399,23 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		return nbt;
 	}
 
+	/**
+	 * The saved data is still one compound in the 1.21.1 format: {@code Sessions} and {@code Dismantling}, each entry
+	 * written and read as before. The view only carries it in and out, whole, so a malformed entry is still caught
+	 * by {@link GuardedRead} and kept, never dropped by the new view reader.
+	 */
 	@Override
-	protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-		super.writeNbt(nbt, registries);
+	protected void writeData(WriteView view) {
+		super.writeData(view);
+		NbtCompound nbt = new NbtCompound();
+		// A saved block entity has its world. Without one, the static registries still resolve plain items (EMPTY resolves none).
+		RegistryWrapper.WrapperLookup registries = world != null ? world.getRegistryManager() : DynamicRegistryManager.of(Registries.REGISTRIES);
 		NbtList list = new NbtList();
 		Set<UUID> written = new HashSet<>();
 		for (TableSession session : sessions.values()) {
 			if (!session.isEmpty()) {
 				NbtCompound entry = new NbtCompound();
-				entry.putUuid("Player", session.player());
+				Nbts.putUuid(entry, "Player", session.player());
 				session.write(entry, registries);
 				list.add(entry);
 				written.add(session.player());
@@ -421,40 +433,43 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		}
 		unreadableJobs.forEach(raw -> jobs.add(raw.copy()));
 		nbt.put("Dismantling", jobs);
+		view.put(Nbts.ROOT, nbt);
 	}
 
 	@Override
-	protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-		super.readNbt(nbt, registries);
-		if (nbt.getBoolean(CLIENT_VIEW)) {
+	protected void readData(ReadView view) {
+		super.readData(view);
+		NbtCompound nbt = view.read(Nbts.ROOT).orElseGet(NbtCompound::new);
+		RegistryWrapper.WrapperLookup registries = view.getRegistries();
+		if (nbt.getBoolean(CLIENT_VIEW, false)) {
 			return;
 		}
 		sessions.clear();
 		unreadableSessions.clear();
 		unreadableJobs.clear();
-		NbtList list = nbt.getList("Sessions", NbtElement.COMPOUND_TYPE);
+		NbtList list = Nbts.list(nbt, "Sessions", NbtCompound.class);
 		unreadableSessions.addAll(GuardedRead.forEach(list, "session at " + pos, entry -> {
-			if (!entry.containsUuid("Player")) {
+			if (!Nbts.containsUuid(entry, "Player")) {
 				throw new IllegalArgumentException("saved session names no player");
 			}
-			TableSession session = new TableSession(this, entry.getUuid("Player"));
+			TableSession session = new TableSession(this, Nbts.getUuid(entry, "Player"));
 			session.read(entry, registries);
 			sessions.put(session.player(), session);
 		}));
 		GuardedRead.dropSuperseded(unreadableSessions, sessions.keySet());
-		if (!nbt.contains("Sessions", NbtElement.LIST_TYPE)) {
+		if (!Nbts.hasList(nbt, "Sessions")) {
 			readSharedState(nbt, registries);
 		}
 		dismantling.clear();
 		staleClaims.clear();
-		NbtList jobs = nbt.getList("Dismantling", NbtElement.COMPOUND_TYPE);
+		NbtList jobs = Nbts.list(nbt, "Dismantling", NbtCompound.class);
 		for (int index = 0; index < jobs.size(); index++) {
-			FarmDismantler job = FarmDismantler.read(jobs.getCompound(index));
+			FarmDismantler job = FarmDismantler.read(jobs.getCompoundOrEmpty(index));
 			if (job != null) {
 				dismantling.add(job);
 			} else {
-				unreadableJobs.add(jobs.getCompound(index).copy());
-				FarmAreas.Key claim = FarmDismantler.claimOf(jobs.getCompound(index));
+				unreadableJobs.add(jobs.getCompoundOrEmpty(index).copy());
+				FarmAreas.Key claim = FarmDismantler.claimOf(jobs.getCompoundOrEmpty(index));
 				if (claim != null) {
 					staleClaims.add(claim);
 				}

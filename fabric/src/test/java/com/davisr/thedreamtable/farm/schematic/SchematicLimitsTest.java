@@ -190,7 +190,7 @@ class SchematicLimitsTest {
 		data.put("front_text", front);
 		data.put("back_text", front.copy());
 		data.putBoolean("is_waxed", false);
-		root.getList("blocks", 10).getCompound(0).put("nbt", data);
+		root.getListOrEmpty("blocks").getCompoundOrEmpty(0).put("nbt", data);
 		return root;
 	}
 
@@ -201,29 +201,29 @@ class SchematicLimitsTest {
 		assertNotNull(kept);
 		for (String face : List.of("front_text", "back_text")) {
 			for (String key : List.of("messages", "filtered_messages")) {
-				NbtList lines = kept.getCompound(face).getList(key, 8);
+				NbtList lines = kept.getCompoundOrEmpty(face).getListOrEmpty(key);
 				assertEquals(2, lines.size());
-				assertFalse(lines.getString(0).contains("clickEvent"), lines.getString(0));
-				assertFalse(lines.getString(0).contains("/op"));
-				assertTrue(lines.getString(0).contains("Click") && lines.getString(0).contains("more"));
-				assertEquals("\"plain\"", lines.getString(1));
+				assertFalse(lines.getString(0, "").contains("clickEvent"), lines.getString(0, ""));
+				assertFalse(lines.getString(0, "").contains("/op"));
+				assertTrue(lines.getString(0, "").contains("Click") && lines.getString(0, "").contains("more"));
+				assertEquals("\"plain\"", lines.getString(1, ""));
 			}
 		}
-		assertFalse(kept.getBoolean("is_waxed"));
+		assertFalse(kept.getBoolean("is_waxed", false));
 	}
 
 	@Test
 	void aSignLineThatIsNotValidTextBecomesEmpty() {
 		NbtCompound kept = read(signStructure("{\"text\":", "\"ok\"")).template().steps().get(0).blockNbt();
-		NbtList lines = kept.getCompound("front_text").getList("messages", 8);
-		assertEquals("\"\"", lines.getString(0));
-		assertEquals("\"ok\"", lines.getString(1));
+		NbtList lines = kept.getCompoundOrEmpty("front_text").getListOrEmpty("messages");
+		assertEquals("\"\"", lines.getString(0, ""));
+		assertEquals("\"ok\"", lines.getString(1, ""));
 	}
 
 	@Test
 	void bundledFarmsKeepTheirSignsAsDesigned() {
 		String command = "{\"text\":\"Click\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/say hi\"}}";
 		NbtCompound kept = SchematicReader.fromRoot("nbt:bundled", signStructure(command), false).template().steps().get(0).blockNbt();
-		assertTrue(kept.getCompound("front_text").getList("messages", 8).getString(0).contains("clickEvent"));
+		assertTrue(kept.getCompoundOrEmpty("front_text").getListOrEmpty("messages").getString(0, "").contains("clickEvent"));
 	}
 }

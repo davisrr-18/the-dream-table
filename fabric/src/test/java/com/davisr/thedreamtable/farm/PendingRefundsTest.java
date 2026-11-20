@@ -55,10 +55,10 @@ class PendingRefundsTest {
 		PendingRefunds refunds = new PendingRefunds();
 		refunds.add(PLAYER, "minecraft:oak_log", 12);
 		NbtCompound saved = refunds.writeNbt(new NbtCompound(), null);
-		NbtCompound players = saved.getCompound("Players");
+		NbtCompound players = saved.getCompoundOrEmpty("Players");
 		players.put("not-a-uuid", new NbtCompound());
-		players.getCompound(PLAYER.toString()).putString("junk", "text");
-		players.getCompound(PLAYER.toString()).putInt("minecraft:negative", -3);
+		players.getCompoundOrEmpty(PLAYER.toString()).putString("junk", "text");
+		players.getCompoundOrEmpty(PLAYER.toString()).putInt("minecraft:negative", -3);
 
 		PendingRefunds restored = PendingRefunds.read(saved, null);
 

@@ -5,8 +5,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+import com.davisr.thedreamtable.Nbts;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
 
@@ -28,16 +28,16 @@ final class SignText {
 	/** Cleans the sign text inside this block entity data, in place. Data of other blocks has none of these keys and is left alone. */
 	static void strip(NbtCompound data) {
 		for (String face : FACES) {
-			if (!data.contains(face, NbtElement.COMPOUND_TYPE)) {
+			if (!Nbts.hasCompound(data, face)) {
 				continue;
 			}
-			NbtCompound text = data.getCompound(face);
+			NbtCompound text = data.getCompoundOrEmpty(face);
 			for (String lines : LINES) {
-				if (text.contains(lines, NbtElement.LIST_TYPE)) {
+				if (Nbts.hasList(text, lines)) {
 					NbtList list = (NbtList) text.get(lines);
 					for (int index = 0; index < list.size(); index++) {
 						// A line that is not a string is not a shape the game reads, so it can only be there to hide something.
-						String line = list.get(index) instanceof NbtString string ? string.asString() : null;
+						String line = list.get(index) instanceof NbtString string ? string.value() : null;
 						list.set(index, NbtString.of(line == null ? EMPTY : clean(line)));
 					}
 				}
