@@ -3,6 +3,7 @@ package com.davisr.thedreamtable.farm;
 import com.davisr.thedreamtable.DreamTableConfig;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.platform.Platform;
+import com.davisr.thedreamtable.registry.ModTicketTypes;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
@@ -10,7 +11,6 @@ import net.minecraft.nbt.NbtString;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ChunkTicketType;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
@@ -49,7 +49,6 @@ public final class FarmLoader extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_loaded_farms";
 	private static final Type<FarmLoader> TYPE = new Type<>(FarmLoader::new, FarmLoader::read, null);
 	private static final int INTERVAL_TICKS = 100;
-	private static final ChunkTicketType<ChunkPos> TICKET = ChunkTicketType.create("the_dream_table_farm", Comparator.comparingLong(ChunkPos::toLong), INTERVAL_TICKS * 3);
 	/** Radius 2 makes the farm's chunk entity-ticking, which item drops and golems need. */
 	private static final int RADIUS = 2;
 	/** Blocks from a player within which the game gives random ticks by itself. */
@@ -428,7 +427,7 @@ public final class FarmLoader extends PersistentState {
 		for (int x = minX; x <= maxX; x++) {
 			for (int z = minZ; z <= maxZ; z++) {
 				ChunkPos chunk = new ChunkPos(x, z);
-				world.getChunkManager().addTicket(TICKET, chunk, RADIUS, chunk);
+				world.getChunkManager().addTicket(ModTicketTypes.FARM.get(), chunk, RADIUS);
 				chunks.add(chunk.toLong());
 			}
 		}

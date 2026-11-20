@@ -15,7 +15,10 @@ public final class ModItems {
 	public static final Supplier<Item> DREAM_TABLE = Platform.content().register(
 			RegistryKeys.ITEM,
 			Identifier.of(TheDreamTableMod.MOD_ID, "dream_table"),
-			() -> new BlockItem(ModBlocks.DREAM_TABLE.get(), new Item.Settings())
+			// 1.21.2+ item settings must carry their registry key; a block item keeps the block's translation key.
+			() -> new BlockItem(ModBlocks.DREAM_TABLE.get(), new Item.Settings()
+					.registryKey(RegistryKey.of(RegistryKeys.ITEM, Identifier.of(TheDreamTableMod.MOD_ID, "dream_table")))
+					.useBlockPrefixedTranslationKey())
 	);
 
 	private ModItems() {

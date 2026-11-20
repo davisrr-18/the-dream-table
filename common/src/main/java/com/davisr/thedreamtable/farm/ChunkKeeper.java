@@ -1,13 +1,12 @@
 package com.davisr.thedreamtable.farm;
 
-import net.minecraft.server.world.ChunkTicketType;
+import com.davisr.thedreamtable.registry.ModTicketTypes;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 
-import java.util.Comparator;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -17,8 +16,8 @@ import java.util.WeakHashMap;
  * so a paused, finished or abandoned build lets its chunks unload.
  */
 public final class ChunkKeeper {
+	/** The expiry of {@link ModTicketTypes#BUILD}; keep them equal. */
 	private static final int EXPIRY_TICKS = 100;
-	private static final ChunkTicketType<ChunkPos> TICKET = ChunkTicketType.create("the_dream_table", Comparator.comparingLong(ChunkPos::toLong), EXPIRY_TICKS);
 	/** Radius 1 makes the table's chunk block-ticking, which is all a block entity needs, and loads only its 3x3 neighbors. */
 	private static final int TABLE_RADIUS = 1;
 
@@ -33,7 +32,7 @@ public final class ChunkKeeper {
 	public static void keepTable(ServerWorld world, BlockPos table) {
 		world.resetIdleTimeout();
 		ChunkPos chunk = new ChunkPos(table);
-		world.getChunkManager().addTicket(TICKET, chunk, TABLE_RADIUS, chunk);
+		world.getChunkManager().addTicket(ModTicketTypes.BUILD.get(), chunk, TABLE_RADIUS);
 	}
 
 	/** Loads, or keeps loaded, the chunk of a block about to be placed or removed. */
@@ -49,7 +48,7 @@ public final class ChunkKeeper {
 			renewed.long2LongEntrySet().removeIf(entry -> now - entry.getLongValue() >= EXPIRY_TICKS);
 		}
 		renewed.put(chunk.toLong(), now);
-		world.getChunkManager().addTicket(TICKET, chunk, 0, chunk);
+		world.getChunkManager().addTicket(ModTicketTypes.BUILD.get(), chunk, 0);
 	}
 
 	/** The tick a chunk was last renewed. A chunk never renewed reads as renewed RENEW_TICKS ago, so its first request is due. */

@@ -30,6 +30,7 @@ import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.registry.ModBlocks;
 import com.davisr.thedreamtable.registry.ModItems;
 import com.davisr.thedreamtable.registry.ModScreenHandlers;
+import com.davisr.thedreamtable.registry.ModTicketTypes;
 import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.util.WorldSavePath;
 import org.slf4j.Logger;
@@ -48,6 +49,7 @@ public final class TheDreamTableMod {
 		ModBlockEntities.register();
 		ModItems.register();
 		ModScreenHandlers.register();
+		ModTicketTypes.register();
 		FarmTemplates.load();
 		DreamTableConfig.load();
 		Platform.serverEvents().onServerStarted(server -> {

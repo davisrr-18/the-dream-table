@@ -15,13 +15,13 @@ logoFile = "assets/the_dream_table/icon.png"
 [[dependencies.the_dream_table]]
 modId = "neoforge"
 type = "required"
-versionRange = "[21.1,21.2)"
+versionRange = "[21.11,21.12)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.the_dream_table]]
 modId = "minecraft"
 type = "required"
-versionRange = "[1.21.1,1.21.2)"
+versionRange = "[1.21.11,1.21.12)"
 ordering = "NONE"
 side = "BOTH"

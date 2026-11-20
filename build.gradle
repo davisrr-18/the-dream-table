@@ -34,6 +34,11 @@ subprojects {
 		mappings loom.layered {
 			it.mappings("net.fabricmc:yarn:$rootProject.yarn_mappings:v2")
 			it.mappings("dev.architectury:yarn-mappings-patch-neoforge:$rootProject.yarn_mappings_patch_neoforge_version")
+			// Yarn 1.21.11 names BucketItem.method_74140 "getFluid", which clashes with the getFluid() Forge 61 adds to BucketItem
+			// ("Failed to remap minecraft: Mapping target name conflicts"). The layer renames the vanilla one for the Forge module only.
+			if (project.name == 'forge') {
+				it.mappings(rootProject.file('forge/forge-yarn-fix.tiny'))
+			}
 		}
 	}
 

@@ -7,15 +7,9 @@
 		"OOO"
 	],
 	"key": {
-		"L": {
-			"item": "minecraft:lapis_lazuli"
-		},
-		"P": {
-			"item": "minecraft:paper"
-		},
-		"O": {
-			"item": "minecraft:oak_planks"
-		}
+		"L": "minecraft:lapis_lazuli",
+		"P": "minecraft:paper",
+		"O": "minecraft:oak_planks"
 	},
 	"result": {
 		"id": "the_dream_table:dream_table",
