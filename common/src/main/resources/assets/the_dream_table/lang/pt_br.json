@@ -406,7 +406,6 @@
 	"gui.the_dream_table.feedback.explain": "Conte ao autor sobre um bug ou uma ideia. Enviado: seu texto, a categoria (bug, ideia ou outro), a versão do mod, o loader (Fabric, NeoForge ou Forge) e a versão do Minecraft. Nenhum nome, conta ou ID é enviado.",
 	"gui.the_dream_table.feedback.placeholder": "Descreva o bug ou a ideia",
 	"gui.the_dream_table.feedback.field": "Texto do feedback",
-	"gui.the_dream_table.feedback.count": "%1$d/%2$d",
 	"gui.the_dream_table.feedback.send": "Enviar",
 	"gui.the_dream_table.feedback.category.bug": "Bug",
 	"gui.the_dream_table.feedback.category.idea": "Ideia",
