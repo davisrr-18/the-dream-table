@@ -15,7 +15,7 @@ public final class PageRoutes {
 		}
 		return switch (page) {
 			case PAGE_SELECT, PAGE_WORK, PAGE_REQUIREMENTS, PAGE_MATERIALS, PAGE_SWAP, PAGE_FARM_INFO -> PrimaryTab.BUILD;
-			case PAGE_SCHEMES -> PrimaryTab.SCHEMATICS;
+			case PAGE_SCHEMES, PAGE_SCHEMES_HELP -> PrimaryTab.SCHEMATICS;
 			case PAGE_OPTIONS, PAGE_SPEED -> PrimaryTab.SETTINGS;
 			case PAGE_LOADED, PAGE_FARM -> PrimaryTab.FARMS;
 			default -> throw new IllegalArgumentException("Unregistered page: " + page);
@@ -41,6 +41,7 @@ public final class PageRoutes {
 			case PAGE_SWAP -> PAGE_MATERIALS;
 			case PAGE_SPEED -> PAGE_OPTIONS;
 			case PAGE_FARM -> PAGE_LOADED;
+			case PAGE_SCHEMES_HELP -> PAGE_SCHEMES;
 			default -> NO_PARENT;
 		};
 	}

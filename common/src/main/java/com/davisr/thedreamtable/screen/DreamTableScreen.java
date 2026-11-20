@@ -15,6 +15,7 @@ import com.davisr.thedreamtable.screen.page.SpeedPage;
 import com.davisr.thedreamtable.screen.page.PageContext;
 import com.davisr.thedreamtable.screen.page.ProjectState;
 import com.davisr.thedreamtable.screen.page.RequirementsPage;
+import com.davisr.thedreamtable.screen.page.SchemesHelpPage;
 import com.davisr.thedreamtable.screen.page.SchemesPage;
 import com.davisr.thedreamtable.screen.page.ScreenActions;
 import com.davisr.thedreamtable.screen.page.SelectionPage;
@@ -84,6 +85,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private TablePage materials;
 	private TablePage swap;
 	private TablePage farmInfo;
+	private TablePage schemesHelp;
 	private PageContext ui;
 
 	public DreamTableScreen(DreamTableScreenHandler handler, PlayerInventory inventory, Text title) {
@@ -126,6 +128,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		materials = new MaterialsPage(ui);
 		swap = new SwapPage(ui, search);
 		farmInfo = new FarmInfoPage(ui);
+		schemesHelp = new SchemesHelpPage(ui);
 		layout();
 	}
 
@@ -379,6 +382,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			case DreamTableScreenHandler.PAGE_MATERIALS -> materials;
 			case DreamTableScreenHandler.PAGE_SWAP -> swap;
 			case DreamTableScreenHandler.PAGE_FARM_INFO -> farmInfo;
+			case DreamTableScreenHandler.PAGE_SCHEMES_HELP -> schemesHelp;
 			default -> selection;
 		};
 	}
@@ -480,6 +484,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			case DreamTableScreenHandler.PAGE_MATERIALS -> DreamTableScreenHandler.BUTTON_MATERIALS_BACK;
 			case DreamTableScreenHandler.PAGE_SWAP -> DreamTableScreenHandler.BUTTON_SWAP_BACK;
 			case DreamTableScreenHandler.PAGE_FARM_INFO -> DreamTableScreenHandler.BUTTON_FARM_INFO_BACK;
+			case DreamTableScreenHandler.PAGE_SCHEMES_HELP -> DreamTableScreenHandler.BUTTON_SCHEMES_HELP_BACK;
 			case DreamTableScreenHandler.PAGE_SPEED -> DreamTableScreenHandler.BUTTON_SPEED_BACK;
 			case DreamTableScreenHandler.PAGE_FARM -> DreamTableScreenHandler.BUTTON_FARM_BACK;
 			default -> throw new IllegalStateException("No back button for page " + page);

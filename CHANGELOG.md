@@ -4,6 +4,10 @@ Release date: not yet released
 
 Bug fixes found in a code review of 1.4.0. The rest of this update is still in progress.
 
+## Changes
+
+- My Schematics has a How It Works page: where to save files, which formats and size are read, how it works on a server, and why a file is greyed out.
+
 ## Fixes
 
 - A build far from you keeps the chunk of its next block loaded from the first block, so it no longer stops when that chunk unloads.

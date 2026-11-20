@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static com.davisr.thedreamtable.screen.ui.Theme.BUTTON_HEIGHT;
 import static com.davisr.thedreamtable.screen.ui.Theme.CARD_GAP;
 import static com.davisr.thedreamtable.screen.ui.Theme.CARD_HEIGHT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,6 +47,17 @@ class SchemesPageLayoutTest {
 	@AfterEach
 	void restoreLocalSchemes() {
 		FarmTemplates.useLocal();
+	}
+
+	@Test
+	void theHowItWorksButtonTakesTheRowAboveTheCardsInEveryMode() {
+		Viewport compact = new Viewport();
+		compact.layout(ScreenGeometry.calculate(416, 240, 0, false), 0, 0);
+		Viewport wide = new Viewport();
+		wide.layout(ScreenGeometry.calculate(420, 240, 0, false), 0, 0);
+
+		assertEquals(BUTTON_HEIGHT + CARD_GAP, SchemesPage.cardY(compact, 0) - compact.cardY(0));
+		assertEquals(BUTTON_HEIGHT + CARD_GAP, SchemesPage.cardY(wide, 0) - wide.cardY(0));
 	}
 
 	@Test

@@ -865,9 +865,16 @@ public final class TableSession {
 
 	// Saving and syncing
 
-	/** Farm Info saves as the work page: its id is the removed Alerts page, which reads back as My Farms. */
+	/**
+	 * Help pages are not saved as themselves. Farm Info saves as the work page: its id is the removed Alerts page, which
+	 * reads back as My Farms. How It Works on My Schematics saves as My Schematics.
+	 */
 	static int savedPage(int page) {
-		return page == DreamTableScreenHandler.PAGE_FARM_INFO ? DreamTableScreenHandler.PAGE_WORK : page;
+		return switch (page) {
+			case DreamTableScreenHandler.PAGE_FARM_INFO -> DreamTableScreenHandler.PAGE_WORK;
+			case DreamTableScreenHandler.PAGE_SCHEMES_HELP -> DreamTableScreenHandler.PAGE_SCHEMES;
+			default -> page;
+		};
 	}
 
 	void write(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {

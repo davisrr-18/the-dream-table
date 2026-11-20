@@ -83,7 +83,7 @@ public final class ImportedStructures {
 		Map<String, Long> versions = new HashMap<>();
 		List<Path> files = new ArrayList<>();
 		Set<String> names = new HashSet<>();
-		for (Path folder : folders(worldRoot)) {
+		for (Path folder : folders(Platform.paths().gameDir(), worldRoot)) {
 			if (!Files.isDirectory(folder)) {
 				continue;
 			}
@@ -105,8 +105,8 @@ public final class ImportedStructures {
 		return new Imports(Map.copyOf(templates), List.copyOf(options), Map.copyOf(notes), List.copyOf(rejected), Map.copyOf(versions));
 	}
 
-	private static List<Path> folders(Path worldRoot) {
-		Path game = Platform.paths().gameDir();
+	/** The folders in precedence order: a file name found in an earlier folder hides the same name in a later one. */
+	static List<Path> folders(Path game, Path worldRoot) {
 		List<Path> folders = new ArrayList<>();
 		folders.add(game.resolve("schematics"));
 		folders.add(game.resolve("config").resolve("worldedit").resolve("schematics"));

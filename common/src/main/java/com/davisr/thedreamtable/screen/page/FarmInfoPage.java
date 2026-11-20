@@ -9,6 +9,8 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 
+import java.util.List;
+
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
 
 /**
@@ -69,11 +71,15 @@ public final class FarmInfoPage implements TablePage {
 		String farm = ui.farm();
 		int width = ui.view().flowWidth();
 		if (!farm.equals(laidOutFarm) || width != laidOutWidth) {
-			layout = FarmInfoText.layout(FarmInfo.sections(farm), width, (text, wrapWidth) -> ui.painter().text().wrapLines(text, wrapWidth));
+			layout = FarmInfoText.layout(sections(farm), width, (text, wrapWidth) -> ui.painter().text().wrapLines(text, wrapWidth));
 			laidOutFarm = farm;
 			laidOutWidth = width;
 		}
 		return layout;
+	}
+
+	private static List<FarmInfoText.Heading> sections(String farm) {
+		return FarmInfo.sections(farm).stream().map(block -> new FarmInfoText.Heading(block.section().titleKey(), block.bullets())).toList();
 	}
 
 	private int textY() {
