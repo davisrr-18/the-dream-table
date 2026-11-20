@@ -37,7 +37,7 @@ When you anchor or turn the hologram, the table checks the spot right away: the 
 
 **Show Other Farms**, in Options, outlines other players' farms near you: orange while being built or taken apart, green once finished. It is off by default and remembered on your computer.
 
-**Feedback**, in Settings, sends a note to the author: a bug, an idea or something else, as a text of 10 to 2000 characters with a category (Bug, Idea or Other). Each note carries only the text, the category, the mod version, the loader (Fabric, NeoForge or Forge) and the Minecraft version; nothing identifies you or your player. The Feedback switch turns the form off (it is on by default and remembered on your computer); with it off the card only explains what is sent, and nothing can be sent. Send waits 30 seconds between two notes and sends one at a time. Until the author sets up the feedback service, Send says it is not available yet.
+**Feedback**, in Settings, sends a note to the author: a bug, an idea or something else, as a text of 10 to 2000 characters with a category (Bug, Idea or Other). Each note carries only the text, the category, the mod version, the loader (Fabric, NeoForge or Forge) and the Minecraft version; nothing identifies you or your player. The Feedback switch turns the form off (it is on by default and remembered on your computer); with it off the card only explains what is sent, and nothing can be sent. Send waits 30 seconds between two notes and sends one at a time.
 
 If a farm you finished with an early beta has no protection, place the same farm exactly over it: the table says how much of it is already built. Press Build, and it only fills the gaps and protects the farm once done.
 
