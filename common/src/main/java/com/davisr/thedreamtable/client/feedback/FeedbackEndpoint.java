@@ -2,8 +2,7 @@ package com.davisr.thedreamtable.client.feedback;
 
 /** Where feedback is posted. Empty means the form says it is not available yet and nothing is sent. */
 public final class FeedbackEndpoint {
-	// shortcut: URL stays empty, so Send is off, until the feedback Worker is deployed; set it then.
-	public static final String URL = "";
+	public static final String URL = "https://the-dream-table-feedback.rede-neural-mcp.workers.dev/";
 
 	private FeedbackEndpoint() {
 	}
