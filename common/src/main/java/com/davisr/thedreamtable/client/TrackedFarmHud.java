@@ -53,7 +53,7 @@ public final class TrackedFarmHud {
 		if (farm.isNone()) {
 			return;
 		}
-		String here = client.player.getWorld().getRegistryKey().getValue().toString();
+		String here = client.player.getEntityWorld().getRegistryKey().getValue().toString();
 		Text detail;
 		if (!here.equals(farm.dimension())) {
 			detail = LoadedFarmsPage.dimension(farm.dimension());
@@ -70,7 +70,7 @@ public final class TrackedFarmHud {
 		// Wrapped to the window, so a long name never runs off the screen; each extra line stacks below.
 		for (OrderedText line : client.textRenderer.wrapLines(text, Math.max(40, screenWidth - 2 * MARGIN))) {
 			int x = (screenWidth - client.textRenderer.getWidth(line)) / 2;
-			context.drawTextWithShadow(client.textRenderer, line, x, y, 0xFFFFFF);
+			context.drawTextWithShadow(client.textRenderer, line, x, y, 0xFFFFFFFF);
 			y += 10;
 		}
 	}

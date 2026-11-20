@@ -2,8 +2,10 @@ package com.davisr.thedreamtable.client.map;
 
 import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.DreamTableKeys;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
@@ -72,7 +74,7 @@ public final class MapScreen extends Screen {
 	@Override
 	protected void init() {
 		Window window = client.getWindow();
-		InputUtil.setCursorParameters(window.getHandle(), InputUtil.GLFW_CURSOR_DISABLED, client.mouse.getX(), client.mouse.getY());
+		InputUtil.setCursorParameters(window, InputUtil.GLFW_CURSOR_DISABLED, client.mouse.getX(), client.mouse.getY());
 		hasLast = false;
 	}
 
@@ -104,7 +106,7 @@ public final class MapScreen extends Screen {
 	public void removed() {
 		held.clear();
 		Window window = client.getWindow();
-		InputUtil.setCursorParameters(window.getHandle(), InputUtil.GLFW_CURSOR_NORMAL, client.mouse.getX(), client.mouse.getY());
+		InputUtil.setCursorParameters(window, InputUtil.GLFW_CURSOR_NORMAL, client.mouse.getX(), client.mouse.getY());
 		MapMode.exit(client);
 	}
 
@@ -123,7 +125,7 @@ public final class MapScreen extends Screen {
 		if (!client.isWindowFocused()) {
 			held.clear();
 		}
-		MapMode.frame(client, movement(), client.getRenderTickCounter().getLastFrameDuration());
+		MapMode.frame(client, movement(), client.getRenderTickCounter().getDynamicDeltaTicks());
 		drawControls(context);
 	}
 
@@ -231,7 +233,7 @@ public final class MapScreen extends Screen {
 			double pixelsY = (mouseY - lastY) * window.getHeight() / window.getScaledHeight();
 			if (MapLook.plausible(pixelsX) && MapLook.plausible(pixelsY)) {
 				double factor = MapLook.factor(client.options.getMouseSensitivity().getValue());
-				double pitchSign = client.options.getInvertYMouse().getValue() ? -1.0 : 1.0;
+				double pitchSign = client.options.getInvertMouseY().getValue() ? -1.0 : 1.0;
 				MapMode.look(MapLook.degrees(pixelsX, factor), pitchSign * MapLook.degrees(pixelsY, factor));
 			}
 		}
@@ -241,14 +243,14 @@ public final class MapScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+	public boolean mouseClicked(Click click, boolean doubled) {
 		// The view stays open after a click, so the placed farm can be judged and placed again elsewhere.
-		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+		if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 			DreamTableHologram.mapPlace();
 			return true;
 		}
 		// Other buttons drive whatever the player bound to them, as keys do.
-		Predicate<KeyBinding> bound = binding -> binding.matchesMouse(button);
+		Predicate<KeyBinding> bound = binding -> binding.matchesMouse(click);
 		if (!act(bound)) {
 			Move move = moveFor(bound);
 			if (move != null) {
@@ -259,8 +261,8 @@ public final class MapScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseReleased(double mouseX, double mouseY, int button) {
-		Move move = moveFor(binding -> binding.matchesMouse(button));
+	public boolean mouseReleased(Click click) {
+		Move move = moveFor(binding -> binding.matchesMouse(click));
 		if (move != null) {
 			held.remove(move);
 		}
@@ -274,8 +276,8 @@ public final class MapScreen extends Screen {
 	}
 
 	@Override
-	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-		Predicate<KeyBinding> bound = binding -> binding.matchesKey(keyCode, scanCode);
+	public boolean keyPressed(KeyInput input) {
+		Predicate<KeyBinding> bound = binding -> binding.matchesKey(input);
 		if (act(bound)) {
 			return true;
 		}
@@ -284,7 +286,7 @@ public final class MapScreen extends Screen {
 			held.add(move);
 			return true;
 		}
-		return super.keyPressed(keyCode, scanCode, modifiers);
+		return super.keyPressed(input);
 	}
 
 	/** Runs the map's own action bound to the pressed key or button; false when it drives none. */
@@ -306,13 +308,13 @@ public final class MapScreen extends Screen {
 	}
 
 	@Override
-	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
-		Move move = moveFor(binding -> binding.matchesKey(keyCode, scanCode));
+	public boolean keyReleased(KeyInput input) {
+		Move move = moveFor(binding -> binding.matchesKey(input));
 		if (move != null) {
 			held.remove(move);
 			return true;
 		}
-		return super.keyReleased(keyCode, scanCode, modifiers);
+		return super.keyReleased(input);
 	}
 
 	/** The movement a key or button drives, through the player's own bindings so a rebound one works too; null for others. */

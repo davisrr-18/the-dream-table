@@ -49,7 +49,7 @@ public final class FeedbackSender {
 			return false;
 		}
 		ModInfo info = Platform.modInfo();
-		String json = FeedbackJson.body(rawText, category, info.version(), info.loader(), SharedConstants.getGameVersion().getName());
+		String json = FeedbackJson.body(rawText, category, info.version(), info.loader(), SharedConstants.getGameVersion().name());
 		HttpRequest request = HttpRequest.newBuilder(URI.create(FeedbackEndpoint.URL))
 				.timeout(TIMEOUT)
 				.header("Content-Type", "application/json; charset=utf-8")

@@ -1,9 +1,11 @@
 package com.davisr.thedreamtable.screen.ui;
 
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.screen.narration.NarrationPart;
 import net.minecraft.client.gui.widget.PressableWidget;
+import net.minecraft.client.input.AbstractInput;
 
 /** Invisible vanilla widget that gives custom-drawn controls standard focus, keyboard, and narration behavior. */
 public final class UiControl extends PressableWidget {
@@ -33,20 +35,37 @@ public final class UiControl extends PressableWidget {
 		this.mouseInteractive = mouseInteractive;
 	}
 
+	/**
+	 * Vanilla routes a click to the first child under the pointer and counts it handled whether or not that child takes it,
+	 * so a control that must not take the mouse (scrolled out, or the feedback field the box itself serves) must not be hovered.
+	 */
 	@Override
-	public boolean mouseClicked(double mouseX, double mouseY, int button) {
-		return mouseInteractive && super.mouseClicked(mouseX, mouseY, button);
+	public boolean isMouseOver(double mouseX, double mouseY) {
+		return mouseInteractive && super.isMouseOver(mouseX, mouseY);
+	}
+
+	/** No pointing hand over a control that takes no mouse; over the feedback field it would hide the text cursor. */
+	@Override
+	protected void setCursor(DrawContext context) {
+		if (mouseInteractive) {
+			super.setCursor(context);
+		}
 	}
 
 	@Override
-	public void onPress() {
+	public boolean mouseClicked(Click click, boolean doubled) {
+		return mouseInteractive && super.mouseClicked(click, doubled);
+	}
+
+	@Override
+	public void onPress(AbstractInput input) {
 		if (spec.enabled()) {
 			action.run();
 		}
 	}
 
 	@Override
-	protected void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+	protected void drawIcon(DrawContext context, int mouseX, int mouseY, float delta) {
 		// Painter owns the pixel-art visuals; this widget owns interaction and accessibility only.
 	}
 

@@ -48,7 +48,7 @@ public final class Painter {
 		context.fill(x + w - 1, y + header, x + w, y + height, 0xFFC8BBA3);
 		context.fill(x, y + height - 2, x + w, y + height - 1, 0xFFC9BDA8);
 		context.fill(x, y + height - 1, x + w, y + height, 0xFF948877);
-		context.drawBorder(x + 3, y + header + 3, w - 6, height - header - 7, 0xFFE3D8C6);
+		context.drawStrokedRectangle(x + 3, y + header + 3, w - 6, height - header - 7, 0xFFE3D8C6);
 
 		mark(context, x + 12, y + 14);
 		int textLimit = w - 46;

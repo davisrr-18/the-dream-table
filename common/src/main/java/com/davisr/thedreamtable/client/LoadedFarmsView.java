@@ -125,7 +125,7 @@ public final class LoadedFarmsView {
 	/** Where the local player stands, for distances. */
 	public static FarmListing.Viewer viewer() {
 		MinecraftClient client = MinecraftClient.getInstance();
-		return client.player == null ? null : new FarmListing.Viewer(client.player.getWorld().getRegistryKey().getValue().toString(), client.player.getBlockPos());
+		return client.player == null ? null : new FarmListing.Viewer(client.player.getEntityWorld().getRegistryKey().getValue().toString(), client.player.getBlockPos());
 	}
 
 	/** Places in {@link #farms()} to show for this search, with the current filters and sort. */

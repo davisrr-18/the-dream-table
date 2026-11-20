@@ -39,9 +39,12 @@ import com.davisr.thedreamtable.screen.ui.Viewport;
 import com.davisr.thedreamtable.screen.ui.layout.ScreenGeometry;
 import com.davisr.thedreamtable.screen.ui.layout.LayoutMode;
 import com.davisr.thedreamtable.screen.ui.layout.UiRect;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.widget.EditBoxWidget;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
@@ -76,6 +79,8 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private SearchBox search;
 	private String searchText = "";
 	private FeedbackForm feedback;
+	/** The feedback box registered as a child; {@link FeedbackForm} replaces its box when the width changes. */
+	private EditBoxWidget feedbackChild;
 	private TablePage selection;
 	private TablePage work;
 	private TablePage requirements;
@@ -116,7 +121,8 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		if (feedback == null) {
 			feedback = new FeedbackForm(this.textRenderer, Text.translatable("gui.the_dream_table.feedback.placeholder"));
 		}
-		addSelectableChild(feedback.widget());
+		feedbackChild = feedback.widget();
+		addSelectableChild(feedbackChild);
 		for (PrimaryTab tab : PrimaryTab.values()) {
 			ControlSpec placeholder = tabSpec(tab, new UiRect(0, 0, 1, 1));
 			UiControl control = new UiControl(placeholder, () -> openTab(tab));
@@ -164,7 +170,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		if (!tabTip) {
 			drawHoveredItem(context, mouseX, mouseY);
 		}
-		// Last, so a message is never hidden behind the panel or a tooltip.
+		// Last of the frame's own drawing, so it is never behind the panel; 1.21.11 defers tooltips, so one drawn near the top covers it.
 		TableNotices.draw(context, this.textRenderer, false);
 	}
 
@@ -199,6 +205,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		if (drawable) {
 			page.draw(context, mouseX, mouseY);
 		}
+		syncFeedbackChild();
 		if (feedback.focused() && !feedback.usable()) {
 			leaveField();
 		}
@@ -211,10 +218,10 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	}
 
 	@Override
-	protected void drawSlot(DrawContext context, Slot slot) {
+	protected void drawSlot(DrawContext context, Slot slot, int mouseX, int mouseY) {
 		UiRect bounds = new UiRect(this.x + slot.x, this.y + slot.y, 16, 16);
 		if (view.fullyVisible(bounds)) {
-			super.drawSlot(context, slot);
+			super.drawSlot(context, slot, mouseX, mouseY);
 		}
 	}
 
@@ -225,15 +232,18 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	}
 
 	@Override
-	protected boolean isClickOutsideBounds(double mouseX, double mouseY, int left, int top, int button) {
+	protected boolean isClickOutsideBounds(double mouseX, double mouseY, int left, int top) {
 		return view.outsidePanel(mouseX, mouseY);
 	}
 
 	@Override
-	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+	public boolean mouseClicked(Click click, boolean doubled) {
+		double mouseX = click.x();
+		double mouseY = click.y();
+		int button = click.button();
 		layout();
 		keyboardFocus = false;
-		if (feedback.focused() && !feedback.widget().isMouseOver(mouseX, mouseY)) {
+		if (feedback.focused() && !feedback.takes(mouseX, mouseY)) {
 			leaveField();
 		}
 		if (button == 0 && view.beginDrag(mouseX, mouseY)) {
@@ -245,7 +255,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 				return true;
 			}
 		}
-		boolean handled = super.mouseClicked(mouseX, mouseY, button);
+		boolean handled = super.mouseClicked(click, doubled);
 		if (handled && getFocused() instanceof UiControl control) {
 			controls.focus(control.id());
 		} else if (handled && getFocused() == search.widget()) {
@@ -255,24 +265,28 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	}
 
 	@Override
-	public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+	public boolean mouseDragged(Click click, double deltaX, double deltaY) {
 		layout();
-		if (button == 0 && (view.drag(mouseY) || page().drag(mouseX, mouseY))) {
+		if (click.button() == 0 && (view.drag(click.y()) || page().drag(click.x(), click.y()))) {
 			return true;
 		}
-		return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+		// A drag that began in the box goes on only while the box is usable (not scrolled partly out of view).
+		if (feedback.focused() && !feedback.usable()) {
+			return false;
+		}
+		return super.mouseDragged(click, deltaX, deltaY);
 	}
 
 	@Override
-	public boolean mouseReleased(double mouseX, double mouseY, int button) {
+	public boolean mouseReleased(Click click) {
 		layout();
-		if (button == 0) {
+		if (click.button() == 0) {
 			view.endDrag();
-			if (page().release(mouseX, mouseY)) {
+			if (page().release(click.x(), click.y())) {
 				return true;
 			}
 		}
-		return super.mouseReleased(mouseX, mouseY, button);
+		return super.mouseReleased(click);
 	}
 
 	@Override
@@ -286,9 +300,10 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	}
 
 	@Override
-	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+	public boolean keyPressed(KeyInput input) {
+		int keyCode = input.key();
 		if (search.focused() && keyCode != GLFW.GLFW_KEY_ESCAPE && keyCode != GLFW.GLFW_KEY_TAB) {
-			search.widget().keyPressed(keyCode, scanCode, modifiers);
+			search.widget().keyPressed(input);
 			return true;
 		}
 		// The text box takes every key while it has focus, so R and M type letters; only Escape (leave the box) and Tab (move on) pass.
@@ -299,21 +314,21 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 				return true;
 			}
 			if (keyCode != GLFW.GLFW_KEY_TAB) {
-				feedback.widget().keyPressed(keyCode, scanCode, modifiers);
+				feedback.widget().keyPressed(input);
 				return true;
 			}
 		}
-		if (DreamTableKeys.ROTATE.matchesKey(keyCode, scanCode)) {
+		if (DreamTableKeys.ROTATE.matchesKey(input)) {
 			DreamTableHologram.rotate();
 			return true;
 		}
-		if (DreamTableKeys.MIRROR.matchesKey(keyCode, scanCode)) {
+		if (DreamTableKeys.MIRROR.matchesKey(input)) {
 			DreamTableHologram.mirror();
 			return true;
 		}
 		if (keyCode == GLFW.GLFW_KEY_TAB) {
 			keyboardFocus = true;
-			controls.moveTab((modifiers & GLFW.GLFW_MOD_SHIFT) != 0).ifPresent(this::focusControl);
+			controls.moveTab(input.hasShift()).ifPresent(this::focusControl);
 			revealFocused();
 			return true;
 		}
@@ -344,7 +359,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
 			return goBackOrClose();
 		}
-		return super.keyPressed(keyCode, scanCode, modifiers);
+		return super.keyPressed(input);
 	}
 
 	/** The slider change a key means, or null when it is not one: Left and Right step, Home and End jump to the ends. */
@@ -367,7 +382,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	@Override
 	public void click() {
 		if (this.client != null) {
-			this.client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+			this.client.getSoundManager().play(PositionedSoundInstance.ui(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 		}
 	}
 
@@ -546,6 +561,21 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		}
 	}
 
+	/** The form replaces its box when the page gives it another width: move the registration and the focus to the new one. */
+	private void syncFeedbackChild() {
+		EditBoxWidget current = feedback.widget();
+		if (current == feedbackChild) {
+			return;
+		}
+		boolean focused = getFocused() == feedbackChild;
+		remove(feedbackChild);
+		feedbackChild = current;
+		addSelectableChild(current);
+		if (focused) {
+			setFocused(current);
+		}
+	}
+
 	/** Takes the keyboard focus off the feedback text box and gives it to the feedback switch, which then shows the focus ring. */
 	private void leaveField() {
 		setFocused(null);
@@ -586,7 +616,8 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 			} else {
 				control.update(spec, ui.action(spec.id()));
 			}
-			control.setMouseInteractive(view.visible(spec.bounds()));
+			// The feedback field's control only gives the keyboard a place; the box under it takes the mouse.
+			control.setMouseInteractive(view.visible(spec.bounds()) && !FeedbackSection.FIELD.equals(spec.id()));
 		}
 
 		List<ControlSpec> all = new ArrayList<>(chromeControls);

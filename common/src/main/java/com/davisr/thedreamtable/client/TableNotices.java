@@ -109,8 +109,7 @@ public final class TableNotices {
 		int height = height(lines.size());
 		int x = (screenWidth - width) / 2;
 		boolean problem = notice.severity() == Severity.PROBLEM;
-		context.getMatrices().push();
-		context.getMatrices().translate(0.0F, 0.0F, 500.0F);
+		// The 2D GUI has no depth since 1.21.6: the notice is above what was drawn before it, not through a z offset (deferred tooltips still cover it).
 		// Translucent rounded panel; the text stays fully opaque (until the fade) so it reads on any background.
 		int fill = NoticeShape.withAlpha(0x101820, opacity, NoticeShape.FILL_OPACITY);
 		for (NoticeShape.Rect rect : NoticeShape.fill(x, TOP, width, height)) {
@@ -127,7 +126,6 @@ public final class TableNotices {
 			context.drawTextWithShadow(font, line, (screenWidth - font.getWidth(line)) / 2, y, color);
 			y += LINE;
 		}
-		context.getMatrices().pop();
 	}
 
 	static int withOpacity(int rgb, int opacity) {

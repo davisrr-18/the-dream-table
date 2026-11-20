@@ -138,7 +138,7 @@
 	"gui.the_dream_table.map_too_deep": "Vá até a superfície perto da mesa para usar o mapa.",
 	"gui.the_dream_table.map_too_close": "Afaste-se da parede para abrir o mapa.",
 	"gui.the_dream_table.map_too_far": "Chegue mais perto da Dream Table para abrir o mapa.",
-	"category.the_dream_table": "The Dream Table",
+	"key.category.the_dream_table.main": "The Dream Table",
 	"gui.the_dream_table.requirements": "Requisitos",
 	"gui.the_dream_table.materials": "Materiais",
 	"gui.the_dream_table.swap": "Escolha Um Substituto",
