@@ -9,12 +9,12 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 @Mod(TheDreamTableMod.MOD_ID)
 public final class TheDreamTableForge {
 	public TheDreamTableForge(FMLJavaModLoadingContext context) {
-		ForgeServerNetwork network = ForgePlatform.install(context.getModEventBus());
+		ForgeServerNetwork network = ForgePlatform.install(context.getModBusGroup());
 		TheDreamTableMod.init();
 		// Every payload is registered by now; Forge needs the whole channel at once.
 		network.build();
 		if (FMLEnvironment.dist.isClient()) {
-			TheDreamTableForgeClient.init(context.getModEventBus(), network);
+			TheDreamTableForgeClient.init(context.getModBusGroup(), network);
 		}
 	}
 }

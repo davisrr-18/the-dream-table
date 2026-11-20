@@ -4,7 +4,7 @@ import com.davisr.thedreamtable.platform.ClientNetwork;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.packet.CustomPayload;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 import java.util.function.Consumer;
 
@@ -23,6 +23,6 @@ final class NeoForgeClientNetwork implements ClientNetwork {
 
 	@Override
 	public void send(CustomPayload payload) {
-		PacketDistributor.sendToServer(payload);
+		ClientPacketDistributor.sendToServer(payload);
 	}
 }

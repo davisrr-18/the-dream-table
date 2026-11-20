@@ -15,6 +15,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -52,6 +53,7 @@ final class NeoForgeContent implements Content {
 
 	@Override
 	public <T extends BlockEntity> BlockEntityType<T> blockEntityType(BlockEntityFactory<T> factory, Block... blocks) {
-		return BlockEntityType.Builder.create(factory::create, blocks).build(null);
+		// The constructor is private in vanilla 1.21.2+; NeoForge opens it with an access transformer.
+		return new BlockEntityType<>(factory::create, Set.of(blocks));
 	}
 }

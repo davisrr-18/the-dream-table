@@ -10,13 +10,14 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.ScreenHandlerProvider;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.render.block.entity.state.BlockEntityRenderState;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
-import net.neoforged.neoforge.client.event.RenderHighlightEvent;
+import net.neoforged.neoforge.client.event.ExtractBlockOutlineRenderStateEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
@@ -34,20 +35,18 @@ final class NeoForgeClientRendering implements ClientRendering {
 
 	@Override
 	public void onWorldRender(RenderStage stage, Consumer<RenderFrame> listener) {
-		RenderLevelStageEvent.Stage neoStage = switch (stage) {
-			case AFTER_ENTITIES -> RenderLevelStageEvent.Stage.AFTER_ENTITIES;
-			case AFTER_TRANSLUCENT -> RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS;
-		};
-		NeoForge.EVENT_BUS.addListener(RenderLevelStageEvent.class, event -> {
-			if (event.getStage() == neoStage) {
-				listener.accept(frame(event));
-			}
-		});
+		// 1.21.11 has one event class per stage. END_MAIN (Fabric: after the last buffer flush of the main pass) maps to the last
+		// stage after translucent terrain, AfterTripwireBlocks. Both fire inside the frame graph, where the model-view matrix of
+		// RenderSystem already holds the camera rotation (WorldRenderer.render) and the stack is a fresh identity one.
+		switch (stage) {
+			case AFTER_ENTITIES -> NeoForge.EVENT_BUS.addListener(RenderLevelStageEvent.AfterEntities.class, event -> listener.accept(frame(event)));
+			case END_MAIN -> NeoForge.EVENT_BUS.addListener(RenderLevelStageEvent.AfterTripwireBlocks.class, event -> listener.accept(frame(event)));
+		}
 	}
 
 	@Override
 	public void hideBlockOutlineWhen(BooleanSupplier hidden) {
-		NeoForge.EVENT_BUS.addListener(RenderHighlightEvent.Block.class, event -> {
+		NeoForge.EVENT_BUS.addListener(ExtractBlockOutlineRenderStateEvent.class, event -> {
 			if (hidden.getAsBoolean()) {
 				event.setCanceled(true);
 			}
@@ -65,13 +64,14 @@ final class NeoForgeClientRendering implements ClientRendering {
 	}
 
 	@Override
-	public <T extends BlockEntity> void registerBlockEntityRenderer(Supplier<? extends BlockEntityType<? extends T>> type, BlockEntityRendererFactory<T> factory) {
+	public <T extends BlockEntity, S extends BlockEntityRenderState> void registerBlockEntityRenderer(Supplier<? extends BlockEntityType<? extends T>> type,
+			BlockEntityRendererFactory<T, S> factory) {
 		modBus.addListener(EntityRenderersEvent.RegisterRenderers.class, event -> event.registerBlockEntityRenderer(type.get(), factory));
 	}
 
 	/** Same parts Fabric hands out: vanilla's world matrix stack and the entity vertex consumers. */
 	private static RenderFrame frame(RenderLevelStageEvent event) {
 		MinecraftClient client = MinecraftClient.getInstance();
-		return new RenderFrame(client.world, event.getPoseStack(), client.getBufferBuilders().getEntityVertexConsumers(), event.getCamera());
+		return new RenderFrame(client.world, event.getPoseStack(), client.getBufferBuilders().getEntityVertexConsumers(), client.gameRenderer.getCamera());
 	}
 }

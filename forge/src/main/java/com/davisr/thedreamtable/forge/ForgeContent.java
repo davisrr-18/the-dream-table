@@ -10,11 +10,12 @@ import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.Identifier;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
-import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.bus.BusGroup;
 import net.minecraftforge.registries.DeferredRegister;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -22,10 +23,10 @@ import java.util.function.Supplier;
  * constructed, so entries are created during Forge's registration phase.
  */
 final class ForgeContent implements Content {
-	private final IEventBus modBus;
+	private final BusGroup modBus;
 	private final Map<String, DeferredRegister<?>> registers = new HashMap<>();
 
-	ForgeContent(IEventBus modBus) {
+	ForgeContent(BusGroup modBus) {
 		this.modBus = modBus;
 	}
 
@@ -43,7 +44,7 @@ final class ForgeContent implements Content {
 
 	@Override
 	public void addToCreativeTab(RegistryKey<ItemGroup> tab, Supplier<? extends ItemConvertible> item) {
-		ForgePlatform.listen(modBus, BuildCreativeModeTabContentsEvent.class, event -> {
+		BuildCreativeModeTabContentsEvent.BUS.addListener(event -> {
 			if (event.getTabKey().equals(tab)) {
 				event.accept(item);
 			}
@@ -52,6 +53,6 @@ final class ForgeContent implements Content {
 
 	@Override
 	public <T extends BlockEntity> BlockEntityType<T> blockEntityType(BlockEntityFactory<T> factory, Block... blocks) {
-		return BlockEntityType.Builder.create(factory::create, blocks).build(null);
+		return new BlockEntityType<>(factory::create, Set.of(blocks));
 	}
 }

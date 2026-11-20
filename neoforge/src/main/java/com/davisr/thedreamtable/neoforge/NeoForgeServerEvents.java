@@ -45,7 +45,7 @@ final class NeoForgeServerEvents implements ServerEvents {
 	public void onPlayerJoin(BiConsumer<ServerPlayerEntity, MinecraftServer> listener) {
 		NeoForge.EVENT_BUS.addListener(PlayerEvent.PlayerLoggedInEvent.class, event -> {
 			if (event.getEntity() instanceof ServerPlayerEntity player) {
-				listener.accept(player, player.server);
+				listener.accept(player, player.getEntityWorld().getServer());
 			}
 		});
 	}
@@ -69,7 +69,7 @@ final class NeoForgeServerEvents implements ServerEvents {
 	public void onPlayerDisconnect(BiConsumer<ServerPlayerEntity, MinecraftServer> listener) {
 		NeoForge.EVENT_BUS.addListener(PlayerEvent.PlayerLoggedOutEvent.class, event -> {
 			if (event.getEntity() instanceof ServerPlayerEntity player) {
-				listener.accept(player, player.server);
+				listener.accept(player, player.getEntityWorld().getServer());
 			}
 		});
 	}

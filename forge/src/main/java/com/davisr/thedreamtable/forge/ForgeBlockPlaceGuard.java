@@ -5,7 +5,6 @@ import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.BlockSnapshot;
 import net.minecraftforge.event.level.BlockEvent;
 
@@ -20,6 +19,6 @@ final class ForgeBlockPlaceGuard implements BlockPlaceGuard {
 	@Override
 	public boolean allowsPlace(ServerWorld world, PlayerEntity player, BlockPos pos, BlockState placed) {
 		BlockSnapshot snapshot = BlockSnapshot.create(world.getRegistryKey(), world, pos);
-		return !MinecraftForge.EVENT_BUS.post(new BlockEvent.EntityPlaceEvent(snapshot, world.getBlockState(pos.down()), player));
+		return !BlockEvent.EntityPlaceEvent.BUS.post(new BlockEvent.EntityPlaceEvent(snapshot, world.getBlockState(pos.down()), player));
 	}
 }

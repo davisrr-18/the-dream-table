@@ -3,16 +3,14 @@ package com.davisr.thedreamtable.neoforge;
 import com.davisr.thedreamtable.platform.ClientEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.item.ItemStack;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.SynchronousResourceReloader;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.TypedActionResult;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
+import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -62,10 +60,10 @@ final class NeoForgeClientEvents implements ClientEvents {
 			if (event.isCanceled()) {
 				return;
 			}
-			TypedActionResult<ItemStack> result = listener.use(event.getEntity(), event.getLevel(), event.getHand());
-			if (result.getResult() != ActionResult.PASS) {
+			ActionResult result = listener.use(event.getEntity(), event.getLevel(), event.getHand());
+			if (result != ActionResult.PASS) {
 				event.setCanceled(true);
-				event.setCancellationResult(result.getResult());
+				event.setCancellationResult(result);
 			}
 		});
 	}
@@ -78,7 +76,7 @@ final class NeoForgeClientEvents implements ClientEvents {
 
 	@Override
 	public void onResourcesReloaded(Identifier id, Consumer<ResourceManager> listener) {
-		modBus.addListener(RegisterClientReloadListenersEvent.class,
-				event -> event.registerReloadListener((SynchronousResourceReloader) listener::accept));
+		modBus.addListener(AddClientReloadListenersEvent.class,
+				event -> event.addListener(id, (SynchronousResourceReloader) listener::accept));
 	}
 }
