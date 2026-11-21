@@ -31,7 +31,7 @@ jobs:
         run: |
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.jar' --dir dist
           version="${TAG#v}"
-          for jar in fabric-mc1.21.1 neoforge-mc1.21.1 forge-mc1.21.1 fabric-mc1.20.1 forge-mc1.20.1; do
+          for jar in fabric-mc1.21.11 neoforge-mc1.21.11 forge-mc1.21.11 fabric-mc1.21.1 neoforge-mc1.21.1 forge-mc1.21.1 fabric-mc1.20.1 forge-mc1.20.1; do
             test -f "dist/the_dream_table-$jar-$version.jar" || { echo "missing the_dream_table-$jar-$version.jar"; exit 1; }
           done
           echo "VERSION=$version" >> "$GITHUB_ENV"
@@ -104,4 +104,44 @@ jobs:
           changelog-file: changelog.md
           loaders: forge
           game-versions: 1.20.1
+          fail-mode: skip
+
+      - name: Fabric 1.21.11
+        uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
+        with:
+          curseforge-id: 1759212
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: dist/the_dream_table-fabric-mc1.21.11-${{ env.VERSION }}.jar
+          name: ""
+          version: ${{ env.TAG }}
+          changelog-file: changelog.md
+          loaders: fabric
+          game-versions: 1.21.11
+          dependencies: fabric-api(required)
+          fail-mode: skip
+
+      - name: NeoForge 1.21.11
+        uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
+        with:
+          curseforge-id: 1759212
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: dist/the_dream_table-neoforge-mc1.21.11-${{ env.VERSION }}.jar
+          name: ""
+          version: ${{ env.TAG }}
+          changelog-file: changelog.md
+          loaders: neoforge
+          game-versions: 1.21.11
+          fail-mode: skip
+
+      - name: Forge 1.21.11
+        uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
+        with:
+          curseforge-id: 1759212
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: dist/the_dream_table-forge-mc1.21.11-${{ env.VERSION }}.jar
+          name: ""
+          version: ${{ env.TAG }}
+          changelog-file: changelog.md
+          loaders: forge
+          game-versions: 1.21.11
           fail-mode: skip
