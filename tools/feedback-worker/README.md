@@ -142,7 +142,11 @@ unique in the account; change it if another Rate Limiting binding already uses i
 2. Resource owner: `davisrr-18`.
 3. Repository access: Only select repositories, then `davisrr-18/rede-neural` only.
 4. Permissions, Repository permissions: Contents, Read and write. Nothing else.
-5. Expiration: a short period (for example 30 days). Rotate it when it expires.
+5. Expiration: No expiration (owner's decision of 2026-11-21, so it never has to be renewed; GitHub allows it unless an
+   organization policy blocks it, and the vault is in a personal account). GitHub removes a token that goes a year
+   without use, so if no feedback arrives for a year, create a new one (step 7). The page can open pre-filled with
+   `https://github.com/settings/personal-access-tokens/new?name=the-dream-table-feedback&target_name=davisrr-18&expires_in=none&contents=write`;
+   still choose the repository (step 3) and check the permissions before generating.
 
 ### 5. Set the token as a secret and deploy
 
@@ -215,14 +219,15 @@ Expected: `{"ok":true}`, and a new file in `02-projetos/The Dream Table/feedback
 
 - Revoke: GitHub, Settings, Developer settings, Fine-grained tokens, then Delete
   the `the-dream-table-feedback` token. The Worker can no longer write notes.
-- Rotate: create a new token (step 4), then repeat step 5 with the new value.
+- Replace: create a new token (step 4), repeat step 5 with the new value, then delete the old one. Needed only if the
+  token leaks, is deleted, or is removed after a year without use; it has no expiry.
 
 ## Known risks
 
 - **The token reaches the whole repository.** A fine-grained token limited to Contents
   cannot restrict paths, so anyone who obtains it can write any file in
-  `davisrr-18/rede-neural`. Accepted by the owner. Mitigation: a short expiry, rotation,
-  and revocation (step 7).
+  `davisrr-18/rede-neural`. Accepted by the owner. The token has no expiry, so a leak
+  stays valid until it is revoked: revoke it at once (step 7). Mitigation: one repository, Contents only, and revocation.
 - **The daily cap can be used up by an attacker.** Each IP gets 3 requests per minute,
   but an attacker with many IPs can reach the 200 accepted notes for the day. The
   Worker then answers 429 to players until 00:00 UTC. Accepted for now; raising the cap
