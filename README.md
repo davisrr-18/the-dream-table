@@ -1,6 +1,6 @@
 # The Dream Table
 
-Version `1.4.0` for Minecraft **1.21.1** (Fabric with Fabric API, NeoForge and Forge) and **1.20.1** (Fabric with Fabric API, and Forge).
+Version `1.5.0` for Minecraft **1.21.11**, on Fabric (with Fabric API), NeoForge and Forge. For Minecraft 1.21.1 see the `main` branch, and for 1.20.1 the `mc/1.20.1` branch.
 
 The Dream Table picks a classic farm, shows the hologram in the world, and builds it after the materials are delivered. Options sets how fast it builds.
 
@@ -90,14 +90,14 @@ A finished farm keeps everything its blocks held in the schematic, like a hopper
 
 ## Requirements
 
-- Minecraft 1.21.1 (Java 21) or 1.20.1 (Java 17)
-- Fabric: Fabric Loader 0.16 or newer and Fabric API
-- NeoForge: NeoForge 21.1 (the 21.1 series, for Minecraft 1.21.1 only)
-- Forge: Forge 52 for Minecraft 1.21.1, or Forge 47 for Minecraft 1.20.1
+- Minecraft 1.21.11 (Java 21)
+- Fabric: Fabric Loader 0.16 or newer and Fabric API 0.141.6 or newer
+- NeoForge: NeoForge 21.11 (the 21.11 series, for Minecraft 1.21.11 only)
+- Forge: Forge 61 (for Minecraft 1.21.11)
 
-Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides, and the client and the server must run the same version (1.3.0).
+Put the jar for your loader in the `mods` folder of the game and, on a server, of the server too: the mod is needed on both sides, and the client and the server must run the same version (1.5.0).
 
-Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.4.0 on Minecraft 1.21.1. Farms that were shared in 1.0.0 keep their owners, and their collaborators are dropped. 1.0.0 was the first stable release and followed 2.2.0-beta; the lower number is intentional.
+Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.5.0. A world from Minecraft 1.21.1 carries over to 1.21.11 too: the game upgrades it the first time it opens, so keep a copy first. Farms that were shared in 1.0.0 keep their owners, and their collaborators are dropped. 1.0.0 was the first stable release and followed 2.2.0-beta; the lower number is intentional.
 
 ## Known limitations
 
@@ -106,6 +106,7 @@ Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.4.0 on 
 - Keep Loaded can't hold a farm that spans more than 64 chunks.
 - Text is available in English and Brazilian Portuguese only.
 - Protect My Farms only stops players breaking blocks by hand.
+- On Forge, the hologram draws after clouds, weather and particles, so rain can draw over a ghost block.
 
 ## Build
 
@@ -117,8 +118,8 @@ From the project root, with Java 21:
 
 The build places one jar per loader in its own folder:
 
-- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-mc1.21.1-1.4.0.jar`
-- NeoForge: `build/release/neoforge/the_dream_table-neoforge-mc1.21.1-1.4.0.jar`
-- Forge: `build/release/forge/the_dream_table-forge-mc1.21.1-1.4.0.jar`
+- Fabric (needs Fabric API): `build/release/fabric/the_dream_table-fabric-mc1.21.11-1.5.0.jar`
+- NeoForge: `build/release/neoforge/the_dream_table-neoforge-mc1.21.11-1.5.0.jar`
+- Forge: `build/release/forge/the_dream_table-forge-mc1.21.11-1.5.0.jar`
 
 The `sources` and `dev-shadow` jars under each loader's `build/libs/` are for development only.
