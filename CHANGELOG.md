@@ -1,13 +1,14 @@
 # The Dream Table 1.5.0
 
-Release date: not yet released
+Release date: 2026-11-21
 
-Bug fixes found in a code review of 1.4.0. The rest of this update is still in progress.
+The Dream Table now runs on Minecraft 1.21.11. This update also adds a feedback form, a help page for your own schematics, and fixes for bugs found in a code review of 1.4.0.
 
 ## Changes
 
-- My Schematics has a How It Works page: where to save files, which formats and size are read, how it works on a server, and why a file is greyed out.
-- Settings has a feedback form: a bug, an idea or another note, sent with its text, category, mod version, loader and Minecraft version; no name, account or ID of yours is sent. A switch turns it off.
+- **Minecraft 1.21.11** is supported on Fabric, NeoForge and Forge, next to 1.21.1 and 1.20.1.
+- **My Schematics** has a How It Works page: where to save files, which formats and size are read, how it works on a server, and why a file is greyed out.
+- **Settings** has a feedback form: a bug, an idea or another note, sent with its text, category, mod version, loader and Minecraft version; no name, account or ID of yours is sent. A switch turns it off.
 
 ## Fixes
 
@@ -20,3 +21,4 @@ Bug fixes found in a code review of 1.4.0. The rest of this update is still in p
 ## Good to know
 
 - The network protocol changed (version 5): a 1.5.0 server and its players must all run 1.5.0.
+- Worlds, finished farms and builds in progress from 1.4.0 carry over to 1.5.0. On Minecraft 1.21.11, a world from 1.21.1 also carries over: the game upgrades it the first time it opens, so keep a copy of the world first.
