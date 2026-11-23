@@ -422,6 +422,7 @@ class BuildProgressTest {
 	}
 
 	private static void assertEndedAsLost(BuildProgress loaded, UUID actor) {
+		assertTrue(loaded.endedUnreadableRepair(), "the table must also drop the repair's anchor");
 		assertFalse(loaded.repair(), "a repair with no readable context must not keep running");
 		assertEquals(null, loaded.repairContext());
 		assertEquals(DreamTableBlockEntity.PHASE_IDLE, loaded.phase());
