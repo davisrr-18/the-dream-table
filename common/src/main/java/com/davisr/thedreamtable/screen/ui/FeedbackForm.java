@@ -15,15 +15,19 @@ import net.minecraft.text.Text;
  * Vanilla's own click handler ignores visibility, so the box only takes clicks, scrolls and drags while it is usable.
  */
 public final class FeedbackForm {
-	private final Box field;
+	private final TextRenderer text;
+	private final Text placeholder;
+	private Box field;
 	private FeedbackCategory category = FeedbackCategory.BUG;
 
 	public FeedbackForm(TextRenderer text, Text placeholder) {
-		field = new Box(text, placeholder);
-		field.setMaxLength(FeedbackJson.MAX_LENGTH);
+		this.text = text;
+		this.placeholder = placeholder;
+		field = create(1, 1);
 		hide();
 	}
 
+	/** The current box. place() can replace it when the width changes, so the screen re-registers it after each page draw. */
 	public EditBoxWidget widget() {
 		return field;
 	}
@@ -62,6 +66,9 @@ public final class FeedbackForm {
 
 	/** Places the box for this frame; {@code reachable} is false while part of it is scrolled out of view. */
 	public void place(int x, int y, int width, int height, boolean reachable) {
+		if (width != field.getWidth()) {
+			rebuild(width, height);
+		}
 		field.setDimensionsAndPosition(width, height, x, y);
 		field.visible = true;
 		field.usable = reachable;
@@ -79,11 +86,28 @@ public final class FeedbackForm {
 		field.render(context, mouseX, mouseY, 0F);
 	}
 
+	/**
+	 * EditBoxWidget wraps at the width it was constructed with and resizing does not re-wrap it, so a new width needs a
+	 * new box; the text, the focus and the length limit carry over.
+	 */
+	private void rebuild(int width, int height) {
+		Box next = create(width, height);
+		next.setText(field.getText());
+		next.setFocused(field.isFocused());
+		field = next;
+	}
+
+	private Box create(int width, int height) {
+		Box created = new Box(text, placeholder, width, height);
+		created.setMaxLength(FeedbackJson.MAX_LENGTH);
+		return created;
+	}
+
 	private static final class Box extends EditBoxWidget {
 		private boolean usable;
 
-		Box(TextRenderer text, Text placeholder) {
-			super(text, 0, 0, 1, 1, placeholder, Text.empty());
+		Box(TextRenderer text, Text placeholder, int width, int height) {
+			super(text, 0, 0, width, height, placeholder, Text.empty());
 		}
 
 		@Override

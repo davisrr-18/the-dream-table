@@ -42,6 +42,7 @@ import com.davisr.thedreamtable.screen.ui.layout.UiRect;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.widget.EditBoxWidget;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
@@ -76,6 +77,8 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 	private SearchBox search;
 	private String searchText = "";
 	private FeedbackForm feedback;
+	/** The feedback box this screen has registered as a child; FeedbackForm may replace it when its width changes. */
+	private EditBoxWidget feedbackChild;
 	private TablePage selection;
 	private TablePage work;
 	private TablePage requirements;
@@ -116,7 +119,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		if (feedback == null) {
 			feedback = new FeedbackForm(this.textRenderer, Text.translatable("gui.the_dream_table.feedback.placeholder"));
 		}
-		addSelectableChild(feedback.widget());
+		feedbackChild = addSelectableChild(feedback.widget());
 		for (PrimaryTab tab : PrimaryTab.values()) {
 			ControlSpec placeholder = tabSpec(tab, new UiRect(0, 0, 1, 1));
 			UiControl control = new UiControl(placeholder, () -> openTab(tab));
@@ -199,6 +202,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		if (drawable) {
 			page.draw(context, mouseX, mouseY);
 		}
+		syncFeedbackChild();
 		if (feedback.focused() && !feedback.usable()) {
 			leaveField();
 		}
@@ -543,6 +547,21 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 		UiControl control = pageControls.get(id);
 		if (control != null) {
 			setFocused(control);
+		}
+	}
+
+	/** Re-registers the feedback box when FeedbackForm replaced it during the page draw, and keeps the keyboard focus on it. */
+	private void syncFeedbackChild() {
+		EditBoxWidget current = feedback.widget();
+		if (current == feedbackChild) {
+			return;
+		}
+		boolean focused = getFocused() == feedbackChild;
+		remove(feedbackChild);
+		addSelectableChild(current);
+		feedbackChild = current;
+		if (focused) {
+			setFocused(current);
 		}
 	}
 
