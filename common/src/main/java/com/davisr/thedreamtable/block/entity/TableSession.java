@@ -788,12 +788,13 @@ public final class TableSession {
 
 	/**
 	 * The area a kept project reserves, from its saved spot and farm: only a build keeps one, and it is the box its farm
-	 * occupies at the anchor, in the world it stands in. Null for a project without a spot, or whose farm this server does not know.
+	 * occupies at the anchor, in the world it stands in. A build whose world id is damaged has no known world, so it reserves in every
+	 * world. Null for a project without a spot, or whose farm this server does not know.
 	 */
 	public static @Nullable ParkedProjects.Reservation keptReservation(NbtCompound project) {
-		Identifier world = project.contains("MovedBuildDimension", NbtElement.STRING_TYPE)
-				? Identifier.tryParse(project.getString("MovedBuildDimension")) : null;
-		FarmTemplate template = world == null || !project.contains("AnchorX", NbtElement.INT_TYPE)
+		boolean build = project.contains("MovedBuildDimension", NbtElement.STRING_TYPE);
+		Identifier world = build ? Identifier.tryParse(project.getString("MovedBuildDimension")) : null;
+		FarmTemplate template = !build || !project.contains("AnchorX", NbtElement.INT_TYPE)
 				? null : FarmTemplates.get(project.getString("SelectedFarm"));
 		if (template == null) {
 			return null;
@@ -917,7 +918,15 @@ public final class TableSession {
 		progress.read(nbt);
 		placement.read(nbt);
 		desk.read(nbt, registries);
-		movedBuildDimension = nbt.contains("MovedBuildDimension", NbtElement.STRING_TYPE) ? Identifier.tryParse(nbt.getString("MovedBuildDimension")) : null;
+		// A present but unparsable dimension is damage, not "never moved": it throws, so the session is kept unreadable and unchanged (GuardedRead).
+		if (nbt.contains("MovedBuildDimension", NbtElement.STRING_TYPE)) {
+			movedBuildDimension = Identifier.tryParse(nbt.getString("MovedBuildDimension"));
+			if (movedBuildDimension == null) {
+				throw new IllegalArgumentException("unparsable MovedBuildDimension: " + nbt.getString("MovedBuildDimension"));
+			}
+		} else {
+			movedBuildDimension = null;
+		}
 		aim = nbt.contains("Aim", NbtElement.COMPOUND_TYPE) ? AimedSpot.fromNbt(nbt.getCompound("Aim")) : null;
 	}
 
