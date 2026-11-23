@@ -298,4 +298,17 @@ class ParkedProjectsTest {
 		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(east)));
 		assertEquals(east.intersects(south), parked.reserves(OVERWORLD, box -> box.intersects(south)));
 	}
+
+	/** A build whose world id is damaged does not know its world, so it keeps its area in every world rather than losing it. */
+	@Test
+	void aBuildWithAnUnreadableWorldReservesItsAreaInEveryWorld() {
+		Box area = footprint(ANCHOR, Direction.SOUTH);
+		NbtCompound project = build(OVERWORLD, ANCHOR, Direction.SOUTH);
+		project.putString("MovedBuildDimension", "Not A World");
+		ParkedProjects parked = new ParkedProjects();
+		parked.park(PLAYER, project);
+		assertTrue(parked.reserves(OVERWORLD, box -> box.intersects(area)));
+		assertTrue(parked.reserves(NETHER, box -> box.intersects(area)));
+		assertFalse(parked.reserves(NETHER, box -> box.intersects(footprint(ANCHOR.add(100, 0, 0), Direction.SOUTH))));
+	}
 }
