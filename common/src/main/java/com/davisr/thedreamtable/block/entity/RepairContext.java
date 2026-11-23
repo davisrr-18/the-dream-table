@@ -24,6 +24,11 @@ public record RepairContext(FarmKey farmKey, UUID farmOwnerUuid, UUID actorUuid,
 		Nbts.putUuid(nbt, "RepairOperationId", operationId);
 	}
 
+	/** Whether a save carries any of the context's keys. A save that does but can't be read is a repair that lost its identity, not a legacy one. */
+	static boolean hasSavedKeys(NbtCompound nbt) {
+		return nbt.contains("RepairFarmKey") || nbt.contains("RepairFarmOwner") || nbt.contains("RepairActor") || nbt.contains("RepairOperationId");
+	}
+
 	static @Nullable RepairContext read(NbtCompound nbt) {
 		if (!Nbts.containsUuid(nbt, "RepairFarmOwner") || !Nbts.containsUuid(nbt, "RepairActor") || !Nbts.containsUuid(nbt, "RepairOperationId")) {
 			return null;
