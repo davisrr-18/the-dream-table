@@ -315,20 +315,29 @@ public final class SessionBuild {
 	 * Failing again at the same step marks it as repeated, so the player is told to look at the spot.
 	 */
 	public void placementFailed(BlockPos where, BlockState block) {
-		stop(PHASE_BLOCKED, BuildIssue.of(BuildIssue.Kind.PLACE_FAILED, where, block.getBlock()).again(countFailure()));
+		stop(PHASE_BLOCKED, BuildIssue.of(BuildIssue.Kind.PLACE_FAILED, where, block.getBlock()).again(countFailure(BuildIssue.Kind.PLACE_FAILED, where)));
 	}
 
 	/** An unexpected error at the current step. Its details are in the log. */
 	public void failed(BlockPos where) {
-		stop(PHASE_BLOCKED, new BuildIssue(BuildIssue.Kind.ERROR, where.toImmutable(), Integer.toString(progress.index() + 1), countFailure()));
+		stop(PHASE_BLOCKED, new BuildIssue(BuildIssue.Kind.ERROR, where.toImmutable(), Integer.toString(progress.index() + 1), countFailure(BuildIssue.Kind.ERROR, where)));
 	}
 
-	private int countFailure() {
+	/** Counts a failure at the current step. The count is kept in memory; after a reload it starts from the saved issue. */
+	int countFailure(BuildIssue.Kind kind, BlockPos where) {
 		if (failedStep != progress.index()) {
 			failedStep = progress.index();
-			failures = 0;
+			failures = priorFailures(progress.issueAtCurrentStep(), kind, where);
 		}
 		return ++failures;
+	}
+
+	/**
+	 * The failures the saved issue already counts at this spot, or 0 when there is none, or it is another kind or another spot.
+	 * The caller passes only an issue raised at the current step.
+	 */
+	static int priorFailures(@Nullable BuildIssue saved, BuildIssue.Kind kind, BlockPos where) {
+		return saved != null && saved.kind() == kind && saved.where().equals(where) ? saved.attempts() : 0;
 	}
 
 	/** Something the player must deal with stands in the way: a protected spot, a block the table won't clear, or a missing item. */
