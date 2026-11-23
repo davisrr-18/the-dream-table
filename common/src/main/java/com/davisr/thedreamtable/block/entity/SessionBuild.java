@@ -39,6 +39,9 @@ public final class SessionBuild {
 	private long waitingSince = -1;
 	private int failedStep = -1;
 	private int failures;
+	/** The issue the table held when this build was resumed, since start() clears it: it seeds the failure count after a reload. */
+	private @Nullable BuildIssue carried;
+	private int carriedStep = -1;
 	/** The build waited for its owner to come back online. Not saved: after a restart everyone rejoins anyway. */
 	private boolean ownerAway;
 	/** The design instance last found to match the signature this build started with, so the signature isn't recomputed every tick. */
@@ -261,7 +264,9 @@ public final class SessionBuild {
 		// The claim now holds the area, so the hold kept for it since the table came back can go.
 		session.releaseHold();
 		verified = null;
+		BuildIssue resumed = fromScratch ? null : progress.issueAtCurrentStep();
 		progress.start(session.player(), fromScratch, template.signature());
+		carryIssue(resumed);
 		session.clearAim();
 		if (fromScratch) {
 			clearing = null;
@@ -323,11 +328,23 @@ public final class SessionBuild {
 		stop(PHASE_BLOCKED, new BuildIssue(BuildIssue.Kind.ERROR, where.toImmutable(), Integer.toString(progress.index() + 1), countFailure(BuildIssue.Kind.ERROR, where)));
 	}
 
+	/** Remembers the issue a resumed build held at its current step, so a failure there after a reload continues its count. */
+	void carryIssue(@Nullable BuildIssue issue) {
+		carried = issue;
+		carriedStep = progress.index();
+	}
+
 	/** Counts a failure at the current step. The count is kept in memory; after a reload it starts from the saved issue. */
 	int countFailure(BuildIssue.Kind kind, BlockPos where) {
 		if (failedStep != progress.index()) {
 			failedStep = progress.index();
-			failures = priorFailures(progress.issueAtCurrentStep(), kind, where);
+			BuildIssue saved = progress.issueAtCurrentStep();
+			if (saved == null && carriedStep == progress.index()) {
+				saved = carried;
+			}
+			carried = null;
+			carriedStep = -1;
+			failures = priorFailures(saved, kind, where);
 		}
 		return ++failures;
 	}

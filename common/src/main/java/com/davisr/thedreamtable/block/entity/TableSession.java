@@ -917,6 +917,10 @@ public final class TableSession {
 		swapMaterial = nbt.contains("SwapMaterial", NbtElement.INT_TYPE) ? nbt.getInt("SwapMaterial") : -1;
 		progress.read(nbt);
 		placement.read(nbt);
+		if (progress.endedUnreadableRepair()) {
+			// The repair ended on load: its anchor must not hold the farm's footprint against other repairs (as cancelRepair does).
+			placement.clear();
+		}
 		desk.read(nbt, registries);
 		// A present but unparsable dimension is damage, not "never moved": it throws, so the session is kept unreadable and unchanged (GuardedRead).
 		if (nbt.contains("MovedBuildDimension", NbtElement.STRING_TYPE)) {

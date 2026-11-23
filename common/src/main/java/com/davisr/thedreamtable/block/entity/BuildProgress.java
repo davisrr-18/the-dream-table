@@ -36,6 +36,7 @@ final class BuildProgress {
 	private @Nullable BuildIssue issue;
 	/** The step the issue was raised at. Saved with it, so an issue left from an earlier step is not taken for the current one. */
 	private int issueStep;
+	private boolean endedUnreadableRepair;
 	private boolean repair;
 	private @Nullable RepairContext repairContext;
 	private @Nullable UUID repairInstanceId;
@@ -103,6 +104,11 @@ final class BuildProgress {
 	}
 
 	/** The issue when it was raised at the current step, or null. */
+	/** True when this read ended a repair whose context was unreadable; the table then also drops the anchor the repair held. Not saved. */
+	boolean endedUnreadableRepair() {
+		return endedUnreadableRepair;
+	}
+
 	@Nullable BuildIssue issueAtCurrentStep() {
 		return issue != null && issueStep == index ? issue : null;
 	}
@@ -357,6 +363,7 @@ final class BuildProgress {
 			paid.set(0, index);
 		}
 		repair = nbt.getBoolean("Repair");
+		endedUnreadableRepair = false;
 		boolean unreadableRepair = false;
 		if (repair) {
 			repairContext = RepairContext.read(nbt);
@@ -394,6 +401,7 @@ final class BuildProgress {
 	 */
 	private void endUnreadableRepair() {
 		reset(false);
+		endedUnreadableRepair = true;
 		// Same key as SessionBuild's END_LOST message.
 		returnNotice = "gui.the_dream_table.repair_ended_lost";
 	}
