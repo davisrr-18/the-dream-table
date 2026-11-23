@@ -413,11 +413,11 @@ class BuildProgressTest {
 		nbt.putString("Phase", DreamTableBlockEntity.PHASE_BUILDING);
 		nbt.putInt("BuildIndex", 5);
 		nbt.putBoolean("Repair", true);
-		nbt.putUuid("Owner", actor);
+		Nbts.putUuid(nbt, "Owner", actor);
 		nbt.putString("RepairFarmKey", "minecraft:overworld|" + UUID.randomUUID());
-		nbt.putUuid("RepairFarmOwner", UUID.randomUUID());
-		nbt.putUuid("RepairActor", actor);
-		nbt.putUuid("RepairOperationId", UUID.randomUUID());
+		Nbts.putUuid(nbt, "RepairFarmOwner", UUID.randomUUID());
+		Nbts.putUuid(nbt, "RepairActor", actor);
+		Nbts.putUuid(nbt, "RepairOperationId", UUID.randomUUID());
 		return nbt;
 	}
 

@@ -382,7 +382,7 @@ final class BuildProgress {
 		returnNotice = nbt.getString("ReturnNotice", "");
 		issue = BuildIssue.read(nbt);
 		// A save from before the step was kept has its issue at the saved step, since an advance always cleared it.
-		issueStep = nbt.contains("IssueStep") ? nbt.getInt("IssueStep") : index;
+		issueStep = nbt.getInt("IssueStep", index);
 		if (unreadableRepair && busy()) {
 			endUnreadableRepair();
 		}

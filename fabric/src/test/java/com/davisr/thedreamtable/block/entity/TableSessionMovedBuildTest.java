@@ -44,7 +44,7 @@ class TableSessionMovedBuildTest {
 		TableSession back = session();
 		back.read(written, null);
 		assertTrue(back.movedBuild());
-		assertEquals("minecraft:the_nether", written.getString("MovedBuildDimension"));
+		assertEquals("minecraft:the_nether", written.getString("MovedBuildDimension", ""));
 	}
 
 	/**
