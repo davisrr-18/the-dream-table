@@ -34,6 +34,8 @@ final class BuildProgress {
 	private int pace = BuildPace.DEFAULT;
 	private long signature;
 	private @Nullable BuildIssue issue;
+	/** The step the issue was raised at. Saved with it, so an issue left from an earlier step is not taken for the current one. */
+	private int issueStep;
 	private boolean repair;
 	private @Nullable RepairContext repairContext;
 	private @Nullable UUID repairInstanceId;
@@ -97,6 +99,12 @@ final class BuildProgress {
 
 	void setIssue(@Nullable BuildIssue value) {
 		issue = value;
+		issueStep = index;
+	}
+
+	/** The issue when it was raised at the current step, or null. */
+	@Nullable BuildIssue issueAtCurrentStep() {
+		return issue != null && issueStep == index ? issue : null;
 	}
 
 	boolean repair() {
@@ -315,6 +323,7 @@ final class BuildProgress {
 		}
 		if (issue != null) {
 			issue.write(nbt);
+			nbt.putInt("IssueStep", issueStep);
 		}
 	}
 
@@ -371,6 +380,8 @@ final class BuildProgress {
 		legacyDone = !flagged && is(PHASE_DONE);
 		returnNotice = nbt.getString("ReturnNotice");
 		issue = BuildIssue.read(nbt);
+		// A save from before the step was kept has its issue at the saved step, since an advance always cleared it.
+		issueStep = nbt.contains("IssueStep") ? nbt.getInt("IssueStep") : index;
 		if (unreadableRepair && busy()) {
 			endUnreadableRepair();
 		}
@@ -379,7 +390,7 @@ final class BuildProgress {
 	/**
 	 * A repair whose saved context can't be read has no lease that could be proven, so it can't go on. It ends as lost,
 	 * the same outcome as a lost lease: the notice hands the delivered materials back on the owner's next tick, or when they
-	 * return. The placed steps are not merged into the farm's record, since the farm is not known.
+	 * return. The placed steps are not merged into the farm's record: that merge needs the readable context.
 	 */
 	private void endUnreadableRepair() {
 		reset(false);
