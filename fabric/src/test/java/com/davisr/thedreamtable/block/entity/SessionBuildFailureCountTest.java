@@ -82,4 +82,28 @@ class SessionBuildFailureCountTest {
 		assertEquals(1, build.countFailure(BuildIssue.Kind.PLACE_FAILED, SPOT));
 		assertEquals(2, build.countFailure(BuildIssue.Kind.PLACE_FAILED, SPOT));
 	}
+
+	/** The real flow: "Try again" calls progress.start, which clears the issue, before the next failure is counted. */
+	@Test
+	void aFailureAfterATryAgainContinuesTheSavedCount() {
+		BuildProgress loaded = reloadedAtStepFive(placeFailed(SPOT, 2));
+		BuildIssue resumed = loaded.issueAtCurrentStep();
+		loaded.start(UUID.randomUUID(), false, 7L);
+		assertEquals(null, loaded.issueAtCurrentStep(), "start clears the issue, so the seed must be carried");
+		SessionBuild build = new SessionBuild(null, loaded, null);
+		build.carryIssue(resumed);
+
+		assertEquals(3, build.countFailure(BuildIssue.Kind.PLACE_FAILED, SPOT));
+	}
+
+	@Test
+	void aCarriedIssueOfAnotherSpotDoesNotCount() {
+		BuildProgress loaded = reloadedAtStepFive(placeFailed(SPOT, 2));
+		BuildIssue resumed = loaded.issueAtCurrentStep();
+		loaded.start(UUID.randomUUID(), false, 7L);
+		SessionBuild build = new SessionBuild(null, loaded, null);
+		build.carryIssue(resumed);
+
+		assertEquals(1, build.countFailure(BuildIssue.Kind.PLACE_FAILED, SPOT.up()));
+	}
 }
