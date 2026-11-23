@@ -1,5 +1,7 @@
 # The Dream Table 1.5.1
 
+Release date: 2026-11-23
+
 A bug-fix update for Minecraft 1.21.11, 1.21.1 and 1.20.1.
 
 ## Fixes
