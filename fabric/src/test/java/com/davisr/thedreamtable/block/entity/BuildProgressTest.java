@@ -406,4 +406,56 @@ class BuildProgressTest {
 		progress.write(nbt);
 		assertFalse(nbt.contains("ClearedLayers"));
 	}
+
+	/** A repair save as the table writes it, with the identity keys of a readable context. */
+	private static NbtCompound repairSave(UUID actor) {
+		NbtCompound nbt = new NbtCompound();
+		nbt.putString("Phase", DreamTableBlockEntity.PHASE_BUILDING);
+		nbt.putInt("BuildIndex", 5);
+		nbt.putBoolean("Repair", true);
+		nbt.putUuid("Owner", actor);
+		nbt.putString("RepairFarmKey", "minecraft:overworld|" + UUID.randomUUID());
+		nbt.putUuid("RepairFarmOwner", UUID.randomUUID());
+		nbt.putUuid("RepairActor", actor);
+		nbt.putUuid("RepairOperationId", UUID.randomUUID());
+		return nbt;
+	}
+
+	private static void assertEndedAsLost(BuildProgress loaded, UUID actor) {
+		assertFalse(loaded.repair(), "a repair with no readable context must not keep running");
+		assertEquals(null, loaded.repairContext());
+		assertEquals(DreamTableBlockEntity.PHASE_IDLE, loaded.phase());
+		assertEquals("gui.the_dream_table.repair_ended_lost", loaded.returnNotice());
+		assertEquals(actor, loaded.owner());
+
+		NbtCompound saved = new NbtCompound();
+		loaded.write(saved);
+		BuildProgress restarted = new BuildProgress();
+		restarted.read(saved);
+		assertEquals("gui.the_dream_table.repair_ended_lost", restarted.returnNotice());
+	}
+
+	@Test
+	void aRepairWithAMalformedFarmKeyEndsAsLostInsteadOfRunningWithoutItsContext() {
+		UUID actor = UUID.randomUUID();
+		NbtCompound nbt = repairSave(actor);
+		nbt.putString("RepairFarmKey", "not a farm key");
+
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+
+		assertEndedAsLost(loaded, actor);
+	}
+
+	@Test
+	void aRepairWithAMissingIdentityUuidEndsAsLostInsteadOfRunningWithoutItsContext() {
+		UUID actor = UUID.randomUUID();
+		NbtCompound nbt = repairSave(actor);
+		nbt.remove("RepairActor");
+
+		BuildProgress loaded = new BuildProgress();
+		loaded.read(nbt);
+
+		assertEndedAsLost(loaded, actor);
+	}
 }
