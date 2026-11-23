@@ -1,7 +1,9 @@
 name: CurseForge
 
 # Posts the jars of a published GitHub release to CurseForge, one CurseForge file per jar (loader and Minecraft
-# version set per step). The changelog is the release body (CHANGELOG.md, from `gh release create --notes-file`).
+# version set per step). One release per Minecraft line, tagged v<version>-mc<minecraft> (e.g. v1.5.1-mc1.21.1): the
+# steps of that line run and the others are skipped. The changelog is the release body (that line's CHANGELOG.md, from
+# `gh release create --notes-file`).
 # Needs the repository secret CURSEFORGE_TOKEN (CurseForge account > API tokens).
 on:
   release:
@@ -10,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag (e.g. v1.4.0)
+        description: Release tag (e.g. v1.5.1-mc1.21.1)
         required: true
 
 permissions:
@@ -29,24 +31,36 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # One release per Minecraft line: the tag names the line (v1.5.1-mc1.21.1), and only that line's jars are posted.
+          if [[ ! "$TAG" =~ ^v(.+)-mc([0-9][0-9.]*)$ ]]; then
+            echo "the tag must look like v1.5.1-mc1.21.1, got $TAG"; exit 1
+          fi
+          version="${BASH_REMATCH[1]}"
+          mc="${BASH_REMATCH[2]}"
+          case "$mc" in
+            1.21.11|1.21.1) loaders="fabric neoforge forge" ;;
+            1.20.1) loaders="fabric forge" ;;
+            *) echo "unknown Minecraft version $mc"; exit 1 ;;
+          esac
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.jar' --dir dist
-          version="${TAG#v}"
-          for jar in fabric-mc1.21.11 neoforge-mc1.21.11 forge-mc1.21.11 fabric-mc1.21.1 neoforge-mc1.21.1 forge-mc1.21.1 fabric-mc1.20.1 forge-mc1.20.1; do
-            test -f "dist/the_dream_table-$jar-$version.jar" || { echo "missing the_dream_table-$jar-$version.jar"; exit 1; }
+          for loader in $loaders; do
+            test -f "dist/the_dream_table-$loader-mc$mc-$version.jar" || { echo "missing the_dream_table-$loader-mc$mc-$version.jar"; exit 1; }
           done
           echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "MC=$mc" >> "$GITHUB_ENV"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > changelog.md
 
       # Empty name: CurseForge shows the file name, as on the files uploaded by hand. Version type comes from the tag
-      # (v1.4.0 = release, v1.5.0-beta = beta). skip: a failed jar does not stop the others; the job still fails.
+      # (v1.5.1-mc1.21.1 = release, v1.5.1-beta-mc1.21.1 = beta). skip: a failed jar does not stop the others; the job still fails.
       - name: Fabric 1.21.1
+        if: env.MC == '1.21.1'
         uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           curseforge-id: 1759212
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: dist/the_dream_table-fabric-mc1.21.1-${{ env.VERSION }}.jar
           name: ""
-          version: ${{ env.TAG }}
+          version: v${{ env.VERSION }}
           changelog-file: changelog.md
           loaders: fabric
           game-versions: 1.21.1
@@ -54,39 +68,42 @@ jobs:
           fail-mode: skip
 
       - name: NeoForge 1.21.1
+        if: env.MC == '1.21.1'
         uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           curseforge-id: 1759212
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: dist/the_dream_table-neoforge-mc1.21.1-${{ env.VERSION }}.jar
           name: ""
-          version: ${{ env.TAG }}
+          version: v${{ env.VERSION }}
           changelog-file: changelog.md
           loaders: neoforge
           game-versions: 1.21.1
           fail-mode: skip
 
       - name: Forge 1.21.1
+        if: env.MC == '1.21.1'
         uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           curseforge-id: 1759212
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: dist/the_dream_table-forge-mc1.21.1-${{ env.VERSION }}.jar
           name: ""
-          version: ${{ env.TAG }}
+          version: v${{ env.VERSION }}
           changelog-file: changelog.md
           loaders: forge
           game-versions: 1.21.1
           fail-mode: skip
 
       - name: Fabric 1.20.1
+        if: env.MC == '1.20.1'
         uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           curseforge-id: 1759212
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: dist/the_dream_table-fabric-mc1.20.1-${{ env.VERSION }}.jar
           name: ""
-          version: ${{ env.TAG }}
+          version: v${{ env.VERSION }}
           changelog-file: changelog.md
           loaders: fabric
           game-versions: 1.20.1
@@ -94,26 +111,28 @@ jobs:
           fail-mode: skip
 
       - name: Forge 1.20.1
+        if: env.MC == '1.20.1'
         uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           curseforge-id: 1759212
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: dist/the_dream_table-forge-mc1.20.1-${{ env.VERSION }}.jar
           name: ""
-          version: ${{ env.TAG }}
+          version: v${{ env.VERSION }}
           changelog-file: changelog.md
           loaders: forge
           game-versions: 1.20.1
           fail-mode: skip
 
       - name: Fabric 1.21.11
+        if: env.MC == '1.21.11'
         uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           curseforge-id: 1759212
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: dist/the_dream_table-fabric-mc1.21.11-${{ env.VERSION }}.jar
           name: ""
-          version: ${{ env.TAG }}
+          version: v${{ env.VERSION }}
           changelog-file: changelog.md
           loaders: fabric
           game-versions: 1.21.11
@@ -121,26 +140,28 @@ jobs:
           fail-mode: skip
 
       - name: NeoForge 1.21.11
+        if: env.MC == '1.21.11'
         uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           curseforge-id: 1759212
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: dist/the_dream_table-neoforge-mc1.21.11-${{ env.VERSION }}.jar
           name: ""
-          version: ${{ env.TAG }}
+          version: v${{ env.VERSION }}
           changelog-file: changelog.md
           loaders: neoforge
           game-versions: 1.21.11
           fail-mode: skip
 
       - name: Forge 1.21.11
+        if: env.MC == '1.21.11'
         uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           curseforge-id: 1759212
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: dist/the_dream_table-forge-mc1.21.11-${{ env.VERSION }}.jar
           name: ""
-          version: ${{ env.TAG }}
+          version: v${{ env.VERSION }}
           changelog-file: changelog.md
           loaders: forge
           game-versions: 1.21.11
