@@ -348,8 +348,10 @@ final class BuildProgress {
 			paid.set(0, index);
 		}
 		repair = nbt.getBoolean("Repair");
+		boolean unreadableRepair = false;
 		if (repair) {
 			repairContext = RepairContext.read(nbt);
+			unreadableRepair = repairContext == null && RepairContext.hasSavedKeys(nbt);
 			repairInstanceId = repairContext != null ? repairContext.farmKey().instanceId()
 					: nbt.containsUuid("RepairInstanceId") ? nbt.getUuid("RepairInstanceId") : UUID.randomUUID();
 			FarmNames.Validation name = FarmNames.validate(nbt.getString("RepairCustomName"));
@@ -369,5 +371,19 @@ final class BuildProgress {
 		legacyDone = !flagged && is(PHASE_DONE);
 		returnNotice = nbt.getString("ReturnNotice");
 		issue = BuildIssue.read(nbt);
+		if (unreadableRepair && busy()) {
+			endUnreadableRepair();
+		}
+	}
+
+	/**
+	 * A repair whose saved context can't be read has no lease that could be proven, so it can't go on. It ends as lost,
+	 * the same outcome as a lost lease: the notice hands the delivered materials back on the owner's next tick, or when they
+	 * return. The placed steps are not merged into the farm's record, since the farm is not known.
+	 */
+	private void endUnreadableRepair() {
+		reset(false);
+		// Same key as SessionBuild's END_LOST message.
+		returnNotice = "gui.the_dream_table.repair_ended_lost";
 	}
 }
