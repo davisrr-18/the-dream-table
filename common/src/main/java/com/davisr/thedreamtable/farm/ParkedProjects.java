@@ -38,8 +38,8 @@ public final class ParkedProjects extends PersistentState {
 	/** Key for an unreadable saved session that names no player. No player has this id, so nobody is offered its projects, and it reserves nothing. */
 	public static final UUID NO_PLAYER = new UUID(0L, 0L);
 
-	/** A kept build's area: the world it stands in and the box its farm occupies there. */
-	public record Reservation(Identifier world, Box box) {
+	/** A kept build's area: the world it stands in, or null when that world is unreadable (then every world), and the box its farm occupies there. */
+	public record Reservation(@Nullable Identifier world, Box box) {
 	}
 
 	/** The table a restored build is held in: its owner, and the world and position of that table. */
@@ -151,7 +151,7 @@ public final class ParkedProjects extends PersistentState {
 	public boolean reserves(Identifier world, Predicate<Box> test, @Nullable Seat own) {
 		for (Found found : reservations()) {
 			Reservation reservation = found.reservation();
-			if (reservation.world().equals(world) && test.test(reservation.box()) && (own == null || !own.equals(found.seat()))) {
+			if ((reservation.world() == null || reservation.world().equals(world)) && test.test(reservation.box()) && (own == null || !own.equals(found.seat()))) {
 				return true;
 			}
 		}
