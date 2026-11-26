@@ -24,7 +24,7 @@ public final class FarmNames {
 		if (input == null) {
 			return new Validation(Result.INVALID_UNICODE, null);
 		}
-		String name = input.strip();
+		String name = trimInvisible(input);
 		if (name.isEmpty()) {
 			return new Validation(Result.RESET, null);
 		}
@@ -46,5 +46,32 @@ public final class FarmNames {
 			return new Validation(Result.INVALID_CHARACTER, null);
 		}
 		return new Validation(Result.VALID, name);
+	}
+
+	/**
+	 * Like strip(), but also drops no-break spaces at the ends; a name left with only blank-looking characters (format
+	 * characters such as U+200B, Hangul and Braille fillers) is empty. Format characters inside or at the end of a visible
+	 * name stay, since emoji flags and right-to-left names need them.
+	 */
+	private static String trimInvisible(String input) {
+		int start = 0;
+		int end = input.length();
+		while (start < end && spacing(input.codePointAt(start))) {
+			start += Character.charCount(input.codePointAt(start));
+		}
+		while (end > start && spacing(input.codePointBefore(end))) {
+			end -= Character.charCount(input.codePointBefore(end));
+		}
+		String name = input.substring(start, end);
+		return name.codePoints().allMatch(codePoint -> spacing(codePoint) || blank(codePoint)) ? "" : name;
+	}
+
+	private static boolean spacing(int codePoint) {
+		return Character.isWhitespace(codePoint) || Character.isSpaceChar(codePoint);
+	}
+
+	private static boolean blank(int codePoint) {
+		return Character.getType(codePoint) == Character.FORMAT || codePoint == 0x115F || codePoint == 0x1160 || codePoint == 0x2800
+				|| codePoint == 0x3164 || codePoint == 0xFFA0;
 	}
 }
