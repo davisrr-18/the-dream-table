@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -184,16 +185,60 @@ class SessionQueueTest {
 		assertEquals(TableSession.ParkKind.PROJECT, queued.parkKind());
 	}
 
+	/** The owner's copy keeps no swaps or aim, only the name and where the farm would stand; an unresolvable entry sends no box. */
 	@Test
-	void theClientCopyCarriesOnlyTheFarmNames() {
+	void theClientCopyCarriesTheFarmNamesAndEachResolvableFootprint() {
+		NbtList list = mixedQueue();
 		NbtCompound saved = new NbtCompound();
-		saved.put("Queue", entries(3));
+		saved.put("Queue", list);
 		TableSession read = session();
 		read.read(saved, null);
-		NbtList trimmed = read.writeForClient().getListOrEmpty("Queue");
-		assertEquals(3, trimmed.size());
-		assertEquals(Set.of("SelectedFarm"), trimmed.getCompoundOrEmpty(0).getKeys());
+		NbtList copy = read.writeForClient().getListOrEmpty("Queue");
+		assertEquals(3, copy.size());
+		assertEquals(Set.of("SelectedFarm", "Dimension", "Box"), copy.getCompoundOrEmpty(0).getKeys());
+		assertEquals(OVERWORLD.toString(), copy.getCompoundOrEmpty(0).getString("Dimension", ""));
+		Box expected = SessionQueue.footprint(list.getCompoundOrEmpty(0), OVERWORLD);
+		assertNotNull(expected);
+		assertArrayEquals(new int[] {(int) expected.minX, (int) expected.minY, (int) expected.minZ, (int) expected.maxX, (int) expected.maxY, (int) expected.maxZ},
+				copy.getCompoundOrEmpty(0).getIntArray("Box").orElseThrow());
+		assertEquals(Set.of("SelectedFarm"), copy.getCompoundOrEmpty(1).getKeys(), "an unknown farm sends no box");
+		assertEquals(NETHER.toString(), copy.getCompoundOrEmpty(2).getString("Dimension", ""), "a farm queued in another world still carries its own");
 		assertFalse(session().writeForClient().contains("Queue"));
+	}
+
+	/** The client reads the boxes into its own list only: they are never saved, and a damaged box is ignored. */
+	@Test
+	void theClientReadsTheBoxesWithoutKeepingThemInTheSave() {
+		NbtList list = mixedQueue();
+		NbtCompound saved = new NbtCompound();
+		saved.put("Queue", list);
+		TableSession server = session();
+		server.read(saved, null);
+		assertTrue(server.queuedAreas().isEmpty(), "a saved queue carries no boxes");
+
+		NbtCompound copy = server.writeForClient();
+		TableSession client = session();
+		client.read(copy, null);
+		assertEquals(3, client.queuedFarms().size());
+		assertEquals(List.of(new SessionQueue.Area(OVERWORLD, SessionQueue.footprint(list.getCompoundOrEmpty(0), OVERWORLD)),
+				new SessionQueue.Area(NETHER, SessionQueue.footprint(list.getCompoundOrEmpty(2), NETHER))), client.queuedAreas());
+		NbtCompound resaved = new NbtCompound();
+		client.write(resaved, null);
+		assertTrue(Set.of("SelectedFarm", "Swaps", "Aim").containsAll(resaved.getListOrEmpty("Queue").getCompoundOrEmpty(0).getKeys()), "no Dimension or Box is saved");
+
+		copy.getListOrEmpty("Queue").getCompoundOrEmpty(0).putIntArray("Box", new int[] {1, 2, 3});
+		TableSession damaged = session();
+		damaged.read(copy, null);
+		assertEquals(1, damaged.queuedAreas().size(), "a box of the wrong length is dropped, the farm name stays");
+		assertEquals(3, damaged.queuedFarms().size());
+	}
+
+	private static NbtList mixedQueue() {
+		NbtList list = new NbtList();
+		list.add(entry(CANE, 100, Map.of()));
+		list.add(entry("the_dream_table:gone", 200, Map.of()));
+		list.add(SessionQueue.entry(CANE, new AimedSpot(new BlockPos(300, 64, 0), Direction.SOUTH, false, NETHER), Map.of()));
+		return list;
 	}
 
 	@Test

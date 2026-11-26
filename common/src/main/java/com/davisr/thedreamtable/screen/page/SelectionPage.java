@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.farm.FarmOptions.Category;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
+import com.davisr.thedreamtable.screen.ui.Viewport;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
@@ -25,8 +26,9 @@ public final class SelectionPage implements TablePage {
 		int queued = queuedCount();
 		if (queued > 0) {
 			// A queue nobody started waits for this button; Clear Queue drops it. Neither holds items, so neither can lose any.
-			ui.segmentAt("queue_start", context, Text.translatable("gui.the_dream_table.queue_start", queued), ui.view().collectionX(), ui.view().cardY(0), SchemesPage.halfWidth(ui.view()), mouseX, mouseY, false, !ProjectState.locked(ui.handler()));
-			ui.segmentAt("queue_clear", context, Text.translatable("gui.the_dream_table.queue_clear"), SchemesPage.folderX(ui.view()), ui.view().cardY(0), SchemesPage.halfWidth(ui.view()), mouseX, mouseY, false, true);
+			// Standard full-width buttons, stacked: two of them do not fit side by side.
+			ui.buttonAt("queue_start", context, Text.translatable("gui.the_dream_table.queue_start", queued), ui.view().collectionX(), startY(ui.view()), mouseX, mouseY, !ProjectState.locked(ui.handler()), true);
+			ui.buttonAt("queue_clear", context, Text.translatable("gui.the_dream_table.queue_clear"), ui.view().collectionX(), clearY(ui.view()), mouseX, mouseY, true, false);
 		}
 		for (int index = 0; index < CATEGORIES.length; index++) {
 			Category category = CATEGORIES[index];
@@ -39,9 +41,28 @@ public final class SelectionPage implements TablePage {
 		return ui.handler().getQueuedFarms().size();
 	}
 
+	/** The two queue buttons and the gap under them. */
+	static final int QUEUE_ROWS = 2 * BUTTON_HEIGHT + BUTTON_GAP + CARD_GAP;
+
+	static int startY(Viewport view) {
+		return view.cardY(0);
+	}
+
+	static int clearY(Viewport view) {
+		return startY(view) + BUTTON_HEIGHT + BUTTON_GAP;
+	}
+
 	/** The cards sit under the queue buttons while a queue exists. */
+	static int cardY(Viewport view, int index, boolean queued) {
+		return view.gridCardY(index) + (queued ? QUEUE_ROWS : 0);
+	}
+
+	static int contentHeight(Viewport view, int count, boolean queued) {
+		return view.gridContentHeight(count) + (queued ? QUEUE_ROWS : 0);
+	}
+
 	private int cardY(int index) {
-		return ui.view().gridCardY(index) + (queuedCount() > 0 ? SchemesPage.HELP_ROW : 0);
+		return cardY(ui.view(), index, queuedCount() > 0);
 	}
 
 	private static Text count(Category category) {
@@ -52,8 +73,7 @@ public final class SelectionPage implements TablePage {
 	@Override
 	public boolean click(double mouseX, double mouseY) {
 		if (queuedCount() > 0) {
-			int width = SchemesPage.halfWidth(ui.view());
-			if (ui.view().hit(mouseX, mouseY, ui.view().collectionX(), ui.view().cardY(0), width, BUTTON_HEIGHT)) {
+			if (ui.buttonHit(mouseX, mouseY, ui.view().collectionX(), startY(ui.view()))) {
 				if (ProjectState.locked(ui.handler())) {
 					ui.message("gui.the_dream_table.farm_busy");
 				} else {
@@ -61,7 +81,7 @@ public final class SelectionPage implements TablePage {
 				}
 				return true;
 			}
-			if (ui.view().hit(mouseX, mouseY, SchemesPage.folderX(ui.view()), ui.view().cardY(0), width, BUTTON_HEIGHT)) {
+			if (ui.buttonHit(mouseX, mouseY, ui.view().collectionX(), clearY(ui.view()))) {
 				ui.actions().press(DreamTableScreenHandler.BUTTON_QUEUE_CLEAR);
 				return true;
 			}
@@ -77,8 +97,7 @@ public final class SelectionPage implements TablePage {
 
 	@Override
 	public int contentHeight() {
-		int count = CATEGORIES.length;
-		return ui.view().gridContentHeight(count) + (queuedCount() > 0 ? SchemesPage.HELP_ROW : 0);
+		return contentHeight(ui.view(), CATEGORIES.length, queuedCount() > 0);
 	}
 
 	@Override
