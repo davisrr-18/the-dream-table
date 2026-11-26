@@ -10,6 +10,7 @@ import com.davisr.thedreamtable.client.FarmFaces;
 import com.davisr.thedreamtable.client.FarmMiniature;
 import com.davisr.thedreamtable.client.LoadedFarmsView;
 import com.davisr.thedreamtable.client.OtherFarms;
+import com.davisr.thedreamtable.client.QueuedFarms;
 import com.davisr.thedreamtable.client.OwnSessions;
 import com.davisr.thedreamtable.client.ServerSchematics;
 import com.davisr.thedreamtable.client.TrackedFarmHud;
@@ -34,6 +35,7 @@ public final class TheDreamTableClient {
 		ClientLifecycle.register();
 		OwnSessions.register();
 		OtherFarms.register();
+		QueuedFarms.register();
 		TrackedFarmHud.register();
 		TableNotices.register();
 		BuildProgressLine.register();

@@ -5,12 +5,6 @@ import com.davisr.thedreamtable.network.FarmAreasPayload.WatchAreasPayload;
 import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.platform.RenderFrame;
 import com.davisr.thedreamtable.platform.RenderStage;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.WorldRenderer;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.Vec3d;
-
 import java.util.List;
 
 /**
@@ -53,21 +47,17 @@ public final class OtherFarms {
 	}
 
 	private static void render(RenderFrame context) {
-		if (!ClientSettings.showOtherFarms() || areas.isEmpty() || context.consumers() == null || context.matrixStack() == null) {
+		if (!ClientSettings.showOtherFarms() || areas.isEmpty()) {
 			return;
 		}
-		Vec3d camera = context.camera().getPos();
-		MatrixStack matrices = context.matrixStack();
-		VertexConsumer lines = context.consumers().getBuffer(RenderLayer.getLines());
-		matrices.push();
-		matrices.translate(-camera.x, -camera.y, -camera.z);
-		for (FarmAreasPayload.Area area : areas) {
-			if (area.finished()) {
-				WorldRenderer.drawBox(matrices, lines, area.box(), 0.45F, 0.95F, 0.55F, 0.8F);
-			} else {
-				WorldRenderer.drawBox(matrices, lines, area.box(), 1.0F, 0.62F, 0.25F, 0.9F);
+		AreaOutlines.draw(context, outliner -> {
+			for (FarmAreasPayload.Area area : areas) {
+				if (area.finished()) {
+					outliner.box(area.box(), 0.45F, 0.95F, 0.55F, 0.8F);
+				} else {
+					outliner.box(area.box(), 1.0F, 0.62F, 0.25F, 0.9F);
+				}
 			}
-		}
-		matrices.pop();
+		});
 	}
 }

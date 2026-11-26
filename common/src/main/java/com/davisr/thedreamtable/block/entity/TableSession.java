@@ -222,6 +222,11 @@ public final class TableSession {
 		return queue.farms();
 	}
 
+	/** On the client: where the farms the server sent as queued would stand, for the world to outline. */
+	public List<SessionQueue.Area> queuedAreas() {
+		return queue.clientAreas();
+	}
+
 	/** Whether the area touches a farm this player has queued in this world. */
 	boolean overlapsQueue(Identifier world, Box area) {
 		return queue.overlaps(world, area);
