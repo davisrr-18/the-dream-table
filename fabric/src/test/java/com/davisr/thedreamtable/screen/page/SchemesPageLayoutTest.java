@@ -61,6 +61,20 @@ class SchemesPageLayoutTest {
 	}
 
 	@Test
+	void howItWorksAndOpenFolderSplitTheRowWithoutOverlapInEveryMode() {
+		for (int width : new int[] {416, 420}) {
+			Viewport view = new Viewport();
+			view.layout(ScreenGeometry.calculate(width, 240, 0, false), 0, 0);
+			int half = SchemesPage.halfWidth(view);
+			int folderX = SchemesPage.folderX(view);
+
+			assertTrue(half > 0);
+			assertEquals(view.collectionX() + half + CARD_GAP, folderX);
+			assertTrue(folderX + half <= view.collectionX() + view.flowWidth());
+		}
+	}
+
+	@Test
 	void laysSchemesAndRejectedFilesInTwoRowsPerCollectionInWideMode() {
 		Viewport compact = new Viewport();
 		compact.layout(ScreenGeometry.calculate(416, 240, 0, false), 0, 0);

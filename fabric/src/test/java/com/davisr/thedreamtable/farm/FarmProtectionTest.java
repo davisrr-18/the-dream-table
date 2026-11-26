@@ -10,10 +10,12 @@ import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
@@ -343,6 +345,119 @@ class FarmProtectionTest {
 				}
 			}
 		}
+	}
+
+	private static final UUID OTHER_OWNER = UUID.fromString("50000000-0000-0000-0000-000000000005");
+	private static final FarmSite BLAST_SITE = new FarmSite(TABLE, ANCHOR, Direction.EAST, false);
+
+	private static FarmAreas.Guard guardOf(UUID owner) {
+		return new FarmAreas.Guard(UUID.randomUUID(), owner, farm(), BLAST_SITE, NO_SWAPS);
+	}
+
+	/** The farm's step positions (stone, farmland, wheat, planks, water) as an explosion's list holds them, plus one far away. */
+	private static List<BlockPos> blastList() {
+		FarmTemplate farm = farm();
+		List<BlockPos> list = new ArrayList<>();
+		farm.steps().forEach(step -> list.add(BLAST_SITE.target(farm, step)));
+		list.add(new BlockPos(500, 70, 500));
+		return list;
+	}
+
+	private static BlockState blastState(BlockPos pos) {
+		FarmTemplate farm = farm();
+		for (int index = 0; index < farm.steps().size(); index++) {
+			if (BLAST_SITE.target(farm, farm.steps().get(index)).equals(pos)) {
+				return worldAt(farm, BLAST_SITE, index);
+			}
+		}
+		return Blocks.STONE.getDefaultState();
+	}
+
+	private static List<BlockPos> blast(boolean server, boolean ownerProtects, UUID cause, FarmAreas.Guard... guards) {
+		List<BlockPos> list = blastList();
+		FarmProtection.filterExplosion(server, List.of(guards), owner -> ownerProtects, cause, list, FarmProtectionTest::blastState);
+		return list;
+	}
+
+	@Test
+	void anExplosionLosesTheStructureOfAProtectedFarmButNotItsProduceOrOtherBlocks() {
+		FarmTemplate farm = farm();
+		List<BlockPos> left = blast(true, true, STRANGER, guardOf(OWNER));
+		// Stone, farmland and planks are structure; wheat, water and the block far away are not the farm's to protect.
+		assertEquals(List.of(BLAST_SITE.target(farm, farm.steps().get(2)), BLAST_SITE.target(farm, farm.steps().get(4)), new BlockPos(500, 70, 500)), left);
+	}
+
+	@Test
+	void anExplosionWithNoCauseIsFilteredToo() {
+		assertEquals(3, blast(true, true, null, guardOf(OWNER)).size());
+	}
+
+	@Test
+	void anExplosionTheOwnerCausedIsNotFilteredForTheirFarm() {
+		assertEquals(blastList(), blast(true, true, OWNER, guardOf(OWNER)));
+	}
+
+	@Test
+	void theOwnersExemptionDoesNotCoverAnotherPlayersFarm() {
+		List<BlockPos> left = blast(true, true, OWNER, guardOf(OWNER), guardOf(OTHER_OWNER));
+		assertEquals(3, left.size());
+	}
+
+	@Test
+	void anExplosionIsLeftAloneWhenTheOwnerOrTheServerTurnedProtectionOff() {
+		assertEquals(blastList(), blast(true, false, STRANGER, guardOf(OWNER)));
+		assertEquals(blastList(), blast(false, true, STRANGER, guardOf(OWNER)));
+		assertEquals(blastList(), blast(true, true, STRANGER));
+	}
+
+	@Test
+	void anExplosionOnlyLooksUpBlocksForGuardsThatApply() {
+		int[] lookups = {0};
+		List<BlockPos> list = blastList();
+		FarmProtection.filterExplosion(true, List.of(guardOf(OWNER)), owner -> false, STRANGER, list, pos -> {
+			lookups[0]++;
+			return Blocks.STONE.getDefaultState();
+		});
+		FarmProtection.filterExplosion(true, List.of(guardOf(OWNER)), owner -> true, OWNER, list, pos -> {
+			lookups[0]++;
+			return Blocks.STONE.getDefaultState();
+		});
+		assertEquals(0, lookups[0]);
+	}
+
+	@Test
+	void anEndermanIsStoppedOnlyNearAFarmWhoseOwnerProtectsIt() {
+		assertTrue(FarmProtection.endermanBlocked(true, List.of(guardOf(OWNER)), owner -> true));
+		assertTrue(FarmProtection.endermanBlocked(true, List.of(guardOf(OWNER), guardOf(OTHER_OWNER)), owner -> owner.equals(OTHER_OWNER)));
+		assertFalse(FarmProtection.endermanBlocked(true, List.of(guardOf(OWNER)), owner -> false));
+		assertFalse(FarmProtection.endermanBlocked(false, List.of(guardOf(OWNER)), owner -> true));
+		assertFalse(FarmProtection.endermanBlocked(true, List.of(), owner -> true));
+	}
+
+	@Test
+	void guardsInFindsTheGuardedAreasThatTouchTheBox() {
+		FarmTemplate farm = farm();
+		FarmAreas areas = new FarmAreas();
+		areas.recordFinished(OWNER, farm, BLAST_SITE, Map.of());
+		BlockPos inside = BLAST_SITE.target(farm, farm.steps().get(0));
+		Box around = new Box(inside).expand(1);
+
+		assertEquals(1, areas.guardsIn(around).size());
+		assertEquals(OWNER, areas.guardsIn(around).get(0).ownerUuid());
+		assertEquals(areas.guardsAt(inside), areas.guardsIn(new Box(inside)));
+		// A box that only overlaps the farm's edge still counts; one beside it does not.
+		assertEquals(1, areas.guardsIn(new Box(inside).offset(-0.5, 0, 0)).size());
+		assertTrue(areas.guardsIn(new Box(new BlockPos(500, 70, 500)).expand(3)).isEmpty());
+		assertTrue(new FarmAreas().guardsIn(around).isEmpty());
+
+		FarmAreas taking = new FarmAreas();
+		FarmDismantler job = takeDown(farm, BLAST_SITE);
+		taking.claim(job.areaKey(), BLAST_SITE.footprint(farm), job.guard());
+		assertEquals(1, taking.guardsIn(around).size());
+		FarmDismantler discard = new FarmDismantler(OWNER, farm.id(), farm.signature(), BLAST_SITE, NO_SWAPS, new BitSet(), new BitSet(), 0);
+		FarmAreas discarding = new FarmAreas();
+		discarding.claim(discard.areaKey(), BLAST_SITE.footprint(farm), discard.guard());
+		assertTrue(discarding.guardsIn(around).isEmpty());
 	}
 
 	@Test

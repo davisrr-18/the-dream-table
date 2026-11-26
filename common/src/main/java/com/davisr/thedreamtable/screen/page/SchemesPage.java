@@ -4,12 +4,18 @@ import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import com.davisr.thedreamtable.farm.BuildPace;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.ImportedStructures;
+import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.text.Text;
+import net.minecraft.util.Util;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import static com.davisr.thedreamtable.screen.ui.Theme.*;
@@ -17,7 +23,8 @@ import static com.davisr.thedreamtable.screen.ui.Theme.*;
 /**
  * My Schematics: the farms read from schematic files, then the files that can't be used, greyed out. A file that can't
  * be used says why in the detail line of its card, which scrolls when it is longer than the card. A How It Works button
- * above the list opens the help page on the folders, formats and reasons.
+ * above the list opens the help page on the folders, formats and reasons; in a world running on this computer an Open
+ * Folder button next to it opens the mod's structures folder (made if missing) in the system's file browser.
  */
 public final class SchemesPage implements TablePage {
 	private static final int EMPTY_HEIGHT = 48;
@@ -40,7 +47,14 @@ public final class SchemesPage implements TablePage {
 	public void draw(DrawContext context, int mouseX, int mouseY) {
 		List<FarmOption> schemes = schemes();
 		List<ImportedStructures.Rejected> rejected = FarmTemplates.rejected();
-		ui.buttonAt("help", context, Text.translatable("gui.the_dream_table.info_button"), ui.view().collectionX(), helpY(ui.view()), mouseX, mouseY, true, false);
+		Text help = Text.translatable("gui.the_dream_table.info_button");
+		if (localWorld()) {
+			int width = halfWidth();
+			ui.segmentAt("help", context, help, ui.view().collectionX(), helpY(ui.view()), width, mouseX, mouseY, false, true);
+			ui.segmentAt("open_folder", context, Text.translatable("gui.the_dream_table.open_folder"), folderX(), helpY(ui.view()), width, mouseX, mouseY, false, true);
+		} else {
+			ui.buttonAt("help", context, help, ui.view().collectionX(), helpY(ui.view()), mouseX, mouseY, true, false);
+		}
 		if (schemes.isEmpty() && rejected.isEmpty()) {
 			ui.collectionNote(context, Text.translatable("gui.the_dream_table.schemes_empty"), firstRowY(ui.view()), HINT);
 		}
@@ -65,7 +79,14 @@ public final class SchemesPage implements TablePage {
 
 	@Override
 	public boolean click(double mouseX, double mouseY) {
-		if (ui.buttonHit(mouseX, mouseY, ui.view().collectionX(), helpY(ui.view()))) {
+		if (localWorld() && ui.view().hit(mouseX, mouseY, folderX(), helpY(ui.view()), halfWidth(), BUTTON_HEIGHT)) {
+			openFolder();
+			return true;
+		}
+		boolean helpHit = localWorld()
+				? ui.view().hit(mouseX, mouseY, ui.view().collectionX(), helpY(ui.view()), halfWidth(), BUTTON_HEIGHT)
+				: ui.buttonHit(mouseX, mouseY, ui.view().collectionX(), helpY(ui.view()));
+		if (helpHit) {
 			ui.go(DreamTableScreenHandler.PAGE_SCHEMES_HELP, DreamTableScreenHandler.BUTTON_SCHEMES_HELP);
 			return true;
 		}
@@ -92,6 +113,39 @@ public final class SchemesPage implements TablePage {
 	@Override
 	public Text subtitle() {
 		return Text.translatable("gui.the_dream_table.schemes");
+	}
+
+	/** Only a world running on this computer reads the folder the button opens; on a server the list comes from the server's folders. */
+	private static boolean localWorld() {
+		return MinecraftClient.getInstance().isIntegratedServerRunning();
+	}
+
+	private int halfWidth() {
+		return halfWidth(ui.view());
+	}
+
+	private int folderX() {
+		return folderX(ui.view());
+	}
+
+	/** How It Works and Open Folder share the row, each half of the collection width. */
+	static int halfWidth(com.davisr.thedreamtable.screen.ui.Viewport view) {
+		return (view.flowWidth() - CARD_GAP) / 2;
+	}
+
+	static int folderX(com.davisr.thedreamtable.screen.ui.Viewport view) {
+		return view.collectionX() + halfWidth(view) + CARD_GAP;
+	}
+
+	private void openFolder() {
+		Path folder = ImportedStructures.ownFolder(Platform.paths().gameDir());
+		try {
+			Files.createDirectories(folder);
+		} catch (IOException e) {
+			ui.message("gui.the_dream_table.open_folder_failed");
+			return;
+		}
+		Util.getOperatingSystem().open(folder);
 	}
 
 	private int listHeight() {
