@@ -43,6 +43,7 @@ public final class FarmAreas extends PersistentState {
 	private final Map<Key, Area> areas = new LinkedHashMap<>();
 	private final Map<UUID, RepairLease> repairLeases = new LinkedHashMap<>();
 	private final Map<UUID, FarmAlerts> alerts = new LinkedHashMap<>();
+	private final Map<UUID, FarmProduction> production = new LinkedHashMap<>();
 	/** Where each finished farm's record is, found without scanning the areas. Rebuilt on demand after the set of records changes. */
 	private @Nullable Map<UUID, Key> byInstance;
 	/** The saved form of each design, since a finished farm's design never changes and encoding it is the costly part of a save. */
@@ -266,6 +267,34 @@ public final class FarmAreas extends PersistentState {
 		return transition;
 	}
 
+	/** Production belongs to the finished-farm identity like alerts, so it survives Repair and is dropped by Take Down. */
+	public java.util.Optional<FarmProduction> production(UUID instanceId) {
+		return java.util.Optional.ofNullable(production.get(instanceId));
+	}
+
+	/** Samples a loaded farm's storage; the world is marked for saving only when the saved totals changed. */
+	public void sampleProduction(UUID instanceId, Map<String, Integer> snapshot, long now) {
+		if (hasFinished(instanceId) && production.computeIfAbsent(instanceId, key -> new FarmProduction()).sample(snapshot, now)) {
+			markDirty();
+		}
+	}
+
+	/** Brings back the production a partial Take Down kept, like {@link #restoreAlerts}. */
+	public void restoreProduction(UUID instanceId, FarmProduction restored) {
+		if (hasFinished(instanceId)) {
+			production.put(instanceId, restored);
+			markDirty();
+		}
+	}
+
+	/** A farm that could not be read starts over from a new baseline when it comes back. */
+	public void productionGap(UUID instanceId) {
+		FarmProduction farmProduction = production.get(instanceId);
+		if (farmProduction != null) {
+			farmProduction.gap();
+		}
+	}
+
 	/** Resolves repair problems when the same repair resumes or completes, retaining their history. */
 	public void resolveRepairAlerts(UUID instanceId, long time) {
 		observeAlert(instanceId, FarmAlertType.REPAIR_BLOCKED, 0, time);
@@ -396,6 +425,7 @@ public final class FarmAreas extends PersistentState {
 			if (removed.built() != null) {
 				repairLeases.remove(removed.built().instanceId());
 				alerts.remove(removed.built().instanceId());
+				production.remove(removed.built().instanceId());
 			}
 			markDirty();
 		}
@@ -711,6 +741,10 @@ public final class FarmAreas extends PersistentState {
 				if (farmAlerts != null) {
 					item.put("Alerts", farmAlerts.write(new NbtCompound()));
 				}
+				FarmProduction farmProduction = production.get(built.instanceId());
+				if (farmProduction != null && !farmProduction.isEmpty()) {
+					item.put("Production", farmProduction.write(new NbtCompound()));
+				}
 				item.putLong("FinishedAt", built.finishedAt());
 				if (built.layout() != null) {
 					item.putString("LayoutId", built.layout().id());
@@ -802,6 +836,9 @@ public final class FarmAreas extends PersistentState {
 		}
 		if (item.contains("Alerts", NbtElement.COMPOUND_TYPE)) {
 			state.alerts.put(instanceId, FarmAlerts.read(item.getCompound("Alerts")));
+		}
+		if (item.contains("Production", NbtElement.COMPOUND_TYPE)) {
+			state.production.put(instanceId, FarmProduction.read(item.getCompound("Production")));
 		}
 		boolean steps = item.contains("PlacedSteps", NbtElement.LONG_ARRAY_TYPE) && item.contains("PaidSteps", NbtElement.LONG_ARRAY_TYPE);
 		BitSet placed = steps ? BitSet.valueOf(item.getLongArray("PlacedSteps")) : every(layout);

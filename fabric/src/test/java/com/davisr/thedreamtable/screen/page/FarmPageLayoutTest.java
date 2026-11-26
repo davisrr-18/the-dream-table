@@ -3,6 +3,7 @@ package com.davisr.thedreamtable.screen.page;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmListing;
 import com.davisr.thedreamtable.farm.FarmStorage;
+import com.davisr.thedreamtable.network.FarmDetailsPayload;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableTextContent;
 import net.minecraft.util.math.BlockPos;
@@ -56,6 +57,21 @@ class FarmPageLayoutTest {
 		assertTrue(keys(summary).contains("gui.the_dream_table.status_running_storage"));
 		assertTrue(keys(summary).contains("gui.the_dream_table.kept_loaded"));
 		assertTrue(keys(summary).contains("gui.the_dream_table.blocks_away"));
+	}
+
+	@Test
+	void productionLineSaysMeasuringNothingOrHeadsTheList() {
+		assertEquals(List.of("gui.the_dream_table.production_measuring"), keys(FarmPage.productionText(details(true, 1, 3, List.of()))));
+		assertEquals(List.of("gui.the_dream_table.production_none"), keys(FarmPage.productionText(details(true, 1, 30, List.of()))));
+		assertEquals(List.of("gui.the_dream_table.production_title"), keys(FarmPage.productionText(details(true, 1, 30, List.of("minecraft:wheat")))));
+		assertEquals(null, FarmPage.productionText(details(false, 0, 30, List.of())));
+		assertEquals(null, FarmPage.productionText(details(true, 0, 30, List.of())));
+		assertEquals(null, FarmPage.productionText(null));
+	}
+
+	private static FarmDetailsPayload details(boolean loaded, int containers, int minutes, List<String> production) {
+		return new FarmDetailsPayload("minecraft:overworld|farm", loaded, 0, 54, containers, 96, List.of(), List.of(), 0, 0, List.of(), List.of(),
+				production, production.stream().map(item -> 60).toList(), minutes);
 	}
 
 	private static List<String> keys(Text text) {
