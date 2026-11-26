@@ -97,7 +97,14 @@ public final class FarmAreas extends PersistentState {
 			@Nullable RepairLease repairLease, BitSet placed, BitSet paid) {
 	}
 
-	private record Area(Box box, @Nullable Built built) {
+	/**
+	 * {@code guard} is only set on a Take Down's claim: it keeps "Protect My Farms" guarding the farm while its job runs. It is
+	 * not saved; the job puts it back after a restart ({@link #guard}).
+	 */
+	private record Area(Box box, @Nullable Built built, @Nullable Guard guard) {
+		Area(Box box, @Nullable Built built) {
+			this(box, built, null);
+		}
 	}
 
 	public static FarmAreas of(ServerWorld world) {
@@ -105,13 +112,29 @@ public final class FarmAreas extends PersistentState {
 	}
 
 	public void claim(Key key, Box box) {
-		Area area = new Area(box, null);
+		claim(key, box, null);
+	}
+
+	/** Claims a box, with the guard that keeps a farm being taken down protected. */
+	public void claim(Key key, Box box, @Nullable Guard guard) {
+		Area area = new Area(box, null, guard);
 		Area previous = areas.put(key, area);
 		if (!area.equals(previous)) {
 			if (previous != null && previous.built() != null) {
 				byInstance = null;
 			}
 			markDirty();
+		}
+	}
+
+	/**
+	 * Puts back the guard of a running Take Down whose claim was saved without it, as after a restart. Does nothing when the
+	 * claim is gone or already guards. Not saved, so the claim is not marked dirty.
+	 */
+	public void guard(Key key, Guard guard) {
+		Area area = areas.get(key);
+		if (area != null && area.built() == null && area.guard() == null) {
+			areas.put(key, new Area(area.box(), null, guard));
 		}
 	}
 
@@ -357,7 +380,7 @@ public final class FarmAreas extends PersistentState {
 		Area area = areas.get(key);
 		Built changed = operation.apply(area.built());
 		if (!changed.equals(area.built())) {
-			areas.put(key, new Area(area.box(), changed));
+			areas.put(key, new Area(area.box(), changed, null));
 			markDirty();
 		}
 	}
@@ -459,26 +482,27 @@ public final class FarmAreas extends PersistentState {
 				lease, built.placed(), built.paid());
 	}
 
-	/** What block protection needs from a finished farm: who owns it and its design at its site. */
+	/** What block protection needs from a finished farm, or one being taken down: who owns it and its design at its site. */
 	public record Guard(UUID instanceId, UUID ownerUuid, FarmTemplate layout, FarmSite site, Map<Item, Item> swaps) {
 	}
 
 	/**
-	 * The finished farms with a saved design whose area holds the position. One box test per area and nothing is copied
-	 * for the farms that don't match, so it is cheap enough to ask for every block a player breaks.
+	 * The finished farms with a saved design, and the farms being taken down, whose area holds the position. One box test per
+	 * area and nothing is copied for the farms that don't match, so it is cheap enough to ask for every block a player breaks.
 	 */
 	public List<Guard> guardsAt(BlockPos pos) {
 		List<Guard> guards = List.of();
 		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
 			Area area = entry.getValue();
 			Built built = area.built();
-			if (built == null || built.layout() == null || !area.box().contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5)) {
+			boolean guarded = built != null ? built.layout() != null : area.guard() != null;
+			if (!guarded || !area.box().contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5)) {
 				continue;
 			}
 			if (guards.isEmpty()) {
 				guards = new ArrayList<>(1);
 			}
-			guards.add(new Guard(built.instanceId(), entry.getKey().player(), built.layout(), built.site(), built.swaps()));
+			guards.add(built != null ? new Guard(built.instanceId(), entry.getKey().player(), built.layout(), built.site(), built.swaps()) : area.guard());
 		}
 		return guards;
 	}

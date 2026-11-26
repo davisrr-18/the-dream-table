@@ -96,7 +96,8 @@ public final class FarmCare {
 		FarmDismantler job = new FarmDismantler(player.getUuid(), template, site, farm.farm().swaps(), placed, farm.farm().paid(),
 				session.table().getPos(), new FarmDismantler.Identity(farm.farm().instanceId(), farm.farm().ownerUuid(), farm.farm().customName(), alerts));
 		areas.release(farm.farm().key());
-		areas.claim(job.areaKey(), site.footprint(template));
+		// The claim keeps guarding the farm: it is released above, and a dismantling farm must stay protected too.
+		areas.claim(job.areaKey(), site.footprint(template), job.guard());
 		session.table().startDismantling(job);
 		TableNoticePayload.info(player, Text.translatable("gui.the_dream_table.taking_down"));
 		return true;

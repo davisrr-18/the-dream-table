@@ -161,6 +161,8 @@ final class SessionAreas {
 	void recordFinished(ServerWorld world, FarmTemplate template, @Nullable UUID instanceId, @Nullable String customName,
 			BitSet placed, BitSet paid) {
 		progress.setFinishedRecorded(true);
+		// Saved with the table, so a crash after the farm is recorded doesn't record it, and its alert, a second time.
+		session.sync();
 		FarmAreas areas = FarmAreas.of(world);
 		if (instanceId == null) {
 			areas.recordFinished(session.player(), template, FarmBuilder.site(session), session.swaps(), UUID.randomUUID(), null, placed, paid);
@@ -172,6 +174,7 @@ final class SessionAreas {
 
 	void completeRepair(ServerWorld world, RepairContext context, BitSet placed, BitSet paid) {
 		progress.setFinishedRecorded(true);
+		session.sync();
 		FarmAreas areas = FarmAreas.of(world);
 		if (!areas.completeRepair(context.farmKey().instanceId(), context.operationId(), placed, paid)) {
 			// The lease was reconciled away while the repair ran. The blocks it placed stand, so the record still gets them.

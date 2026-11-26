@@ -3,6 +3,8 @@ package com.davisr.thedreamtable.farm;
 import com.davisr.thedreamtable.GameSetup;
 import com.davisr.thedreamtable.block.entity.AimedSpot;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtInt;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -168,6 +170,82 @@ class ParkedProjectsTest {
 		assertEquals(ParkedProjects.MAX_PER_PLAYER, read.count(PLAYER));
 		assertEquals(0, read.count(OTHER));
 		assertTrue(read.canPark(OTHER));
+		NbtCompound written = read.writeNbt(new NbtCompound()).getCompound("Players");
+		assertTrue(written.contains("not-a-uuid"));
+		assertEquals(ParkedProjects.MAX_PER_PLAYER + 5, written.getList(PLAYER.toString(), NbtElement.COMPOUND_TYPE).size());
+		assertEquals("farm_" + (ParkedProjects.MAX_PER_PLAYER + 4),
+				written.getList(PLAYER.toString(), NbtElement.COMPOUND_TYPE).getCompound(ParkedProjects.MAX_PER_PLAYER + 4).getString("SelectedFarm"));
+	}
+
+	private static NbtCompound hold(UUID player) {
+		NbtCompound entry = new NbtCompound();
+		entry.putUuid("Player", player);
+		entry.putString("World", "minecraft:overworld");
+		entry.putLong("Table", 5L);
+		entry.put("Project", project("held"));
+		return entry;
+	}
+
+	@Test
+	void aMalformedHeldEntryIsWrittenBackUnchanged() {
+		NbtCompound bad = new NbtCompound();
+		bad.putString("World", "Not A World");
+		bad.putString("Extra", "kept");
+		NbtList holds = new NbtList();
+		holds.add(hold(PLAYER));
+		holds.add(bad);
+		NbtCompound nbt = new NbtCompound();
+		nbt.put("Held", holds);
+		NbtList written = ParkedProjects.read(nbt, null).writeNbt(new NbtCompound()).getList("Held", NbtElement.COMPOUND_TYPE);
+		assertEquals(2, written.size());
+		assertEquals(hold(PLAYER), written.getCompound(0));
+		assertEquals(bad, written.getCompound(1));
+	}
+
+	@Test
+	void aMalformedPlayerKeyAndAWrongTypedValueAreWrittenBackUnchanged() {
+		NbtCompound players = new NbtCompound();
+		NbtCompound odd = project("odd");
+		players.put("not-a-uuid", odd);
+		NbtList ints = new NbtList();
+		ints.add(NbtInt.of(7));
+		players.put(OTHER.toString(), ints);
+		NbtCompound nbt = new NbtCompound();
+		nbt.put("Players", players);
+		ParkedProjects read = ParkedProjects.read(nbt, null);
+		assertEquals(0, read.count(OTHER));
+		NbtCompound written = read.writeNbt(new NbtCompound()).getCompound("Players");
+		assertEquals(odd, written.getCompound("not-a-uuid"));
+		assertEquals(ints, written.get(OTHER.toString()));
+	}
+
+	@Test
+	void aPlayerWhoBecomesReadableAgainHasNoDuplicates() {
+		NbtList mixed = new NbtList();
+		for (int index = 0; index < ParkedProjects.MAX_PER_PLAYER + 1; index++) {
+			mixed.add(project("farm_" + index));
+		}
+		NbtCompound players = new NbtCompound();
+		players.put(PLAYER.toString(), mixed);
+		NbtCompound nbt = new NbtCompound();
+		nbt.put("Players", players);
+		ParkedProjects read = ParkedProjects.read(nbt, null);
+		assertEquals("farm_0", take(read, PLAYER));
+		assertTrue(read.park(PLAYER, project("new")));
+		NbtList written = read.writeNbt(new NbtCompound()).getCompound("Players").getList(PLAYER.toString(), NbtElement.COMPOUND_TYPE);
+		assertEquals(ParkedProjects.MAX_PER_PLAYER + 1, written.size());
+		assertEquals("farm_16", written.getCompound(written.size() - 1).getString("SelectedFarm"));
+	}
+
+	@Test
+	void theRawStoreStaysBounded() {
+		NbtCompound players = new NbtCompound();
+		for (int index = 0; index < ParkedProjects.MAX_RAW + 50; index++) {
+			players.put("bad-" + index, new NbtCompound());
+		}
+		NbtCompound nbt = new NbtCompound();
+		nbt.put("Players", players);
+		assertEquals(ParkedProjects.MAX_RAW, ParkedProjects.read(nbt, null).writeNbt(new NbtCompound()).getCompound("Players").getKeys().size());
 	}
 
 	/** A kept build keeps its farm's area in the world it stands in, so nothing else may build or clear there while it waits. */

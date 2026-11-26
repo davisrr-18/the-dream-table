@@ -22,7 +22,11 @@ import java.util.function.Predicate;
 /**
  * Projects kept for their players when a Dream Table is broken: each player's saved session as the table wrote it, oldest
  * first, kept in the overworld until the player opens a table that holds no project of theirs. Entries are kept as saved
- * and only read when they are restored, so one this version cannot read stays on record for a later version.
+ * and only read when they are restored, so one this version cannot read stays on record for a later version: whatever the read
+ * skips (a malformed player key, a value or list item of the wrong type, a malformed held entry, and projects or players
+ * beyond the limits) is kept as raw NBT and written back unchanged, never replacing a readable key. The raw store is bounded
+ * too, at {@link #MAX_RAW} entries in all, so a corrupt huge file cannot grow memory without limit; only what exceeds that is dropped,
+ * and a raw item of another NBT type than a list that holds readable projects, since one list holds one type.
  * A kept build also reserves its farm's area in the world it stands in ({@link #reserves}) until it is restored, so no other
  * farm can clear its blocks while it waits. The area is derived from the saved spot; nothing extra is written.
  * A restored build is held ({@link #hold}) in the table it came back to: it keeps reserving its area for everyone else, and
@@ -32,6 +36,8 @@ public final class ParkedProjects extends PersistentState {
 	static final String STATE_KEY = "the_dream_table_parked_projects";
 	static final int MAX_PLAYERS = 4096;
 	static final int MAX_PER_PLAYER = 16;
+	/** Most raw entries kept in all (skipped values, list items and held entries), the same count as the players limit. */
+	static final int MAX_RAW = 4096;
 	/** Key for an unreadable saved session that names no player. No player has this id, so nobody is offered its projects, and it reserves nothing. */
 	public static final UUID NO_PLAYER = new UUID(0L, 0L);
 
@@ -55,6 +61,13 @@ public final class ParkedProjects extends PersistentState {
 	private final List<Hold> held = new ArrayList<>();
 	/** The reservations of {@link #parked} and {@link #held}, derived on first use and dropped after any change to what is kept. */
 	private @Nullable List<Found> reservations;
+	/** Saved player values this version could not read as a list for a player (malformed key, other type), kept as saved by key. */
+	private final Map<String, NbtElement> rawValues = new LinkedHashMap<>();
+	/** Saved list items of a player that were skipped (wrong type, or beyond the limits), appended after the player's readable projects. */
+	private final Map<UUID, List<NbtElement>> rawItems = new LinkedHashMap<>();
+	/** Saved {@code Held} items that were skipped, appended after the readable holds. */
+	private final List<NbtElement> rawHeld = new ArrayList<>();
+	private int rawCount;
 	/** The {@link FarmTemplates#revision} the cached reservations were derived under. */
 	private long reservationsRevision;
 
@@ -197,14 +210,45 @@ public final class ParkedProjects extends PersistentState {
 		return project.contains("MovedBuildDimension", NbtElement.STRING_TYPE) && FarmTemplates.get(project.getString("SelectedFarm")) == null;
 	}
 
+	/** Appends copies of the raw items the list can hold; an item of another type than the list's is left out, since a list holds one type. */
+	private static void appendRaw(NbtList target, @Nullable List<NbtElement> raw) {
+		if (raw == null) {
+			return;
+		}
+		for (NbtElement element : raw) {
+			if (target.isEmpty() || target.getHeldType() == element.getType()) {
+				target.add(element.copy());
+			}
+		}
+	}
+
+	private boolean roomForRaw() {
+		return rawCount < MAX_RAW && ++rawCount > 0;
+	}
+
 	@Override
 	public NbtCompound writeNbt(NbtCompound nbt) {
 		NbtCompound players = new NbtCompound();
 		for (Map.Entry<UUID, List<NbtCompound>> entry : parked.entrySet()) {
 			NbtList projects = new NbtList();
 			entry.getValue().forEach(project -> projects.add(project.copy()));
+			appendRaw(projects, rawItems.get(entry.getKey()));
 			players.put(entry.getKey().toString(), projects);
 		}
+		for (Map.Entry<UUID, List<NbtElement>> entry : rawItems.entrySet()) {
+			String key = entry.getKey().toString();
+			if (!parked.containsKey(entry.getKey()) && !players.contains(key)) {
+				NbtList projects = new NbtList();
+				appendRaw(projects, entry.getValue());
+				players.put(key, projects);
+			}
+		}
+		// A raw value never replaces a readable key.
+		rawValues.forEach((key, value) -> {
+			if (!players.contains(key)) {
+				players.put(key, value.copy());
+			}
+		});
 		nbt.put("Players", players);
 		NbtList holds = new NbtList();
 		for (Hold hold : held) {
@@ -215,43 +259,64 @@ public final class ParkedProjects extends PersistentState {
 			entry.put("Project", hold.project().copy());
 			holds.add(entry);
 		}
+		appendRaw(holds, rawHeld);
 		nbt.put("Held", holds);
 		return nbt;
 	}
 
 	/**
-	 * Reads at most the limits of players and projects, so a corrupt file stays bounded; malformed player ids are skipped.
-	 * A file from before holds had a {@code Held} list reads as holding nothing.
+	 * Reads at most the limits of players and projects, so a corrupt file stays bounded. What it skips is kept raw (up to
+	 * {@link #MAX_RAW}) and written back by {@link #writeNbt}. A file from before holds had a {@code Held} list reads as
+	 * holding nothing. A {@code Players} or {@code Held} that is not a compound or list at all is not kept.
 	 */
 	static ParkedProjects read(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		ParkedProjects state = new ParkedProjects();
 		NbtCompound players = nbt.getCompound("Players");
 		for (String player : players.getKeys()) {
+			NbtElement value = players.get(player);
 			UUID id;
 			try {
 				id = UUID.fromString(player);
 			} catch (IllegalArgumentException malformed) {
+				state.keepValue(player, value);
 				continue;
 			}
-			NbtList saved = players.getList(player, NbtElement.COMPOUND_TYPE);
-			List<NbtCompound> projects = new ArrayList<>();
-			for (int index = 0; index < saved.size() && projects.size() < MAX_PER_PLAYER; index++) {
-				projects.add(saved.getCompound(index).copy());
+			if (!(value instanceof NbtList saved)) {
+				state.keepValue(player, value);
+				continue;
 			}
-			if (!projects.isEmpty() && state.parked.size() < MAX_PLAYERS) {
+			// A second spelling of an id already read is kept raw, so it cannot replace the first.
+			boolean room = !state.parked.containsKey(id) && state.parked.size() < MAX_PLAYERS;
+			List<NbtCompound> projects = new ArrayList<>();
+			for (NbtElement element : saved) {
+				if (room && element instanceof NbtCompound project && projects.size() < MAX_PER_PLAYER) {
+					projects.add(project.copy());
+				} else if (state.roomForRaw()) {
+					state.rawItems.computeIfAbsent(id, ignored -> new ArrayList<>()).add(element.copy());
+				}
+			}
+			if (!projects.isEmpty()) {
 				state.parked.put(id, projects);
 			}
 		}
-		NbtList holds = nbt.getList("Held", NbtElement.COMPOUND_TYPE);
-		for (int index = 0; index < holds.size() && state.held.size() < MAX_PLAYERS; index++) {
-			NbtCompound entry = holds.getCompound(index);
-			Identifier world = Identifier.tryParse(entry.getString("World"));
-			if (world == null || !entry.containsUuid("Player") || !entry.contains("Table", NbtElement.LONG_TYPE)
-					|| !entry.contains("Project", NbtElement.COMPOUND_TYPE)) {
-				continue;
+		if (nbt.get("Held") instanceof NbtList holds) {
+			for (NbtElement saved : holds) {
+				NbtCompound entry = saved instanceof NbtCompound compound ? compound : null;
+				Identifier world = entry == null ? null : Identifier.tryParse(entry.getString("World"));
+				if (state.held.size() < MAX_PLAYERS && world != null && entry.containsUuid("Player") && entry.contains("Table", NbtElement.LONG_TYPE)
+						&& entry.contains("Project", NbtElement.COMPOUND_TYPE)) {
+					state.held.add(new Hold(new Seat(entry.getUuid("Player"), world, entry.getLong("Table")), entry.getCompound("Project").copy()));
+				} else if (state.roomForRaw()) {
+					state.rawHeld.add(saved.copy());
+				}
 			}
-			state.held.add(new Hold(new Seat(entry.getUuid("Player"), world, entry.getLong("Table")), entry.getCompound("Project").copy()));
 		}
 		return state;
+	}
+
+	private void keepValue(String key, @Nullable NbtElement value) {
+		if (value != null && roomForRaw()) {
+			rawValues.put(key, value.copy());
+		}
 	}
 }
