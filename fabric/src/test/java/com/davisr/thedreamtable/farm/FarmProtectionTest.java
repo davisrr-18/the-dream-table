@@ -14,6 +14,7 @@ import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -228,6 +229,66 @@ class FarmProtectionTest {
 				Blocks.STONE.getDefaultState()));
 		assertTrue(areas.guardsAt(new BlockPos(500, 70, 500)).isEmpty());
 		assertTrue(new FarmAreas().guardsAt(inside).isEmpty());
+	}
+
+	private static FarmDismantler takeDown(FarmTemplate farm, FarmSite site) {
+		BitSet all = new BitSet();
+		all.set(0, farm.steps().size());
+		return new FarmDismantler(OWNER, farm, site, NO_SWAPS, all, all, TABLE, new FarmDismantler.Identity(KEY.instanceId(), OWNER, null));
+	}
+
+	@Test
+	void aFarmBeingTakenDownStaysGuardedUntilItsAreaIsReleased() {
+		FarmTemplate farm = farm();
+		FarmSite site = new FarmSite(TABLE, ANCHOR, Direction.WEST, true);
+		FarmDismantler job = takeDown(farm, site);
+		FarmAreas areas = new FarmAreas();
+		BlockPos inside = site.target(farm, farm.steps().get(0));
+
+		areas.claim(job.areaKey(), site.footprint(farm), job.guard());
+
+		List<FarmAreas.Guard> guards = areas.guardsAt(inside);
+		assertEquals(1, guards.size());
+		assertEquals(OWNER, guards.get(0).ownerUuid());
+		assertEquals(KEY.instanceId(), guards.get(0).instanceId());
+		assertTrue(FarmProtection.structuralAt(guards.get(0).layout(), guards.get(0).site(), guards.get(0).swaps(), inside,
+				Blocks.STONE.getDefaultState()));
+		assertTrue(areas.guardsAt(new BlockPos(500, 70, 500)).isEmpty());
+
+		areas.release(job.areaKey());
+		assertTrue(areas.guardsAt(inside).isEmpty());
+	}
+
+	@Test
+	void aDiscardClaimHasNoFarmToGuard() {
+		FarmTemplate farm = farm();
+		FarmSite site = new FarmSite(TABLE, ANCHOR, Direction.WEST, true);
+		FarmDismantler discard = new FarmDismantler(OWNER, farm.id(), farm.signature(), site, NO_SWAPS, new BitSet(), new BitSet(), 0);
+		FarmAreas areas = new FarmAreas();
+
+		areas.claim(discard.areaKey(), site.footprint(farm), discard.guard());
+
+		assertTrue(areas.guardsAt(site.target(farm, farm.steps().get(0))).isEmpty());
+	}
+
+	@Test
+	void aRestartedTakeDownGetsItsGuardBackFromItsJob() {
+		FarmTemplate farm = farm();
+		FarmSite site = new FarmSite(TABLE, ANCHOR, Direction.WEST, true);
+		FarmDismantler job = takeDown(farm, site);
+		FarmAreas areas = new FarmAreas();
+		areas.claim(job.areaKey(), site.footprint(farm), job.guard());
+		BlockPos inside = site.target(farm, farm.steps().get(0));
+
+		FarmAreas restarted = FarmAreas.read(areas.writeNbt(new NbtCompound(), null), null);
+		assertTrue(restarted.guardsAt(inside).isEmpty());
+		restarted.guard(job.areaKey(), job.guard());
+
+		assertEquals(1, restarted.guardsAt(inside).size());
+		assertEquals(OWNER, restarted.guardsAt(inside).get(0).ownerUuid());
+		restarted.release(job.areaKey());
+		restarted.guard(job.areaKey(), job.guard());
+		assertTrue(restarted.guardsAt(inside).isEmpty());
 	}
 
 	/** The search {@link FarmProtection#structuralAt} did before its index: the first step at the position decides. */

@@ -113,6 +113,14 @@ public final class FarmDismantler {
 		return player;
 	}
 
+	/**
+	 * What keeps a farm protected while Take Down removes it; null for a discard, which has no finished farm to guard.
+	 * Built from the job, so it comes back after a restart without saving anything of its own.
+	 */
+	public FarmAreas.@Nullable Guard guard() {
+		return identity == null || layout == null ? null : new FarmAreas.Guard(identity.instanceId(), identity.owner(), layout, site, swaps);
+	}
+
 	public FarmAreas.Key areaKey() {
 		return FarmAreas.Key.dismantle(host, player, areaSpot);
 	}
@@ -123,6 +131,11 @@ public final class FarmDismantler {
 
 	/** Removes the next batch. Returns true once the job is over and can be forgotten. */
 	public boolean tick(ServerWorld world) {
+		FarmAreas.Guard guard = guard();
+		if (guard != null) {
+			// A claim saved by a world that was stopped mid-job comes back without its guard.
+			FarmAreas.of(world).guard(areaKey(), guard);
+		}
 		FarmTemplate template = FarmTemplates.get(farmId);
 		ServerPlayerEntity online = world.getServer().getPlayerManager().getPlayer(player);
 		if (template == null || template.signature() != signature) {
