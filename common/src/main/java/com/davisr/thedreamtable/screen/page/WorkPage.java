@@ -1,6 +1,7 @@
 package com.davisr.thedreamtable.screen.page;
 
 import com.davisr.thedreamtable.block.entity.BuildIssue;
+import com.davisr.thedreamtable.block.entity.SessionQueue;
 import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.DreamTableKeys;
 import com.davisr.thedreamtable.farm.BuildPace;
@@ -11,12 +12,14 @@ import com.davisr.thedreamtable.farm.FarmOptions.FarmOption;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.ImportNote;
 import com.davisr.thedreamtable.network.PlaceFarmPayload;
+import com.davisr.thedreamtable.network.QueueFarmPayload;
 import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.screen.DreamTableScreenHandler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
@@ -34,8 +37,11 @@ public final class WorkPage implements TablePage {
 	/** Only for a farm with help text; without it the rows below move up one. */
 	private static final int INFO = 3;
 	private static final int BUILD = 4;
-	private static final int DISCARD = 5;
-	private static final int CONFIRM_DISCARD = 6;
+	private static final int QUEUE = 5;
+	private static final int DISCARD = 6;
+	private static final int CONFIRM_DISCARD = 7;
+	/** How many queued farms the status line names before "+n". */
+	private static final int NAMED_QUEUED = 2;
 	private static final long CONFIRM_MS = 3000L;
 	/** From this much, the spot already holds this farm, likely one finished before finished farms were protected. */
 	private static final int EXISTING_FARM_PERCENT = 50;
@@ -74,6 +80,8 @@ public final class WorkPage implements TablePage {
 			ui.buttonAt("info", context, Text.translatable("gui.the_dream_table.info_button"), flowX(), rowY(INFO), mouseX, mouseY, true, false);
 		}
 		ui.buttonAt("build", context, buildLabel(), flowX(), rowY(BUILD), mouseX, mouseY, ProjectState.canBuild(handler), true);
+		// Planning is only for an idle session: the hologram shows one farm, so a build in progress leaves no spot to aim.
+		ui.buttonAt("queue", context, Text.translatable("gui.the_dream_table.queue"), flowX(), rowY(QUEUE), mouseX, mouseY, canQueue(), false);
 		if (confirming()) {
 			ui.buttonAt("cancel_discard", context, Text.translatable("gui.the_dream_table.cancel"), flowX(), rowY(DISCARD), mouseX, mouseY, true, false);
 			ui.destructiveButtonAt("confirm_discard", context, Text.translatable("gui.the_dream_table.confirm_discard"), flowX(), rowY(CONFIRM_DISCARD), mouseX, mouseY, true);
@@ -108,6 +116,10 @@ public final class WorkPage implements TablePage {
 		}
 		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(BUILD))) {
 			build();
+			return true;
+		}
+		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(QUEUE))) {
+			queue();
 			return true;
 		}
 		if (ui.buttonHit(mouseX, mouseY, flowX(), rowY(DISCARD))) {
@@ -184,6 +196,39 @@ public final class WorkPage implements TablePage {
 		ui.actions().click();
 	}
 
+	private boolean canQueue() {
+		return ui.handler().getPhase() == ProjectState.IDLE && ProjectState.canBuild(ui.handler());
+	}
+
+	/** Lines the farm up at the aimed spot; the server checks the spot and the queue's limit and says why when it refuses. */
+	private void queue() {
+		if (!canQueue()) {
+			return;
+		}
+		if (!DreamTableHologram.hasPlacement()) {
+			ui.actions().click();
+			ui.actions().close();
+			ui.message("gui.the_dream_table.place_then_queue");
+			return;
+		}
+		Platform.clientNetwork().send(new QueueFarmPayload(ui.handler().getTablePos(), DreamTableHologram.anchorForBuild(), DreamTableHologram.previewFacing(), DreamTableHologram.previewMirrored()));
+		ui.actions().click();
+	}
+
+	/** "Next: A, B (+n)" while farms wait behind this one. */
+	private void addQueueLine(List<OrderedText> lines, List<Integer> colors) {
+		List<String> queued = ui.handler().getQueuedFarms();
+		if (queued.isEmpty()) {
+			return;
+		}
+		MutableText names = Text.empty();
+		for (int index = 0; index < Math.min(NAMED_QUEUED, queued.size()); index++) {
+			names.append(index == 0 ? Text.empty() : Text.literal(", ")).append(SessionQueue.name(queued.get(index)));
+		}
+		int more = queued.size() - NAMED_QUEUED;
+		addLines(lines, colors, more > 0 ? Text.translatable("gui.the_dream_table.queue_next_more", names, more) : Text.translatable("gui.the_dream_table.queue_next", names), HINT);
+	}
+
 	private Text buildLabel() {
 		return switch (ui.handler().getPhase()) {
 			case ProjectState.BUILDING -> Text.translatable("gui.the_dream_table.pause");
@@ -222,6 +267,7 @@ public final class WorkPage implements TablePage {
 			addLines(lines, colors, issue.what(), NAME);
 			addLines(lines, colors, issue.fix(), HINT);
 		}
+		addQueueLine(lines, colors);
 		return lines;
 	}
 

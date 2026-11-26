@@ -28,9 +28,9 @@ public record PlaceFarmPayload(BlockPos table, BlockPos anchor, Direction facing
 
 	/**
 	 * Beginning a farm checks every step of the template. A person places once and the phase then leaves idle, or re-aims
-	 * after a refusal, so three requests a second leave normal use untouched.
+	 * after a refusal, so three requests a second leave normal use untouched. {@link QueueFarmPayload} spends the same budget.
 	 */
-	private static final RequestThrottle THROTTLE = new RequestThrottle(3, RequestThrottle.DEFAULT_WINDOW_TICKS);
+	static final RequestThrottle THROTTLE = new RequestThrottle(3, RequestThrottle.DEFAULT_WINDOW_TICKS);
 
 	public static void register() {
 		THROTTLE.forgetOnDisconnect();
