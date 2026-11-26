@@ -114,8 +114,13 @@ public final class ImportedStructures {
 		if (worldRoot != null) {
 			folders.add(worldRoot.resolve("schematics"));
 		}
-		folders.add(game.resolve("config").resolve("the_dream_table").resolve("structures"));
+		folders.add(ownFolder(game));
 		return folders;
+	}
+
+	/** The mod's own structures folder, the one My Schematics' Open Folder button opens. */
+	public static Path ownFolder(Path game) {
+		return game.resolve("config").resolve("the_dream_table").resolve("structures");
 	}
 
 	private static void load(Path path, Map<String, FarmTemplate> templates, List<FarmOption> options, Map<String, List<ImportNote>> notes,

@@ -2,12 +2,16 @@ package com.davisr.thedreamtable.platform;
 
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.mob.EndermanEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -39,6 +43,19 @@ public interface ServerEvents {
 	void onBlockBreak(BlockBreakCheck check);
 
 	/**
+	 * Before an explosion on the server destroys blocks; the listener removes from the mutable {@code affected} list the
+	 * positions that must survive. {@code causingEntity} is the entity that caused it (a creeper, a TNT's igniter) or null.
+	 * It must be side-effect free.
+	 */
+	void onExplosion(ExplosionFilter filter);
+
+	/**
+	 * Each time an enderman is about to pick up a block on the server; returning false stops it this time. It must be
+	 * side-effect free and cheap, since it runs for every pickup the game considers.
+	 */
+	void onEndermanGrief(EndermanCheck check);
+
+	/**
 	 * When the server builds its command tree (at startup and again on {@code /reload}); the listener adds the mod's commands
 	 * to the dispatcher. It runs for dedicated and integrated servers alike.
 	 */
@@ -47,5 +64,15 @@ public interface ServerEvents {
 	@FunctionalInterface
 	interface BlockBreakCheck {
 		boolean allows(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state);
+	}
+
+	@FunctionalInterface
+	interface ExplosionFilter {
+		void filter(ServerWorld world, @Nullable Entity causingEntity, List<BlockPos> affected);
+	}
+
+	@FunctionalInterface
+	interface EndermanCheck {
+		boolean allows(ServerWorld world, EndermanEntity enderman);
 	}
 }

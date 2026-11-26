@@ -491,12 +491,21 @@ public final class FarmAreas extends PersistentState {
 	 * area and nothing is copied for the farms that don't match, so it is cheap enough to ask for every block a player breaks.
 	 */
 	public List<Guard> guardsAt(BlockPos pos) {
+		return guardsWhere(box -> box.contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5));
+	}
+
+	/** The same guards as {@link #guardsAt}, for every guarded area that intersects the box (an explosion's reach, say). */
+	public List<Guard> guardsIn(Box region) {
+		return guardsWhere(region::intersects);
+	}
+
+	private List<Guard> guardsWhere(Predicate<Box> test) {
 		List<Guard> guards = List.of();
 		for (Map.Entry<Key, Area> entry : areas.entrySet()) {
 			Area area = entry.getValue();
 			Built built = area.built();
 			boolean guarded = built != null ? built.layout() != null : area.guard() != null;
-			if (!guarded || !area.box().contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5)) {
+			if (!guarded || !test.test(area.box())) {
 				continue;
 			}
 			if (guards.isEmpty()) {

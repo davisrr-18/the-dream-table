@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.forge;
 
 import com.davisr.thedreamtable.platform.ServerEvents;
 import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.entity.mob.EndermanEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -9,11 +10,14 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityMobGriefingEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.level.ExplosionEvent;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.IEventBus;
 
 import java.util.function.BiConsumer;
@@ -70,6 +74,28 @@ final class ForgeServerEvents implements ServerEvents {
 			if (event.getLevel() instanceof ServerWorld world && event.getPlayer() instanceof ServerPlayerEntity player
 					&& !check.allows(world, player, event.getPos(), event.getState())) {
 				event.setCanceled(true);
+			}
+		});
+	}
+
+	@Override
+	public void onExplosion(ExplosionFilter filter) {
+		// Detonate fires after the explosion chose its blocks and before it destroys them; its list is the one the game uses.
+		listen(BUS, ExplosionEvent.Detonate.class, event -> {
+			if (event.getLevel() instanceof ServerWorld world) {
+				filter.filter(world, event.getExplosion().getCausingEntity(), event.getAffectedBlocks());
+			}
+		});
+	}
+
+	@Override
+	public void onEndermanGrief(EndermanCheck check) {
+		// The enderman's pickup goal asks this event (through ForgeEventFactory.getMobGriefingEvent); only a refusal sets a result.
+		// Its place goal asks too, so only an empty-handed enderman is checked, as on Fabric.
+		listen(BUS, EntityMobGriefingEvent.class, event -> {
+			if (event.getEntity() instanceof EndermanEntity enderman && enderman.getCarriedBlock() == null
+					&& enderman.getWorld() instanceof ServerWorld world && !check.allows(world, enderman)) {
+				event.setResult(Event.Result.DENY);
 			}
 		});
 	}

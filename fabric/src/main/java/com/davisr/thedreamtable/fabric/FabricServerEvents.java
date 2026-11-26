@@ -15,7 +15,7 @@ import net.minecraft.server.world.ServerWorld;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-/** Fabric API's server lifecycle, tick and connection events. */
+/** Fabric API's server lifecycle, tick and connection events; explosions and enderman pickups go through {@link FabricGriefHooks}. */
 final class FabricServerEvents implements ServerEvents {
 	@Override
 	public void onServerStarting(Consumer<MinecraftServer> listener) {
@@ -50,6 +50,16 @@ final class FabricServerEvents implements ServerEvents {
 	@Override
 	public void onCommandRegistration(Consumer<CommandDispatcher<ServerCommandSource>> listener) {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> listener.accept(dispatcher));
+	}
+
+	@Override
+	public void onExplosion(ExplosionFilter filter) {
+		FabricGriefHooks.addExplosionFilter(filter);
+	}
+
+	@Override
+	public void onEndermanGrief(EndermanCheck check) {
+		FabricGriefHooks.addEndermanCheck(check);
 	}
 
 	@Override
