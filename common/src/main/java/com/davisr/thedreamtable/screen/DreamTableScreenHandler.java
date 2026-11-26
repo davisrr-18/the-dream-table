@@ -63,6 +63,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	public static final int BUTTON_SCHEMES_BACK = 111;
 	public static final int BUTTON_SCHEMES_HELP = 112;
 	public static final int BUTTON_SCHEMES_HELP_BACK = 115;
+	public static final int BUTTON_QUEUE_START = 116;
+	public static final int BUTTON_QUEUE_CLEAR = 117;
 	public static final int BUTTON_OPTIONS = 120;
 	public static final int BUTTON_OPTIONS_BACK = 121;
 	public static final int BUTTON_SPEED_OPEN = 140;
@@ -108,6 +110,8 @@ public class DreamTableScreenHandler extends ScreenHandler {
 	private int[] slotOrder = identity();
 	private int slotsFor;
 	private String selectedFarm;
+	/** Client: the farm the server's session held when {@link #followServerFarm} last looked; null before the first session. */
+	private String syncedFarm;
 	private int page;
 	private int buildIndex;
 	private int phase;
@@ -244,6 +248,37 @@ public class DreamTableScreenHandler extends ScreenHandler {
 
 	public int getTotal() {
 		return total;
+	}
+
+	/** The farms this player has queued at this table, in line order, from the synced session. */
+	public List<String> getQueuedFarms() {
+		TableSession table = table();
+		return table == null ? List.of() : table.queuedFarms();
+	}
+
+	/**
+	 * Client: takes up the farm the server's session changed to on its own, such as the next queued farm starting or the Queue button
+	 * clearing the session. The farm is not a menu property, so nothing else would show it. A first session, or one that holds the
+	 * same farm, changes nothing, so a page shown ahead of the server stays.
+	 */
+	public void followServerFarm() {
+		if (!client) {
+			return;
+		}
+		String[] farm = {null};
+		context.run((world, pos) -> {
+			if (world.getBlockEntity(pos) instanceof DreamTableBlockEntity entity && entity.hasOwnSession()) {
+				farm[0] = entity.session(playerId).getSelectedFarm();
+			}
+		});
+		if (farm[0] == null) {
+			return;
+		}
+		if (syncedFarm != null && !syncedFarm.equals(farm[0])) {
+			selectedFarm = farm[0];
+			total = totalFor(farm[0]);
+		}
+		syncedFarm = farm[0];
 	}
 
 	/** Why the build stopped or waits, from this player's synced session, or null. */

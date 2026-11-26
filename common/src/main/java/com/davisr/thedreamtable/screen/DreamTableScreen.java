@@ -148,6 +148,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+		handler.followServerFarm();
 		layout();
 		updateHologram();
 		super.render(context, mouseX, mouseY, delta);

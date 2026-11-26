@@ -16,19 +16,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ParkRulesTest {
 	@Test
 	void anUnusedSessionKeepsNothing() {
-		assertEquals(NOTHING, TableSession.parkKind(true, false, false, false, false, false));
+		assertEquals(NOTHING, TableSession.parkKind(true, false, false, false, false, false, false));
 	}
 
 	@Test
 	void aFinishedFarmKeepsOnlyLeftoverMaterials() {
-		assertEquals(NOTHING, TableSession.parkKind(false, true, false, false, false, true));
-		assertEquals(PROJECT, TableSession.parkKind(false, true, true, false, false, true));
+		assertEquals(NOTHING, TableSession.parkKind(false, true, false, false, false, true, false));
+		assertEquals(PROJECT, TableSession.parkKind(false, true, true, false, false, true, false));
+	}
+
+	/** A queue is the player's plan and holds no items: it is kept even behind a finished farm that is not, and an idle session with only a queue is a project. */
+	@Test
+	void aQueueIsKeptBehindAFinishedFarmAndAlone() {
+		assertEquals(PROJECT, TableSession.parkKind(false, true, false, false, false, true, true));
+		assertEquals(PROJECT, TableSession.parkKind(false, false, false, false, false, false, true));
 	}
 
 	@Test
 	void aStartedBuildWithASpotIsKeptAsABuild() {
-		assertEquals(BUILD, TableSession.parkKind(false, false, true, false, true, true));
-		assertEquals(BUILD, TableSession.parkKind(false, false, false, false, true, true));
+		assertEquals(BUILD, TableSession.parkKind(false, false, true, false, true, true, false));
+		assertEquals(BUILD, TableSession.parkKind(false, false, false, false, true, true, true));
 	}
 
 	/**
@@ -37,8 +44,8 @@ class ParkRulesTest {
 	 */
 	@Test
 	void aChosenOrPlacedFarmNotStartedKeepsTheFarmAndMaterials() {
-		assertEquals(PROJECT, TableSession.parkKind(false, false, false, false, false, false));
-		assertEquals(PROJECT, TableSession.parkKind(false, false, true, false, false, true));
+		assertEquals(PROJECT, TableSession.parkKind(false, false, false, false, false, false, false));
+		assertEquals(PROJECT, TableSession.parkKind(false, false, true, false, false, true, false));
 	}
 
 	@Test
@@ -51,12 +58,12 @@ class ParkRulesTest {
 
 	@Test
 	void aBuildWithoutASpotFromOldWorldsKeepsTheFarmAndMaterials() {
-		assertEquals(PROJECT, TableSession.parkKind(false, false, true, false, true, false));
+		assertEquals(PROJECT, TableSession.parkKind(false, false, true, false, true, false, false));
 	}
 
 	@Test
 	void aRepairEndsAndKeepsOnlyTheFarmAndMaterials() {
-		assertEquals(PROJECT, TableSession.parkKind(false, false, true, true, true, true));
+		assertEquals(PROJECT, TableSession.parkKind(false, false, true, true, true, true, false));
 	}
 
 	@Test

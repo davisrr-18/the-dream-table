@@ -47,7 +47,7 @@ class MaterialDeliveryTest {
 		assertFalse(desk.holdsItems());
 		assertTrue(desk.anyDelivered());
 		assertEquals(TableSession.ParkKind.NOTHING,
-				TableSession.parkKind(false, true, desk.holdsItems(), false, false, true));
+				TableSession.parkKind(false, true, desk.holdsItems(), false, false, true, false));
 	}
 
 	@Test

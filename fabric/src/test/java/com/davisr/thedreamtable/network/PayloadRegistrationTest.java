@@ -55,6 +55,7 @@ class PayloadRegistrationTest {
 		Platform.install(null, null, null, new RecordingNetwork(), new IgnoringServerEvents(), null, null);
 		// The payload registrations of TheDreamTableMod.init(), in its order.
 		PlaceFarmPayload.register();
+		QueueFarmPayload.register();
 		CheckPlacementPayload.register();
 		PlacementResultPayload.register();
 		SessionSyncPayload.register();
@@ -100,6 +101,7 @@ class PayloadRegistrationTest {
 				"the_dream_table:farm_preference",
 				"the_dream_table:loaded_farms_request",
 				"the_dream_table:place_farm",
+				"the_dream_table:queue_farm",
 				"the_dream_table:request_session",
 				"the_dream_table:schematic_request",
 				"the_dream_table:watch_areas")), new TreeSet<>(CLIENT_TO_SERVER));
@@ -126,7 +128,7 @@ class PayloadRegistrationTest {
 
 	@Test
 	void directionsHoldTheExpectedCounts() {
-		assertEquals(11, CLIENT_TO_SERVER.size());
+		assertEquals(12, CLIENT_TO_SERVER.size());
 		assertEquals(11, SERVER_TO_CLIENT.size());
 	}
 

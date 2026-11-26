@@ -22,6 +22,7 @@ import com.davisr.thedreamtable.network.FarmDetailsPayload;
 import com.davisr.thedreamtable.network.FarmPreferencePayload;
 import com.davisr.thedreamtable.network.LoadedFarmsPayload;
 import com.davisr.thedreamtable.network.PlaceFarmPayload;
+import com.davisr.thedreamtable.network.QueueFarmPayload;
 import com.davisr.thedreamtable.network.PlacementResultPayload;
 import com.davisr.thedreamtable.network.RequestSessionPayload;
 import com.davisr.thedreamtable.network.ServerSchematicsPayload;
@@ -62,6 +63,7 @@ public final class TheDreamTableMod {
 		Platform.serverEvents().onServerStopped(server -> FarmTemplates.clearSaved());
 		MaterialDelivery.register();
 		PlaceFarmPayload.register();
+		QueueFarmPayload.register();
 		CheckPlacementPayload.register();
 		PlacementResultPayload.register();
 		SessionSyncPayload.register();

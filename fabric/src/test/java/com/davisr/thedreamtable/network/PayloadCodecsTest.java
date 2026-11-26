@@ -74,6 +74,7 @@ class PayloadCodecsTest {
 	@Test
 	void placementPayloadsRoundTrip() {
 		roundTrip(PlaceFarmPayload.CODEC, new PlaceFarmPayload(TABLE, new BlockPos(4, 5, 6), Direction.EAST, true));
+		roundTrip(QueueFarmPayload.CODEC, new QueueFarmPayload(TABLE, new BlockPos(4, 5, 6), Direction.WEST, false));
 		roundTrip(CheckPlacementPayload.CODEC, new CheckPlacementPayload(TABLE, new BlockPos(4, 5, 6), Direction.NORTH, true, false));
 		roundTrip(PlacementResultPayload.CODEC, new PlacementResultPayload(TABLE, new BlockPos(4, 5, 6), Direction.SOUTH, true, "problem", 3));
 	}
