@@ -70,7 +70,7 @@ The true or false keys accept only `true` or `false`; anything else is logged an
 - If you log off during a build or while a farm is being removed, it waits and tells you when it continues after you return. An unexpected error stops only that operation, with a message, and its details go to the game log.
 - Items handed back never get lost: when your inventory is full, the rest drops at your feet and you get a message. Set `load_farms_while_offline=true` to keep them loaded after you log off. Mob farms are the exception: the game only spawns mobs within 128 blocks of a player, loaded or not. Build them above sea level and away from caves; the table reminds you when you place one lower.
 
-**Protect My Farms**, in Settings (off by default), stops other players from breaking the structure of your finished farms by hand; they see who protects it. You and server operators can still break it. Crops, sugar cane, cactus, bamboo, kelp, pumpkins, melons and other produce stay harvestable for everyone, and only the farm's own blocks are protected. Explosions, pistons, mobs, fluids, fire and other mods that remove blocks are not blocked.
+**Protect My Farms**, in Settings (off by default), stops other players from breaking the structure of your finished farms by hand, and stops explosions (creepers, TNT and the like) and endermen from damaging it; they see who protects it. You and server operators can still break it by hand, and an explosion you cause yourself, like your own TNT, is not stopped. Endermen near a protected farm don't pick up blocks at all. Crops, sugar cane, cactus, bamboo, kelp, pumpkins, melons and other produce stay harvestable for everyone, and only the farm's own blocks are protected. Pistons, other mobs, fluids, fire and other mods that remove blocks are not blocked.
 
 A finished farm has a permanent identity, so its saved design and alerts survive Repair and world restarts. Favorite or track a farm from its page: My Farms can show only favorites or sort them first, and tracked farms show a direction and distance HUD. The selected farm page shows its operating state, Keep Loaded state, distance or dimension, storage, condition, and repair needs. Alerts report missing blocks, full storage, unavailable designs, and Repair problems: a farm with an active alert is marked with a warning sign in My Farms and its page ends with a red "Alert" line for each one.
 
@@ -82,7 +82,7 @@ Under **My Schematics**, the table reads `.nbt`, `.schem`, and `.litematic` file
 - `config/worldedit/schematics`
 - `config/litematica`
 - `schematics` inside the world folder
-- `config/the_dream_table/structures`
+- `config/the_dream_table/structures` (in a world that runs on your computer, the Open Folder button on My Schematics opens it)
 
 Each file is checked when the list is read, before anyone builds it. A file that can't be used is still listed, greyed out, with the reason: it can't be read or is damaged, it isn't in one of these formats, it has no blocks, more than 16,384 blocks, more than 64 MB of data, it is taller than any world or longer than 512 blocks on a side, it needs more than 54 different materials, or it places two blocks in the same spot. A farm the table can build may come with warnings, shown on its card and on the farm screen before you press Build: blocks from mods that aren't installed, which are left out, blocks a survival player can't get, like bedrock or spawners, so only Creative can finish it, and Dream Table blocks, which are left out. Click events on signs in a file are removed, so a sign can't run commands. On a server, players see the same reasons and warnings for the server's files. New or changed files show up within a second.
 
@@ -105,7 +105,7 @@ Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.5.1. A 
 - Claim mods are respected through Fabric API's block break event on Fabric and through block break and place events on NeoForge and Forge. Claim mods that use other hooks are not seen.
 - Keep Loaded can't hold a farm that spans more than 64 chunks.
 - Text is available in English and Brazilian Portuguese only.
-- Protect My Farms only stops players breaking blocks by hand.
+- Protect My Farms stops players breaking blocks by hand, explosions and endermen only; pistons, other mobs, fluids and fire can still change a protected farm.
 - On Forge for Minecraft 1.21.11, the hologram draws after clouds, weather and particles, so rain can draw over a ghost block.
 
 ## Build

@@ -2,14 +2,17 @@ package com.davisr.thedreamtable.neoforge;
 
 import com.davisr.thedreamtable.platform.ServerEvents;
 import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.entity.mob.EndermanEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.EntityMobGriefingEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.level.ExplosionEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
@@ -61,6 +64,28 @@ final class NeoForgeServerEvents implements ServerEvents {
 			if (event.getLevel() instanceof ServerWorld world && event.getPlayer() instanceof ServerPlayerEntity player
 					&& !check.allows(world, player, event.getPos(), event.getState())) {
 				event.setCanceled(true);
+			}
+		});
+	}
+
+	@Override
+	public void onExplosion(ExplosionFilter filter) {
+		// Detonate fires after the explosion chose its blocks and before it destroys them; its list is the one the game uses.
+		NeoForge.EVENT_BUS.addListener(ExplosionEvent.Detonate.class, event -> {
+			if (event.getLevel() instanceof ServerWorld world) {
+				filter.filter(world, event.getExplosion().getCausingEntity(), event.getAffectedBlocks());
+			}
+		});
+	}
+
+	@Override
+	public void onEndermanGrief(EndermanCheck check) {
+		// The enderman's pickup goal asks this event (through EventHooks.canEntityGrief) after the mobGriefing rule. Its place
+		// goal asks too, so only an empty-handed enderman is checked, as on Fabric.
+		NeoForge.EVENT_BUS.addListener(EntityMobGriefingEvent.class, event -> {
+			if (event.getEntity() instanceof EndermanEntity enderman && enderman.getCarriedBlock() == null
+					&& enderman.getWorld() instanceof ServerWorld world && !check.allows(world, enderman)) {
+				event.setCanGrief(false);
 			}
 		});
 	}

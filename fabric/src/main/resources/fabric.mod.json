@@ -23,6 +23,9 @@
 			"com.davisr.thedreamtable.fabric.TheDreamTableFabricClient"
 		]
 	},
+	"mixins": [
+		"the_dream_table.mixins.json"
+	],
 	"depends": {
 		"fabricloader": ">=0.16.0",
 		"minecraft": "1.21.1",

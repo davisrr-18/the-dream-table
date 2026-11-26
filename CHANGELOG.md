@@ -4,6 +4,11 @@ Release date: not released yet (in development)
 
 A feature update for Minecraft 1.21.11, 1.21.1 and 1.20.1.
 
+## New
+
+- My Schematics has an Open Folder button next to How It Works, in worlds that run on your computer. It opens `config/the_dream_table/structures` (and makes it if it's missing), so you can drop your own `.nbt`, `.schem` or `.litematic` files there.
+- Protect My Farms now also stops explosions (creepers, TNT and the like) and endermen from breaking a protected farm. Produce stays breakable as before, and an explosion the farm's owner caused, like their own TNT, is not stopped. Endermen don't pick up blocks near a protected farm.
+
 ## Fixes
 
 - Protect My Farms now keeps guarding a farm while you take it down. Before, the farm lost its protection from the moment Take Down started until the last block was gone.

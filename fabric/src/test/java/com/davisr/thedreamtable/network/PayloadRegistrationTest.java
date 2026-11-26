@@ -211,6 +211,14 @@ class PayloadRegistrationTest {
 		}
 
 		@Override
+		public void onExplosion(ExplosionFilter filter) {
+		}
+
+		@Override
+		public void onEndermanGrief(EndermanCheck check) {
+		}
+
+		@Override
 		public void onCommandRegistration(Consumer<CommandDispatcher<ServerCommandSource>> listener) {
 		}
 	}

@@ -37,6 +37,10 @@ dependencies {
 }
 
 loom {
+	// The mod's mixins (src/main/java/.../fabric/mixin) need Loom's annotation processor to write the refmap.
+	mixin {
+		useLegacyMixinAp = true
+	}
 	runs {
 		client {
 			// A fixed name keeps the same offline UUID between launches, so farms and table sessions stay with the player.
