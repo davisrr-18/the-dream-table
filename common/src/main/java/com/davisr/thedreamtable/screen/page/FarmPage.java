@@ -42,6 +42,8 @@ public final class FarmPage implements TablePage {
 	private static final int LINE_HEIGHT = 10;
 	/** Room under the condition line for the items a repair takes, or the four lines of the Take Down warning. */
 	private static final int NEEDS_HEIGHT = 40;
+	/** Observed minutes before the production line shows a rate instead of "measuring". */
+	static final int PRODUCTION_MINUTES = 10;
 
 	private final PageContext ui;
 	private long confirmUntil;
@@ -176,7 +178,28 @@ public final class FarmPage implements TablePage {
 		if (details != null) {
 			drawItems(context, details.items(), details.counts(), itemsY(), "gui.the_dream_table.item_stored", mouseX, mouseY);
 			drawWrapped(context, infoText(details), blocksY(), Integer.MAX_VALUE, HINT);
+			Text production = productionText(details);
+			if (production != null) {
+				drawWrapped(context, production, productionY(), Integer.MAX_VALUE, NAME);
+				drawItems(context, productionItems(details), details.perHour(), productionItemsY(), "gui.the_dream_table.item_per_hour", mouseX, mouseY);
+			}
 		}
+	}
+
+	/** Null when the farm has no readable storage to measure; otherwise says it is still measuring, found nothing, or heads the list. */
+	static Text productionText(FarmDetailsPayload details) {
+		if (details == null || !details.loaded() || details.containers() == 0) {
+			return null;
+		}
+		if (details.productionMinutes() < PRODUCTION_MINUTES) {
+			return Text.translatable("gui.the_dream_table.production_measuring", details.productionMinutes(), PRODUCTION_MINUTES);
+		}
+		return Text.translatable(details.production().isEmpty() ? "gui.the_dream_table.production_none" : "gui.the_dream_table.production_title");
+	}
+
+	/** The items to draw under the production line: none while it is measuring. */
+	private static List<String> productionItems(FarmDetailsPayload details) {
+		return details == null || details.productionMinutes() < PRODUCTION_MINUTES || productionText(details) == null ? List.of() : details.production();
 	}
 
 	/** Operating state, Keep Loaded state, and distance or dimension for the selected farm. */
@@ -426,6 +449,14 @@ public final class FarmPage implements TablePage {
 		return ui.view().cardY(0) + layout().blocks;
 	}
 
+	private int productionY() {
+		return ui.view().cardY(0) + layout().production;
+	}
+
+	private int productionItemsY() {
+		return ui.view().cardY(0) + layout().productionItems;
+	}
+
 	private int conditionY() {
 		return ui.view().cardY(0) + layout().condition;
 	}
@@ -473,6 +504,8 @@ public final class FarmPage implements TablePage {
 		private final int storage;
 		private final int items;
 		private final int blocks;
+		private final int production;
+		private final int productionItems;
 		private final int condition;
 		private final int needs;
 		private final int alerts;
@@ -488,7 +521,11 @@ public final class FarmPage implements TablePage {
 			storage = status + (farm == null ? 1 : lines(summaryText(farm))) * LINE_HEIGHT + 3;
 			items = storage + lines(storageText(details)) * LINE_HEIGHT + 2;
 			blocks = items + itemHeight(details == null ? List.of() : details.items());
-			condition = blocks + (details == null ? 1 : lines(infoText(details))) * LINE_HEIGHT + 2;
+			production = blocks + (details == null ? 1 : lines(infoText(details))) * LINE_HEIGHT + 2;
+			Text productionText = productionText(details);
+			productionItems = production + (productionText == null ? 0 : lines(productionText) * LINE_HEIGHT + 2);
+			List<String> shown = productionItems(details);
+			condition = productionItems + (shown.isEmpty() ? 0 : itemHeight(shown));
 			needs = condition + (details == null ? 1 : lines(condition(details))) * LINE_HEIGHT + 2;
 			alerts = needs + Math.max(NEEDS_HEIGHT, itemHeight(details == null ? List.of() : details.needs()));
 			rows = alerts + alertsHeight(farm, alertPage) + 4;

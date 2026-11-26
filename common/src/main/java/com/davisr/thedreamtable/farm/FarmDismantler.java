@@ -71,11 +71,16 @@ public final class FarmDismantler {
 
 	/**
 	 * The owner-managed data of a finished farm, kept so its record can be restored if Take Down leaves part of it standing.
-	 * {@code alerts} is the saved alert state, which releasing the record would otherwise drop with it.
+	 * {@code alerts} and {@code production} are the saved alert and production state, which releasing the record would
+	 * otherwise drop with it.
 	 */
-	public record Identity(UUID instanceId, UUID owner, @Nullable String customName, @Nullable NbtCompound alerts) {
+	public record Identity(UUID instanceId, UUID owner, @Nullable String customName, @Nullable NbtCompound alerts, @Nullable NbtCompound production) {
 		public Identity(UUID instanceId, UUID owner, @Nullable String customName) {
-			this(instanceId, owner, customName, null);
+			this(instanceId, owner, customName, null, null);
+		}
+
+		public Identity(UUID instanceId, UUID owner, @Nullable String customName, @Nullable NbtCompound alerts) {
+			this(instanceId, owner, customName, alerts, null);
 		}
 	}
 
@@ -206,6 +211,9 @@ public final class FarmDismantler {
 		areas.recordFinished(identity.owner(), layout, site, swaps, identity.instanceId(), identity.customName(), left, leftPaid);
 		if (identity.alerts() != null) {
 			areas.restoreAlerts(identity.instanceId(), FarmAlerts.read(identity.alerts()));
+		}
+		if (identity.production() != null) {
+			areas.restoreProduction(identity.instanceId(), FarmProduction.read(identity.production()));
 		}
 	}
 
@@ -434,6 +442,9 @@ public final class FarmDismantler {
 			if (identity.alerts() != null) {
 				nbt.put("Alerts", identity.alerts().copy());
 			}
+			if (identity.production() != null) {
+				nbt.put("Production", identity.production().copy());
+			}
 		}
 	}
 
@@ -478,7 +489,8 @@ public final class FarmDismantler {
 		if (Nbts.containsUuid(nbt, "Instance") && Nbts.containsUuid(nbt, "Owner")) {
 			String name = Nbts.hasString(nbt, "CustomName") ? nbt.getString("CustomName", "") : null;
 			identity = new Identity(Nbts.getUuid(nbt, "Instance"), Nbts.getUuid(nbt, "Owner"), name,
-					Nbts.hasCompound(nbt, "Alerts") ? nbt.getCompoundOrEmpty("Alerts") : null);
+					Nbts.hasCompound(nbt, "Alerts") ? nbt.getCompoundOrEmpty("Alerts") : null,
+					Nbts.hasCompound(nbt, "Production") ? nbt.getCompoundOrEmpty("Production") : null);
 		}
 		// Collaborator, invite and payer data saved by earlier versions is not read and is dropped on the next save.
 		FarmDismantler job = new FarmDismantler(Nbts.getUuid(nbt, "Player"), farmId, nbt.getLong("FarmSignature", 0L), site, MaterialLedger.readSwaps(nbt),

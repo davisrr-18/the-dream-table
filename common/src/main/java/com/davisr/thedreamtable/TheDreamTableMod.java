@@ -8,6 +8,7 @@ import com.davisr.thedreamtable.command.DreamTableCommands;
 import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmLoader;
 import com.davisr.thedreamtable.farm.FarmPreferences;
+import com.davisr.thedreamtable.farm.FarmProductionMonitor;
 import com.davisr.thedreamtable.farm.FarmProtection;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.PendingRefunds;
@@ -85,6 +86,7 @@ public final class TheDreamTableMod {
 		FarmTemplates.onImportsChanged(ServerSchematicsPayload::sendToOpenTables);
 		TableBreakGuard.register();
 		FarmAlertMonitor.register();
+		FarmProductionMonitor.register();
 		LoadedFarmsPayload.register();
 		ServerSchematicsPayload.register();
 		FarmDetailsPayload.register();
