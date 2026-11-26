@@ -51,6 +51,12 @@ class FabricHandshakeTest {
 		assertEquals("the_dream_table:handshake", FabricHandshake.REQUEST_ID.id().toString());
 	}
 
+	/** Version 6 added the production fields to the farm details payload. */
+	@Test
+	void theProtocolVersionIsPinned() {
+		assertEquals("6", NetworkProtocol.VERSION);
+	}
+
 	@Test
 	void onlyTheSameProtocolIsCompatible() {
 		assertTrue(NetworkProtocol.compatible(NetworkProtocol.VERSION));

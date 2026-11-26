@@ -5,6 +5,7 @@ import com.davisr.thedreamtable.farm.FarmAreas;
 import com.davisr.thedreamtable.farm.FarmAction;
 import com.davisr.thedreamtable.farm.FarmDirectory;
 import com.davisr.thedreamtable.farm.FarmLoader;
+import com.davisr.thedreamtable.farm.FarmProduction;
 import com.davisr.thedreamtable.farm.FarmStorage;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.platform.Platform;
@@ -26,10 +27,12 @@ import java.util.Map;
  * One finished farm's storage, size and condition for its My Farms page: items stored against the room there is, how
  * many chests and barrels, the items held, most first, the farm's block count, and, for a repair, the blocks missing,
  * those the player changed, and the items the missing ones take.
- * Item counts travel apart from the items, since a total can be far above a stack.
+ * Item counts travel apart from the items, since a total can be far above a stack. The farm's production is the items it
+ * gains per hour (up to eight, most first) and the minutes the server has watched it for.
  */
 public record FarmDetailsPayload(String key, boolean loaded, int stored, int capacity, int containers, int blocks, List<String> items, List<Integer> counts,
-		int missing, int changed, List<String> needs, List<Integer> needCounts) implements CustomPayload {
+		int missing, int changed, List<String> needs, List<Integer> needCounts, List<String> production, List<Integer> perHour, int productionMinutes)
+		implements CustomPayload {
 	public static final Id<FarmDetailsPayload> ID = new Id<>(new Identifier(TheDreamTableMod.MOD_ID, "farm_details"));
 	private static final int SHOWN_ITEMS = 8;
 	/**
@@ -52,6 +55,8 @@ public record FarmDetailsPayload(String key, boolean loaded, int stored, int cap
 				buf.writeVarInt(details.missing());
 				buf.writeVarInt(details.changed());
 				writeItems(buf, details.needs(), details.needCounts());
+				writeItems(buf, details.production(), details.perHour());
+				buf.writeVarInt(details.productionMinutes());
 			},
 			buf -> {
 				String key = buf.readString(256);
@@ -68,7 +73,12 @@ public record FarmDetailsPayload(String key, boolean loaded, int stored, int cap
 				List<String> needs = new ArrayList<>();
 				List<Integer> needCounts = new ArrayList<>();
 				readItems(buf, needs, needCounts);
-				return new FarmDetailsPayload(key, loaded, stored, capacity, containers, blocks, items, counts, missing, changed, needs, needCounts);
+				List<String> production = new ArrayList<>();
+				List<Integer> perHour = new ArrayList<>();
+				readItems(buf, production, perHour);
+				int productionMinutes = buf.readVarInt();
+				return new FarmDetailsPayload(key, loaded, stored, capacity, containers, blocks, items, counts, missing, changed, needs, needCounts,
+						production, perHour, productionMinutes);
 			});
 
 	private static void writeItems(RegistryByteBuf buf, List<String> items, List<Integer> counts) {
@@ -139,10 +149,21 @@ public record FarmDetailsPayload(String key, boolean loaded, int stored, int cap
 							});
 				}
 			}
+			List<String> production = new ArrayList<>();
+			List<Integer> perHour = new ArrayList<>();
+			int productionMinutes = 0;
+			FarmProduction measured = FarmAreas.of(farm.world()).production(farm.farm().instanceId()).orElse(null);
+			if (measured != null) {
+				productionMinutes = measured.observedMinutes();
+				for (FarmProduction.Rate rate : measured.perHour()) {
+					production.add(rate.item());
+					perHour.add(rate.perHour());
+				}
+			}
 			Platform.network().send(player, contents == null
-					? new FarmDetailsPayload(key, false, 0, 0, 0, blocks, items, counts, missing, changed, needs, needCounts)
+					? new FarmDetailsPayload(key, false, 0, 0, 0, blocks, items, counts, missing, changed, needs, needCounts, production, perHour, productionMinutes)
 					: new FarmDetailsPayload(key, true, contents.stored(), contents.capacity(), contents.containers(), blocks, items, counts, missing, changed,
-							needs, needCounts));
+							needs, needCounts, production, perHour, productionMinutes));
 	}
 
 	@Override

@@ -7,7 +7,7 @@ package com.davisr.thedreamtable.network;
  * exchanges it in a login-phase handshake ({@code FabricHandshake}).
  */
 public final class NetworkProtocol {
-	public static final String VERSION = "5";
+	public static final String VERSION = "6";
 
 	private NetworkProtocol() {
 	}

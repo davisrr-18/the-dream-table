@@ -162,4 +162,26 @@ class FarmAreaKeyTest {
 		assertEquals(identity, restored.identity());
 		assertEquals(7L, restored.identity().alerts().getLong("NextAlertEvent"));
 	}
+
+	@Test
+	void aTakeDownJobKeepsTheFarmsProductionForItsRestoredRecord() {
+		UUID player = UUID.nameUUIDFromBytes("OfflinePlayer:Davi".getBytes());
+		FarmSite site = new FarmSite(new BlockPos(0, 64, 0), new BlockPos(10, 64, 10), Direction.NORTH);
+		FarmTemplate cane = FarmTemplates.get(FarmOptions.SUGAR_CANE.id());
+		FarmTemplate layout = new FarmTemplate(FarmTemplates.newSavedId(cane.id(), cane.signature()), cane.steps(), cane.materials(), cane.center());
+		FarmProduction production = new FarmProduction();
+		production.observe(Map.of("minecraft:sugar_cane", 0), 1);
+		production.observe(Map.of("minecraft:sugar_cane", 64), FarmProduction.TICKS_PER_HOUR);
+		FarmDismantler.Identity identity = new FarmDismantler.Identity(UUID.nameUUIDFromBytes("farm".getBytes()), player, null, null,
+				production.write(new NbtCompound()));
+		FarmDismantler job = new FarmDismantler(player, layout, site, Map.of(), new BitSet(), new BitSet(), site.table(), identity);
+		NbtCompound saved = new NbtCompound();
+		job.write(saved);
+
+		FarmDismantler restored = FarmDismantler.read(saved);
+
+		assertNotNull(restored);
+		assertEquals(identity, restored.identity());
+		assertEquals(64, FarmProduction.read(restored.identity().production()).perHour().get(0).perHour());
+	}
 }
