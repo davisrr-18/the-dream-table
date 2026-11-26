@@ -329,10 +329,11 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 		if (!session.movedBuild()) {
 			session.releaseHold();
 		}
-		if (!session.isEmpty() || !(world instanceof ServerWorld serverWorld)
+		if (session.hasProject() || !(world instanceof ServerWorld serverWorld)
 				|| unreadableSessions.stream().anyMatch(raw -> id.equals(namedPlayer(raw)))) {
 			return session;
 		}
+		TableSession current = session;
 		boolean restored = ParkedProjects.of(serverWorld.getServer()).restore(id, saved -> {
 			TableSession project = new TableSession(this, id);
 			try {
@@ -341,6 +342,8 @@ public class DreamTableBlockEntity extends BlockEntity implements ExtendedMenuPr
 				TheDreamTableMod.LOGGER.error("Keeping an unreadable kept project of {} unchanged", id, corrupt);
 				return false;
 			}
+			// A session with only a queue holds nothing to lose: the project replaces it and keeps that queue behind its own.
+			project.queueBehind(current);
 			sessions.put(id, project);
 			if (project.movedBuild()) {
 				// Kept for others until its owner resumes or discards it here, or this table breaks.

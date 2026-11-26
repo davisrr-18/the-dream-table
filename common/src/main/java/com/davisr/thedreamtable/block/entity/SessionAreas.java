@@ -86,6 +86,9 @@ final class SessionAreas {
 		if (session.table().overlapsOthers(session, area)) {
 			return "gui.the_dream_table.farm_overlaps";
 		}
+		if (session.overlapsQueue(world.getRegistryKey().getValue(), area)) {
+			return "gui.the_dream_table.farm_overlaps_queue";
+		}
 		FarmAreas.Conflict conflict = FarmAreas.of(world).conflict(world, key(), area, ignoredFinished, forgetStale);
 		if (conflict == FarmAreas.Conflict.ACTIVE) {
 			return "gui.the_dream_table.farm_overlaps";

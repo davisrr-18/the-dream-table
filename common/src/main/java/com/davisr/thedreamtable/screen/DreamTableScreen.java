@@ -148,6 +148,7 @@ public class DreamTableScreen extends HandledScreen<DreamTableScreenHandler> imp
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+		handler.followServerFarm();
 		layout();
 		updateHologram();
 		// 1.20.1's Screen.render does not dim the world itself, as 1.20.2+ does.

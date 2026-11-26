@@ -11,6 +11,7 @@ import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmSite;
 import com.davisr.thedreamtable.farm.FarmTemplate;
 import com.davisr.thedreamtable.farm.FarmTemplates;
+import com.davisr.thedreamtable.farm.MaterialSwaps;
 import com.davisr.thedreamtable.farm.ParkedProjects;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
@@ -29,10 +30,12 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -57,6 +60,8 @@ public final class TableSession {
 	private final FarmPlacement placement = new FarmPlacement();
 	private final SessionAreas areas = new SessionAreas(this, progress);
 	private final SessionBuild build = new SessionBuild(this, progress, areas);
+	/** The farms lined up after the active one; see {@link SessionQueue}. */
+	private final SessionQueue queue = new SessionQueue();
 	private UUID player;
 	private String selectedFarm = "";
 	private int page;
@@ -89,9 +94,9 @@ public final class TableSession {
 		player = newPlayer;
 	}
 
-	/** An unused session is not saved. */
+	/** An unused session is not saved. A queue alone is worth saving: it is the player's plan. */
 	boolean isEmpty() {
-		return selectedFarm.isEmpty() && !desk.holdsItems();
+		return selectedFarm.isEmpty() && !desk.holdsItems() && queue.isEmpty();
 	}
 
 	// Table access, so farm code can treat a session like the table it belongs to.
@@ -131,6 +136,11 @@ public final class TableSession {
 		}
 		resumeForWater(world);
 		build.tick(world);
+		// After the build's own tick, which records a finished farm, and never from finish() itself.
+		ServerPlayerEntity queued = queue.isEmpty() ? null : onlineOwner(world);
+		if (SessionQueue.shouldStartNext(progress.is(PHASE_DONE), areas.finishedRecorded(), queue.isEmpty(), queued != null, progress.repair())) {
+			startNext(queued);
+		}
 	}
 
 	/** A build stopped for want of water goes on by itself once a source is nearby. Checked once a second. */
@@ -194,6 +204,144 @@ public final class TableSession {
 	/** True while the farm has a placement, delivered items, or a build that is not finished. */
 	public boolean hasProgress() {
 		return !progress.is(PHASE_DONE) && (progress.busy() || placement.placed() || desk.anyDelivered());
+	}
+
+	// Build queue
+
+	/** Whether the session holds a farm or delivered items: a queue alone is a plan, not a project that blocks restoring a kept one. */
+	boolean hasProject() {
+		return !selectedFarm.isEmpty() || desk.holdsItems();
+	}
+
+	/** A kept project restored into this table becomes the active one; the queue this session had waits behind the project's own, up to the cap. */
+	void queueBehind(TableSession previous) {
+		queue.append(previous.queue);
+	}
+
+	public List<String> queuedFarms() {
+		return queue.farms();
+	}
+
+	/** Whether the area touches a farm this player has queued in this world. */
+	boolean overlapsQueue(Identifier world, Box area) {
+		return queue.overlaps(world, area);
+	}
+
+	public void clearQueue() {
+		if (!queue.isEmpty()) {
+			queue.clear();
+			sync();
+		}
+	}
+
+	/**
+	 * Lines up the selected farm at the site and clears the session, as the Queue button asks. Only an idle session plans, never a
+	 * running or stopped build. The spot gets the same checks as Build, plus the queue's own limit and overlap. Delivered items go
+	 * back to the player by {@link #setSelectedFarm}, the way choosing another farm does; the queue itself holds none.
+	 */
+	public boolean enqueue(ServerPlayerEntity asker, FarmSite site) {
+		FarmTemplate template = template();
+		if (template == null || !progress.is(PHASE_IDLE) || !(table.getWorld() instanceof ServerWorld world)) {
+			return false;
+		}
+		String problem = queue.full() ? "gui.the_dream_table.queue_full" : areas.aimProblemAt(world, asker, site, template);
+		if (problem != null) {
+			TableNoticePayload.problem(asker, Text.translatable(problem));
+			return false;
+		}
+		AimedSpot spot = new AimedSpot(site.anchor(), site.facing(), site.mirrored(), world.getRegistryKey().getValue());
+		queue.add(SessionQueue.entry(selectedFarm, spot, desk.swaps()));
+		Text name = SessionQueue.name(selectedFarm);
+		page = DreamTableScreenHandler.PAGE_SELECT;
+		setSelectedFarm("", asker);
+		TableNoticePayload.info(asker, Text.translatable("gui.the_dream_table.queued", name, queue.size()));
+		return true;
+	}
+
+	/**
+	 * The Build queue button: starts the first queued farm of a queue nobody started. Only from a finished farm or an idle session with
+	 * nothing delivered or placed, so no project in progress is replaced.
+	 */
+	public boolean startQueued(ServerPlayerEntity starter) {
+		if (queue.isEmpty()) {
+			return false;
+		}
+		boolean free = progress.is(PHASE_IDLE) && !hasProgress() || progress.is(PHASE_DONE) && areas.finishedRecorded();
+		if (!free) {
+			TableNoticePayload.problem(starter, Text.translatable("gui.the_dream_table.farm_busy"));
+			return false;
+		}
+		startNext(starter);
+		if (!selectedFarm.isEmpty()) {
+			setPage(DreamTableScreenHandler.PAGE_WORK);
+		}
+		return true;
+	}
+
+	/**
+	 * Takes the first queued farm up: it becomes the selected farm with its swaps and spot, any leftover of the finished one handed back
+	 * by {@link #setSelectedFarm}, and the build starts there when the spot is usable from this table. An entry that can't be read is
+	 * skipped with a message; a spot that is out of this world or reach stays aimed for the player to move.
+	 */
+	private boolean startNext(ServerPlayerEntity owner) {
+		if (!(table.getWorld() instanceof ServerWorld world)) {
+			return false;
+		}
+		boolean started = false;
+		NbtCompound entry;
+		while ((entry = queue.pop()) != null) {
+			String farm = entry.getString("SelectedFarm");
+			FarmTemplate template = FarmTemplates.get(farm);
+			AimedSpot spot = entry.contains("Aim", NbtElement.COMPOUND_TYPE) ? AimedSpot.fromNbt(entry.getCompound("Aim")) : null;
+			if (template == null || spot == null) {
+				tellRefused(owner, Text.translatable("gui.the_dream_table.queue_skipped"));
+				continue;
+			}
+			Text name = SessionQueue.name(farm);
+			setSelectedFarm(farm, owner);
+			desk.restoreSwaps(usableSwaps(template, MaterialLedger.readSwaps(entry)));
+			rememberAim(spot.dimension(), spot.anchor(), spot.facing(), spot.mirrored());
+			boolean sameWorld = world.getRegistryKey().getValue().equals(spot.dimension());
+			if (!AimedSpot.usableHere(sameWorld, FarmGeometry.withinReach(getPos(), spot.anchor()))) {
+				tellRefused(owner, Text.translatable("gui.the_dream_table.queue_unusable", name));
+				break;
+			}
+			setPlacement(spot.anchor(), spot.facing(), spot.mirrored());
+			// Asked here too, so the refusal goes to chat with its reason, which begin() only shows on the HUD.
+			String problem = areas.problemAt(world, owner, FarmBuilder.site(this), template, null);
+			if (problem != null) {
+				clearPlacement();
+				tellRefused(owner, Text.translatable("gui.the_dream_table.queue_refused", name, Text.translatable(problem)));
+				break;
+			}
+			started = build.begin(owner, true);
+			if (started) {
+				TableNoticePayload.info(owner, Text.translatable("gui.the_dream_table.queue_started", name, queue.size()));
+			} else {
+				clearPlacement();
+				tellRefused(owner, Text.translatable("gui.the_dream_table.queue_failed", name));
+			}
+			break;
+		}
+		sync();
+		return started;
+	}
+
+	/** A queued farm that did not start: the HUD notice, and chat, since the player may not be looking at the table when it happens. */
+	private static void tellRefused(ServerPlayerEntity owner, Text text) {
+		TableNoticePayload.problem(owner, text);
+		owner.sendMessage(text, false);
+	}
+
+	/** The queued swaps this farm can still use: its own materials, swapped for a block it offers. A saved or edited entry can name anything. */
+	private static Map<Item, Item> usableSwaps(FarmTemplate template, Map<Item, Item> saved) {
+		Map<Item, Item> usable = new LinkedHashMap<>();
+		saved.forEach((original, swapped) -> {
+			if (swapped != original && MaterialSwaps.options(template, original).contains(swapped)) {
+				usable.put(original, swapped);
+			}
+		});
+		return usable;
 	}
 
 	public int getPage() {
@@ -617,7 +765,12 @@ public final class TableSession {
 	 * {@link FarmDismantler}, which takes it apart over the next ticks; a finished farm stays standing.
 	 */
 	public void discard(PlayerEntity discarder) {
+		boolean repair = progress.repair();
 		discard(discarder.getWorld(), discarder, true);
+		// Discard drops only the active build: the queue goes on, but not after a repair, which is not a farm of the queue's line.
+		if (discarder instanceof ServerPlayerEntity starter && !queue.isEmpty() && !repair) {
+			startNext(starter);
+		}
 	}
 
 	/**
@@ -751,6 +904,11 @@ public final class TableSession {
 		} else {
 			// Materials a repair left for an actor who was away still come back to them, with the same message.
 			String returnNotice = progress.returnNotice();
+			if (progress.is(PHASE_DONE) && !desk.holdsItems()) {
+				// A finished farm is not kept, only the queue behind it.
+				selectedFarm = "";
+				aim = null;
+			}
 			progress.reset(true);
 			progress.setReturnNotice(returnNotice);
 			desk.forgetUsed();
@@ -761,12 +919,13 @@ public final class TableSession {
 		write(nbt, registries);
 		desk.slots().clear();
 		desk.reset();
+		queue.clear();
 		return nbt;
 	}
 
 	/** What a broken table would keep of this session now. */
 	ParkKind parkKind() {
-		return parkKind(isEmpty(), progress.is(PHASE_DONE), desk.holdsItems(), progress.repairContext() != null, buildInProgress(), placement.placed());
+		return parkKind(isEmpty(), progress.is(PHASE_DONE), desk.holdsItems(), progress.repairContext() != null, buildInProgress(), placement.placed(), !queue.isEmpty());
 	}
 
 	/** What a broken table keeps of a session. */
@@ -778,9 +937,9 @@ public final class TableSession {
 		PROJECT
 	}
 
-	/** An unused session or a finished farm with nothing left delivered is not kept; a repair is never kept as a build. */
-	static ParkKind parkKind(boolean empty, boolean done, boolean holdsItems, boolean repair, boolean buildStarted, boolean placed) {
-		if (empty || done && !holdsItems) {
+	/** An unused session or a finished farm with nothing left delivered and no queue behind it is not kept; a repair is never kept as a build. */
+	static ParkKind parkKind(boolean empty, boolean done, boolean holdsItems, boolean repair, boolean buildStarted, boolean placed, boolean queued) {
+		if (empty || done && !holdsItems && !queued) {
 			return ParkKind.NOTHING;
 		}
 		return !repair && buildStarted && placed ? ParkKind.BUILD : ParkKind.PROJECT;
@@ -891,6 +1050,7 @@ public final class TableSession {
 		if (aim != null) {
 			nbt.put("Aim", aim.toNbt());
 		}
+		queue.write(nbt);
 	}
 
 	/** The trimmed copy sent to the owner's client: no slot inventory, no step records, no page, which the menu syncs on its own. */
@@ -904,6 +1064,7 @@ public final class TableSession {
 		if (aim != null) {
 			nbt.put("Aim", aim.toNbt());
 		}
+		queue.writeForClient(nbt);
 		return nbt;
 	}
 
@@ -932,6 +1093,7 @@ public final class TableSession {
 			movedBuildDimension = null;
 		}
 		aim = nbt.contains("Aim", NbtElement.COMPOUND_TYPE) ? AimedSpot.fromNbt(nbt.getCompound("Aim")) : null;
+		queue.read(nbt);
 	}
 
 	/** The player who started the build, for sessions saved before players had their own. */

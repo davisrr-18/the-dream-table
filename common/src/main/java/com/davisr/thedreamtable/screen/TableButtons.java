@@ -66,6 +66,11 @@ final class TableButtons {
 				yield true;
 			}
 			case BUTTON_BUILD -> build(table, player);
+			case BUTTON_QUEUE_START -> table.startQueued(player);
+			case BUTTON_QUEUE_CLEAR -> {
+				table.clearQueue();
+				yield true;
+			}
 			case BUTTON_PAUSE -> table.build().pause();
 			case BUTTON_DELIVER_ALL -> table.deliverAll(player);
 			case BUTTON_DELIVER_NEARBY -> table.deliverNearby(player);

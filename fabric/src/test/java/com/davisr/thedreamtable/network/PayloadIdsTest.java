@@ -23,6 +23,7 @@ class PayloadIdsTest {
 	void payloadIdsAreFrozen() {
 		List<CustomPayload.Id<?>> ids = List.of(
 				PlaceFarmPayload.ID,
+				QueueFarmPayload.ID,
 				CheckPlacementPayload.ID,
 				PlacementResultPayload.ID,
 				SessionSyncPayload.ID,
@@ -62,6 +63,7 @@ class PayloadIdsTest {
 				"the_dream_table:loaded_farms_request",
 				"the_dream_table:place_farm",
 				"the_dream_table:placement_result",
+				"the_dream_table:queue_farm",
 				"the_dream_table:request_session",
 				"the_dream_table:schematic_farm",
 				"the_dream_table:schematic_request",
