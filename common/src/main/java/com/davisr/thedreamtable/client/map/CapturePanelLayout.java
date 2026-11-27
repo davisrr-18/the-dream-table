@@ -3,20 +3,22 @@ package com.davisr.thedreamtable.client.map;
 import java.util.List;
 
 /**
- * The capture panel's fixed layout. Every section keeps its place whatever the capture is doing: the width is fixed, the size is
- * always one line (a "counting..." text replaces the count in place), and the problem has a slot of its own that is reserved even
- * when empty. Pure, so it is tested without a client.
+ * The capture panel's layout. The main panel (title, three steps, the size line) never moves or resizes: its width is the widest
+ * content it can ever show, worked out from fixed strings and not from the state, and its height is fixed. A problem is a box of
+ * its own under it, so it can come and go without touching the panel. Pure, so it is tested without a client.
  */
 final class CapturePanelLayout {
 	static final int MARGIN = 6;
 	static final int PADDING = KeyChips.PADDING;
 	static final int ROW = KeyChips.ROW;
 	static final int LINE = 11;
-	/** The panel's content width: narrow enough to stay clear of the centred notices at any GUI scale. */
-	static final int INNER_WIDTH = 200;
 	static final int STEP_ROWS = 3;
-	/** The lines kept for a problem; a longer text is cut. */
+	/** The space between the panel and the problem box under it. */
+	static final int PROBLEM_GAP = 2;
+	/** The lines a problem takes; a longer text is cut. */
 	static final int PROBLEM_LINES = 3;
+	/** The narrowest the content may be squeezed to by a small window. */
+	private static final int MIN_INNER = 40;
 
 	/** What the size line shows. */
 	enum SizeLine {
@@ -33,16 +35,30 @@ final class CapturePanelLayout {
 	private CapturePanelLayout() {
 	}
 
-	static int width() {
-		return INNER_WIDTH + 2 * PADDING;
+	/**
+	 * The content width: the widest of the given content widths (the title, the step labels with their marks, and the widest size line
+	 * the panel can show, not the one it shows now), capped by the window. It takes no state, so it is the same every frame.
+	 */
+	static int innerWidth(int[] contentWidths, int windowWidth) {
+		int widest = 0;
+		for (int width : contentWidths) {
+			widest = Math.max(widest, width);
+		}
+		return Math.max(MIN_INNER, Math.min(widest, windowWidth - 2 * (MARGIN + PADDING)));
 	}
 
-	/**
-	 * The panel's height. It takes no state on purpose: the title, the steps and the size line (always one row, whichever
-	 * {@link SizeLine} shows) and the problem slot are all reserved, so nothing the capture does can change it.
-	 */
+	static int width(int innerWidth) {
+		return innerWidth + 2 * PADDING;
+	}
+
+	/** The panel's height: title, steps and the size line (one row whichever {@link SizeLine} shows). It takes no state on purpose. */
 	static int height() {
-		return ROW * (1 + STEP_ROWS + 1) + LINE * PROBLEM_LINES + 2 * PADDING - (ROW - 12);
+		return ROW * (1 + STEP_ROWS + 1) + 2 * PADDING - (ROW - 12);
+	}
+
+	/** The height of the problem box for a problem of this many lines; nothing when there is none. */
+	static int problemBoxHeight(int lines) {
+		return lines <= 0 ? 0 : LINE * Math.min(lines, PROBLEM_LINES) + 2 * PADDING - 3;
 	}
 
 	static SizeLine sizeLine(boolean started, boolean fixed, boolean counting, boolean hasProblem) {
@@ -55,12 +71,12 @@ final class CapturePanelLayout {
 		return counting ? SizeLine.COUNTING : SizeLine.BLOCKS;
 	}
 
-	/** The lines of a problem that fit its slot. */
+	/** The lines of a problem that fit its box. */
 	static <T> List<T> problemSlot(List<T> lines) {
 		return lines.size() <= PROBLEM_LINES ? lines : lines.subList(0, PROBLEM_LINES);
 	}
 
-	/** Whether a problem of this many lines is cut by its slot, so its last line is to end with an ellipsis. */
+	/** Whether a problem of this many lines is cut by its box, so its last line is to end with an ellipsis. */
 	static boolean problemCut(int lines) {
 		return lines > PROBLEM_LINES;
 	}
