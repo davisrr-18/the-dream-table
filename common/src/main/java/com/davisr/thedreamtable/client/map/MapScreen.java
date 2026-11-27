@@ -254,8 +254,9 @@ public final class MapScreen extends Screen {
 		for (Hint hint : CaptureSteps.hints(MapCapture.step())) {
 			Text key = switch (hint) {
 				case MARK, FIX -> Text.translatable("key.mouse.left");
-				case HEIGHT -> Text.empty().append(DreamTableKeys.CAPTURE_UP.getBoundKeyLocalizedText()).append(" ").append(DreamTableKeys.CAPTURE_DOWN.getBoundKeyLocalizedText());
-				case SHRINK -> Text.translatable("key.keyboard.left.shift");
+				case HEIGHT -> heightKeys();
+				// Shift already means "Faster" for the camera, so the shrink chip names the combination, not the key alone.
+				case SHRINK -> Text.translatable("gui.the_dream_table.capture_key.shrink", heightKeys());
 				case NAME -> DreamTableKeys.CAPTURE_CONFIRM.getBoundKeyLocalizedText();
 				case EXIT -> Text.empty().append(Text.translatable("key.keyboard.escape")).append(" / ").append(DreamTableKeys.CAPTURE.getBoundKeyLocalizedText());
 			};
@@ -267,6 +268,16 @@ public final class MapScreen extends Screen {
 	/** Screen.hasShiftDown is gone in 1.21.11, so the Shift keys are read directly. */
 	private boolean shiftDown() {
 		return InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_LEFT_SHIFT) || InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_RIGHT_SHIFT);
+	}
+
+	/** The height keys as arrows when they are the default Up and Down, otherwise as the player has them bound. */
+	private static Text heightKeys() {
+		return Text.empty().append(keyOrArrow(DreamTableKeys.CAPTURE_UP, "up")).append(" ").append(keyOrArrow(DreamTableKeys.CAPTURE_DOWN, "down"));
+	}
+
+	private static Text keyOrArrow(KeyBinding binding, String direction) {
+		return binding.getBoundKeyTranslationKey().equals("key.keyboard." + direction)
+				? Text.translatable("gui.the_dream_table.capture_key." + direction) : binding.getBoundKeyLocalizedText();
 	}
 
 	/** The confirm key's real state, not the game's count of presses. */
