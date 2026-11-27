@@ -39,8 +39,13 @@ class CaptureStepsTest {
 
 	@Test
 	void eachStepShowsOnlyItsOwnKeys() {
-		assertEquals(List.of(Hint.MARK, Hint.EXIT), CaptureSteps.hints(Step.FIRST_CORNER));
-		assertEquals(List.of(Hint.FIX, Hint.HEIGHT, Hint.EXIT), CaptureSteps.hints(Step.SECOND_CORNER));
-		assertEquals(List.of(Hint.HEIGHT, Hint.SHRINK, Hint.NAME, Hint.EXIT), CaptureSteps.hints(Step.ADJUST_AND_SAVE));
+		assertEquals(List.of(Hint.MARK, Hint.EXIT), CaptureSteps.hints(Step.FIRST_CORNER, false));
+		assertEquals(List.of(Hint.FIX, Hint.HEIGHT, Hint.EXIT), CaptureSteps.hints(Step.SECOND_CORNER, false));
+		assertEquals(List.of(Hint.HEIGHT, Hint.SHRINK, Hint.NAME, Hint.EXIT), CaptureSteps.hints(Step.ADJUST_AND_SAVE, true));
+	}
+
+	@Test
+	void theNameKeyIsHiddenWhileSavingIsImpossible() {
+		assertEquals(List.of(Hint.HEIGHT, Hint.SHRINK, Hint.EXIT), CaptureSteps.hints(Step.ADJUST_AND_SAVE, false));
 	}
 }

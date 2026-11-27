@@ -37,12 +37,15 @@ public final class CaptureSteps {
 		return step.ordinal() < current.ordinal() ? State.DONE : step == current ? State.CURRENT : State.PENDING;
 	}
 
-	/** Only the keys of the current step: Up and Down work from the first click on, Shift only reverses them once the box is fixed. */
-	public static List<Hint> hints(Step current) {
+	/**
+	 * Only the keys of the current step: Up and Down work from the first click on, Shift only reverses them once the box is fixed.
+	 * Name is listed only when the capture can be saved, as Enter is refused otherwise.
+	 */
+	public static List<Hint> hints(Step current, boolean canSave) {
 		return switch (current) {
 			case FIRST_CORNER -> List.of(Hint.MARK, Hint.EXIT);
 			case SECOND_CORNER -> List.of(Hint.FIX, Hint.HEIGHT, Hint.EXIT);
-			case ADJUST_AND_SAVE -> List.of(Hint.HEIGHT, Hint.SHRINK, Hint.NAME, Hint.EXIT);
+			case ADJUST_AND_SAVE -> canSave ? List.of(Hint.HEIGHT, Hint.SHRINK, Hint.NAME, Hint.EXIT) : List.of(Hint.HEIGHT, Hint.SHRINK, Hint.EXIT);
 		};
 	}
 }

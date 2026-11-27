@@ -28,6 +28,8 @@ final class CaptureHud {
 	private static final int PADDING = KeyChips.PADDING;
 	private static final int ROW = KeyChips.ROW;
 	private static final int LINE = 11;
+	/** The widest the panel's content gets, in scaled pixels. */
+	private static final int MAX_INNER = 200;
 	/** The width of the column the step marks sit in. */
 	private static final int MARK_COLUMN = 12;
 	private static final int TEXT = 0xFFFFFFFF;
@@ -50,11 +52,13 @@ final class CaptureHud {
 			return;
 		}
 		TextRenderer text = client.textRenderer;
-		int maxInner = Math.max(40, context.getScaledWindowWidth() - 2 * (MARGIN + PADDING));
+		// Narrow enough to stay clear of the centred table notice and tracked-farm line at any GUI scale; longer text wraps.
+		int maxInner = Math.max(40, Math.min(MAX_INNER, context.getScaledWindowWidth() - 2 * (MARGIN + PADDING)));
 		Step current = CaptureSteps.current(CaptureMode.selection());
-		Text title = Text.translatable("gui.the_dream_table.capture_title");
-		Text[] steps = {stepText("first"), stepText("second"), stepText("adjust")};
-		Text size = sizeText();
+		List<OrderedText> title = text.wrapLines(Text.translatable("gui.the_dream_table.capture_title"), maxInner);
+		List<List<OrderedText>> steps = List.of(wrapStep(text, "first", maxInner), wrapStep(text, "second", maxInner), wrapStep(text, "adjust", maxInner));
+		Text sizeText = sizeText();
+		List<OrderedText> size = sizeText == null ? List.of() : text.wrapLines(sizeText, maxInner);
 		List<Chip> chips = chips(client, current);
 		int[] widths = new int[chips.size()];
 		for (int index = 0; index < widths.length; index++) {
@@ -64,36 +68,33 @@ final class CaptureHud {
 		CaptureProblem problem = CaptureMode.problem();
 		List<OrderedText> problemLines = problem == null ? List.of() : text.wrapLines(problem.text(), maxInner);
 
-		int inner = Math.max(text.getWidth(title), size == null ? 0 : text.getWidth(size));
-		for (Text step : steps) {
-			inner = Math.max(inner, MARK_COLUMN + text.getWidth(step));
+		int inner = widest(text, title);
+		inner = Math.max(inner, widest(text, size));
+		for (List<OrderedText> step : steps) {
+			inner = Math.max(inner, MARK_COLUMN + widest(text, step));
 		}
 		for (List<Integer> row : rows) {
 			inner = Math.max(inner, MapControls.rowWidth(row, widths, KeyChips.ITEM_GAP));
 		}
-		for (OrderedText line : problemLines) {
-			inner = Math.max(inner, text.getWidth(line));
+		inner = Math.max(inner, widest(text, problemLines));
+		int height = blockHeight(title) + blockHeight(size) + rows.size() * ROW + LINE * problemLines.size() + 2 * PADDING - (ROW - 12);
+		for (List<OrderedText> step : steps) {
+			height += blockHeight(step);
 		}
-		int height = ROW * (1 + steps.length + (size == null ? 0 : 1) + rows.size()) + LINE * problemLines.size() + 2 * PADDING - (ROW - 12);
 		context.fill(MARGIN, MARGIN, MARGIN + inner + 2 * PADDING, MARGIN + height, KeyChips.PANEL_COLOR);
 
 		int x = MARGIN + PADDING;
 		int y = MARGIN + PADDING;
-		context.drawTextWithShadow(text, title, x, y + 2, KeyChips.KEY_BORDER);
-		y += ROW;
-		for (int index = 0; index < steps.length; index++) {
+		y = drawBlock(context, text, title, x, y, KeyChips.KEY_BORDER);
+		for (int index = 0; index < steps.size(); index++) {
 			State state = CaptureSteps.stateOf(Step.values()[index], current);
 			if (state == State.CURRENT) {
-				context.fill(x - 3, y - 1, x + inner + 3, y + 11, CURRENT_FILL);
+				context.fill(x - 3, y - 1, x + inner + 3, y - 1 + blockHeight(steps.get(index)) - (ROW - 12), CURRENT_FILL);
 			}
 			context.drawTextWithShadow(text, mark(state), x, y + 2, state == State.DONE ? DONE_MARK : state == State.CURRENT ? TEXT : PENDING);
-			context.drawTextWithShadow(text, steps[index], x + MARK_COLUMN, y + 2, state == State.CURRENT ? TEXT : state == State.DONE ? DONE_TEXT : PENDING);
-			y += ROW;
+			y = drawBlock(context, text, steps.get(index), x + MARK_COLUMN, y, state == State.CURRENT ? TEXT : state == State.DONE ? DONE_TEXT : PENDING);
 		}
-		if (size != null) {
-			context.drawTextWithShadow(text, size, x, y + 2, SIZE);
-			y += ROW;
-		}
+		y = drawBlock(context, text, size, x, y, SIZE);
 		for (List<Integer> row : rows) {
 			int chipX = x;
 			for (int index : row) {
@@ -108,9 +109,30 @@ final class CaptureHud {
 		}
 	}
 
-	/** A step's label; its mark (a tick, an arrow or a dot) is drawn apart, in a column of its own, so the labels line up. */
-	private static Text stepText(String key) {
-		return Text.translatable("gui.the_dream_table.capture_step." + key);
+	/** A step's label, wrapped to the panel; its mark (a tick, an arrow or a dot) is drawn apart, in a column of its own, so the labels line up. */
+	private static List<OrderedText> wrapStep(TextRenderer text, String key, int maxInner) {
+		return text.wrapLines(Text.translatable("gui.the_dream_table.capture_step." + key), maxInner - MARK_COLUMN);
+	}
+
+	private static int widest(TextRenderer text, List<OrderedText> lines) {
+		int widest = 0;
+		for (OrderedText line : lines) {
+			widest = Math.max(widest, text.getWidth(line));
+		}
+		return widest;
+	}
+
+	/** A block of wrapped lines takes a row, plus a line for each one after the first; none takes nothing. */
+	private static int blockHeight(List<OrderedText> lines) {
+		return lines.isEmpty() ? 0 : ROW + LINE * (lines.size() - 1);
+	}
+
+	/** Draws the lines from {@code y} and returns the y below the block. */
+	private static int drawBlock(DrawContext context, TextRenderer text, List<OrderedText> lines, int x, int y, int color) {
+		for (int index = 0; index < lines.size(); index++) {
+			context.drawTextWithShadow(text, lines.get(index), x, y + 2 + index * LINE, color);
+		}
+		return y + blockHeight(lines);
 	}
 
 	private static Text mark(State state) {
@@ -135,7 +157,8 @@ final class CaptureHud {
 	/** The keys of the current step as the player has them bound. */
 	private static List<Chip> chips(MinecraftClient client, Step current) {
 		List<Chip> chips = new ArrayList<>();
-		for (Hint hint : CaptureSteps.hints(current)) {
+		boolean canSave = CaptureMode.problem() == null && !CaptureMode.pending();
+		for (Hint hint : CaptureSteps.hints(current, canSave)) {
 			Text key = switch (hint) {
 				case MARK, FIX -> client.options.useKey.getBoundKeyLocalizedText();
 				case HEIGHT -> Text.empty().append(DreamTableKeys.CAPTURE_UP.getBoundKeyLocalizedText()).append(" ").append(DreamTableKeys.CAPTURE_DOWN.getBoundKeyLocalizedText());
