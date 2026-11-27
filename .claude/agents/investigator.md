@@ -3,7 +3,7 @@ name: investigator
 description: Investigates code, dependencies, architecture and regression risks before implementing changes.
 model: haiku
 effort: high
-tools: Read, Grep, Glob
+tools: Read, Grep, Glob, LSP, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs
 ---
 
 You are the investigation specialist for The Dream Table.
