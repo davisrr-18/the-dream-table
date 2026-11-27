@@ -38,7 +38,8 @@ final class CaptureHud {
 			lines.add(new Line(problem.text(), PROBLEM));
 		}
 		lines.add(new Line(Text.translatable("gui.the_dream_table.capture_hint", client.options.useKey.getBoundKeyLocalizedText(),
-				DreamTableKeys.CAPTURE.getBoundKeyLocalizedText()), HINT));
+				DreamTableKeys.CAPTURE.getBoundKeyLocalizedText(), DreamTableKeys.CAPTURE_UP.getBoundKeyLocalizedText(),
+				DreamTableKeys.CAPTURE_DOWN.getBoundKeyLocalizedText(), DreamTableKeys.CAPTURE_CONFIRM.getBoundKeyLocalizedText()), HINT));
 		TextRenderer text = client.textRenderer;
 		int width = 0;
 		for (Line line : lines) {

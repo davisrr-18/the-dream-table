@@ -3,9 +3,9 @@ package com.davisr.thedreamtable.farm.capture;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * The corners of a capture and how far the box's top and bottom were moved. The first click sets corner 1 (the block aimed at),
- * then corner 2 follows the player's body until a second click fixes it; a third click starts again. The caller feeds the
- * position of the body each tick, so the box is drawn live while the player walks.
+ * The corners of a capture and how far the box's top and bottom were moved. The first click sets corner 1 at the block aimed
+ * at, then the box previews up to the block the crosshair aims at (fed each tick) until a second click fixes corner 2 there; a
+ * third click starts again. The top and bottom can be moved from the first click on, so an arrow key is never ignored.
  */
 public final class CaptureSelection {
 	private BlockPos first;
@@ -31,57 +31,68 @@ public final class CaptureSelection {
 	}
 
 	/**
-	 * A click: sets corner 1 at {@code target} and starts following {@code body}, or fixes corner 2 at {@code body}, or, once the box
-	 * is fixed, starts a new box. A click with no position is ignored.
+	 * A click at the aimed block: sets corner 1, or fixes corner 2 there, or, once the box is fixed, starts a new box. With no block
+	 * aimed at, a click that would fix corner 2 fixes it at the corner the preview shows; any other click with no block is ignored.
+	 * Fixing corner 2 keeps the top and bottom shifts made so far, unless they would turn the new box upside down: then they are dropped.
 	 */
-	public void click(BlockPos target, BlockPos body) {
-		if (target == null || body == null) {
-			return;
-		}
-		if (first == null || second != null) {
+	public void click(BlockPos aimed) {
+		if (first != null && second == null) {
+			second = (aimed != null ? aimed : following).toImmutable();
+			if (upsideDown()) {
+				topShift = 0;
+				bottomShift = 0;
+			}
+		} else if (aimed != null) {
 			clear();
-			first = target.toImmutable();
-			following = body.toImmutable();
-		} else {
-			second = body.toImmutable();
+			first = aimed.toImmutable();
+			following = first;
 		}
 	}
 
-	/** Moves corner 2 to the player's body while it is not fixed. */
-	public void follow(BlockPos body) {
-		if (first != null && second == null && body != null) {
-			following = body.toImmutable();
+	private boolean upsideDown() {
+		CaptureBox base = base();
+		return base.max().getY() + topShift < base.min().getY() + bottomShift;
+	}
+
+	/** Moves the preview's far corner to the block the crosshair aims at; a null (nothing aimed at) keeps the last one. Not once corner 2 is fixed. */
+	public void follow(BlockPos aimed) {
+		if (first != null && second == null && aimed != null) {
+			following = aimed.toImmutable();
 		}
 	}
 
-	/** Moves the top face up (positive) or down; the box keeps at least one block of height. Only once the box is fixed. */
+	/** Moves the top face up (positive) or down. The box keeps at least one block of height. */
 	public void moveTop(int blocks) {
-		if (fixed() && blockRange(topShift + blocks, bottomShift)) {
+		if (first != null && fitsHeight(topShift + blocks, bottomShift)) {
 			topShift += blocks;
 		}
 	}
 
-	/** Moves the bottom face up (positive, the box gets shorter) or down. Only once the box is fixed. */
+	/** Moves the bottom face up (positive, the box gets shorter) or down (negative, it grows). The box keeps at least one block of height. */
 	public void moveBottom(int blocks) {
-		if (fixed() && blockRange(topShift, bottomShift + blocks)) {
+		if (first != null && fitsHeight(topShift, bottomShift + blocks)) {
 			bottomShift += blocks;
 		}
 	}
 
-	private boolean blockRange(int top, int bottom) {
-		CaptureBox base = CaptureBox.of(first, second);
+	private boolean fitsHeight(int top, int bottom) {
+		CaptureBox base = base();
 		return base.max().getY() + top >= base.min().getY() + bottom;
 	}
 
-	/** The box as it stands: from corner 1 to corner 2, or to the body while corner 2 follows it. Null before the first click. */
+	private CaptureBox base() {
+		return CaptureBox.of(first, second != null ? second : following != null ? following : first);
+	}
+
+	/** The box as it stands: from corner 1 to corner 2, or to the aimed block while corner 2 is not fixed. Null before the first click. */
 	public CaptureBox box() {
 		if (first == null) {
 			return null;
 		}
-		CaptureBox base = CaptureBox.of(first, second != null ? second : following != null ? following : first);
-		if (second == null) {
-			return base;
-		}
-		return new CaptureBox(base.min().up(bottomShift), base.max().up(topShift));
+		CaptureBox base = base();
+		BlockPos low = base.min().up(bottomShift);
+		BlockPos high = base.max().up(topShift);
+		// The preview moves under the shifts, so a box can come out upside down; it keeps one block of height.
+		return new CaptureBox(low, high.getY() < low.getY() ? high.withY(low.getY()) : high);
 	}
 }
