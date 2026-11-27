@@ -56,6 +56,7 @@ class PayloadRegistrationTest {
 		// The payload registrations of TheDreamTableMod.init(), in its order.
 		PlaceFarmPayload.register();
 		QueueFarmPayload.register();
+		CaptureAreaPayload.register();
 		CheckPlacementPayload.register();
 		PlacementResultPayload.register();
 		SessionSyncPayload.register();
@@ -93,6 +94,7 @@ class PayloadRegistrationTest {
 		assertEquals(Set.copyOf(SERVER_TO_CLIENT).size(), SERVER_TO_CLIENT.size(), "S2C ids must be unique: " + SERVER_TO_CLIENT);
 		assertEquals(Set.copyOf(CLIENT_TO_SERVER).size(), CLIENT_TO_SERVER.size(), "C2S ids must be unique: " + CLIENT_TO_SERVER);
 		assertEquals(new TreeSet<>(Set.of(
+				"the_dream_table:capture_area",
 				"the_dream_table:check_placement",
 				"the_dream_table:farm_alert_ack",
 				"the_dream_table:farm_alerts_request",
@@ -128,7 +130,7 @@ class PayloadRegistrationTest {
 
 	@Test
 	void directionsHoldTheExpectedCounts() {
-		assertEquals(12, CLIENT_TO_SERVER.size());
+		assertEquals(13, CLIENT_TO_SERVER.size());
 		assertEquals(11, SERVER_TO_CLIENT.size());
 	}
 

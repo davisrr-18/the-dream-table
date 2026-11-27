@@ -60,6 +60,8 @@ public final class MapScreen extends Screen {
 	private String controlsKey = "";
 	private List<Control> controls = List.of();
 	private int[] widths = new int[0];
+	/** Picking an area to save as a structure, for operators and the host; its name step puts the cursor back and shows a text field. */
+	private final CapturePanel capture = new CapturePanel();
 
 	public MapScreen() {
 		super(Text.translatable("gui.the_dream_table.map_title"));
@@ -71,9 +73,33 @@ public final class MapScreen extends Screen {
 	 */
 	@Override
 	protected void init() {
+		if (capture.naming()) {
+			layOutNaming();
+		} else {
+			grabCursor();
+		}
+	}
+
+	private void grabCursor() {
 		Window window = client.getWindow();
 		InputUtil.setCursorParameters(window.getHandle(), InputUtil.GLFW_CURSOR_DISABLED, client.mouse.getX(), client.mouse.getY());
 		hasLast = false;
+	}
+
+	/** The name step: the cursor is shown for the text field and the buttons, and the held movement is let go. */
+	private void layOutNaming() {
+		held.clear();
+		Window window = client.getWindow();
+		InputUtil.setCursorParameters(window.getHandle(), InputUtil.GLFW_CURSOR_NORMAL, client.mouse.getX(), client.mouse.getY());
+		clearChildren();
+		capture.widgets(textRenderer, width, height, this::endNaming, this::endNaming).forEach(this::addDrawableChild);
+		setInitialFocus(capture.field());
+	}
+
+	private void endNaming() {
+		capture.endNaming();
+		clearChildren();
+		grabCursor();
 	}
 
 	public Movement movement() {
@@ -103,6 +129,7 @@ public final class MapScreen extends Screen {
 	@Override
 	public void removed() {
 		held.clear();
+		capture.hide();
 		Window window = client.getWindow();
 		InputUtil.setCursorParameters(window.getHandle(), InputUtil.GLFW_CURSOR_NORMAL, client.mouse.getX(), client.mouse.getY());
 		MapMode.exit(client);
@@ -124,7 +151,14 @@ public final class MapScreen extends Screen {
 			held.clear();
 		}
 		MapMode.frame(client, movement(), client.getLastFrameDuration());
+		if (capture.active()) {
+			capture.frame(client);
+		}
 		drawControls(context);
+		if (capture.naming()) {
+			capture.drawNaming(context, textRenderer, width, height);
+			super.render(context, mouseX, mouseY, delta);
+		}
 	}
 
 	/**
@@ -143,6 +177,9 @@ public final class MapScreen extends Screen {
 		int panelX = (width - panelWidth) / 2;
 		int panelY = height - MARGIN - panelHeight;
 		context.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, PANEL_COLOR);
+		if (capture.active()) {
+			capture.drawStatus(context, textRenderer, width, panelY);
+		}
 		int y = panelY + PADDING;
 		for (List<Integer> row : rows) {
 			int x = (width - MapControls.rowWidth(row, widths, ITEM_GAP)) / 2;
@@ -156,7 +193,7 @@ public final class MapScreen extends Screen {
 
 	/** Builds the controls and their widths again only when a binding, the language or the screen width changed. */
 	private void layOutControls() {
-		StringBuilder key = new StringBuilder().append(width).append(client.options.language);
+		StringBuilder key = new StringBuilder().append(width).append(client.options.language).append(capture.active()).append(CapturePanel.allowed(client));
 		for (KeyBinding binding : shownBindings()) {
 			key.append('|').append(binding.getBoundKeyTranslationKey());
 		}
@@ -175,7 +212,8 @@ public final class MapScreen extends Screen {
 	private List<KeyBinding> shownBindings() {
 		GameOptions options = client.options;
 		return List.of(options.forwardKey, options.leftKey, options.backKey, options.rightKey, options.jumpKey, options.sneakKey,
-				options.sprintKey, DreamTableKeys.ROTATE, DreamTableKeys.MIRROR, DreamTableKeys.LAYERS, DreamTableKeys.HOLOGRAM, DreamTableKeys.MAP);
+				options.sprintKey, DreamTableKeys.ROTATE, DreamTableKeys.MIRROR, DreamTableKeys.LAYERS, DreamTableKeys.HOLOGRAM, DreamTableKeys.MAP,
+				DreamTableKeys.CAPTURE);
 	}
 
 	private int itemWidth(Control control) {
@@ -202,17 +240,31 @@ public final class MapScreen extends Screen {
 				.append(options.backKey.getBoundKeyLocalizedText()).append(" ")
 				.append(options.rightKey.getBoundKeyLocalizedText());
 		Text back = Text.empty().append(Text.translatable("key.keyboard.escape")).append(" / ").append(DreamTableKeys.MAP.getBoundKeyLocalizedText());
-		return List.of(
+		List<Control> shared = List.of(
 				control(move, "move"),
 				control(options.jumpKey.getBoundKeyLocalizedText(), "up"),
 				control(options.sneakKey.getBoundKeyLocalizedText(), "down"),
-				control(options.sprintKey.getBoundKeyLocalizedText(), "faster"),
-				control(Text.translatable("key.mouse.left"), "place"),
-				control(DreamTableKeys.ROTATE.getBoundKeyLocalizedText(), "turn"),
-				control(DreamTableKeys.MIRROR.getBoundKeyLocalizedText(), "mirror"),
-				control(DreamTableKeys.LAYERS.getBoundKeyLocalizedText(), "layers"),
-				control(DreamTableKeys.HOLOGRAM.getBoundKeyLocalizedText(), "hologram"),
-				control(back, "back"));
+				control(options.sprintKey.getBoundKeyLocalizedText(), "faster"));
+		List<Control> own = capture.active()
+				? List.of(
+						control(Text.translatable("key.mouse.left"), "corner"),
+						control(Text.translatable("key.keyboard.up").append(" ").append(Text.translatable("key.keyboard.down")), "top"),
+						control(Text.translatable("key.keyboard.page.up").append(" ").append(Text.translatable("key.keyboard.page.down")), "bottom"),
+						control(Text.translatable("key.keyboard.enter"), "save"),
+						control(DreamTableKeys.CAPTURE.getBoundKeyLocalizedText(), "capture_off"))
+				: List.of(
+						control(Text.translatable("key.mouse.left"), "place"),
+						control(DreamTableKeys.ROTATE.getBoundKeyLocalizedText(), "turn"),
+						control(DreamTableKeys.MIRROR.getBoundKeyLocalizedText(), "mirror"),
+						control(DreamTableKeys.LAYERS.getBoundKeyLocalizedText(), "layers"),
+						control(DreamTableKeys.HOLOGRAM.getBoundKeyLocalizedText(), "hologram"));
+		List<Control> all = new java.util.ArrayList<>(shared);
+		all.addAll(own);
+		if (!capture.active() && CapturePanel.allowed(client)) {
+			all.add(control(DreamTableKeys.CAPTURE.getBoundKeyLocalizedText(), "capture"));
+		}
+		all.add(control(back, "back"));
+		return all;
 	}
 
 	private static Control control(Text key, String action) {
@@ -225,6 +277,9 @@ public final class MapScreen extends Screen {
 	 */
 	@Override
 	public void mouseMoved(double mouseX, double mouseY) {
+		if (capture.naming()) {
+			return;
+		}
 		if (hasLast) {
 			Window window = client.getWindow();
 			double pixelsX = (mouseX - lastX) * window.getWidth() / window.getScaledWidth();
@@ -242,9 +297,16 @@ public final class MapScreen extends Screen {
 
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		if (capture.naming()) {
+			return super.mouseClicked(mouseX, mouseY, button);
+		}
 		// The view stays open after a click, so the placed farm can be judged and placed again elsewhere.
 		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-			DreamTableHologram.mapPlace();
+			if (capture.active()) {
+				capture.click();
+			} else {
+				DreamTableHologram.mapPlace();
+			}
 			return true;
 		}
 		// Other buttons drive whatever the player bound to them, as keys do.
@@ -260,6 +322,9 @@ public final class MapScreen extends Screen {
 
 	@Override
 	public boolean mouseReleased(double mouseX, double mouseY, int button) {
+		if (capture.naming()) {
+			return super.mouseReleased(mouseX, mouseY, button);
+		}
 		Move move = moveFor(binding -> binding.matchesMouse(button));
 		if (move != null) {
 			held.remove(move);
@@ -269,12 +334,22 @@ public final class MapScreen extends Screen {
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double verticalAmount) {
+		if (capture.naming()) {
+			return super.mouseScrolled(mouseX, mouseY, verticalAmount);
+		}
 		MapMode.scroll(verticalAmount);
 		return true;
 	}
 
 	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+		if (capture.naming()) {
+			return namingKey(keyCode, scanCode, modifiers);
+		}
+		// While capturing, its own keys come first, even over a movement key the player bound to the same one.
+		if (capture.active() && captureKey(keyCode)) {
+			return true;
+		}
 		Predicate<KeyBinding> bound = binding -> binding.matchesKey(keyCode, scanCode);
 		if (act(bound)) {
 			return true;
@@ -287,10 +362,39 @@ public final class MapScreen extends Screen {
 		return super.keyPressed(keyCode, scanCode, modifiers);
 	}
 
+	/** Enter starts the name step once the box is fixed and can be saved; the arrow and page keys move the box's top and bottom. */
+	private boolean captureKey(int keyCode) {
+		if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+			if (capture.beginNaming()) {
+				layOutNaming();
+			}
+			return true;
+		}
+		return capture.adjust(keyCode);
+	}
+
+	/** In the name step Escape goes back to the map instead of closing it, and Enter saves; the rest types into the field. */
+	private boolean namingKey(int keyCode, int scanCode, int modifiers) {
+		if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+			endNaming();
+			return true;
+		}
+		if ((keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) && capture.submit()) {
+			endNaming();
+			return true;
+		}
+		return super.keyPressed(keyCode, scanCode, modifiers);
+	}
+
 	/** Runs the map's own action bound to the pressed key or button; false when it drives none. */
 	private boolean act(Predicate<KeyBinding> bound) {
-		if (bound.test(DreamTableKeys.MAP)) {
+		if (bound.test(DreamTableKeys.CAPTURE)) {
+			capture.toggle(client);
+		} else if (bound.test(DreamTableKeys.MAP)) {
 			close();
+		} else if (capture.active()) {
+			// The map actions the controls bar hides while capturing don't fire either.
+			return false;
 		} else if (bound.test(DreamTableKeys.ROTATE)) {
 			DreamTableHologram.rotate();
 		} else if (bound.test(DreamTableKeys.MIRROR)) {
@@ -307,6 +411,9 @@ public final class MapScreen extends Screen {
 
 	@Override
 	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+		if (capture.naming()) {
+			return super.keyReleased(keyCode, scanCode, modifiers);
+		}
 		Move move = moveFor(binding -> binding.matchesKey(keyCode, scanCode));
 		if (move != null) {
 			held.remove(move);

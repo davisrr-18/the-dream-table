@@ -2,6 +2,7 @@ package com.davisr.thedreamtable.network;
 
 import com.davisr.thedreamtable.GameSetup;
 import com.davisr.thedreamtable.farm.FarmLoader;
+import com.davisr.thedreamtable.farm.capture.CaptureName;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.NbtCompound;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Wire formats of the payloads whose codecs need no world: they must read back what they wrote, byte for byte. */
 class PayloadCodecsTest {
@@ -77,6 +79,19 @@ class PayloadCodecsTest {
 		roundTrip(QueueFarmPayload.CODEC, new QueueFarmPayload(TABLE, new BlockPos(4, 5, 6), Direction.WEST, false));
 		roundTrip(CheckPlacementPayload.CODEC, new CheckPlacementPayload(TABLE, new BlockPos(4, 5, 6), Direction.NORTH, true, false));
 		roundTrip(PlacementResultPayload.CODEC, new PlacementResultPayload(TABLE, new BlockPos(4, 5, 6), Direction.SOUTH, true, "problem", 3));
+	}
+
+	@Test
+	void captureAreaRoundTripsAndBoundsTheNameOnRead() {
+		roundTrip(CaptureAreaPayload.CODEC, new CaptureAreaPayload(TABLE, new BlockPos(4, 5, 6), new BlockPos(-40, 0, 90), "my_farm"));
+		roundTrip(CaptureAreaPayload.CODEC, new CaptureAreaPayload(TABLE, TABLE, TABLE, "a".repeat(CaptureName.MAX_LENGTH)));
+
+		RegistryByteBuf long65 = new RegistryByteBuf(Unpooled.buffer(), DynamicRegistryManager.EMPTY);
+		long65.writeBlockPos(TABLE);
+		long65.writeBlockPos(TABLE);
+		long65.writeBlockPos(TABLE);
+		long65.writeString("a".repeat(CaptureName.MAX_LENGTH + 1));
+		assertThrows(RuntimeException.class, () -> CaptureAreaPayload.CODEC.decode(long65), "a name past the limit must not decode");
 	}
 
 	@Test

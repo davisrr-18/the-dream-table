@@ -116,7 +116,7 @@ public final class SchematicReader {
 	}
 
 	/** @param stripContents drops the items held by block entities, true for a player's file and false for bundled farms. */
-	static Result fromRoot(String id, NbtCompound root, boolean stripContents) {
+	public static Result fromRoot(String id, NbtCompound root, boolean stripContents) {
 		if (root.contains("Schematic", NbtElement.COMPOUND_TYPE)) {
 			root = root.getCompound("Schematic");
 		}

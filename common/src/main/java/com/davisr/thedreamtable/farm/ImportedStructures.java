@@ -106,7 +106,7 @@ public final class ImportedStructures {
 	}
 
 	/** The folders in precedence order: a file name found in an earlier folder hides the same name in a later one. */
-	static List<Path> folders(Path game, Path worldRoot) {
+	public static List<Path> folders(Path game, Path worldRoot) {
 		List<Path> folders = new ArrayList<>();
 		folders.add(game.resolve("schematics"));
 		folders.add(game.resolve("config").resolve("worldedit").resolve("schematics"));

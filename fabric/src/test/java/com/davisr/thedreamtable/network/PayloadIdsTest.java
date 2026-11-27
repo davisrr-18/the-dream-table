@@ -24,6 +24,7 @@ class PayloadIdsTest {
 		List<CustomPayload.Id<?>> ids = List.of(
 				PlaceFarmPayload.ID,
 				QueueFarmPayload.ID,
+				CaptureAreaPayload.ID,
 				CheckPlacementPayload.ID,
 				PlacementResultPayload.ID,
 				SessionSyncPayload.ID,
@@ -49,6 +50,7 @@ class PayloadIdsTest {
 
 		assertEquals(ids.size(), actual.size(), "payload ids must be unique");
 		assertEquals(new TreeSet<>(Set.of(
+				"the_dream_table:capture_area",
 				"the_dream_table:check_placement",
 				"the_dream_table:farm_action_result",
 				"the_dream_table:farm_alert_ack",
