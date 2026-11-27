@@ -55,6 +55,30 @@ public final class DreamTableKeys {
 			CATEGORY
 	));
 
+	/** While capturing: grows the box upward (reverses with Shift). Arrow keys are not default controls of the game. */
+	public static final KeyBinding CAPTURE_UP = Platform.clientEvents().registerKeyBinding(new KeyBinding(
+			"key.the_dream_table.capture_up",
+			InputUtil.Type.KEYSYM,
+			InputUtil.GLFW_KEY_UP,
+			CATEGORY
+	));
+
+	/** While capturing: grows the box downward (reverses with Shift). */
+	public static final KeyBinding CAPTURE_DOWN = Platform.clientEvents().registerKeyBinding(new KeyBinding(
+			"key.the_dream_table.capture_down",
+			InputUtil.Type.KEYSYM,
+			InputUtil.GLFW_KEY_DOWN,
+			CATEGORY
+	));
+
+	/** While capturing with a fixed box: opens the name step. */
+	public static final KeyBinding CAPTURE_CONFIRM = Platform.clientEvents().registerKeyBinding(new KeyBinding(
+			"key.the_dream_table.capture_confirm",
+			InputUtil.Type.KEYSYM,
+			InputUtil.GLFW_KEY_ENTER,
+			CATEGORY
+	));
+
 	public static final KeyBinding HOLOGRAM = Platform.clientEvents().registerKeyBinding(new KeyBinding(
 			"key.the_dream_table.hologram",
 			InputUtil.Type.KEYSYM,
