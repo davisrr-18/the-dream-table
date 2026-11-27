@@ -2,6 +2,9 @@ package com.davisr.thedreamtable.client.map;
 
 import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.DreamTableKeys;
+import com.davisr.thedreamtable.farm.capture.CaptureSteps;
+import com.davisr.thedreamtable.farm.capture.CaptureSteps.Hint;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.GameOptions;
@@ -11,8 +14,10 @@ import net.minecraft.client.util.Window;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Predicate;
 
 /**
@@ -98,6 +103,10 @@ public final class MapScreen extends Screen {
 	@Override
 	public void removed() {
 		held.clear();
+		if (MapMode.naming()) {
+			// The capture's name step replaces this screen but the map stays open under it, and the step needs the cursor free anyway.
+			return;
+		}
 		Window window = client.getWindow();
 		InputUtil.setCursorParameters(window.getHandle(), InputUtil.GLFW_CURSOR_NORMAL, client.mouse.getX(), client.mouse.getY());
 		MapMode.exit(client);
@@ -119,6 +128,10 @@ public final class MapScreen extends Screen {
 			held.clear();
 		}
 		MapMode.frame(client, movement(), client.getLastFrameDuration());
+		if (MapMode.capture()) {
+			MapCapture.frame(client);
+			CapturePanel.draw(context, textRenderer);
+		}
 		drawControls(context);
 	}
 
@@ -152,6 +165,10 @@ public final class MapScreen extends Screen {
 	/** Builds the controls and their widths again only when a binding, the language or the screen width changed. */
 	private void layOutControls() {
 		StringBuilder key = new StringBuilder().append(width).append(client.options.language);
+		if (MapMode.capture()) {
+			// The capture's keys depend on the step alone, so the bar only changes when the step does.
+			key.append("|capture").append(MapCapture.step().ordinal());
+		}
 		for (KeyBinding binding : shownBindings()) {
 			key.append('|').append(binding.getBoundKeyTranslationKey());
 		}
@@ -170,7 +187,8 @@ public final class MapScreen extends Screen {
 	private List<KeyBinding> shownBindings() {
 		GameOptions options = client.options;
 		return List.of(options.forwardKey, options.leftKey, options.backKey, options.rightKey, options.jumpKey, options.sneakKey,
-				options.sprintKey, DreamTableKeys.ROTATE, DreamTableKeys.MIRROR, DreamTableKeys.LAYERS, DreamTableKeys.HOLOGRAM, DreamTableKeys.MAP);
+				options.sprintKey, DreamTableKeys.ROTATE, DreamTableKeys.MIRROR, DreamTableKeys.LAYERS, DreamTableKeys.HOLOGRAM, DreamTableKeys.MAP,
+				DreamTableKeys.CAPTURE, DreamTableKeys.CAPTURE_UP, DreamTableKeys.CAPTURE_DOWN, DreamTableKeys.CAPTURE_CONFIRM);
 	}
 
 	private int itemWidth(Control control) {
@@ -178,11 +196,11 @@ public final class MapScreen extends Screen {
 	}
 
 	private void drawControl(DrawContext context, Control control, int x, int y) {
-		KeyChips.draw(context, textRenderer, control.key(), control.action(), x, y);
+		KeyChips.draw(context, textRenderer, control.key(), control.action(), x, y, !control.needsSave() || MapCapture.canSave());
 	}
 
-	/** One control of the panel: the key as the player has it bound, and what it does. */
-	private record Control(Text key, Text action) {
+	/** One control of the panel: the key as the player has it bound, what it does, and whether it only works when a capture can be saved (dimmed otherwise). */
+	private record Control(Text key, Text action, boolean needsSave) {
 	}
 
 	/** The map's controls, from the player's own key bindings, so a rebound key shows as it is. */
@@ -192,6 +210,9 @@ public final class MapScreen extends Screen {
 				.append(options.leftKey.getBoundKeyLocalizedText()).append(" ")
 				.append(options.backKey.getBoundKeyLocalizedText()).append(" ")
 				.append(options.rightKey.getBoundKeyLocalizedText());
+		if (MapMode.capture()) {
+			return captureControls(options, move);
+		}
 		Text back = Text.empty().append(Text.translatable("key.keyboard.escape")).append(" / ").append(DreamTableKeys.MAP.getBoundKeyLocalizedText());
 		return List.of(
 				control(move, "move"),
@@ -207,7 +228,41 @@ public final class MapScreen extends Screen {
 	}
 
 	private static Control control(Text key, String action) {
-		return new Control(key, Text.translatable("gui.the_dream_table.map_action." + action));
+		return new Control(key, Text.translatable("gui.the_dream_table.map_action." + action), false);
+	}
+
+	/** The capture map's controls: the same movement keys, then only the keys of the capture's current step, then the way out. */
+	private List<Control> captureControls(GameOptions options, Text move) {
+		List<Control> controls = new ArrayList<>(List.of(
+				control(move, "move"),
+				control(options.jumpKey.getBoundKeyLocalizedText(), "up"),
+				control(options.sneakKey.getBoundKeyLocalizedText(), "down"),
+				control(options.sprintKey.getBoundKeyLocalizedText(), "faster")));
+		for (Hint hint : CaptureSteps.hints(MapCapture.step())) {
+			Text key = switch (hint) {
+				case MARK, FIX -> Text.translatable("key.mouse.left");
+				case HEIGHT -> Text.empty().append(DreamTableKeys.CAPTURE_UP.getBoundKeyLocalizedText()).append(" ").append(DreamTableKeys.CAPTURE_DOWN.getBoundKeyLocalizedText());
+				case SHRINK -> Text.translatable("key.keyboard.left.shift");
+				case NAME -> DreamTableKeys.CAPTURE_CONFIRM.getBoundKeyLocalizedText();
+				case EXIT -> Text.empty().append(Text.translatable("key.keyboard.escape")).append(" / ").append(DreamTableKeys.CAPTURE.getBoundKeyLocalizedText());
+			};
+			controls.add(new Control(key, Text.translatable("gui.the_dream_table.capture_action." + hint.name().toLowerCase(Locale.ROOT)), CaptureSteps.needsSave(hint)));
+		}
+		return controls;
+	}
+
+	/** The confirm key's real state, not the game's count of presses. */
+	static boolean confirmDown(MinecraftClient client) {
+		InputUtil.Key bound = InputUtil.fromTranslationKey(DreamTableKeys.CAPTURE_CONFIRM.getBoundKeyTranslationKey());
+		return bound.getCategory() == InputUtil.Type.KEYSYM
+				? InputUtil.isKeyPressed(client.getWindow().getHandle(), bound.getCode()) : DreamTableKeys.CAPTURE_CONFIRM.isPressed();
+	}
+
+	/** Opens the name step over the map, with the cursor released; the map is told, so replacing its screen does not end it. */
+	private void openName() {
+		held.clear();
+		MapMode.setNaming(true);
+		client.setScreen(new CaptureNameScreen(this));
 	}
 
 	/**
@@ -235,7 +290,11 @@ public final class MapScreen extends Screen {
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		// The view stays open after a click, so the placed farm can be judged and placed again elsewhere.
 		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-			DreamTableHologram.mapPlace();
+			if (MapMode.capture()) {
+				MapCapture.click(client);
+			} else {
+				DreamTableHologram.mapPlace();
+			}
 			return true;
 		}
 		// Other buttons drive whatever the player bound to them, as keys do.
@@ -267,6 +326,10 @@ public final class MapScreen extends Screen {
 	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
 		Predicate<KeyBinding> bound = binding -> binding.matchesKey(keyCode, scanCode);
+		// In the capture map its own keys come first, even over a movement key bound to the same one.
+		if (MapMode.capture() && captureKey(bound)) {
+			return true;
+		}
 		if (act(bound)) {
 			return true;
 		}
@@ -278,10 +341,35 @@ public final class MapScreen extends Screen {
 		return super.keyPressed(keyCode, scanCode, modifiers);
 	}
 
+	/**
+	 * The capture map's keys: the capture key leaves, Up grows the top and Down the bottom (Shift reverses them), and the confirm
+	 * key opens the name step once the capture can be saved. A screen gets the OS repeats of a held key too, so a held Up or Down
+	 * repeats by itself.
+	 */
+	private boolean captureKey(Predicate<KeyBinding> bound) {
+		if (bound.test(DreamTableKeys.CAPTURE)) {
+			close();
+		} else if (bound.test(DreamTableKeys.CAPTURE_UP)) {
+			MapCapture.up(hasShiftDown());
+		} else if (bound.test(DreamTableKeys.CAPTURE_DOWN)) {
+			MapCapture.down(hasShiftDown());
+		} else if (bound.test(DreamTableKeys.CAPTURE_CONFIRM)) {
+			if (MapCapture.confirmAccepted(confirmDown(client)) && MapCapture.canSave()) {
+				openName();
+			}
+		} else {
+			return false;
+		}
+		return true;
+	}
+
 	/** Runs the map's own action bound to the pressed key or button; false when it drives none. */
 	private boolean act(Predicate<KeyBinding> bound) {
 		if (bound.test(DreamTableKeys.MAP)) {
 			close();
+		} else if (MapMode.capture()) {
+			// The farm placement's actions are not part of the capture map.
+			return false;
 		} else if (bound.test(DreamTableKeys.ROTATE)) {
 			DreamTableHologram.rotate();
 		} else if (bound.test(DreamTableKeys.MIRROR)) {
