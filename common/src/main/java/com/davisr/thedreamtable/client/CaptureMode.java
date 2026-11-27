@@ -1,6 +1,6 @@
 package com.davisr.thedreamtable.client;
 
-import com.davisr.thedreamtable.block.DreamTableBlock;
+import com.davisr.thedreamtable.client.map.MapMode;
 import com.davisr.thedreamtable.farm.capture.AreaCapture;
 import com.davisr.thedreamtable.farm.capture.CaptureAccess;
 import com.davisr.thedreamtable.farm.capture.CaptureBox;
@@ -14,11 +14,13 @@ import com.davisr.thedreamtable.network.CaptureAreaPayload;
 import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.GameMenuScreen;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
-import net.minecraft.text.Text;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
@@ -27,30 +29,21 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.WorldChunk;
-import org.lwjgl.glfw.GLFW;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * Capture in normal play, for operators and the host of a single-player world. K turns it on; a right click (taken from the
- * game: nothing is placed, opened or used by it) sets corner 1 at the block aimed at, up to {@link #REACH} blocks away; corner 2
- * then follows the block the player stands on until a second right click fixes it; the arrow keys and Page Up and Page Down move the top and
- * bottom; Enter opens {@link CaptureNameScreen}. The server checks everything again.
+ * Capture in farm placement, for operators and the host of a single-player world. K turns it on while a farm is chosen at a
+ * table (the hologram's placement mode); a right click (taken from the game: nothing is placed, opened or used by it) sets
+ * corner 1 at the block aimed at, up to {@link #REACH} blocks away; the box then follows the crosshair until a second right click
+ * fixes corner 2 at the aimed block; Up grows the box upward and Down downward (Shift reverses them); Enter opens
+ * {@link CaptureNameScreen}. The table sent with the capture is the one the placement follows. The server checks everything again.
  */
 public final class CaptureMode {
-	/** How far the crosshair picks corner 1, as far as farm aiming reaches. */
+	/** How far the crosshair picks a corner, as far as farm aiming reaches. */
 	private static final double REACH = 64.0;
 	/** The fixed box must stay unchanged this many ticks before its blocks are read. */
 	private static final long SETTLE_TICKS = 5;
 	/** A box that had an unloaded chunk is read again after this many ticks. */
 	private static final long RETRY_TICKS = 40;
-	private static final int TABLE_REFRESH_TICKS = 20;
-	/** A held arrow or page key repeats every second tick after this many ticks. */
-	private static final int REPEAT_DELAY = 10;
-	/** Up, Down, Page Up, Page Down, Enter and keypad Enter: none is a default binding in 1.21.1 (checked in the options' key list), so they do nothing else in play. */
-	private static final int[] KEYS = {GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_PAGE_UP, GLFW.GLFW_KEY_PAGE_DOWN, GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER};
-	private static final int[] HELD = new int[KEYS.length];
 
 	private static boolean active;
 	private static ClientWorld world;
@@ -58,12 +51,9 @@ public final class CaptureMode {
 	private static CaptureBox box;
 	private static CaptureProblem problem;
 	private static BlockPos table;
-	private static List<BlockPos> tables = List.of();
-	private static long tablesAt;
-	/** False until the first look for tables: a start time like Long.MIN_VALUE would overflow the elapsed-time subtraction. */
-	private static boolean tablesScanned;
-	/** Whether a screen was open when the previous tick started. */
+	/** Whether a screen was open when the previous tick started, so a key still held when one closes is not read as a new press. */
 	private static boolean screenWasOpen;
+	private static final ConfirmGuard CONFIRM = new ConfirmGuard();
 	/** The use key's presses, so a click is recorded once whether the game's use event or the tick saw it, and a held key's repeats are not clicks. */
 	private static final UsePress USE = new UsePress();
 	private static String typed = "";
@@ -98,13 +88,15 @@ public final class CaptureMode {
 		return active;
 	}
 
-	/** The capture key: turns the mode on or off. */
+	/** The capture key: turns the mode on, only while a farm is chosen at a table (placement), or off. */
 	public static void toggle(MinecraftClient client) {
 		if (active) {
 			stop();
 		} else if (!allowed(client)) {
 			TableNotices.problem(Text.translatable("gui.the_dream_table.capture_problem.not_allowed"));
-		} else if (client.world != null) {
+		} else if (client.world == null || !DreamTableHologram.mapAvailable()) {
+			TableNotices.problem(Text.translatable("gui.the_dream_table.capture_problem.not_placing"));
+		} else {
 			active = true;
 			world = client.world;
 			SELECTION.clear();
@@ -117,8 +109,6 @@ public final class CaptureMode {
 		box = null;
 		problem = null;
 		table = null;
-		tables = List.of();
-		tablesScanned = false;
 		scanned = null;
 		seen = null;
 		pending = false;
@@ -141,40 +131,59 @@ public final class CaptureMode {
 		return true;
 	}
 
-	/** Corner 1 at the block the crosshair hits within {@link #REACH}, or corner 2 at the block the player stands on. */
+	/** Corner 1, or corner 2 once corner 1 is set: the block the crosshair hits within {@link #REACH}, or the block the player stands on. */
 	private static void record(PlayerEntity player, MinecraftClient client) {
 		lastClickAge = player.age;
 		if (SELECTION.fixed()) {
 			// A new box is a new structure: its name starts empty again.
 			typed = "";
 		}
-		HitResult hit = player.raycast(REACH, 1.0F, false);
-		BlockPos aimed = hit instanceof BlockHitResult block && block.getType() == HitResult.Type.BLOCK ? block.getBlockPos() : standingOn(player);
-		SELECTION.click(aimed, standingOn(player));
+		BlockPos aimed = aimedBlock(player);
+		// Corner 1 falls back to the block under the feet; corner 2 with nothing aimed at is fixed where the preview shows it.
+		if (aimed == null && (!SELECTION.started() || SELECTION.fixed())) {
+			aimed = player.getBlockPos().down();
+		}
+		SELECTION.click(aimed);
 		refresh(client);
 	}
 
-	/** The block under the player's feet: corner 2 follows it, so both corners are on the ground layer and the top is raised with the keys. */
-	private static BlockPos standingOn(PlayerEntity player) {
-		return player.getBlockPos().down();
+	/** The block the crosshair points at, or null when it points at nothing within reach. */
+	private static BlockPos aimedBlock(PlayerEntity player) {
+		HitResult hit = player.raycast(REACH, 1.0F, false);
+		return hit instanceof BlockHitResult block && block.getType() == HitResult.Type.BLOCK ? block.getBlockPos() : null;
+	}
+
+	/** The presses of a key binding since the last tick, counted by the game as they happen (a tap shorter than a tick too). */
+	private static int presses(KeyBinding key) {
+		int count = 0;
+		while (key.wasPressed()) {
+			count++;
+		}
+		return count;
+	}
+
+	/** The key's real state, not the game's count of presses: a keyboard key through GLFW, anything else through the binding. */
+	private static boolean physicallyDown(MinecraftClient client, KeyBinding key) {
+		InputUtil.Key bound = InputUtil.fromTranslationKey(key.getBoundKeyTranslationKey());
+		return bound.getCategory() == InputUtil.Type.KEYSYM ? InputUtil.isKeyPressed(client.getWindow().getHandle(), bound.getCode()) : key.isPressed();
 	}
 
 	private static void tick(MinecraftClient client) {
-		boolean afterScreen = screenWasOpen;
+		// Always counted, so presses made while the mode is off don't fire when it turns on. The game counts a binding's presses, the
+		// OS key repeats of a held key included (so a held Up or Down repeats by itself), only while no screen is open.
+		int upSteps = presses(DreamTableKeys.CAPTURE_UP);
+		int downSteps = presses(DreamTableKeys.CAPTURE_DOWN);
+		boolean screenOpen = client.currentScreen != null || screenWasOpen;
 		screenWasOpen = client.currentScreen != null;
+		boolean confirm = CONFIRM.accept(presses(DreamTableKeys.CAPTURE_CONFIRM), screenOpen, physicallyDown(client, DreamTableKeys.CAPTURE_CONFIRM));
 		// The game reads the use key's presses itself earlier in the tick, so only its state is left to see here. A press that fired no
 		// use event (empty hand, air or a block past the game's reach) shows as the key going down.
 		boolean useWithoutEvent = USE.onTick(client.options.useKey.isPressed());
-		boolean[] fire = new boolean[KEYS.length];
-		for (int index = 0; index < KEYS.length; index++) {
-			// Counted while a screen is open too, so a key held from a screen is not read as a new press.
-			HELD[index] = KeyPresses.held(HELD[index], InputUtil.isKeyPressed(client.getWindow().getHandle(), KEYS[index]));
-			fire[index] = KeyPresses.acts(HELD[index], index < 4, REPEAT_DELAY, afterScreen);
-		}
 		if (!active) {
 			return;
 		}
-		if (!allowed(client) || client.world != world || client.player == null) {
+		if (!allowed(client) || client.world != world || client.player == null || !DreamTableHologram.mapAvailable() || MapMode.active()) {
+			// Leaving placement (another table, a build started, the map opened) leaves capture and returns to normal placement.
 			stop();
 			return;
 		}
@@ -190,76 +199,49 @@ public final class CaptureMode {
 		if (useWithoutEvent && client.player.age != lastClickAge) {
 			record(client.player, client);
 		}
-		SELECTION.follow(standingOn(client.player));
-		if (fire[0]) {
-			SELECTION.moveTop(1);
+		if (SELECTION.started() && !SELECTION.fixed()) {
+			SELECTION.follow(aimedBlock(client.player));
 		}
-		if (fire[1]) {
-			SELECTION.moveTop(-1);
+		boolean shift = Screen.hasShiftDown();
+		for (int step = 0; step < upSteps; step++) {
+			SELECTION.moveTop(shift ? -1 : 1);
 		}
-		if (fire[2]) {
-			SELECTION.moveBottom(1);
-		}
-		if (fire[3]) {
-			SELECTION.moveBottom(-1);
+		for (int step = 0; step < downSteps; step++) {
+			SELECTION.moveBottom(shift ? 1 : -1);
 		}
 		refresh(client);
-		if ((fire[4] || fire[5]) && SELECTION.fixed() && box != null && problem == null && !pending && table != null) {
+		if (confirm && SELECTION.fixed() && box != null && problem == null && !pending && table != null) {
 			client.setScreen(new CaptureNameScreen());
 		}
 	}
 
-	/** Works out the box, the table it would be sent with, what is wrong, and the outline. */
+	/** Works out the box, what is wrong with it for the table placement follows, and the outline. */
 	private static void refresh(MinecraftClient client) {
 		box = SELECTION.box();
 		problem = null;
 		pending = false;
+		table = DreamTableHologram.trackedTable();
 		ClientPlayerEntity player = client.player;
 		if (player == null || world == null) {
 			CaptureOutline.hide();
 			return;
 		}
-		if (KeyPresses.rescanDue(tablesScanned, world.getTime(), tablesAt, TABLE_REFRESH_TICKS)) {
-			tables = findTables(player);
-			tablesAt = world.getTime();
-			tablesScanned = true;
-		}
-		table = CaptureTables.nearest(player.getPos(), tables, box);
 		if (box == null) {
 			CaptureOutline.hide();
-			problem = CaptureTables.nearest(player.getPos(), tables, null) == null ? CaptureProblem.of(CaptureProblem.Kind.NO_TABLE) : null;
 			return;
 		}
 		problem = box.sizeProblem(world.getBottomY(), world.getTopY());
 		if (problem == null && table == null) {
-			problem = CaptureTables.nearest(player.getPos(), tables, null) == null
-					? CaptureProblem.of(CaptureProblem.Kind.NO_TABLE) : CaptureProblem.of(CaptureProblem.Kind.TOO_FAR);
+			problem = CaptureProblem.of(CaptureProblem.Kind.NO_TABLE);
+		}
+		if (problem == null && !CaptureTables.usable(player.getPos(), table, box)) {
+			problem = CaptureProblem.of(CaptureProblem.Kind.TOO_FAR);
 		}
 		if (problem == null && SELECTION.fixed()) {
 			problem = scan();
 		}
 		CaptureOutline.show(box.outline(), problem != null ? CaptureOutline.Status.REFUSED
 				: SELECTION.fixed() && !pending ? CaptureOutline.Status.READY : CaptureOutline.Status.AIMING);
-	}
-
-	/** The Dream Tables in the chunks around the player that the client holds. */
-	private static List<BlockPos> findTables(ClientPlayerEntity player) {
-		List<BlockPos> found = new ArrayList<>();
-		int radius = (int) Math.ceil(CaptureTables.MAX_PLAYER_DISTANCE / 16.0) + 1;
-		for (int dx = -radius; dx <= radius; dx++) {
-			for (int dz = -radius; dz <= radius; dz++) {
-				WorldChunk chunk = world.getChunkManager().getWorldChunk(player.getChunkPos().x + dx, player.getChunkPos().z + dz);
-				if (chunk == null) {
-					continue;
-				}
-				for (BlockPos pos : chunk.getBlockEntityPositions()) {
-					if (chunk.getBlockState(pos).getBlock() instanceof DreamTableBlock) {
-						found.add(pos.toImmutable());
-					}
-				}
-			}
-		}
-		return found;
 	}
 
 	/**
