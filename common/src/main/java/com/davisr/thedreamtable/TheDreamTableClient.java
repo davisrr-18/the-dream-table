@@ -2,6 +2,7 @@ package com.davisr.thedreamtable;
 
 import com.davisr.thedreamtable.client.BuildProgressLine;
 import com.davisr.thedreamtable.client.TableNotices;
+import com.davisr.thedreamtable.client.CaptureOutline;
 import com.davisr.thedreamtable.client.ClientLifecycle;
 import com.davisr.thedreamtable.client.ClientSettings;
 import com.davisr.thedreamtable.client.DreamTableHologram;
@@ -36,6 +37,7 @@ public final class TheDreamTableClient {
 		OwnSessions.register();
 		OtherFarms.register();
 		QueuedFarms.register();
+		CaptureOutline.register();
 		TrackedFarmHud.register();
 		TableNotices.register();
 		BuildProgressLine.register();

@@ -166,6 +166,11 @@ public final class DreamTableHologram {
 		return true;
 	}
 
+	/** The spot under the map's crosshair, within the table's reach, or null; map mode's capture takes its corners from it. */
+	public static BlockPos mapAimed() {
+		return mapActive ? mapCursor : null;
+	}
+
 	/** The followed table, for map mode to centre on. Null when none. */
 	public static BlockPos mapTable() {
 		return tablePos;

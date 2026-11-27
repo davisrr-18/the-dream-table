@@ -47,6 +47,14 @@ public final class DreamTableKeys {
 			CATEGORY
 	));
 
+	/** Used inside map mode only, by operators and the host of a single-player world: it starts and ends picking an area to capture. */
+	public static final KeyBinding CAPTURE = Platform.clientEvents().registerKeyBinding(new KeyBinding(
+			"key.the_dream_table.capture",
+			InputUtil.Type.KEYSYM,
+			InputUtil.GLFW_KEY_K,
+			CATEGORY
+	));
+
 	public static final KeyBinding HOLOGRAM = Platform.clientEvents().registerKeyBinding(new KeyBinding(
 			"key.the_dream_table.hologram",
 			InputUtil.Type.KEYSYM,
