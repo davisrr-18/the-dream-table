@@ -5,7 +5,7 @@ import com.davisr.thedreamtable.platform.RenderFrame;
 import com.davisr.thedreamtable.platform.RenderStage;
 import net.minecraft.util.math.Box;
 
-/** The outline of the area map mode's capture is selecting: amber while it follows the aim, green once fixed and usable, red when it can't be saved. */
+/** The outline of the area a capture is selecting: amber while corner 2 follows the player, green once fixed and usable, red when it can't be saved. */
 public final class CaptureOutline {
 	private static Box box;
 	private static Status status = Status.AIMING;

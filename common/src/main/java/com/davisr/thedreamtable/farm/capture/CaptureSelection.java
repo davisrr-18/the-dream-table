@@ -3,12 +3,14 @@ package com.davisr.thedreamtable.farm.capture;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * The corners a player has picked in map mode and how far the box's top and bottom were moved. The first click sets a corner,
- * the second fixes the box, a third starts again. Until the box is fixed it follows the aim, so it is drawn live.
+ * The corners of a capture and how far the box's top and bottom were moved. The first click sets corner 1 (the block aimed at),
+ * then corner 2 follows the player's body until a second click fixes it; a third click starts again. The caller feeds the
+ * position of the body each tick, so the box is drawn live while the player walks.
  */
 public final class CaptureSelection {
 	private BlockPos first;
 	private BlockPos second;
+	private BlockPos following;
 	private int topShift;
 	private int bottomShift;
 
@@ -23,20 +25,32 @@ public final class CaptureSelection {
 	public void clear() {
 		first = null;
 		second = null;
+		following = null;
 		topShift = 0;
 		bottomShift = 0;
 	}
 
-	/** A click on the ground: the first or the opposite corner, or the first corner of a new box once one is fixed. A click on nothing is ignored. */
-	public void click(BlockPos aimed) {
-		if (aimed == null) {
+	/**
+	 * A click: sets corner 1 at {@code target} and starts following {@code body}, or fixes corner 2 at {@code body}, or, once the box
+	 * is fixed, starts a new box. A click with no position is ignored.
+	 */
+	public void click(BlockPos target, BlockPos body) {
+		if (target == null || body == null) {
 			return;
 		}
 		if (first == null || second != null) {
 			clear();
-			first = aimed.toImmutable();
+			first = target.toImmutable();
+			following = body.toImmutable();
 		} else {
-			second = aimed.toImmutable();
+			second = body.toImmutable();
+		}
+	}
+
+	/** Moves corner 2 to the player's body while it is not fixed. */
+	public void follow(BlockPos body) {
+		if (first != null && second == null && body != null) {
+			following = body.toImmutable();
 		}
 	}
 
@@ -55,26 +69,16 @@ public final class CaptureSelection {
 	}
 
 	private boolean blockRange(int top, int bottom) {
-		BlockPos low = low();
-		BlockPos high = high();
-		return high.getY() + top >= low.getY() + bottom;
+		CaptureBox base = CaptureBox.of(first, second);
+		return base.max().getY() + top >= base.min().getY() + bottom;
 	}
 
-	private BlockPos low() {
-		return CaptureBox.of(first, second).min();
-	}
-
-	private BlockPos high() {
-		return CaptureBox.of(first, second).max();
-	}
-
-	/** The box as it stands: from the first corner to the second, or to {@code aimed} while the second is not set. Null before the first click. */
-	public CaptureBox box(BlockPos aimed) {
+	/** The box as it stands: from corner 1 to corner 2, or to the body while corner 2 follows it. Null before the first click. */
+	public CaptureBox box() {
 		if (first == null) {
 			return null;
 		}
-		BlockPos other = second != null ? second : aimed != null ? aimed : first;
-		CaptureBox base = CaptureBox.of(first, other);
+		CaptureBox base = CaptureBox.of(first, second != null ? second : following != null ? following : first);
 		if (second == null) {
 			return base;
 		}

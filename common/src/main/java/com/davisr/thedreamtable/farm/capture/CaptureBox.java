@@ -65,7 +65,7 @@ public record CaptureBox(BlockPos min, BlockPos max) {
 		return volume() > MAX_VOLUME ? new CaptureProblem(CaptureProblem.Kind.TOO_BIG, volume(), MAX_VOLUME) : null;
 	}
 
-	/** Whether the table's reach covers the box: its nearest point is within the aim range, as every spot map mode can aim at is. */
+	/** Whether the table's reach covers the box: its nearest point is within the aim range, as every spot a farm can be aimed at is. */
 	public boolean inReachOf(BlockPos table) {
 		return nearestSquaredDistance(table) <= (double) FarmGeometry.AIM_RANGE * FarmGeometry.AIM_RANGE;
 	}
