@@ -39,13 +39,19 @@ public final class CaptureSteps {
 
 	/**
 	 * Only the keys of the current step: Up and Down work from the first click on, Shift only reverses them once the box is fixed.
-	 * Name is listed only when the capture can be saved, as Enter is refused otherwise.
+	 * The list depends on the step alone, so the controls bar does not shift while the box is being counted; Name is shown dimmed
+	 * while saving is impossible ({@link #needsSave}).
 	 */
-	public static List<Hint> hints(Step current, boolean canSave) {
+	public static List<Hint> hints(Step current) {
 		return switch (current) {
 			case FIRST_CORNER -> List.of(Hint.MARK, Hint.EXIT);
 			case SECOND_CORNER -> List.of(Hint.FIX, Hint.HEIGHT, Hint.EXIT);
-			case ADJUST_AND_SAVE -> canSave ? List.of(Hint.HEIGHT, Hint.SHRINK, Hint.NAME, Hint.EXIT) : List.of(Hint.HEIGHT, Hint.SHRINK, Hint.EXIT);
+			case ADJUST_AND_SAVE -> List.of(Hint.HEIGHT, Hint.SHRINK, Hint.NAME, Hint.EXIT);
 		};
+	}
+
+	/** Whether a hint only works when the capture can be saved. */
+	public static boolean needsSave(Hint hint) {
+		return hint == Hint.NAME;
 	}
 }

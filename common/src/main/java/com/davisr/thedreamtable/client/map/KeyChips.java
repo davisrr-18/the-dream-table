@@ -17,6 +17,8 @@ public final class KeyChips {
 	public static final int KEY_BORDER = 0xFF8CD8FF;
 	public static final int KEY_TEXT = 0xFFFFFFFF;
 	public static final int ACTION_TEXT = 0xFFD8D8D8;
+	private static final int DIM_BORDER = 0xFF4E6470;
+	private static final int DIM_TEXT = 0xFF808080;
 	private static final int KEY_PAD = 3;
 	private static final int KEY_FILL = 0xCC1E2A33;
 
@@ -29,10 +31,15 @@ public final class KeyChips {
 	}
 
 	public static void draw(DrawContext context, TextRenderer text, Text key, Text action, int x, int y) {
+		draw(context, text, key, action, x, y, true);
+	}
+
+	/** A chip that is not {@code enabled} is dimmed: its key does nothing right now, but keeps its place. */
+	public static void draw(DrawContext context, TextRenderer text, Text key, Text action, int x, int y, boolean enabled) {
 		int keyWidth = text.getWidth(key) + 2 * KEY_PAD;
-		context.fill(x, y, x + keyWidth, y + 12, KEY_BORDER);
+		context.fill(x, y, x + keyWidth, y + 12, enabled ? KEY_BORDER : DIM_BORDER);
 		context.fill(x + 1, y + 1, x + keyWidth - 1, y + 11, KEY_FILL);
-		context.drawTextWithShadow(text, key, x + KEY_PAD, y + 2, KEY_TEXT);
-		context.drawTextWithShadow(text, action, x + keyWidth + 4, y + 2, ACTION_TEXT);
+		context.drawTextWithShadow(text, key, x + KEY_PAD, y + 2, enabled ? KEY_TEXT : DIM_TEXT);
+		context.drawTextWithShadow(text, action, x + keyWidth + 4, y + 2, enabled ? ACTION_TEXT : DIM_TEXT);
 	}
 }

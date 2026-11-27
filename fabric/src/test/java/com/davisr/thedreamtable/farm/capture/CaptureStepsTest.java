@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CaptureStepsTest {
 	private static final BlockPos A = new BlockPos(1, 64, 1);
@@ -39,13 +41,16 @@ class CaptureStepsTest {
 
 	@Test
 	void eachStepShowsOnlyItsOwnKeys() {
-		assertEquals(List.of(Hint.MARK, Hint.EXIT), CaptureSteps.hints(Step.FIRST_CORNER, false));
-		assertEquals(List.of(Hint.FIX, Hint.HEIGHT, Hint.EXIT), CaptureSteps.hints(Step.SECOND_CORNER, false));
-		assertEquals(List.of(Hint.HEIGHT, Hint.SHRINK, Hint.NAME, Hint.EXIT), CaptureSteps.hints(Step.ADJUST_AND_SAVE, true));
+		assertEquals(List.of(Hint.MARK, Hint.EXIT), CaptureSteps.hints(Step.FIRST_CORNER));
+		assertEquals(List.of(Hint.FIX, Hint.HEIGHT, Hint.EXIT), CaptureSteps.hints(Step.SECOND_CORNER));
+		assertEquals(List.of(Hint.HEIGHT, Hint.SHRINK, Hint.NAME, Hint.EXIT), CaptureSteps.hints(Step.ADJUST_AND_SAVE));
 	}
 
 	@Test
-	void theNameKeyIsHiddenWhileSavingIsImpossible() {
-		assertEquals(List.of(Hint.HEIGHT, Hint.SHRINK, Hint.EXIT), CaptureSteps.hints(Step.ADJUST_AND_SAVE, false));
+	void onlyTheNameKeyNeedsASavableCaptureSoTheBarNeverChangesItsKeys() {
+		assertTrue(CaptureSteps.needsSave(Hint.NAME));
+		for (Hint hint : List.of(Hint.MARK, Hint.FIX, Hint.HEIGHT, Hint.SHRINK, Hint.EXIT)) {
+			assertFalse(CaptureSteps.needsSave(hint), hint.name());
+		}
 	}
 }

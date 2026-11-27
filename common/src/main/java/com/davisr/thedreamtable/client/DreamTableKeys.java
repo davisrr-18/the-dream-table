@@ -41,7 +41,7 @@ public final class DreamTableKeys {
 			"category.the_dream_table"
 	));
 
-	/** For operators and the host of a single-player world: starts and ends picking an area of the world to capture as a schematic. */
+	/** For operators and the host of a single-player world, near a Dream Table: opens the capture map, which picks an area of the world to save as a schematic. */
 	public static final KeyBinding CAPTURE = Platform.clientEvents().registerKeyBinding(new KeyBinding(
 			"key.the_dream_table.capture",
 			InputUtil.Type.KEYSYM,
@@ -107,7 +107,7 @@ public final class DreamTableKeys {
 				MapMode.open(client);
 			}
 			while (CAPTURE.wasPressed()) {
-				CaptureMode.toggle(client);
+				MapMode.openCapture(client);
 			}
 		});
 		// Separate from the listener above, which skips ticks while a screen is open; the map runs its own tick.
