@@ -110,7 +110,7 @@ Worlds, finished farms and builds in progress from 1.0.0 carry over to 1.5.1. A 
 - Claim mods are respected through Fabric API's block break event on Fabric and through block break and place events on NeoForge and Forge. Claim mods that use other hooks are not seen.
 - Keep Loaded can't hold a farm that spans more than 64 chunks.
 - Text is available in English and Brazilian Portuguese only.
-- Protect My Farms stops players breaking blocks by hand, explosions and endermen only; pistons, other mobs, fluids and fire can still change a protected farm. On Forge endermen are not stopped, because Forge for 1.21.11 never asks mods before an enderman picks up a block.
+- Protect My Farms stops players breaking blocks by hand, explosions and endermen only; pistons, other mobs, fluids and fire can still change a protected farm.
 - On Forge, the hologram draws after clouds, weather and particles, so rain can draw over a ghost block.
 
 ## Build

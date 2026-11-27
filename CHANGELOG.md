@@ -21,7 +21,6 @@ A feature update for Minecraft 1.21.11, 1.21.1 and 1.20.1.
 
 ## Known issues
 
-- Protect My Farms on Forge 1.21.11: endermen can still pick up blocks next to a protected farm, because Forge for 1.21.11 never asks mods before an enderman picks up a block. Explosions and breaking by hand are protected on every loader.
 - Bamboo Farm on Forge 1.20.1: a player reported that the Requirements page would not take bamboo into the farm's material slot, even with bamboo in the inventory. We could not reproduce or explain it yet, and it was not reported on the other loaders or Minecraft versions. If it happens to you, press Deliver All and send a note from the feedback form in Settings with what it says.
 
 ## Good to know

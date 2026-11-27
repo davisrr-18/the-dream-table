@@ -6,6 +6,7 @@ import com.davisr.thedreamtable.block.entity.AimedSpot;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtInt;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.NbtString;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
@@ -217,6 +218,28 @@ class ParkedProjectsTest {
 		NbtCompound written = read.writeNbt(new NbtCompound(), null).getCompoundOrEmpty("Players");
 		assertEquals(odd, written.getCompoundOrEmpty("not-a-uuid"));
 		assertEquals(ints, written.get(OTHER.toString()));
+	}
+
+	/** A 1.21.11 list may hold a project beside a value that is not a compound: both are written back, the project readable. */
+	@Test
+	void aProjectBesideANonCompoundElementKeepsBothWhenWrittenAndReadBack() {
+		NbtCompound kept = project("kept");
+		NbtList mixed = new NbtList();
+		mixed.add(kept);
+		mixed.add(NbtString.of("stray"));
+		NbtCompound players = new NbtCompound();
+		players.put(PLAYER.toString(), mixed);
+		NbtCompound nbt = new NbtCompound();
+		nbt.put("Players", players);
+		ParkedProjects first = ParkedProjects.read(nbt, null);
+		assertEquals(1, first.count(PLAYER));
+		ParkedProjects second = ParkedProjects.read(first.writeNbt(new NbtCompound(), null), null);
+		assertEquals(1, second.count(PLAYER));
+		NbtList written = second.writeNbt(new NbtCompound(), null).getCompoundOrEmpty("Players").getListOrEmpty(PLAYER.toString());
+		assertEquals(2, written.size());
+		assertEquals(kept, written.getCompoundOrEmpty(0));
+		assertEquals(NbtString.of("stray"), written.get(1));
+		assertEquals("kept", take(second, PLAYER));
 	}
 
 	@Test

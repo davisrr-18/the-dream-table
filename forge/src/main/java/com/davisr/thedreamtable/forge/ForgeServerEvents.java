@@ -1,7 +1,10 @@
 package com.davisr.thedreamtable.forge;
 
+import com.davisr.thedreamtable.TheDreamTableMod;
+import com.davisr.thedreamtable.farm.GuardedGoal;
 import com.davisr.thedreamtable.platform.ServerEvents;
 import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.entity.ai.goal.Goal;
 import net.minecraft.entity.mob.EndermanEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
@@ -10,7 +13,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraftforge.common.util.Result;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.EntityMobGriefingEvent;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.ExplosionEvent;
@@ -79,17 +82,29 @@ final class ForgeServerEvents implements ServerEvents {
 		});
 	}
 
+	private static boolean warnedUnguarded;
+
 	@Override
 	public void onEndermanGrief(EndermanCheck check) {
-		// Only a refusal sets a result. Forge 61 patches the mob-griefing rule check into other mobs but not into the enderman's
-		// pickup goal, so this stops an enderman only where something else asks the event (see the README's known issues).
-		// The place goal would ask too, so only an empty-handed enderman is checked, as on Fabric.
-		EntityMobGriefingEvent.BUS.addListener(event -> {
-			if (event.getEntity() instanceof EndermanEntity enderman && enderman.getCarriedBlock() == null
-					&& enderman.getEntityWorld() instanceof ServerWorld world && !check.allows(world, enderman)) {
-				event.setResult(Result.DENY);
+		// Forge 61 never asks EntityMobGriefingEvent from the enderman's pickup goal, so the goal itself is swapped for a
+		// guarded one when the enderman joins a world. Its goals are rebuilt every time it loads, so each is wrapped once.
+		EntityJoinLevelEvent.BUS.addListener((EntityJoinLevelEvent event) -> {
+			if (event.getEntity() instanceof EndermanEntity enderman && event.getLevel() instanceof ServerWorld
+					&& !GuardedGoal.guard(enderman.goalSelector, ForgeServerEvents::isPickUpGoal,
+							() -> !(enderman.getEntityWorld() instanceof ServerWorld world) || check.allows(world, enderman))
+					&& !warnedUnguarded) {
+				// Once per run: a missing goal (renamed class, or a modpack removed it) would otherwise log on every enderman.
+				warnedUnguarded = true;
+				TheDreamTableMod.LOGGER.warn("An enderman ({}) has no block pickup goal that Protect My Farms can guard", enderman.getClass().getName());
 			}
 		});
+	}
+
+	/** The pickup goal is a package-private inner class of the enderman, found by name: yarn's in development, Mojang's in the game. */
+	private static boolean isPickUpGoal(Goal goal) {
+		Class<?> type = goal.getClass();
+		return type.getEnclosingClass() == EndermanEntity.class
+				&& (type.getSimpleName().equals("PickUpBlockGoal") || type.getSimpleName().equals("EndermanTakeBlockGoal"));
 	}
 
 	@Override
