@@ -64,8 +64,8 @@ public final class CaptureMode {
 	private static boolean tablesScanned;
 	/** Whether a screen was open when the previous tick started. */
 	private static boolean screenWasOpen;
-	/** Whether the use key was down at the end of the previous tick, so a held key's repeated uses are not new clicks. */
-	private static boolean useWasDown;
+	/** The use key's presses, so a click is recorded once whether the game's use event or the tick saw it, and a held key's repeats are not clicks. */
+	private static final UsePress USE = new UsePress();
 	private static String typed = "";
 	private static int lastClickAge = -1;
 	private static CaptureBox scanned;
@@ -126,23 +126,32 @@ public final class CaptureMode {
 		CaptureOutline.hide();
 	}
 
-	/** A right click while capturing: takes the game's own action away (true) and records the corner. Only the main hand records, once a tick. */
+	/**
+	 * A use event while capturing: takes the game's own action away (true) and records the corner when it is a new press. Only the
+	 * main hand records. The game fires this only for a block within its reach or an item in hand; an empty hand at air or at a
+	 * block past that reach fires nothing (see {@link #tick}).
+	 */
 	private static boolean take(PlayerEntity player, World level, Hand hand) {
 		if (!active || !level.isClient()) {
 			return false;
 		}
-		if (hand == Hand.MAIN_HAND && !useWasDown && player.age != lastClickAge && MinecraftClient.getInstance().currentScreen == null) {
-			lastClickAge = player.age;
-			if (SELECTION.fixed()) {
-				// A new box is a new structure: its name starts empty again.
-				typed = "";
-			}
-			HitResult hit = player.raycast(REACH, 1.0F, false);
-			BlockPos aimed = hit instanceof BlockHitResult block && block.getType() == HitResult.Type.BLOCK ? block.getBlockPos() : standingOn(player);
-			SELECTION.click(aimed, standingOn(player));
-			refresh(MinecraftClient.getInstance());
+		if (hand == Hand.MAIN_HAND && USE.onUseEvent() && player.age != lastClickAge && MinecraftClient.getInstance().currentScreen == null) {
+			record(player, MinecraftClient.getInstance());
 		}
 		return true;
+	}
+
+	/** Corner 1 at the block the crosshair hits within {@link #REACH}, or corner 2 at the block the player stands on. */
+	private static void record(PlayerEntity player, MinecraftClient client) {
+		lastClickAge = player.age;
+		if (SELECTION.fixed()) {
+			// A new box is a new structure: its name starts empty again.
+			typed = "";
+		}
+		HitResult hit = player.raycast(REACH, 1.0F, false);
+		BlockPos aimed = hit instanceof BlockHitResult block && block.getType() == HitResult.Type.BLOCK ? block.getBlockPos() : standingOn(player);
+		SELECTION.click(aimed, standingOn(player));
+		refresh(client);
 	}
 
 	/** The block under the player's feet: corner 2 follows it, so both corners are on the ground layer and the top is raised with the keys. */
@@ -153,7 +162,9 @@ public final class CaptureMode {
 	private static void tick(MinecraftClient client) {
 		boolean afterScreen = screenWasOpen;
 		screenWasOpen = client.currentScreen != null;
-		useWasDown = client.options.useKey.isPressed();
+		// The game reads the use key's presses itself earlier in the tick, so only its state is left to see here. A press that fired no
+		// use event (empty hand, air or a block past the game's reach) shows as the key going down.
+		boolean useWithoutEvent = USE.onTick(client.options.useKey.isPressed());
 		boolean[] fire = new boolean[KEYS.length];
 		for (int index = 0; index < KEYS.length; index++) {
 			// Counted while a screen is open too, so a key held from a screen is not read as a new press.
@@ -175,6 +186,9 @@ public final class CaptureMode {
 		}
 		if (client.currentScreen != null) {
 			return;
+		}
+		if (useWithoutEvent && client.player.age != lastClickAge) {
+			record(client.player, client);
 		}
 		SELECTION.follow(standingOn(client.player));
 		if (fire[0]) {
