@@ -2,7 +2,6 @@ package com.davisr.thedreamtable;
 
 import com.davisr.thedreamtable.client.BuildProgressLine;
 import com.davisr.thedreamtable.client.TableNotices;
-import com.davisr.thedreamtable.client.CaptureMode;
 import com.davisr.thedreamtable.client.CaptureOutline;
 import com.davisr.thedreamtable.client.ClientLifecycle;
 import com.davisr.thedreamtable.client.ClientSettings;
@@ -16,6 +15,7 @@ import com.davisr.thedreamtable.client.QueuedFarms;
 import com.davisr.thedreamtable.client.OwnSessions;
 import com.davisr.thedreamtable.client.ServerSchematics;
 import com.davisr.thedreamtable.client.TrackedFarmHud;
+import com.davisr.thedreamtable.client.map.CaptureRing;
 import com.davisr.thedreamtable.platform.Platform;
 import com.davisr.thedreamtable.registry.ModBlockEntities;
 import com.davisr.thedreamtable.registry.ModScreenHandlers;
@@ -31,7 +31,6 @@ public final class TheDreamTableClient {
 		Platform.clientRendering().registerBlockEntityRenderer(ModBlockEntities.DREAM_TABLE, FarmMiniature::new);
 		DreamTableKeys.register();
 		DreamTableHologram.register();
-		CaptureMode.register();
 		DreamTableHologram.registerClicks();
 		DreamTableHologram.registerChecks();
 		ClientSettings.load();
@@ -40,6 +39,7 @@ public final class TheDreamTableClient {
 		OtherFarms.register();
 		QueuedFarms.register();
 		CaptureOutline.register();
+		CaptureRing.register();
 		TrackedFarmHud.register();
 		TableNotices.register();
 		BuildProgressLine.register();

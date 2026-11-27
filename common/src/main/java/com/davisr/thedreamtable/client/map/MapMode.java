@@ -4,6 +4,7 @@ import com.davisr.thedreamtable.block.DreamTableBlock;
 import com.davisr.thedreamtable.client.DreamTableHologram;
 import com.davisr.thedreamtable.client.TableNotices;
 import com.davisr.thedreamtable.farm.FarmGeometry;
+import com.davisr.thedreamtable.farm.capture.CaptureTables;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
@@ -13,6 +14,7 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3fc;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.function.Predicate;
 
 /**
@@ -37,6 +39,10 @@ public final class MapMode {
 	private static final int LIMIT_NOTICE_TICKS = 40;
 
 	private static boolean active;
+	/** The capture variant: the same camera, range and limits, centred on the nearest table, with only the capture's actions (see {@link MapCapture}). */
+	private static boolean capture;
+	/** The capture's name step is open over the map, so the map's own screen being replaced does not end the mode. */
+	private static boolean naming;
 	private static BlockPos table;
 	private static ClientWorld world;
 	private static MapCamera view;
@@ -74,45 +80,114 @@ public final class MapMode {
 		}
 	}
 
+	/**
+	 * The capture key: opens the capture variant of the map, centred on the nearest Dream Table the client knows within the
+	 * distance the server accepts, with no farm needed. Says why not when the player may not capture or no table is near.
+	 */
+	public static void openCapture(MinecraftClient client) {
+		if (active) {
+			return;
+		}
+		if (!MapCapture.allowed(client)) {
+			TableNotices.problem(Text.translatable("gui.the_dream_table.capture_problem.not_allowed"));
+			return;
+		}
+		// The nearest table the map can actually start at: a nearer one the camera could not start beside is passed over, and when none
+		// can be entered the nearest one's reason is told.
+		List<BlockPos> tables = CaptureTables.byDistance(client.player == null ? Vec3d.ZERO : client.player.getEntityPos(), MapCapture.tablesNear(client));
+		if (tables.isEmpty()) {
+			TableNotices.problem(Text.translatable("gui.the_dream_table.capture_problem.no_table"));
+			return;
+		}
+		String firstReason = null;
+		for (BlockPos candidate : tables) {
+			Plan plan = plan(client, candidate, true);
+			if (plan.refusal() == null) {
+				begin(client, candidate, plan.start(), true);
+				MapCapture.start();
+				client.setScreen(new MapScreen());
+				return;
+			}
+			if (firstReason == null) {
+				firstReason = plan.refusal();
+			}
+		}
+		refuse(firstReason);
+	}
+
+	/** Whether a screen is one this mode owns: its own, or, in the capture variant, the capture's name step laid over it. Pure, so it is tested without a client. */
+	static boolean ownsScreen(boolean mapScreen, boolean nameScreen, boolean captureVariant) {
+		return mapScreen || (nameScreen && captureVariant);
+	}
+
+	private static boolean ownsScreen(MinecraftClient client) {
+		return ownsScreen(client.currentScreen instanceof MapScreen, client.currentScreen instanceof CaptureNameScreen, capture);
+	}
+
 	/** Starts the mode at the player's eyes; false with a notice when it cannot start here. */
 	public static boolean enter(MinecraftClient client, BlockPos tablePos) {
+		return enter(client, tablePos, false);
+	}
+
+	private static boolean enter(MinecraftClient client, BlockPos tablePos, boolean forCapture) {
 		if (active) {
 			return true;
 		}
+		Plan plan = plan(client, tablePos, forCapture);
+		if (plan.refusal() != null) {
+			refuse(plan.refusal());
+			return false;
+		}
+		begin(client, tablePos, plan.start(), forCapture);
+		return true;
+	}
+
+	/** Where the camera would start, or the lang key of why the mode cannot start at this table from here. */
+	private record Plan(MapCamera start, String refusal) {
+		static Plan refused(String key) {
+			return new Plan(null, key);
+		}
+	}
+
+	private static Plan plan(MinecraftClient client, BlockPos tablePos, boolean forCapture) {
 		ClientPlayerEntity player = client.player;
 		ClientWorld clientWorld = client.world;
 		if (player == null || clientWorld == null) {
-			refuse("gui.the_dream_table.map_terrain_not_loaded");
-			return false;
+			return Plan.refused("gui.the_dream_table.map_terrain_not_loaded");
 		}
 		if (client.getCameraEntity() != player || !client.options.getPerspective().isFirstPerson()) {
-			refuse("gui.the_dream_table.map_first_person");
-			return false;
+			return Plan.refused("gui.the_dream_table.map_first_person");
 		}
 		if (!MapChecks.terrainLoaded(clientWorld, tablePos)) {
-			refuse("gui.the_dream_table.map_terrain_not_loaded");
-			return false;
+			return Plan.refused("gui.the_dream_table.map_terrain_not_loaded");
 		}
 		if (!(clientWorld.getBlockState(tablePos).getBlock() instanceof DreamTableBlock)) {
-			refuse("gui.the_dream_table.map_no_table");
-			return false;
+			return Plan.refused("gui.the_dream_table.map_no_table");
 		}
 		Vec3d eye = player.getEyePos();
-		// The camera starts at the eyes, and the server answers placement checks only for a player near the table.
-		if (eye.squaredDistanceTo(centreOf(tablePos)) > (double) FarmGeometry.AIM_RANGE * FarmGeometry.AIM_RANGE) {
-			refuse("gui.the_dream_table.map_too_far");
-			return false;
+		// The camera starts at the eyes (pulled inside the reach), and the server answers only for a player near the table: a capture
+		// accepts the player a little farther than a placement does.
+		double near = forCapture ? CaptureTables.MAX_PLAYER_DISTANCE : FarmGeometry.AIM_RANGE;
+		if (eye.squaredDistanceTo(centreOf(tablePos)) > near * near) {
+			return Plan.refused("gui.the_dream_table.map_too_far");
 		}
 		if (eye.y < tablePos.getY() - FLOOR_BELOW_TABLE) {
-			refuse("gui.the_dream_table.map_too_deep");
-			return false;
+			return Plan.refused("gui.the_dream_table.map_too_deep");
 		}
 		MapCamera start = new MapCamera(eye, player.getYaw(), player.getPitch());
-		start.clampTo(centreOf(tablePos), WALL_RADIUS);
+		boolean pulledIn = start.clampTo(centreOf(tablePos), WALL_RADIUS);
 		if (MapChecks.solidGround(clientWorld, start.position())) {
-			refuse("gui.the_dream_table.map_too_close");
-			return false;
+			// A capture can start from past the wall; pulled toward the table the camera can land in terrain, and then the player is
+			// simply too far to start from here.
+			return Plan.refused(pulledIn && forCapture ? "gui.the_dream_table.capture_move_closer" : "gui.the_dream_table.map_too_close");
 		}
+		return new Plan(start, null);
+	}
+
+	/** Starts the mode with a camera the plan accepted. */
+	private static void begin(MinecraftClient client, BlockPos tablePos, MapCamera start, boolean forCapture) {
+		ClientPlayerEntity player = client.player;
+		ClientWorld clientWorld = client.world;
 		table = tablePos.toImmutable();
 		world = clientWorld;
 		view = start;
@@ -124,14 +199,39 @@ public final class MapMode {
 		easedVertical = 0.0;
 		easedSpeed = 1.0;
 		active = true;
+		capture = forCapture;
+		naming = false;
 		client.setCameraEntity(camera);
 		// The first-person hand would be drawn from the free camera. 1.21.11 has no switch for the hand alone (setRenderHand is gone,
 		// renderHand is private), but it is skipped while hudHidden is set, so the mode hides the HUD and the hand together and
 		// puts the player's own setting back on exit. MapScreen draws the crosshair, which hudHidden removes with the HUD.
 		hudWasHidden = client.options.hudHidden;
 		client.options.hudHidden = true;
-		DreamTableHologram.setMapActive(true);
-		return true;
+		if (forCapture) {
+			// No farm is aimed or drawn in the capture variant.
+			DreamTableHologram.setSuppressed(true);
+		} else {
+			DreamTableHologram.setMapActive(true);
+		}
+	}
+
+	/** Whether this is the capture variant of the map, with only the capture's actions. */
+	public static boolean capture() {
+		return active && capture;
+	}
+
+	/** The table the map is centred on, the one a capture is sent with; null when the mode is off. */
+	static BlockPos tablePos() {
+		return active ? table : null;
+	}
+
+	/** Tells the mode the capture's name step is open over its screen (true) or closed again. */
+	static void setNaming(boolean open) {
+		naming = open;
+	}
+
+	static boolean naming() {
+		return naming;
 	}
 
 	/** Leaves the mode and gives the camera back to the player. Does nothing when already off, so it can run from any close path. */
@@ -149,6 +249,12 @@ public final class MapMode {
 		world = null;
 		client.options.hudHidden = hudWasHidden;
 		DreamTableHologram.setMapActive(false);
+		if (capture) {
+			capture = false;
+			naming = false;
+			DreamTableHologram.setSuppressed(false);
+			MapCapture.stop();
+		}
 	}
 
 	/**
@@ -178,8 +284,10 @@ public final class MapMode {
 			return;
 		}
 		if (!stillFits(client)) {
+			// Only a screen that is this mode's own is closed with it; any other (a kick reason, a loading screen) is left alone.
+			boolean ours = ownsScreen(client);
 			exit(client);
-			if (client.currentScreen instanceof MapScreen) {
+			if (ours) {
 				client.setScreen(null);
 			}
 			return;
@@ -263,7 +371,7 @@ public final class MapMode {
 	private static boolean stillFits(MinecraftClient client) {
 		ClientPlayerEntity player = client.player;
 		return player != null && player.isAlive() && client.world == world && client.getCameraEntity() == camera
-				&& client.currentScreen instanceof MapScreen && MapChecks.tableStanding(world, table);
+				&& ownsScreen(client) && MapChecks.tableStanding(world, table);
 	}
 
 	private static void refuse(String key) {

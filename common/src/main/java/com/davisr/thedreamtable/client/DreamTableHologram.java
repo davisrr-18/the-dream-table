@@ -385,11 +385,23 @@ public final class DreamTableHologram {
 		hoverProblem = "";
 		mapActive = false;
 		mapCursor = null;
+		suppressed = false;
+	}
+
+	/** While the capture map is open nothing of farm placement is aimed or drawn. */
+	private static boolean suppressed;
+
+	public static void setSuppressed(boolean hidden) {
+		suppressed = hidden;
+		hover = null;
 	}
 
 	private static void render(RenderFrame context) {
 		GhostRenderer.beginFrame();
 		hover = null;
+		if (suppressed) {
+			return;
+		}
 		if (tablePos == null || context.world() == null || context.matrixStack() == null || !tableStillThere(context.world())) {
 			return;
 		}
