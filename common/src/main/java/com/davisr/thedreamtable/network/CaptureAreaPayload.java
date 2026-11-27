@@ -3,7 +3,6 @@ package com.davisr.thedreamtable.network;
 import com.davisr.thedreamtable.TheDreamTableMod;
 import com.davisr.thedreamtable.DataFixes;
 import com.davisr.thedreamtable.block.entity.DreamTableBlockEntity;
-import com.davisr.thedreamtable.farm.FarmGeometry;
 import com.davisr.thedreamtable.farm.FarmTemplates;
 import com.davisr.thedreamtable.farm.ImportedStructures;
 import com.davisr.thedreamtable.farm.capture.AreaCapture;
@@ -12,6 +11,7 @@ import com.davisr.thedreamtable.farm.capture.CaptureBox;
 import com.davisr.thedreamtable.farm.capture.CaptureFiles;
 import com.davisr.thedreamtable.farm.capture.CaptureName;
 import com.davisr.thedreamtable.farm.capture.CaptureProblem;
+import com.davisr.thedreamtable.farm.capture.CaptureTables;
 import com.davisr.thedreamtable.platform.Platform;
 import net.minecraft.command.DefaultPermissions;
 import net.minecraft.network.RegistryByteBuf;
@@ -29,7 +29,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * Saves the blocks between two corners, picked in map mode, as a structure file in the mod's own folder so it shows in My
+ * Saves the blocks between two corners, picked in the world in capture mode, as a structure file in the mod's own folder so it shows in My
  * Schematics. Only operators and the host of a single-player or LAN world may; the server checks that, the box, the chunks and
  * the name again, and reads the world itself (the client sends no blocks).
  */
@@ -43,8 +43,8 @@ public record CaptureAreaPayload(BlockPos table, BlockPos from, BlockPos to, Str
 			CaptureAreaPayload::new
 	);
 
-	/** The player may stand anywhere map mode can be used from, as for {@link CheckPlacementPayload}. */
-	private static final double MAX_DISTANCE = FarmGeometry.AIM_RANGE + 16.0;
+	/** The player may stand anywhere a farm can be aimed from, as for {@link CheckPlacementPayload}; the client picks its table by the same number. */
+	private static final double MAX_DISTANCE = CaptureTables.MAX_PLAYER_DISTANCE;
 	/** One capture reads up to a million cells and writes a file, so a person's one click every two seconds is the most allowed. */
 	static final RequestThrottle THROTTLE = new RequestThrottle(1, 40);
 

@@ -13,6 +13,8 @@ public record CaptureProblem(Kind kind, long found, long limit, ImportNote note)
 	public enum Kind {
 		NOT_ALLOWED,
 		TOO_FAR,
+		/** Client only: no Dream Table is near enough for the server to accept a capture. */
+		NO_TABLE,
 		TOO_WIDE,
 		TOO_TALL,
 		OUT_OF_WORLD,

@@ -2,6 +2,7 @@ package com.davisr.thedreamtable;
 
 import com.davisr.thedreamtable.client.BuildProgressLine;
 import com.davisr.thedreamtable.client.TableNotices;
+import com.davisr.thedreamtable.client.CaptureMode;
 import com.davisr.thedreamtable.client.CaptureOutline;
 import com.davisr.thedreamtable.client.ClientLifecycle;
 import com.davisr.thedreamtable.client.ClientSettings;
@@ -30,6 +31,7 @@ public final class TheDreamTableClient {
 		Platform.clientRendering().registerBlockEntityRenderer(ModBlockEntities.DREAM_TABLE, FarmMiniature::new);
 		DreamTableKeys.register();
 		DreamTableHologram.register();
+		CaptureMode.register();
 		DreamTableHologram.registerClicks();
 		DreamTableHologram.registerChecks();
 		ClientSettings.load();

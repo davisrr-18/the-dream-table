@@ -9,53 +9,64 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CaptureSelectionTest {
-	private static final BlockPos A = new BlockPos(10, 64, 10);
-	private static final BlockPos B = new BlockPos(14, 66, 20);
+	private static final BlockPos AIMED = new BlockPos(10, 64, 10);
+	private static final BlockPos FEET = new BlockPos(10, 65, 10);
 
 	@Test
-	void theBoxFollowsTheAimUntilTheSecondCornerIsClicked() {
+	void cornerTwoFollowsTheBodyUntilTheSecondClickFixesIt() {
 		CaptureSelection selection = new CaptureSelection();
-		assertNull(selection.box(A));
-		selection.click(A);
-		assertEquals(CaptureBox.of(A, B), selection.box(B));
-		assertEquals(CaptureBox.of(A, A), selection.box(null));
-		selection.click(B);
+		assertNull(selection.box());
+		selection.click(AIMED, FEET);
+		assertTrue(selection.started());
+		assertFalse(selection.fixed());
+		assertEquals(CaptureBox.of(AIMED, FEET), selection.box());
+
+		selection.follow(new BlockPos(14, 66, 20));
+		assertEquals(CaptureBox.of(AIMED, new BlockPos(14, 66, 20)), selection.box());
+		selection.follow(new BlockPos(5, 70, 3));
+		assertEquals(CaptureBox.of(AIMED, new BlockPos(5, 70, 3)), selection.box());
+
+		selection.click(AIMED, new BlockPos(2, 64, 30));
 		assertTrue(selection.fixed());
-		assertEquals(CaptureBox.of(A, B), selection.box(new BlockPos(99, 99, 99)));
+		assertEquals(CaptureBox.of(AIMED, new BlockPos(2, 64, 30)), selection.box());
+		selection.follow(new BlockPos(99, 99, 99));
+		assertEquals(CaptureBox.of(AIMED, new BlockPos(2, 64, 30)), selection.box(), "a fixed corner no longer follows");
 	}
 
 	@Test
-	void aThirdClickStartsAgainAndAClickOnNothingChangesNothing() {
+	void aThirdClickStartsAgainAndAClickWithoutAPositionChangesNothing() {
 		CaptureSelection selection = new CaptureSelection();
-		selection.click(A);
-		selection.click(B);
-		selection.click(null);
+		selection.click(AIMED, FEET);
+		selection.click(AIMED, new BlockPos(14, 66, 20));
+		selection.click(null, FEET);
+		selection.click(AIMED, null);
 		assertTrue(selection.fixed());
-		selection.click(new BlockPos(1, 1, 1));
+		BlockPos other = new BlockPos(1, 1, 1);
+		selection.click(other, new BlockPos(3, 1, 3));
 		assertFalse(selection.fixed());
-		assertEquals(CaptureBox.of(new BlockPos(1, 1, 1), A), selection.box(A));
+		assertEquals(CaptureBox.of(other, new BlockPos(3, 1, 3)), selection.box());
 	}
 
 	@Test
 	void topAndBottomMoveOnlyOnAFixedBoxAndNeverCross() {
 		CaptureSelection selection = new CaptureSelection();
-		selection.click(A);
+		selection.click(AIMED, FEET);
 		selection.moveTop(3);
-		assertEquals(64, selection.box(A).max().getY());
-		selection.click(B);
+		assertEquals(65, selection.box().max().getY());
+		selection.click(AIMED, new BlockPos(14, 66, 20));
 		selection.moveTop(2);
 		selection.moveBottom(-1);
-		assertEquals(63, selection.box(null).min().getY());
-		assertEquals(68, selection.box(null).max().getY());
+		assertEquals(63, selection.box().min().getY());
+		assertEquals(68, selection.box().max().getY());
 		selection.moveBottom(100);
 		selection.moveTop(-100);
-		assertEquals(63, selection.box(null).min().getY());
-		assertEquals(68, selection.box(null).max().getY());
+		assertEquals(63, selection.box().min().getY());
+		assertEquals(68, selection.box().max().getY());
 		selection.moveTop(-5);
-		assertEquals(63, selection.box(null).max().getY(), "the top may come down to the bottom, one block high");
+		assertEquals(63, selection.box().max().getY(), "the top may come down to the bottom, one block high");
 		selection.moveTop(-1);
-		assertEquals(63, selection.box(null).max().getY());
+		assertEquals(63, selection.box().max().getY());
 		selection.moveBottom(1);
-		assertEquals(63, selection.box(null).min().getY());
+		assertEquals(63, selection.box().min().getY());
 	}
 }
