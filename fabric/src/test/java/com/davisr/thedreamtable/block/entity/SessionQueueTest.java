@@ -271,6 +271,20 @@ class SessionQueueTest {
 		assertNull(SessionQueue.footprint(queued, NETHER));
 	}
 
+	/** Two queues merged on a restore were each checked only against themselves: a joining entry that overlaps the line is dropped. */
+	@Test
+	void anAppendedEntryOverlappingTheLineIsDropped() {
+		SessionQueue line = new SessionQueue();
+		line.add(entry(CANE, 100, Map.of()));
+		SessionQueue joining = new SessionQueue();
+		joining.add(entry(CANE, 101, Map.of()));
+		joining.add(entry(CANE, 1000, Map.of()));
+		line.append(joining);
+		assertEquals(List.of(CANE, CANE), line.farms());
+		assertEquals(entry(CANE, 100, Map.of()), line.pop());
+		assertEquals(entry(CANE, 1000, Map.of()), line.pop());
+	}
+
 	@Test
 	void anEntryWithAnUnknownFarmOrNoSpotBlocksNothing() {
 		SessionQueue queue = new SessionQueue();
