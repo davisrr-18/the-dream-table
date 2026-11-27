@@ -103,7 +103,7 @@ public final class SessionQueue {
 			if (full()) {
 				return;
 			}
-			Area area = area(entry, FarmTemplates.get(entry.getString("SelectedFarm")));
+			Area area = area(entry, FarmTemplates.get(entry.getString("SelectedFarm", "")));
 			if (area != null && overlaps(area.dimension(), area.box())) {
 				continue;
 			}
