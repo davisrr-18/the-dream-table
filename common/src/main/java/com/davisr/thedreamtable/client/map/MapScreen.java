@@ -28,15 +28,10 @@ import java.util.function.Predicate;
 public final class MapScreen extends Screen {
 	/** The controls panel: its distance from the screen's bottom, inner padding, row height and the gaps between items. */
 	private static final int MARGIN = 6;
-	private static final int PADDING = 5;
-	private static final int ROW = 14;
-	private static final int ITEM_GAP = 12;
-	private static final int KEY_PAD = 3;
-	private static final int PANEL_COLOR = 0x99000000;
-	private static final int KEY_FILL = 0xCC1E2A33;
-	private static final int KEY_BORDER = 0xFF8CD8FF;
-	private static final int KEY_TEXT = 0xFFFFFFFF;
-	private static final int ACTION_TEXT = 0xFFD8D8D8;
+	private static final int PADDING = KeyChips.PADDING;
+	private static final int ROW = KeyChips.ROW;
+	private static final int ITEM_GAP = KeyChips.ITEM_GAP;
+	private static final int PANEL_COLOR = KeyChips.PANEL_COLOR;
 	private static final Identifier CROSSHAIR = Identifier.ofVanilla("hud/crosshair");
 
 	/**
@@ -190,15 +185,11 @@ public final class MapScreen extends Screen {
 	}
 
 	private int itemWidth(Control control) {
-		return textRenderer.getWidth(control.key()) + 2 * KEY_PAD + 4 + textRenderer.getWidth(control.action());
+		return KeyChips.width(textRenderer, control.key(), control.action());
 	}
 
 	private void drawControl(DrawContext context, Control control, int x, int y) {
-		int keyWidth = textRenderer.getWidth(control.key()) + 2 * KEY_PAD;
-		context.fill(x, y, x + keyWidth, y + 12, KEY_BORDER);
-		context.fill(x + 1, y + 1, x + keyWidth - 1, y + 11, KEY_FILL);
-		context.drawTextWithShadow(textRenderer, control.key(), x + KEY_PAD, y + 2, KEY_TEXT);
-		context.drawTextWithShadow(textRenderer, control.action(), x + keyWidth + 4, y + 2, ACTION_TEXT);
+		KeyChips.draw(context, textRenderer, control.key(), control.action(), x, y);
 	}
 
 	/** One control of the panel: the key as the player has it bound, and what it does. */
