@@ -51,7 +51,8 @@ public interface ServerEvents {
 
 	/**
 	 * Each time an enderman is about to pick up a block on the server; returning false stops it this time. It must be
-	 * side-effect free and cheap, since it runs for every pickup the game considers.
+	 * side-effect free and cheap: Forge asks it on every goal check of an empty-handed enderman, before the game's
+	 * random roll, so about once a tick per enderman; Fabric only when the game would start the pickup.
 	 */
 	void onEndermanGrief(EndermanCheck check);
 
