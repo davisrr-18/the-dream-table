@@ -283,7 +283,8 @@ public final class MapScreen extends Screen {
 	/** The confirm key's real state, not the game's count of presses. */
 	static boolean confirmDown(MinecraftClient client) {
 		InputUtil.Key bound = InputUtil.fromTranslationKey(DreamTableKeys.CAPTURE_CONFIRM.getBoundKeyTranslationKey());
-		return bound.getCategory() == InputUtil.Type.KEYSYM
+		// An unbound key is code -1, which GLFW reports as an error on every poll.
+		return bound.getCategory() == InputUtil.Type.KEYSYM && bound.getCode() >= 0
 				? InputUtil.isKeyPressed(client.getWindow(), bound.getCode()) : DreamTableKeys.CAPTURE_CONFIRM.isPressed();
 	}
 

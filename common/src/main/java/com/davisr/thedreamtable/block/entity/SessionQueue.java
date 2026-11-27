@@ -94,11 +94,18 @@ public final class SessionQueue {
 		return done && finishedRecorded && !queueEmpty && ownerOnline && !repair;
 	}
 
-	/** Puts the other queue's entries behind this one's, up to {@link #MAX}: a restored project keeps its own line first. */
+	/**
+	 * Puts the other queue's entries behind this one's, up to {@link #MAX}: a restored project keeps its own line first. Each queue
+	 * was checked only against itself, so an entry overlapping the line it joins is dropped: it could never start.
+	 */
 	void append(SessionQueue other) {
 		for (NbtCompound entry : other.entries) {
 			if (full()) {
 				return;
+			}
+			Area area = area(entry, FarmTemplates.get(entry.getString("SelectedFarm")));
+			if (area != null && overlaps(area.dimension(), area.box())) {
+				continue;
 			}
 			entries.add(entry.copy());
 		}

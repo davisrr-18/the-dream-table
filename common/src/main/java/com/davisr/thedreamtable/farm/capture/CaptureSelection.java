@@ -4,7 +4,7 @@ import net.minecraft.util.math.BlockPos;
 
 /**
  * The corners of a capture and how far the box's top and bottom were moved. The first click sets corner 1 at the block aimed
- * at, then the box previews up to the block the crosshair aims at (fed each tick) until a second click fixes corner 2 there; a
+ * at, then the box previews up to the block the crosshair aims at (fed each frame) until a second click fixes corner 2 there; a
  * third click starts again. The top and bottom can be moved from the first click on, so an arrow key is never ignored.
  */
 public final class CaptureSelection {

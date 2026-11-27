@@ -100,12 +100,15 @@ final class MapCapture {
 		scanned = null;
 		seen = null;
 		pending = false;
+		CONFIRM.screenClosed(false);
 		SELECTION.clear();
 		CaptureOutline.hide();
 	}
 
 	/** Once per rendered frame: the block under the crosshair, the box, what is wrong with it, and the outline. */
 	static void frame(MinecraftClient client) {
+		// A key press always sees Enter down, so only this poll can see the hold that closed the name screen let go.
+		CONFIRM.accept(MapScreen.confirmDown(client));
 		ClientWorld world = client.world;
 		ClientPlayerEntity player = client.player;
 		BlockPos table = MapMode.tablePos();

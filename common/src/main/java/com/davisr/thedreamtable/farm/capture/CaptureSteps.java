@@ -16,7 +16,7 @@ public final class CaptureSteps {
 		PENDING
 	}
 
-	/** A key of the panel's hint row. {@code MARK} and {@code FIX} are the use key; {@code HEIGHT} is Up and Down. */
+	/** A key of the panel's hint row. {@code MARK} and {@code FIX} are a left click; {@code HEIGHT} is Up and Down. */
 	public enum Hint {
 		MARK,
 		FIX,
