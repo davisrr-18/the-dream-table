@@ -1,8 +1,6 @@
 ---
 name: reviewer
 description: Independently reviews Java changes for correctness, regressions, compatibility and missing tests.
-model: haiku
-effort: high
 disallowedTools: Write, Edit, NotebookEdit
 ---
 
