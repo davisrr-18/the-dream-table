@@ -1,170 +1,61 @@
 # The Dream Table — Claude Code Guide
 
-This file defines permanent working rules for Claude Code, the only AI agent tool used in this project. Technical invariants belong to `.cursor/rules/*.mdc`; detailed update planning belongs to the `plan-mod-update` skill in `.claude/skills/plan-mod-update/SKILL.md`.
+Minecraft mod (Fabric, NeoForge and Forge, Java 21) built around a table that previews and builds schematics and farms. Published on CurseForge, with one branch per Minecraft line.
 
-## 1. Before starting
+Only what is specific to this project is written here. The general workflow comes from the user's global `~/.claude/` (`CLAUDE.md`, the `plan-update` skill, the agents); where this file differs, this file wins.
 
-- Understand the user's request, existing decisions, scope, and acceptance criteria.
-- Read the nearest applicable `CLAUDE.md` and relevant `.cursor/rules/*.mdc` files.
-- Check `git status --short` and preserve all existing changes.
-- Consult active records in `docs/tasks/` before repeating investigations.
-- Inspect actual code and pinned Minecraft/Fabric artifacts instead of guessing APIs.
-- Confirm the active Git root, branch, and worktree before making changes.
+## Rules and commands
 
-Repository guidance follows this order:
+Read the relevant technical rules before changing code; Claude Code does not load them by itself:
 
-1. Current user request and explicit decisions.
-2. Nearest applicable `CLAUDE.md`.
-3. Applicable `.cursor/rules/*.mdc` technical rules.
-4. Project documentation and established patterns.
-
-Never silently override a technical invariant. Identify conflicts and resolve them within the approved scope.
-
-## 2. Engineering workflow
-
-- Diagnose relevant behavior before editing.
-- Choose the smallest coherent, maintainable change.
-- For behavior changes, identify or create regression coverage before implementation when feasible.
-- Preserve saved-world, networking, permissions, and persistence compatibility.
-- Update the applicable technical rule when a durable architectural invariant changes.
-- Run `./gradlew compileJava` after code changes and the tests required by `project-workflow.mdc`.
-- Report changed files, test results, limitations, and anything not tested inside Minecraft.
-
-The canonical technical rules are:
-
-- `.cursor/rules/project-workflow.mdc`
+- `.cursor/rules/project-workflow.mdc`: planning record, stack, build, tests, CI, `javap` lookup, versions, releases, changelog, test handoff, language.
 - `.cursor/rules/architecture.mdc`
 - `.cursor/rules/build-safety.mdc`
 - `.cursor/rules/code-style.mdc`
 - `.cursor/rules/ui-style.mdc`
 
-Do not duplicate their implementation details here.
+Precedence: current user request, this file, the technical rules, project documentation. Never silently override a technical invariant; point out the conflict and resolve it within the approved scope. Update the rule when a durable invariant changes.
 
-## 3. Permanent multi-agent engineering policy
+- After code changes: `./gradlew compileJava`, plus the tests `project-workflow.mdc` requires. Full check: `./gradlew build`.
+- For behavior changes, add or identify regression coverage before implementing when feasible.
+- Preserve saved-world, networking, permissions and persistence compatibility.
+- Inspect the actual code and the pinned Minecraft/loader artifacts instead of guessing APIs.
+- Before changing anything, confirm the Git root, branch and worktree.
+- Code, tests, architecture, docs and rules may be improved when the change is evidence-based and inside the approved scope.
+- Released features: the official CurseForge page and changelogs are the source of truth. Current implementation: the repository.
+- In-game text, README, release notes, changelogs and code comments are in English.
 
-Multi-agent delegation is the default strategy for substantial software engineering tasks whenever supported by the active environment. Apply it in every session, including new and resumed ones, without a new prompt from the user.
+## Validation (standing user decisions, 2026-10-28 and 2026-10-29)
 
-**Before delegating, load the `delegation-policy` skill** (`.claude/skills/delegation-policy/SKILL.md`): delegation steps, agent roles, task contract, reporting and resource efficiency. These rules always apply:
+The user tests in a Minecraft client only once, on the final release-ready build of an update. Intermediate milestones close on automated verification (`./gradlew build`, tests) and independent review; the user runs the dev dedicated-server smokes locally (CI also runs `server-smoke`). Each milestone adds its manual checks to the update's consolidated in-game checklist in the task record instead of waiting for them. Fixes found in that final pass follow the normal workflow. A build handed over for testing goes to the main checkout's `build/release/<loader>/` folders (`project-workflow.mdc`, "Test handoff"). Report what was not tested in game. Implementation complete is not release ready.
 
-- The primary agent is the orchestrator and stays accountable for architecture, integration, verification and delivery.
-- Delegation is adaptive: trivial tasks may be done directly; for medium or higher complexity with independent work, prefer real subagents (`investigator`, `implementer`, `reviewer` in `.claude/agents/*.md`).
-- Default to three concurrent subagents in total, of any type. Use up to five only when the work splits into independent units by subsystem with no shared files. Never run more than three editing `implementer` subagents at once, and only on disjoint files. Subject to the actual environment configuration. Basis: `docs/tasks/subagent-scaling-test/README.md` (measured on read-only investigators: three matched five on confirmed findings at lower cost, and eight or more found fewer with more false positives).
-- Parallelize only independent work without overlapping files. The reviewer differs from the implementer whenever practical.
-- Delegation is real: never claim a subagent ran unless it did, report failures, never replace a planned independent review with self-review, and verify subagent output.
-- Never set a `model` or `effort` override on a delegation call (section 7).
+## Git, branches and releases
 
-## 4. Milestones and approvals
+- Commits and pushes are automatic (standing user authorization, 2026-10-28): after each finished and verified task, phase or milestone, commit all of its changes and push, without waiting to be asked. Never commit failing builds, secrets or unrelated user work.
+- Commits land on the branch of their Minecraft line (`mc/1.21.1`, `mc/1.20.1`, `mc/1.21.11`); `main` holds only documentation, tools and the feedback Worker (standing user decision, 2026-11-23). Work in a worktree branch is integrated by fast-forwarding the line's branch and pushing it. If it cannot fast-forward, rebase the unpushed work onto its `origin` branch and stop for direction on conflicts. Never force-push or rewrite published history.
+- Repository hygiene (2026-11-23): GitHub and the local clone keep only `main`, the maintained line branches and one worktree per line (`v<minecraft>/`). Delete a task or subagent branch and worktree as soon as its work is integrated and pushed (`git worktree remove`, never `--force` over uncommitted work), at the end of each milestone. Before deleting a branch, confirm it has no commit without an equivalent in a line or a tag (`git log --cherry-pick --right-only`) and tell the user what was deleted. Tags and releases are never deleted. A new Minecraft line adds its branch to this list. No pull requests or feature branches on GitHub unless the user asks.
+- Apart from that cleanup, no destructive Git operations (`reset --hard`, `clean`, discarding changes); never discard, overwrite or reformat unrelated user work.
+- `CHANGELOG.md` always describes the version in development: replace it when a version starts and update it in the same commit as every player-facing change (it is the text Davi posts on CurseForge).
+- `gh release` only after every adjustment of the update is done and the user says they will post it on CurseForge; each line releases on its own, tagged `v<version>-mc<minecraft>` (`project-workflow.mdc`). Until then, keep building and committing.
+- Publishing and external artifact copies require an explicit user request. Ask before expanding product scope, deciding open user-facing questions, destructive actions or changes to external systems.
+- Do not hide unrelated failures or unexpected runtime errors. No unrelated dependencies or broad cosmetic refactors.
 
-For relevant features and updates, follow `plan-mod-update`.
+## Delegation (overrides the global defaults)
 
-Use three sequential milestones:
+- Delegation is the default for substantial work, in every session including resumed ones: for medium or higher complexity actively prefer real subagents, and do not do it all in the main agent just for convenience. Trivial tasks are done directly. Do not spawn when the evidence is already there, and keep reports short.
+- Every subagent (investigator, implementer, reviewer and any general-purpose helper) uses Haiku 5.5 at high effort (standing user decision, 2026-10-29). Never escalate a subagent to another model or effort; narrow the scope and verify more instead. Do not pass `model` or `effort` on a delegation call, except for helpers without a definition file in `.claude/agents/` (general-purpose, Explore, Plan) or when the running agent or its hook requires them: then pass exactly `haiku` and `high`.
+- The main agent orchestrates and stays accountable for architecture, integration, verification and delivery. The reviewer does not run builds or tests (the main agent does). No nested delegation unless it clearly helps.
+- Default to three concurrent subagents; up to five only when the work splits into independent units by subsystem with no shared files. Never more than three editing implementers, and only on disjoint files. Basis: `docs/tasks/subagent-scaling-test/README.md`.
 
-1. Investigation and planning.
-2. Incremental implementation and integration.
-3. Independent review, verification, and closure.
+## Milestones and task records
 
-Present the initial scope and obtain explicit approval before Milestone 1.
+- Relevant features and updates follow the `plan-update` skill: three milestones, with explicit approval before the first, before each next one and before declaring the update complete.
+- Multi-step, cross-package, high-risk or multi-session work keeps one record under `docs/tasks/` (`TEMPLATE.md`), with decisions, acceptance criteria, affected files, verification, blockers, exact next action, milestone approval state and the delegated agents; no secrets or large logs, and reuse the record instead of creating a duplicate. Checkpoint after each meaningful phase, before pauses and near two-thirds of the context. Read the active record before starting; on resume, check it against Git.
+- Each milestone (and large phase) runs in its own chat: after closing one, do not start the next; give a short resume phrase with the recommended model and effort. Inside a milestone, suggest a new chat at a phase boundary when the conversation grew long or changed topic.
+- Keep this file concise: technical invariants in `.cursor/rules/`, history in task records; nested `CLAUDE.md` only for a genuinely different subtree.
 
-Obtain explicit approval before starting each subsequent milestone and before declaring the update complete.
+## Primary session model
 
-Approval covers only the agreed scope. In-scope corrections and tests do not require repeated approval.
-
-Do not use delegation to bypass milestone approvals or expand the approved scope.
-
-A task or milestone may be declared complete only when:
-
-- The approved scope is implemented.
-- Acceptance criteria are verified.
-- Relevant tests have known results.
-- Required integration and review are done.
-- Limitations and pending items are documented.
-- Required approvals were respected.
-
-Trivial changes and read-only questions may use a simplified workflow.
-
-In-game testing (standing user decision, 2026-10-28): the user tests in a Minecraft client only once, on the final release-ready build of an update. Intermediate milestones close on automated verification (`./gradlew build`, tests) and independent review; the user runs the dev dedicated-server smokes (standing user decision, 2026-10-29). Whenever a build is handed over for testing, its jars go in the main checkout's `build/release/<loader>/` folders (`project-workflow.mdc`, "Test handoff"). Each milestone adds its manual checks to the update's consolidated in-game checklist in the task record instead of waiting for them. Fixes found in that final pass follow the normal workflow.
-
-The skill owns the detailed process, task classification, delegation plan, acceptance criteria, and quality gates.
-
-## 5. Autonomy and repository safety
-
-Agents may improve code, tests, architecture, documentation, and rules when changes are evidence-based and within approved scope.
-
-- Do not discard, overwrite, reset, or reformat unrelated user work.
-- Do not perform destructive Git operations.
-- Do not hide unrelated failures or unexpected runtime errors.
-- Do not introduce unrelated dependencies or broad cosmetic refactors.
-- Explain structural changes and provide regression coverage where applicable.
-- Request direction for product-scope expansion, unresolved user-facing decisions, destructive actions, or external-system changes.
-- Releases, publishing, and external artifact copies require an explicit user request.
-- Changelog (standing user decision, 2026-10-29): `CHANGELOG.md` always describes the version in development. As soon as a new version starts, replace it with that version's changelog, and update it in the same commit as every player-facing change, following `project-workflow.mdc`. It is the text Davi posts on CurseForge.
-- GitHub release (standing user decision, 2026-10-28; per line since 2026-11-23): run `gh release` only after every adjustment of the update is done and the user says they will post it on CurseForge. Each Minecraft line releases on its own, tagged `v<version>-mc<minecraft>`, as `project-workflow.mdc` describes. Until then, keep building and committing.
-- Commits and pushes are automatic (standing user authorization, 2026-10-28): at the end of every finished task, phase, or milestone, after its verification passes, commit all of its changes and push them. Never commit failing builds, secrets, or unrelated user work.
-- Commit messages never carry a `Co-Authored-By` or any other Claude attribution line (standing user decision, 2026-11-05); this overrides the default attribution reminder.
-- Commits and pushes land on the branch of the Minecraft line they belong to (`mc/1.21.1`, `mc/1.20.1`, `mc/1.21.11`); `main` holds only documentation, tools and the feedback Worker (standing user decision, 2026-11-23, replacing the 2026-10-28 rule that everything lands on `main`). Work may happen in a worktree branch, but integrate it by fast-forwarding the line's branch and pushing it; never force-push or rewrite history. If it cannot fast-forward, rebase the unpushed work onto its `origin` branch and stop for direction on conflicts.
-- Repository hygiene (standing user decision, 2026-11-23): GitHub and the local clone keep only `main`, the maintained line branches (`mc/<minecraft>`) and one worktree per line (`v<minecraft>/`). A branch or worktree made for a task or a subagent is deleted as soon as its work is integrated into its line and pushed; remove subagent worktrees with `git worktree remove` (never `--force` over uncommitted work) at the end of each milestone. Before deleting a branch, confirm it has no commit without an equivalent in a line or a tag (`git log --cherry-pick --right-only`), and tell the user what was deleted. Tags and releases are never deleted. A new Minecraft line adds its branch to this list. Do not open pull requests or leave feature branches on GitHub unless the user asks.
-
-Do not confuse implementation completion with release readiness.
-
-## 6. Context continuity
-
-For multi-step, cross-package, high-risk, or likely multi-session work, maintain one record under `docs/tasks/` using `docs/tasks/TEMPLATE.md`.
-
-- Record decisions, acceptance criteria, affected files, verification, blockers, and exact next action.
-- Record actual delegated agents and significant results without copying full transcripts.
-- Record milestone approval state explicitly.
-- Checkpoint after meaningful phases, at milestone boundaries, before pauses or model changes, and near two-thirds of useful context consumption.
-- On resume, read the record and verify Git state and relevant diffs.
-- Recover the next pending milestone without relying on previous chat history.
-- Reapply this permanent multi-agent policy when resuming.
-- Reuse existing records; avoid duplicate plans and ledgers.
-- Never store secrets, credentials, personal data, or large logs in task records.
-
-### 6.1. Session per milestone
-
-For performance and cost, each milestone (and each large phase or task inside one) runs in its own chat session.
-
-- At the end of every phase, milestone, or task, record explicitly in the task record what changed in the plan: scope moved in or out, re-ordered steps, narrowed or adjusted exit criteria, and new decisions, each with its reason.
-- Then record the exact next action, so a fresh session can resume from the record and Git state alone.
-- After closing a milestone, do not start the next one in the same chat. Recommend opening a new chat and give the user a short resume phrase (e.g. "retomar o Marco 4 da v1.0.0").
-- Inside a milestone, recommend a new chat at a phase boundary when the conversation has grown long or changed topic several times.
-
-## 7. Model and reasoning selection
-
-Select the least expensive capable model and reasoning effort for each task, based on actual complexity and risk.
-
-Only recommend models verified as available in the current environment.
-
-Operational preferences, when available:
-
-- Primary agent: orchestration and integration on Sonnet 5.5 at medium effort by default (Claude Code main session); raise to high for difficult multi-agent integration, subtle bugs (networking, persistence, handshake), or milestone planning.
-- Escalate the primary session to Opus 5.5 at medium effort only for Milestone 1 planning of large updates, architectural decisions, or problems Sonnet could not resolve.
-- Subagents (investigator, implementer, reviewer, and any general-purpose helper) use only Haiku 5.5 at high effort (standing user decision, 2026-10-29). Never escalate a subagent to Sonnet, Opus or another model, and never set a `model` or `effort` override on a delegation call; compensate with narrower scopes, explicit acceptance criteria and more careful verification by the orchestrator. Higher models and efforts apply only to the primary session, which the user changes with `/model` and `/effort`.
-- Investigation, isolated implementation, and independent review: delegate to the matching subagent at its configured model and effort.
-- Adaptive routing (standing user authorization, 2026-10-28, narrowed 2026-10-29): subagents stay fixed at Haiku 5.5 high; the primary session's model and effort change only through the user.
-
-Use low effort for mechanical work, medium for ordinary tasks, and high for difficult or risky tasks. Higher efforts require model support and concrete justification.
-
-Adaptive routing rules:
-
-- Subagents: never set `model`/`effort` on the delegation call; the `.claude/agents/*.md` defaults (Haiku 5.5, high) always apply.
-- Primary session: its model and effort can only be changed by the user (`/model`, `/effort`). Recommend the change at the start of the task or milestone, and include the recommended model/effort in every resume phrase for a new chat.
-- Lower the level for mechanical or low-risk work; raise it only for concrete complexity or risk, never by default.
-- State each change and its reason in the stage report and record it in the task record.
-- Keep a durable checkpoint before switching models.
-
-State model/effort routing at the start when actionable.
-
-Every final handoff must include a concise **Agent recommendation** explaining the available model and effort appropriate to the task, whether a lighter option would have sufficed, and whether escalation occurred. If availability is unknown, state that rather than guessing.
-
-## 8. Documentation and language
-
-Communicate with the user in Portuguese.
-
-Keep in-game text, README, release notes, changelogs, and code comments in English, following `project-workflow.mdc`.
-
-Use the official CurseForge page and official changelogs as the source of truth for released features. Use repository evidence for current implementation details.
-
-Keep this file concise. Put technical invariants in `.cursor/rules/`, update procedures in the skill, specialized behavior in agent configuration files, and execution history in task records.
-
-Create nested `CLAUDE.md` files only for genuinely different, durable subtree workflows.
+- Overrides the global approval rule for effort: Sonnet 5.5 at medium effort by default. High for difficult multi-agent integration, subtle bugs (networking, persistence, handshake) or milestone planning. Opus 5.5 at medium only for first-milestone planning of large updates, architectural decisions or problems Sonnet could not solve. Pick effort by actual complexity and risk; lower it for mechanical or low-risk work.
+- Only the user changes it (`/model`, `/effort`): recommend at the start of the task or milestone, only models verified as available, state why, record it in the task record and checkpoint before switching.
+- Every final handoff has a short **Agent recommendation**: model and effort that fit, whether a lighter option would have been enough, and whether escalation happened.
